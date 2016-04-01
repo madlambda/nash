@@ -97,7 +97,9 @@ func main() {
 
 		fmt.Printf("Child uts.nodename = %s\n", getstr(uts.Nodename))
 
-		time.Sleep(100)
+		// this holds the namespace open and allow other process to
+		// join this namespace with setns
+		time.Sleep(60 * time.Second) 
 	}
 	
 	os.Exit(0)
