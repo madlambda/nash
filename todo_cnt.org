@@ -1,1 +1,2 @@
 * Cnt
+** TODO Test the use of runtime.LockOSThread() to allow some namespace syscalls in Go.

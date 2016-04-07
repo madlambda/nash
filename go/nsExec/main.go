@@ -1,14 +1,19 @@
+// nsExec executes a command inside an existent namespace using
+// the setns(2) syscall.
+
 // Linux don't allow multithreaded applications to enter a namespace, then
-// it's impossible to use Go for such task. The only way is defining a cgo
-// constructor to run before the runtime starts their threads and invoke
-// the setns there. But we have the problem of need the command line
-// arguments... The trick used was read the /proc/self/cmdline :D
-// Thanks to @minux on #go-nuts.
+// it's impossible to use Go for such task because when your Go init function
+// is called the runtime already spawned some threads for runtime (gc, scheduler,
+// etc). The only way is defining a cgo constructor to run before the runtime
+// starts their threads and invoke the setns there. But we have the problem
+// of need the command line arguments... The trick used was read the
+// /proc/self/cmdline :D
+// Thanks to @minux on #go-nuts for the /proc/self/cmdline idea!
 package main
 
 import (
-	"os"
 	"fmt"
+	"os"
 	"os/exec"
 )
 
@@ -63,19 +68,19 @@ __attribute__((constructor)) void init() {
 
     printf("Nsfile: %s\n", nsfile);
 
-    fd = open(nsfile, O_RDONLY);   
+    fd = open(nsfile, O_RDONLY);
     if (fd == -1) {
         printf("Fail: nsfile\n");
         exit(1);
     }
-    
+
     if (setns(fd, 0) == -1) {
         printf("Fail: setns - requires root\n");
         exit(1);
     }
 }
 */
-import "C" 
+import "C"
 
 func main() {
 	c := exec.Command(os.Args[2])
@@ -86,5 +91,5 @@ func main() {
 
 	if err := c.Run(); err != nil {
 		fmt.Printf(err.Error())
-	}	
+	}
 }
