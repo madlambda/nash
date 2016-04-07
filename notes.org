@@ -1,11 +1,11 @@
 #+TITLE: Namespace differences between Linux and Plan9
 
-| Plan9    | Linux                     | Meaning                                                    |
-|----------+---------------------------+------------------------------------------------------------|
-| RFPROC   | no flag, is default       | A new process is created                                   |
-| RFNAMEG  | CLONE_NEWNS & CLONE_FILES | The new process inherits a copy of the parent's name space |
-| RFCNAMEG | CLONE_NEWNS (via unshare) | the new process starts with a clean namespace              |
-| RFNOMNT  | Unimplemented             | Mounts into the new name space are disallowed              |
-| RFNOWAIT | Unimplemented             | Dissociate child from the parent process                   |
-| RFENVG   | Unimplemented             | Environment variables are copied                           |
-| RFCENVG  | Unimplemented             | New process starts with an empty environment               |
+| Plan9    | Linux                                                       | Meaning                                                    |
+|----------+-------------------------------------------------------------+------------------------------------------------------------|
+| RFPROC   | no flag, is default                                         | A new process is created                                   |
+| RFNAMEG  | NEWNS, NEWIPC, NEWUTS, NEWPID, NEWNET, NEWUSER, CLONE_FILES | The new process inherits a copy of the parent's name space |
+| RFCNAMEG | CLONE_NEWNS (via unshare)                                   | the new process starts with a clean namespace              |
+| RFNOMNT  | Unimplemented                                               | Mounts into the new name space are disallowed              |
+| RFNOWAIT | Unimplemented                                               | Dissociate child from the parent process                   |
+| RFENVG   | Unimplemented                                               | Environment variables are copied                           |
+| RFCENVG  | Unimplemented                                               | New process starts with an empty environment               |
