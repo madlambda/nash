@@ -5,7 +5,7 @@
 // Go has serious problems with fork, exec, and clone syscalls because
 // of the runtime threads. The idea to implement the same behaviour of the
 // C version was using os.Exec'ing the same program passing a special argument
-// in the end of argument list. This idea was stolen by R. Minnich
+// in the end of argument list. This idea was stolen of R. Minnich
 // u-root project.
 package main
 
