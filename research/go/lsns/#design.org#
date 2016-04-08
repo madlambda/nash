@@ -1,0 +1,16 @@
+#+TITLE: Design
+
+/Lsns/ walks the process file system (/proc) and build a tree
+representing the operating system namespace tree.
+
+#+BEGIN_SRC ditaa :file design.png
+
+     /-----------------\
+     | user:4026531837 |
+     | Pid: 
+     \-----------------/
+#+END_SRC
+
+#+RESULTS:
+[[file:design.png]]
+
