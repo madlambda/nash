@@ -65,7 +65,7 @@ func TestSimpleCommand(t *testing.T) {
 			val: "hello world",
 		},
 	}
-	
+
 	testTable("testSimpleCommand", `echo "hello world"`, expected, t)
 }
 

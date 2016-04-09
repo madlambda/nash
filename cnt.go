@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 )
 
+// Execute the cnt file at given path
 func Execute(path string) error {
 	content, err := ioutil.ReadFile(path)
 
@@ -20,4 +21,3 @@ func Execute(path string) error {
 
 	return nil
 }
-

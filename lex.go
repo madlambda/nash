@@ -37,28 +37,28 @@ const (
 	itemComment
 	itemCommand // alphanumeric identifier that's not a keyword
 	itemArg
-	itemLeftBlock // {
+	itemLeftBlock  // {
 	itemRightBlock // }
 	itemString
 
 	itemKeyword // used only to delimit the keywords
-//	itemIf
-//	itemFor
+	//	itemIf
+	//	itemFor
 	itemRfork
 	itemRforkFlags
 )
 
 const (
-	spaceChars      = " \t\r\n"
+	spaceChars = " \t\r\n"
 
-	rforkName = "rfork"
+	rforkName  = "rfork"
 	rforkFlags = "fupnsmi"
 )
 
 var (
 	key = map[string]itemType{
-//		"if": itemIf,
-//		"for": itemFor,
+		//		"if": itemIf,
+		//		"for": itemFor,
 		"rfork": itemRfork,
 	}
 )
@@ -167,8 +167,8 @@ func lex(name, input string) (*lexer, chan item) {
 
 func lexStart(l *lexer) stateFn {
 	r := l.next()
-	
-	switch  {
+
+	switch {
 	case r == eof:
 		return nil
 
@@ -178,7 +178,7 @@ func lexStart(l *lexer) stateFn {
 	case isEndOfLine(r):
 		l.ignore()
 		return lexStart
-		
+
 	case r == '#':
 		return lexComment
 
@@ -238,7 +238,7 @@ func lexInsideRforkArgs(l *lexer) stateFn {
 	if !l.accept(rforkFlags) {
 		return l.errorf("invalid rfork argument")
 	}
-	
+
 	l.acceptRun(rforkFlags)
 
 	l.emit(itemRforkFlags)
@@ -273,7 +273,7 @@ func lexInsideCommand(l *lexer) stateFn {
 }
 
 func lexQuoteArg(l *lexer) stateFn {
-	for {		
+	for {
 		r := l.next()
 
 		if r != '"' && r != eof {
@@ -315,7 +315,7 @@ func lexArg(l *lexer) stateFn {
 		break
 	}
 
-	return lexInsideCommand			
+	return lexInsideCommand
 }
 
 func lexComment(l *lexer) stateFn {
@@ -350,7 +350,7 @@ func lexSpace(l *lexer) stateFn {
 func isSpace(r rune) bool {
 	return r == ' ' || r == '\t'
 }
-	
+
 // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
 func isAlphaNumeric(r rune) bool {
 	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)

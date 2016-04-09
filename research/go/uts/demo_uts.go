@@ -12,9 +12,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"syscall"
 	"time"
-	"os/exec"
 )
 
 // Converts a C string into a Go string
@@ -34,7 +34,7 @@ func getstr(cstr [65]int8) string {
 
 func main() {
 	var err error
-	
+
 	if len(os.Args) < 2 {
 		fmt.Printf("Usage: %s <name-of-uts>\n", os.Args[0])
 		fmt.Printf("%+v\n", os.Args)
@@ -46,7 +46,7 @@ func main() {
 	if a[len(a)-1][0] != '#' {
 		// This is the parent code
 		a = append(a, "#")
-		
+
 		c := exec.Command(a[0], a[1:]...)
 
 		c.SysProcAttr = &syscall.SysProcAttr{
@@ -99,8 +99,8 @@ func main() {
 
 		// this holds the namespace open and allow other process to
 		// join this namespace with setns
-		time.Sleep(60 * time.Second) 
+		time.Sleep(60 * time.Second)
 	}
-	
+
 	os.Exit(0)
 }
