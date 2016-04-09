@@ -1,0 +1,26 @@
+language: go
+sudo: required
+
+services:
+  - docker
+
+go:
+  - 1.6
+  - 1.5
+install:
+  - go get -d -t -v ./...
+  - go build
+script:
+  - go get github.com/axw/gocov/gocov
+  - go get github.com/mattn/goveralls
+  - go get github.com/golang/lint/golint
+  - go get golang.org/x/tools/cmd/cover
+  - hack/check.sh
+#  - goveralls -coverprofile=coverage.txt -service=travis-ci
+before_install:
+  - sudo pip install codecov
+after_success:
+  codecov
+notifications:
+  email:
+    - tiago.natel@neoway.com.br
