@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -34,20 +35,35 @@ type (
 const (
 	itemError itemType = iota // error ocurred
 	itemEOF
-	itemText
+	itemComment
+	itemCommand // alphanumeric identifier that's not a keyword
+	itemArg
+	itemLeftBlock // {
+	itemRightBlock // }
+	itemString
+
+	itemKeyword // used only to delimit the keywords
 	itemIf
 	itemFor
 	itemRfork
 )
 
 const (
-	rforkMeta = "rfork"
+	spaceChars      = " \t\r\n"
+)
+
+var (
+	key = map[string]itemType{
+		"if": itemIf,
+		"for": itemFor,
+		"rfork": itemRfork,
+	}
 )
 
 func (i item) String() string {
 	switch i.typ {
 	case itemError:
-		return i.val
+		return "Error: " + i.val
 	case itemEOF:
 		return "EOF"
 	}
@@ -61,7 +77,7 @@ func (i item) String() string {
 
 // run lexes the input by executing state functions until the state is nil
 func (l *lexer) run() {
-	for state := lexText; state != nil; {
+	for state := lexStart; state != nil; {
 		state = state(l)
 	}
 
@@ -129,6 +145,11 @@ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 	return nil // finish the state machine
 }
 
+func (l *lexer) String() string {
+	return fmt.Sprintf("Lexer:\n\tPos: %d\n\tStart: %d\n",
+		l.pos, l.start)
+}
+
 func lex(name, input string) (*lexer, chan item) {
 	l := &lexer{
 		name:  name,
@@ -141,39 +162,152 @@ func lex(name, input string) (*lexer, chan item) {
 	return l, l.items
 }
 
-func lexRforkMeta(l *lexer) stateFn {
-	l.emit(itemRfork)
+func lexStart(l *lexer) stateFn {
+	r := l.next()
+	
+	switch  {
+	case r == eof:
+		return nil
 
-	return nil
+	case isSpace(r):
+		return lexSpace
+
+	case isEndOfLine(r):
+		l.ignore()
+		return lexStart
+		
+	case r == '#':
+		return lexComment
+
+	case isAlphaNumeric(r):
+		return lexIdentifier
+
+	default:
+		return l.errorf("Unrecognized character in action: %#U", r)
+	}
+
+	panic("Unreachable code")
 }
 
-func lexText(l *lexer) stateFn {
+func lexIdentifier(l *lexer) stateFn {
 	for {
-		if strings.HasPrefix(l.input[l.pos:], rforkMeta) {
+		r := l.next()
+
+		if isAlphaNumeric(r) {
+			continue // absorb
+		}
+
+		l.backup() // pos is now ahead of the alphanum
+
+		word := l.input[l.start:l.pos]
+
+		switch {
+		case key[word] > itemKeyword:
+			l.emit(key[word])
+		default:
+			l.emit(itemCommand)
+			return lexInsideCommand
+		}
+
+		break
+	}
+
+	return lexStart
+}
+
+func lexInsideCommand(l *lexer) stateFn {
+	r := l.next()
+
+	switch {
+	case isSpace(r):
+		l.ignore()
+		return lexSpaceArg
+	case isEndOfLine(r):
+		l.ignore()
+		return lexStart
+	case r == '"':
+		l.ignore()
+		return lexQuoteArg
+	}
+
+	return lexArg
+}
+
+func lexQuoteArg(l *lexer) stateFn {
+	for {		
+		r := l.next()
+
+		if r != '"' && r != eof {
+			continue
+		}
+
+		if r == eof {
+			return l.errorf("Quoted string not finished: %s", l.input[l.start:])
+		}
+
+		l.backup()
+		l.emit(itemString)
+		l.next()
+		l.ignore()
+		break
+	}
+
+	return lexInsideCommand
+}
+
+func lexArg(l *lexer) stateFn {
+	for {
+		r := l.next()
+
+		if r == eof {
 			if l.pos > l.start {
-				l.emit(itemText)
+				l.emit(itemArg)
 			}
 
-			return lexRforkMeta // next state
+			return nil
 		}
 
-		if l.next() == eof {
-			break
+		if isAlphaNumeric(r) {
+			continue
+		}
+
+		l.backup()
+		l.emit(itemArg)
+		break
+	}
+
+	return lexInsideCommand			
+}
+
+func lexComment(l *lexer) stateFn {
+	for {
+		r := l.next()
+
+		if isEndOfLine(r) {
+			l.backup()
+			l.emit(itemComment)
+			return lexStart
+		}
+
+		if r == eof {
+			return nil
 		}
 	}
 
-	// correctly reached EOF
-	if l.pos > l.start {
-		l.emit(itemText)
-	}
+	panic("not reached")
+}
 
-	l.emit(itemEOF)
-	return nil
+func lexSpaceArg(l *lexer) stateFn {
+	ignoreSpaces(l)
+	return lexInsideCommand
+}
+
+func lexSpace(l *lexer) stateFn {
+	ignoreSpaces(l)
+	return lexStart
 }
 
 func Execute(path string) error {
-	fmt.Printf("Executing %s...\n", path)
-
 	content, err := ioutil.ReadFile(path)
 
 	if err != nil {
@@ -187,4 +321,32 @@ func Execute(path string) error {
 	}
 
 	return nil
+}
+
+// isSpace reports whether r is a space character.
+func isSpace(r rune) bool {
+	return r == ' ' || r == '\t'
+}
+	
+// isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
+func isAlphaNumeric(r rune) bool {
+	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+// isEndOfLine reports whether r is an end-of-line character.
+func isEndOfLine(r rune) bool {
+	return r == '\r' || r == '\n'
+}
+
+func ignoreSpaces(l *lexer) {
+	for {
+		r := l.next()
+
+		if !isSpace(r) {
+			break
+		}
+	}
+
+	l.backup()
+	l.ignore()
 }
