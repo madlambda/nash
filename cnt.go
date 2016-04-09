@@ -43,19 +43,23 @@ const (
 	itemString
 
 	itemKeyword // used only to delimit the keywords
-	itemIf
-	itemFor
+//	itemIf
+//	itemFor
 	itemRfork
+	itemRforkFlags
 )
 
 const (
 	spaceChars      = " \t\r\n"
+
+	rforkName = "rfork"
+	rforkFlags = "fupnsmi"
 )
 
 var (
 	key = map[string]itemType{
-		"if": itemIf,
-		"for": itemFor,
+//		"if": itemIf,
+//		"for": itemFor,
 		"rfork": itemRfork,
 	}
 )
@@ -182,6 +186,10 @@ func lexStart(l *lexer) stateFn {
 	case isAlphaNumeric(r):
 		return lexIdentifier
 
+	case r == '}':
+		l.emit(itemRightBlock)
+		return lexStart
+
 	default:
 		return l.errorf("Unrecognized character in action: %#U", r)
 	}
@@ -197,19 +205,51 @@ func lexIdentifier(l *lexer) stateFn {
 			continue // absorb
 		}
 
-		l.backup() // pos is now ahead of the alphanum
-
-		word := l.input[l.start:l.pos]
-
-		switch {
-		case key[word] > itemKeyword:
-			l.emit(key[word])
-		default:
-			l.emit(itemCommand)
-			return lexInsideCommand
-		}
-
 		break
+	}
+
+	l.backup() // pos is now ahead of the alphanum
+
+	word := l.input[l.start:l.pos]
+
+	if word == rforkName {
+		l.emit(itemRfork)
+		return lexInsideRforkArgs
+	}
+
+	l.emit(itemCommand)
+	return lexInsideCommand
+}
+
+// Rfork flags:
+// c = create new process -> clone(2)
+// u = user namespace
+// p = pid namespace
+// n = network namespace
+// s = uts namespace
+// m = mount namespace
+// i = ipc namespace
+func lexInsideRforkArgs(l *lexer) stateFn {
+	// parse the rfork parameters
+
+	if l.accept(" \t") {
+		ignoreSpaces(l)
+	}
+
+	if !l.accept(rforkFlags) {
+		return l.errorf("invalid rfork argument")
+	}
+	
+	l.acceptRun(rforkFlags)
+
+	l.emit(itemRforkFlags)
+
+	if l.accept(" \t") {
+		ignoreSpaces(l)
+	}
+
+	if l.accept("{") {
+		l.emit(itemLeftBlock)
 	}
 
 	return lexStart

@@ -108,3 +108,51 @@ func TestVariousCommands(t *testing.T) {
 
 	testTable("testVariouscommands", content, expected, t)
 }
+
+func TestRfork(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemRfork,
+			val: "rfork",
+		},
+		item{
+			typ: itemRforkFlags,
+			val: "u",
+		},
+	}
+
+	testTable("testRfork", "rfork u\n", expected, t)
+
+	expected = []item{
+		item{
+			typ: itemRfork,
+			val: "rfork",
+		},
+		item{
+			typ: itemRforkFlags,
+			val: "usnm",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemString,
+			val: "inside namespace :)",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+	}
+
+	testTable("testRforkWithBlock", `
+            rfork usnm {
+                echo "inside namespace :)"
+            }
+        `, expected, t)
+}
