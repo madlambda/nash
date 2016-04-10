@@ -18,6 +18,7 @@ type (
 		content string
 		l *lexer
 		tok *item // token saved for lookahead
+		openblocks int
 	}
 )
 
@@ -60,6 +61,14 @@ func (p *Parser) backup(it item) error {
 	p.tok = &it
 
 	return nil
+}
+
+func (p *Parser) ignore() {
+	if p.tok != nil {
+		p.tok = nil
+	} else {
+		<-p.l.items
+	}
 }
 
 func (p *Parser) peek() item {
@@ -115,6 +124,22 @@ func (p *Parser) parseRfork() (Node, error) {
 
 	n.SetFlags(NewArg(it.pos, it.val))
 
+	it = p.peek()
+
+	if it.typ == itemLeftBlock {
+		p.ignore() // ignore lookaheaded symbol
+		p.openblocks++
+		
+		n.tree = NewTree("rfork block")
+		r, err := p.parseBlock()
+
+		if err != nil {
+			return nil, err
+		}
+
+		n.tree.Root = r
+	}
+
 	// TODO: block
 
 	return n, nil
@@ -158,6 +183,19 @@ func (p *Parser) parseBlock() (*ListNode, error)  {
 			return ln, nil
 		case itemError:
 			return nil, errors.New(it.val)
+		case itemLeftBlock:
+			p.ignore()
+
+			return nil, errors.New("Blocks are only allowed inside rfork")			
+		case itemRightBlock:
+			p.ignore()
+
+			if p.openblocks <= 0 {
+				return nil, fmt.Errorf("No block open for close")
+			}
+
+			p.openblocks--
+			return ln, nil 
 		default:
 			n, err := p.parseStatement()
 

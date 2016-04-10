@@ -4,6 +4,7 @@ type (
 	Node interface {
 		Type() NodeType
 		Position() Pos
+		Tree() *Tree
 	}
 
 	NodeType int
@@ -34,6 +35,7 @@ type (
 		NodeType
 		Pos
 		arg Arg
+		tree *Tree
 	}
 
 	CommentNode struct {
@@ -75,6 +77,8 @@ func (l *ListNode) Push(n Node) {
 	l.Nodes = append(l.Nodes, n)
 }
 
+func (l *ListNode) Tree() *Tree { return nil }
+
 func NewCommandNode(pos Pos, name string) *CommandNode {
 	return &CommandNode{
 		NodeType: NodeCommand,
@@ -96,6 +100,8 @@ func (n *CommandNode) SetArgs(args []Arg) {
 	n.args = args
 }
 
+func (n *CommandNode) Tree() *Tree { return nil }
+
 func NewRforkNode(pos Pos) *RforkNode {
 	return &RforkNode{
 		NodeType: NodeRfork,
@@ -107,6 +113,10 @@ func (n *RforkNode) SetFlags(a Arg) {
 	n.arg = a
 }
 
+func (n *RforkNode) Tree() *Tree {
+	return n.tree
+}
+
 func NewArg(pos Pos, val string) Arg {
 	return Arg{
 		NodeType: NodeArg,
@@ -115,6 +125,8 @@ func NewArg(pos Pos, val string) Arg {
 	}
 }
 
+func (n Arg) Tree() *Tree { return nil }
+
 func NewCommentNode(pos Pos, val string) *CommentNode {
 	return &CommentNode{
 		NodeType: NodeComment,
@@ -122,3 +134,5 @@ func NewCommentNode(pos Pos, val string) *CommentNode {
 		val: val,
 	}
 }
+
+func (n *CommentNode) Tree() *Tree { return nil }
