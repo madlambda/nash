@@ -1,23 +1,27 @@
 package cnt
 
 type (
+	// Node represents nodes in the grammar
 	Node interface {
 		Type() NodeType
 		Position() Pos
 		Tree() *Tree
 	}
 
+	// NodeType is the types of grammar
 	NodeType int
 
+	// ListNode is the block
 	ListNode struct {
 		NodeType
 		Pos
 		Nodes []Node
 	}
 
+	// Pos is the position of a node in file
 	Pos int
 
-	// cnt node types
+	// CommandNode is a node for commands
 	CommandNode struct {
 		NodeType
 		Pos
@@ -25,25 +29,27 @@ type (
 		args []Arg
 	}
 
+	// Arg is a command argument
 	Arg struct {
 		NodeType
 		Pos
 		val string
 	}
 
+	// RforkNode is a node for rfork
 	RforkNode struct {
 		NodeType
 		Pos
-		arg Arg
+		arg  Arg
 		tree *Tree
 	}
 
+	// CommentNode is the node for comments
 	CommentNode struct {
 		NodeType
 		Pos
 		val string
 	}
-		
 )
 
 const (
@@ -55,20 +61,22 @@ const (
 	NodeComment
 )
 
+// Position returns the position of the node in file
 func (p Pos) Position() Pos {
 	return p
 }
 
+// Type returns the type of the node
 func (t NodeType) Type() NodeType {
 	return t
 }
 
+// NewListNode creates a new block
 func NewListNode() *ListNode {
-	return &ListNode{
-		
-	}
+	return &ListNode{}
 }
 
+// Push adds a new node for a block of nodes
 func (l *ListNode) Push(n Node) {
 	if l.Nodes == nil {
 		l.Nodes = make([]Node, 0, 1024)
@@ -79,12 +87,13 @@ func (l *ListNode) Push(n Node) {
 
 func (l *ListNode) Tree() *Tree { return nil }
 
+// NewCommandNode creates a new node for commands
 func NewCommandNode(pos Pos, name string) *CommandNode {
 	return &CommandNode{
 		NodeType: NodeCommand,
-		Pos: pos,
-		name: name,
-		args: make([]Arg, 0, 1024),
+		Pos:      pos,
+		name:     name,
+		args:     make([]Arg, 0, 1024),
 	}
 }
 
@@ -105,7 +114,7 @@ func (n *CommandNode) Tree() *Tree { return nil }
 func NewRforkNode(pos Pos) *RforkNode {
 	return &RforkNode{
 		NodeType: NodeRfork,
-		Pos: pos,
+		Pos:      pos,
 	}
 }
 
@@ -120,8 +129,8 @@ func (n *RforkNode) Tree() *Tree {
 func NewArg(pos Pos, val string) Arg {
 	return Arg{
 		NodeType: NodeArg,
-		Pos: pos,
-		val: val,
+		Pos:      pos,
+		val:      val,
 	}
 }
 
@@ -130,8 +139,8 @@ func (n Arg) Tree() *Tree { return nil }
 func NewCommentNode(pos Pos, val string) *CommentNode {
 	return &CommentNode{
 		NodeType: NodeComment,
-		Pos: pos,
-		val: val,
+		Pos:      pos,
+		val:      val,
 	}
 }
 

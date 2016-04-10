@@ -95,7 +95,7 @@ func (l *lexer) emit(t itemType) {
 		val: l.input[l.start:l.pos],
 		pos: Pos(l.start),
 	}
-	
+
 	l.start = l.pos
 }
 
@@ -156,7 +156,7 @@ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 		val: fmt.Sprintf(format, args...),
 		pos: Pos(l.start),
 	}
-	
+
 	return nil // finish the state machine
 }
 

@@ -14,19 +14,19 @@ type (
 
 	// Parser parses an cnt file
 	Parser struct {
-		name string // filename or name of the buffer
-		content string
-		l *lexer
-		tok *item // token saved for lookahead
+		name       string // filename or name of the buffer
+		content    string
+		l          *lexer
+		tok        *item // token saved for lookahead
 		openblocks int
 	}
 )
 
 func NewParser(name, content string) *Parser {
 	return &Parser{
-		name: name,
+		name:    name,
 		content: content,
-		l: lex(name, content),
+		l:       lex(name, content),
 	}
 }
 
@@ -129,7 +129,7 @@ func (p *Parser) parseRfork() (Node, error) {
 	if it.typ == itemLeftBlock {
 		p.ignore() // ignore lookaheaded symbol
 		p.openblocks++
-		
+
 		n.tree = NewTree("rfork block")
 		r, err := p.parseBlock()
 
@@ -170,9 +170,9 @@ func (p *Parser) parseStatement() (Node, error) {
 	return nil, fmt.Errorf("Unexpected token parsing statement '%d'", it.typ)
 }
 
-func (p *Parser) parseBlock() (*ListNode, error)  {
+func (p *Parser) parseBlock() (*ListNode, error) {
 	ln := NewListNode()
-	
+
 	for {
 		it := p.peek()
 
@@ -186,7 +186,7 @@ func (p *Parser) parseBlock() (*ListNode, error)  {
 		case itemLeftBlock:
 			p.ignore()
 
-			return nil, errors.New("Blocks are only allowed inside rfork")			
+			return nil, errors.New("Blocks are only allowed inside rfork")
 		case itemRightBlock:
 			p.ignore()
 
@@ -195,7 +195,7 @@ func (p *Parser) parseBlock() (*ListNode, error)  {
 			}
 
 			p.openblocks--
-			return ln, nil 
+			return ln, nil
 		default:
 			n, err := p.parseStatement()
 
@@ -215,4 +215,3 @@ func NewTree(name string) *Tree {
 		Name: name,
 	}
 }
-
