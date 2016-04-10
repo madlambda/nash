@@ -16,10 +16,11 @@ func TestTreeRawCreation(t *testing.T) {
 	tr := NewTree("creating a tree by hand")
 
 	ln := NewListNode()
-	rfargs := make([]Arg, 1)
-	rfargs[0] = NewArg(6, "unp")
-	
-	ln.Push(NewCommandNode(0, "rfork", rfargs))
+	rfarg := NewArg(6, "unp")
+
+	r := NewRforkNode(0)
+	r.SetFlags(rfarg)
+	ln.Push(r)
 
 	tr.Root = ln
 }

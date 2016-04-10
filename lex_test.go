@@ -49,6 +49,9 @@ func TestShebangOnly(t *testing.T) {
 			typ: itemComment,
 			val: "#!/bin/cnt",
 		},
+		item{
+			typ: itemEOF,
+		},
 	}
 
 	testTable("testShebangonly", "#!/bin/cnt\n", expected, t)
@@ -63,6 +66,9 @@ func TestSimpleCommand(t *testing.T) {
 		item{
 			typ: itemString,
 			val: "hello world",
+		},
+		item{
+			typ: itemEOF,
 		},
 	}
 
@@ -104,6 +110,9 @@ func TestVariousCommands(t *testing.T) {
 			typ: itemArg,
 			val: "/proc",
 		},
+		item{
+			typ: itemEOF,
+		},
 	}
 
 	testTable("testVariouscommands", content, expected, t)
@@ -118,6 +127,9 @@ func TestRfork(t *testing.T) {
 		item{
 			typ: itemRforkFlags,
 			val: "u",
+		},
+		item{
+			typ: itemEOF,
 		},
 	}
 
@@ -147,6 +159,9 @@ func TestRfork(t *testing.T) {
 		item{
 			typ: itemRightBlock,
 			val: "}",
+		},
+		item{
+			typ: itemEOF,
 		},
 	}
 
