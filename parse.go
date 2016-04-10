@@ -1,5 +1,10 @@
 package cnt
 
+import (
+	"errors"
+	"fmt"
+)
+
 // Tree is the AST
 type (
 	Tree struct {
@@ -31,7 +36,10 @@ func (p *Parser) Parse() (*Tree, error) {
 		return nil, err
 	}
 
-	return root, nil
+	tr := NewTree(p.name)
+	tr.Root = root
+
+	return tr, nil
 }
 
 func (p *Parser) next() item {
@@ -50,15 +58,17 @@ func (p *Parser) backup(it item) error {
 	}
 
 	p.tok = &it
+
+	return nil
 }
 
 func (p *Parser) peek() item {
 	i := p.next()
-	p.tok = i
+	p.tok = &i
 	return i
 }
 
-func (p *Parser) parseCommand() (*Node, error) {
+func (p *Parser) parseCommand() (Node, error) {
 	it := p.next()
 
 	// paranoia check
@@ -88,39 +98,39 @@ func (p *Parser) parseCommand() (*Node, error) {
 	return nil, errors.New("unreachable")
 }
 
-func (p *Parser) parseRfork() (*Node, error) {
+func (p *Parser) parseRfork() (Node, error) {
 	it := p.next()
 
-	if it.tok != itemRfork {
+	if it.typ != itemRfork {
 		return nil, fmt.Errorf("Invalid command: %v", it)
 	}
 
-	n := NewRforkNode(it.pos, it.val)
+	n := NewRforkNode(it.pos)
 
 	it = p.next()
 
-	if it.tok != itemRforkFlags {
+	if it.typ != itemRforkFlags {
 		return nil, fmt.Errorf("rfork requires an argument.")
 	}
 
-	n.SetFlags(it.val)
+	n.SetFlags(NewArg(it.pos, it.val))
 
 	// TODO: block
 
 	return n, nil
 }
 
-func (p *Parser) parseComment() (*Node, error) {
+func (p *Parser) parseComment() (Node, error) {
 	it := p.next()
 
-	if it.tok != itemComment {
+	if it.typ != itemComment {
 		return nil, fmt.Errorf("Invalid comment: %v", it)
 	}
 
-	return NewCommentNode(it.pos, it.val)
+	return NewCommentNode(it.pos, it.val), nil
 }
 
-func (p *Parser) parseStatement() (*Node, error) {
+func (p *Parser) parseStatement() (Node, error) {
 	it := p.peek()
 
 	switch it.typ {
@@ -132,16 +142,18 @@ func (p *Parser) parseStatement() (*Node, error) {
 		return p.parseComment()
 	}
 
-	return nil, errors.New("Unexpected token '%v'", it)
+	return nil, fmt.Errorf("Unexpected token parsing statement '%d'", it.typ)
 }
 
-func (p *Parser) parseBlock() (*Node, error)  {
+func (p *Parser) parseBlock() (*ListNode, error)  {
 	ln := NewListNode()
 	
 	for {
 		it := p.peek()
 
 		switch it.typ {
+		case 0:
+			return ln, nil
 		case itemEOF:
 			return ln, nil
 		case itemError:
@@ -156,6 +168,8 @@ func (p *Parser) parseBlock() (*Node, error)  {
 			ln.Push(n)
 		}
 	}
+
+	return ln, nil
 }
 
 func NewTree(name string) *Tree {

@@ -28,8 +28,8 @@ func Execute(path string) error {
 
 	root := tr.Root
 
-	for node := range root.Nodes {
-		fmt.Printf("Node: %v\n", node)
+	for _, node := range root.Nodes {
+		fmt.Printf("Node: Type: %d, %v\n", node.Type(), node)
 	}
 
 	return nil

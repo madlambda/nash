@@ -4,7 +4,6 @@ type (
 	Node interface {
 		Type() NodeType
 		Position() Pos
-		tree() *Tree
 	}
 
 	NodeType int
@@ -12,7 +11,6 @@ type (
 	ListNode struct {
 		NodeType
 		Pos
-		tr *Tree
 		Nodes []Node
 	}
 
@@ -22,23 +20,37 @@ type (
 	CommandNode struct {
 		NodeType
 		Pos
-		tr *Tree
 		name string
 		args []Arg
 	}
 
 	Arg struct {
+		NodeType
 		Pos
 		val string
 	}
+
+	RforkNode struct {
+		NodeType
+		Pos
+		arg Arg
+	}
+
+	CommentNode struct {
+		NodeType
+		Pos
+		val string
+	}
+		
 )
 
 const (
-	NodeCommand NodeType = iota
+	NodeCommand NodeType = iota + 1
 	NodeArg
 	NodeString
 	NodeRfork
 	NodeRforkFlags
+	NodeComment
 )
 
 func (p Pos) Position() Pos {
@@ -65,10 +77,15 @@ func (l *ListNode) Push(n Node) {
 
 func NewCommandNode(pos Pos, name string) *CommandNode {
 	return &CommandNode{
+		NodeType: NodeCommand,
 		Pos: pos,
 		name: name,
 		args: make([]Arg, 0, 1024),
 	}
+}
+
+func (n *CommandNode) Nodes() []Node {
+	return make([]Node, 0, 0)
 }
 
 func (n *CommandNode) AddArg(a Arg) {
@@ -79,13 +96,29 @@ func (n *CommandNode) SetArgs(args []Arg) {
 	n.args = args
 }
 
+func NewRforkNode(pos Pos) *RforkNode {
+	return &RforkNode{
+		NodeType: NodeRfork,
+		Pos: pos,
+	}
+}
+
+func (n *RforkNode) SetFlags(a Arg) {
+	n.arg = a
+}
+
 func NewArg(pos Pos, val string) Arg {
 	return Arg{
+		NodeType: NodeArg,
 		Pos: pos,
 		val: val,
 	}
 }
 
-func (c *CommandNode) tree() *Tree {
-	return c.tr
+func NewCommentNode(pos Pos, val string) *CommentNode {
+	return &CommentNode{
+		NodeType: NodeComment,
+		Pos: pos,
+		val: val,
+	}
 }

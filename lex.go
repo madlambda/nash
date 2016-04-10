@@ -73,10 +73,10 @@ func (i item) String() string {
 	}
 
 	if len(i.val) > 10 {
-		return fmt.Sprintf("%.10q...", i.val)
+		return fmt.Sprintf("pos: %d, val: %.10q..., %s", i.pos, i.val)
 	}
 
-	return fmt.Sprintf("%q", i.val)
+	return fmt.Sprintf("pos: %d, val: %q", i.pos, i.val)
 }
 
 // run lexes the input by executing state functions until the state is nil
@@ -85,6 +85,7 @@ func (l *lexer) run() {
 		state = state(l)
 	}
 
+	l.emit(itemEOF)
 	close(l.items) // No more tokens will be delivered
 }
 
