@@ -4,21 +4,21 @@ import "fmt"
 import "testing"
 
 func testTable(name, content string, expected []item, t *testing.T) {
-	l, items := lex(name, content)
+	l := lex(name, content)
 
 	if l == nil {
 		t.Errorf("Failed to initialize lexer")
 		return
 	}
 
-	if items == nil {
+	if l.items == nil {
 		t.Errorf("Failed to initialize lexer")
 		return
 	}
 
 	result := make([]item, 0, 1024)
 
-	for i := range items {
+	for i := range l.items {
 		result = append(result, i)
 	}
 

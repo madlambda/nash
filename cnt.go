@@ -1,6 +1,7 @@
 package cnt
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 )
@@ -13,10 +14,22 @@ func Execute(path string) error {
 		return err
 	}
 
-	_, items := lex("cnt", string(content))
+	parser := NewParser(path, string(content))
 
-	for item := range items {
-		fmt.Printf("Token: %v\n", item)
+	tr, err := parser.Parse()
+
+	if err != nil {
+		return err
+	}
+
+	if tr.Root == nil {
+		return errors.New("nothing parsed")
+	}
+
+	root := tr.Root
+
+	for node := range root.Nodes {
+		fmt.Printf("Node: %v\n", node)
 	}
 
 	return nil
