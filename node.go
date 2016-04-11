@@ -53,11 +53,19 @@ type (
 )
 
 const (
+	// NodeCommand are command statements
 	NodeCommand NodeType = iota + 1
+	// NodeArg are nodes for command arguments
 	NodeArg
+	// NodeString are nodes for argument strings
 	NodeString
+
+	// NodeRfork are nodes for rfork command
 	NodeRfork
+	// NodeRforkFlags are nodes rfork flags
 	NodeRforkFlags
+
+	// NodeComment are nodes for comment
 	NodeComment
 )
 
@@ -85,6 +93,7 @@ func (l *ListNode) Push(n Node) {
 	l.Nodes = append(l.Nodes, n)
 }
 
+// Tree returns the tree for this node
 func (l *ListNode) Tree() *Tree { return nil }
 
 // NewCommandNode creates a new node for commands
@@ -97,20 +106,20 @@ func NewCommandNode(pos Pos, name string) *CommandNode {
 	}
 }
 
-func (n *CommandNode) Nodes() []Node {
-	return make([]Node, 0, 0)
-}
-
+// AddArg adds a new argument to the command
 func (n *CommandNode) AddArg(a Arg) {
 	n.args = append(n.args, a)
 }
 
+// SetArgs sets an array of args to command
 func (n *CommandNode) SetArgs(args []Arg) {
 	n.args = args
 }
 
+// Tree returns the child tree of node
 func (n *CommandNode) Tree() *Tree { return nil }
 
+// NewRforkNode creates a new node for rfork
 func NewRforkNode(pos Pos) *RforkNode {
 	return &RforkNode{
 		NodeType: NodeRfork,
@@ -118,14 +127,17 @@ func NewRforkNode(pos Pos) *RforkNode {
 	}
 }
 
+// SetFlags sets the rfork flags
 func (n *RforkNode) SetFlags(a Arg) {
 	n.arg = a
 }
 
+// Tree returns the child tree of node
 func (n *RforkNode) Tree() *Tree {
 	return n.tree
 }
 
+// NewArg creates a new argument
 func NewArg(pos Pos, val string) Arg {
 	return Arg{
 		NodeType: NodeArg,
@@ -134,8 +146,10 @@ func NewArg(pos Pos, val string) Arg {
 	}
 }
 
+// Tree returns the child tree of node
 func (n Arg) Tree() *Tree { return nil }
 
+// NewCommentNode creates a new node for comments
 func NewCommentNode(pos Pos, val string) *CommentNode {
 	return &CommentNode{
 		NodeType: NodeComment,
@@ -144,4 +158,5 @@ func NewCommentNode(pos Pos, val string) *CommentNode {
 	}
 }
 
+// Tree returns the child tree of node
 func (n *CommentNode) Tree() *Tree { return nil }

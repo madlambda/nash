@@ -5,8 +5,8 @@ import (
 	"fmt"
 )
 
-// Tree is the AST
 type (
+	// Tree is the AST
 	Tree struct {
 		Name string
 		Root *ListNode // top-level root of the tree.
@@ -22,6 +22,7 @@ type (
 	}
 )
 
+// NewParser creates a new parser
 func NewParser(name, content string) *Parser {
 	return &Parser{
 		name:    name,
@@ -30,6 +31,7 @@ func NewParser(name, content string) *Parser {
 	}
 }
 
+// Parse starts the parsing.
 func (p *Parser) Parse() (*Tree, error) {
 	root, err := p.parseBlock()
 
@@ -43,6 +45,8 @@ func (p *Parser) Parse() (*Tree, error) {
 	return tr, nil
 }
 
+// next returns the next item from lookahead buffer if not empty or
+// from the lexer
 func (p *Parser) next() item {
 	if p.tok != nil {
 		t := p.tok
@@ -53,6 +57,7 @@ func (p *Parser) next() item {
 	return <-p.l.items
 }
 
+// backup puts the item into the lookahead buffer
 func (p *Parser) backup(it item) error {
 	if p.tok != nil {
 		return errors.New("only one slot for backup/lookahead")
@@ -63,6 +68,7 @@ func (p *Parser) backup(it item) error {
 	return nil
 }
 
+// ignores the next item
 func (p *Parser) ignore() {
 	if p.tok != nil {
 		p.tok = nil
@@ -71,6 +77,7 @@ func (p *Parser) ignore() {
 	}
 }
 
+// peek gets but do not discards the next item (lookahead)
 func (p *Parser) peek() item {
 	i := p.next()
 	p.tok = &i
@@ -119,7 +126,7 @@ func (p *Parser) parseRfork() (Node, error) {
 	it = p.next()
 
 	if it.typ != itemRforkFlags {
-		return nil, fmt.Errorf("rfork requires an argument.")
+		return nil, fmt.Errorf("rfork requires an argument")
 	}
 
 	n.SetFlags(NewArg(it.pos, it.val))
@@ -210,6 +217,7 @@ func (p *Parser) parseBlock() (*ListNode, error) {
 	return ln, nil
 }
 
+// NewTree creates a new AST tree
 func NewTree(name string) *Tree {
 	return &Tree{
 		Name: name,
