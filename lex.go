@@ -32,6 +32,8 @@ type (
 	}
 )
 
+//go:generate stringer -type=itemType
+
 const (
 	itemError itemType = iota + 1 // error ocurred
 	itemEOF
@@ -73,7 +75,7 @@ func (i item) String() string {
 	}
 
 	if len(i.val) > 10 {
-		return fmt.Sprintf("pos: %d, val: %.10q..., %s", i.pos, i.val)
+		return fmt.Sprintf("(%s) - pos: %d, val: %.10q..., %s", i.typ, i.pos, i.val)
 	}
 
 	return fmt.Sprintf("pos: %d, val: %q", i.pos, i.val)

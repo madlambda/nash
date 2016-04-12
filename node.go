@@ -52,6 +52,8 @@ type (
 	}
 )
 
+//go:generate stringer -type=NodeType
+
 const (
 	// NodeCommand are command statements
 	NodeCommand NodeType = iota + 1
