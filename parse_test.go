@@ -97,6 +97,33 @@ func TestParseRfork(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("test rfork", "rfork u", expected, t)
+}
+
+func TestParseRforkWithBlock(t *testing.T) {
+	expected := NewTree("rfork with block")
+	ln := NewListNode()
+	rfork := NewRforkNode(0)
+	rfork.SetFlags(NewArg(6, "u"))
+
+	insideFork := NewCommandNode(14, "mount")
+	insideFork.AddArg(NewArg(20, "-t"))
+	insideFork.AddArg(NewArg(23, "proc"))
+	insideFork.AddArg(NewArg(28, "proc"))
+	insideFork.AddArg(NewArg(33, "/proc"))
+	bln := NewListNode()
+	bln.Push(insideFork)
+	subtree := NewTree("rfork")
+	subtree.Root = bln
+
+	rfork.SetBlock(subtree)
+
+	ln.Push(rfork)
+	expected.Root = ln
+
+	parserTestTable("rfork with block", `rfork u {
+    mount -t proc proc /proc
+}
+`, expected, t)
 
 }
 

@@ -135,6 +135,11 @@ func (n *RforkNode) SetFlags(a Arg) {
 	n.arg = a
 }
 
+// SetBlock sets the sub block of rfork
+func (n *RforkNode) SetBlock(t *Tree) {
+	n.tree = t
+}
+
 // Tree returns the child tree of node
 func (n *RforkNode) Tree() *Tree {
 	return n.tree
