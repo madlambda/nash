@@ -252,7 +252,7 @@ func lexInsideRforkArgs(l *lexer) stateFn {
 	}
 
 	if !l.accept(rforkFlags) {
-		return l.errorf("invalid rfork argument")
+		return l.errorf("invalid rfork argument: %s", string(l.peek()))
 	}
 
 	l.acceptRun(rforkFlags)

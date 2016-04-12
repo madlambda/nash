@@ -222,3 +222,21 @@ func TestRfork(t *testing.T) {
             }
         `, expected, t)
 }
+
+func TestRforkInvalidArguments(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemRfork,
+			val: "rfork",
+		},
+		item{
+			typ: itemError,
+			val: "invalid rfork argument: x",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testRfork", "rfork x\n", expected, t)
+}
