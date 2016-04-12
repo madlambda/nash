@@ -88,6 +88,18 @@ echo "hello"
 `, expected, t)
 }
 
+func TestParseRfork(t *testing.T) {
+	expected := NewTree("test rfork")
+	ln := NewListNode()
+	cmd1 := NewRforkNode(0)
+	cmd1.SetFlags(NewArg(6, "u"))
+	ln.Push(cmd1)
+	expected.Root = ln
+
+	parserTestTable("test rfork", "rfork u", expected, t)
+
+}
+
 func comparePosition(expected Pos, value Pos) (bool, error) {
 	if expected != value {
 		return false, fmt.Errorf("Position mismatch: %d != %d", expected, value)
@@ -96,7 +108,7 @@ func comparePosition(expected Pos, value Pos) (bool, error) {
 	return true, nil
 }
 
-func compareArgs(expected *Arg, value *Arg) (bool, error) {
+func compareArg(expected *Arg, value *Arg) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -152,7 +164,7 @@ func compareCommandNode(expected *CommandNode, value *CommandNode) (bool, error)
 		ea := eargs[i]
 		va := vargs[i]
 
-		valid, err := compareArgs(&ea, &va)
+		valid, err := compareArg(&ea, &va)
 
 		if !valid {
 			return valid, err
@@ -162,7 +174,7 @@ func compareCommandNode(expected *CommandNode, value *CommandNode) (bool, error)
 	return true, nil
 }
 
-func compareCommentNode(expected *CommentNode, value *CommentNode) (bool, error) {
+func compareCommentNode(expected, value *CommentNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -176,6 +188,29 @@ func compareCommentNode(expected *CommentNode, value *CommentNode) (bool, error)
 	}
 
 	return true, nil
+}
+
+func compareRforkNode(expected, value *RforkNode) (bool, error) {
+	if expected == nil && value == nil {
+		return true, nil
+	}
+
+	if (expected == nil) != (value == nil) {
+		return false, fmt.Errorf("Only one of the nodes are nil. %v != %v", expected, value)
+	}
+
+	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
+		return ok, fmt.Errorf(" CompareRforkNode (%v, %v) -> %s", expected, value, err.Error())
+	}
+
+	if ok, err := compareArg(&expected.arg, &value.arg); !ok {
+		return ok, fmt.Errorf("CompareRforkNode (%v, %v) -> %s", expected, value, err.Error())
+	}
+
+	expectedTree := expected.Tree()
+	valueTree := value.Tree()
+
+	return compare(expectedTree, valueTree)
 }
 
 func compareNodes(expected Node, value Node) (bool, error) {
@@ -219,6 +254,10 @@ func compareNodes(expected Node, value Node) (bool, error) {
 		ec := expected.(*CommentNode)
 		vc := value.(*CommentNode)
 		valid, err = compareCommentNode(ec, vc)
+	case *RforkNode:
+		er := expected.(*RforkNode)
+		vr := value.(*RforkNode)
+		valid, err = compareRforkNode(er, vr)
 	default:
 		return false, fmt.Errorf("Type %v not comparable yet", v)
 	}
