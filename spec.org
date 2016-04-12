@@ -1,0 +1,27 @@
+#+TITLE: Cnt grammar specification
+#+AUTHOR: Tiago Natel de Moura <tiago4orion@gmail.com>
+
+* BNF
+
+#+BEGIN_EXAMPLE
+<program>    := <block>
+<block>      := [ <statement> ]...
+
+<statement>  := <command> |
+                <rfork> |
+                <comment>
+
+<command>    := <identifier> [ <argument> ]... [ "|" <command> ]... |
+                <filepath> [ <argument> ]... [ "|" <command> ]...
+
+<rfork>      := "rfork" <argument> [ "{" <block> "}" ]
+<comment>    := "#" <any> <eol>
+
+<argument>   := <alphanumeric> |
+                "\"" <alphanumeric "\"" |
+                "'" <alphanumeric> "'"
+<identifier> := <alphanumeric>
+<eol>        := "\r\n" |
+                "\n" |
+                "\r"
+#+END_EXAMPLE
