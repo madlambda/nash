@@ -11,8 +11,8 @@
                 <rfork> |
                 <comment>
 
-<command>    := <identifier> [ <argument>]...
-                [ "|" <command> ]...
+<command>    := <identifier> [ <argument> ]... [ "|" <command> ]... |
+                <filepath> [ <argument> ]... [ "|" <command> ]...
 
 <rfork>      := "rfork" <argument> [ "{" <block> "}" ]
 <comment>    := "#" <any> <eol>

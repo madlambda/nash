@@ -39,6 +39,18 @@ func TestParseSimple(t *testing.T) {
 	parserTestTable("parser simple", `echo "hello world"`, expected, t)
 }
 
+func TestParsePathCommand(t *testing.T) {
+	expected := NewTree("parser simple")
+	ln := NewListNode()
+	cmd := NewCommandNode(0, "/bin/echo")
+	cmd.AddArg(NewArg(11, "hello world"))
+	ln.Push(cmd)
+
+	expected.Root = ln
+
+	parserTestTable("parser simple", `/bin/echo "hello world"`, expected, t)
+}
+
 func TestParseWithShebang(t *testing.T) {
 	expected := NewTree("parser shebang")
 	ln := NewListNode()

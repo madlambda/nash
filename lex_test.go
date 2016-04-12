@@ -75,6 +75,24 @@ func TestSimpleCommand(t *testing.T) {
 	testTable("testSimpleCommand", `echo "hello world"`, expected, t)
 }
 
+func TestPathCommand(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "/bin/echo",
+		},
+		item{
+			typ: itemString,
+			val: "hello world",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testPathCommand", `/bin/echo "hello world"`, expected, t)
+}
+
 func TestVariousCommands(t *testing.T) {
 	content := `
             echo "hello world"
