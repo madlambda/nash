@@ -55,13 +55,16 @@ type (
 const (
 	// NodeCommand are command statements
 	NodeCommand NodeType = iota + 1
+
 	// NodeArg are nodes for command arguments
 	NodeArg
+
 	// NodeString are nodes for argument strings
 	NodeString
 
 	// NodeRfork are nodes for rfork command
 	NodeRfork
+
 	// NodeRforkFlags are nodes rfork flags
 	NodeRforkFlags
 
