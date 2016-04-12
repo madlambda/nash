@@ -55,6 +55,22 @@ echo bleh
 `, expected, t)
 }
 
+func TestParseEmptyFile(t *testing.T) {
+	expected := NewTree("empty file")
+	ln := NewListNode()
+	expected.Root = ln
+
+	parserTestTable("empty file", "", expected, t)
+}
+
+func TestParseSingleCommand(t *testing.T) {
+	expected := NewTree("single command")
+	expected.Root = NewListNode()
+	expected.Root.Push(NewCommandNode(0, "bleh"))
+
+	parserTestTable("single command", `bleh`, expected, t)
+}
+
 func comparePosition(expected Pos, value Pos) (bool, error) {
 	if expected != value {
 		return false, fmt.Errorf("Position mismatch: %d != %d", expected, value)
