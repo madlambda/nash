@@ -39,6 +39,17 @@ func TestParseSimple(t *testing.T) {
 	parserTestTable("parser simple", `echo "hello world"`, expected, t)
 }
 
+func TestParseInvalid(t *testing.T) {
+	parser := NewParser("invalid", ";")
+
+	_, err := parser.Parse()
+
+	if err == nil {
+		t.Error("Parse must fail")
+		return
+	}
+}
+
 func TestParsePathCommand(t *testing.T) {
 	expected := NewTree("parser simple")
 	ln := NewListNode()

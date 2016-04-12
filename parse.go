@@ -126,7 +126,7 @@ func (p *Parser) parseRfork() (Node, error) {
 	it = p.next()
 
 	if it.typ != itemRforkFlags {
-		return nil, fmt.Errorf("rfork requires an argument")
+		return nil, fmt.Errorf("rfork requires one or more of the following flags: %s", rforkFlags)
 	}
 
 	n.SetFlags(NewArg(it.pos, it.val))

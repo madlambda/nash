@@ -55,7 +55,7 @@ const (
 	spaceChars = " \t\r\n"
 
 	rforkName  = "rfork"
-	rforkFlags = "fupnsmi"
+	rforkFlags = "nsmifup"
 )
 
 var (
