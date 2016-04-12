@@ -197,6 +197,10 @@ func lexStart(l *lexer) stateFn {
 	case isAlphaNumeric(r):
 		return lexIdentifier
 
+	case r == '{':
+		l.ignore()
+		return l.errorf("Unexpected open block \"%#U\"", r)
+
 	case r == '}':
 		l.emit(itemRightBlock)
 		return lexStart

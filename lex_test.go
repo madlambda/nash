@@ -37,7 +37,7 @@ func testTable(name, content string, expected []item, t *testing.T) {
 		}
 
 		if expected[i].val != result[i].val {
-			t.Errorf("'%s' != '%s'", expected[i].val, result[i].val)
+			t.Errorf("'%v' != '%v'", expected[i].val, result[i].val)
 			return
 		}
 	}
@@ -91,6 +91,39 @@ func TestPathCommand(t *testing.T) {
 	}
 
 	testTable("testPathCommand", `/bin/echo "hello world"`, expected, t)
+}
+
+func TestInvalidBlock(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemError,
+			val: "Unexpected open block \"U+007B '{'\"",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testInvalidBlock", "{", expected, t)
+}
+
+func TestQuotedStringNotFinished(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemError,
+			val: "Quoted string not finished: hello world",
+		},
+		item{
+			typ: itemEOF,
+			val: "hello world",
+		},
+	}
+
+	testTable("testQuotedstringnotfinished", "echo \"hello world", expected, t)
 }
 
 func TestVariousCommands(t *testing.T) {
