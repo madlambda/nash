@@ -15,6 +15,7 @@ type (
 
 	item struct {
 		typ itemType
+		pos Pos // start position of this item
 		val string
 	}
 
@@ -31,8 +32,10 @@ type (
 	}
 )
 
+//go:generate stringer -type=itemType
+
 const (
-	itemError itemType = iota // error ocurred
+	itemError itemType = iota + 1 // error ocurred
 	itemEOF
 	itemComment
 	itemCommand // alphanumeric identifier that's not a keyword
@@ -72,10 +75,10 @@ func (i item) String() string {
 	}
 
 	if len(i.val) > 10 {
-		return fmt.Sprintf("%.10q...", i.val)
+		return fmt.Sprintf("(%s) - pos: %d, val: %.10q..., %s", i.typ, i.pos, i.val)
 	}
 
-	return fmt.Sprintf("%q", i.val)
+	return fmt.Sprintf("pos: %d, val: %q", i.pos, i.val)
 }
 
 // run lexes the input by executing state functions until the state is nil
@@ -84,11 +87,17 @@ func (l *lexer) run() {
 		state = state(l)
 	}
 
+	l.emit(itemEOF)
 	close(l.items) // No more tokens will be delivered
 }
 
 func (l *lexer) emit(t itemType) {
-	l.items <- item{t, l.input[l.start:l.pos]}
+	l.items <- item{
+		typ: t,
+		val: l.input[l.start:l.pos],
+		pos: Pos(l.start),
+	}
+
 	l.start = l.pos
 }
 
@@ -144,7 +153,12 @@ func (l *lexer) acceptRun(valid string) {
 
 // errorf returns an error token
 func (l *lexer) errorf(format string, args ...interface{}) stateFn {
-	l.items <- item{itemError, fmt.Sprintf(format, args...)}
+	l.items <- item{
+		typ: itemError,
+		val: fmt.Sprintf(format, args...),
+		pos: Pos(l.start),
+	}
+
 	return nil // finish the state machine
 }
 
@@ -153,7 +167,7 @@ func (l *lexer) String() string {
 		l.pos, l.start)
 }
 
-func lex(name, input string) (*lexer, chan item) {
+func lex(name, input string) *lexer {
 	l := &lexer{
 		name:  name,
 		input: input,
@@ -162,7 +176,7 @@ func lex(name, input string) (*lexer, chan item) {
 
 	go l.run() // concurrently run state machine
 
-	return l, l.items
+	return l
 }
 
 func lexStart(l *lexer) stateFn {
@@ -184,6 +198,10 @@ func lexStart(l *lexer) stateFn {
 
 	case isAlphaNumeric(r):
 		return lexIdentifier
+
+	case r == '{':
+		l.ignore()
+		return l.errorf("Unexpected open block \"%#U\"", r)
 
 	case r == '}':
 		l.emit(itemRightBlock)
@@ -236,7 +254,7 @@ func lexInsideRforkArgs(l *lexer) stateFn {
 	}
 
 	if !l.accept(rforkFlags) {
-		return l.errorf("invalid rfork argument")
+		return l.errorf("invalid rfork argument: %s", string(l.peek()))
 	}
 
 	l.acceptRun(rforkFlags)
@@ -353,7 +371,7 @@ func isSpace(r rune) bool {
 
 // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
 func isAlphaNumeric(r rune) bool {
-	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+	return r == '_' || r == '-' || r == '/' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 // isEndOfLine reports whether r is an end-of-line character.
