@@ -71,6 +71,23 @@ func TestParseSingleCommand(t *testing.T) {
 	parserTestTable("single command", `bleh`, expected, t)
 }
 
+func TestParseCommandWithStringsEqualsNot(t *testing.T) {
+	expected := NewTree("strings works as expected")
+	ln := NewListNode()
+	cmd1 := NewCommandNode(0, "echo")
+	cmd2 := NewCommandNode(11, "echo")
+	cmd1.AddArg(NewArg(5, "hello"))
+	cmd2.AddArg(NewArg(17, "hello"))
+
+	ln.Push(cmd1)
+	ln.Push(cmd2)
+	expected.Root = ln
+
+	parserTestTable("strings works as expected", `echo hello
+echo "hello"
+`, expected, t)
+}
+
 func comparePosition(expected Pos, value Pos) (bool, error) {
 	if expected != value {
 		return false, fmt.Errorf("Position mismatch: %d != %d", expected, value)
