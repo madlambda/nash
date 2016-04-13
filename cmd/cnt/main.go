@@ -1,3 +1,9 @@
+// Package main has two sides:
+// - User mode: shell
+// - tool mode: unix socket server for handling namespace operations
+// When started, the program choses their side based on the argv[0].
+// The name "rc" indicates a user shell and the name -nrc- indidcates
+// the namespace server tool.
 package main
 
 import (
@@ -9,14 +15,18 @@ import (
 )
 
 var (
-	debug     int
-	file      string
-	rforkAddr string
+	debug bool
+	file  string
+	addr  string
 )
 
 func init() {
-	flag.IntVar(&debug, "debug", 0, "debug level")
-	flag.StringVar(&rforkAddr, "rforkAddr", "", "rfork unix file")
+	flag.BoolVar(&debug, "debug", false, "enable debug")
+
+	if os.Args[0] == "-rcd-" || os.Args[1] == "-rcd" {
+		flag.Bool("rcd", false, "force enable rcd mode")
+		flag.StringVar(&addr, "addr", "", "rcd unix file")
+	}
 }
 
 func main() {
@@ -24,8 +34,8 @@ func main() {
 
 	flag.Parse()
 
-	if rforkAddr != "" {
-		startRpcServer(rforkAddr, debug)
+	if addr != "" {
+		startRcd(addr, debug)
 	} else if file == "" {
 		err = cli(debug)
 	} else {

@@ -1,11 +1,14 @@
 package cnt
 
+import "strings"
+
 type (
 	// Node represents nodes in the grammar
 	Node interface {
 		Type() NodeType
 		Position() Pos
 		Tree() *Tree
+		String() string
 	}
 
 	// NodeType is the types of grammar
@@ -33,7 +36,8 @@ type (
 	Arg struct {
 		NodeType
 		Pos
-		val string
+		val    string
+		quoted bool
 	}
 
 	// RforkNode is a node for rfork
@@ -124,6 +128,20 @@ func (n *CommandNode) SetArgs(args []Arg) {
 // Tree returns the child tree of node
 func (n *CommandNode) Tree() *Tree { return nil }
 
+func (n *CommandNode) String() string {
+	content := make([]string, 0, 1024)
+	args := make([]string, 0, len(n.args))
+
+	for i := 0; i < len(n.args); i++ {
+		args = append(args, n.args[i].String())
+	}
+
+	content = append(content, n.name)
+	content = append(content, args...)
+
+	return strings.Join(content, " ")
+}
+
 // NewRforkNode creates a new node for rfork
 func NewRforkNode(pos Pos) *RforkNode {
 	return &RforkNode{
@@ -147,17 +165,45 @@ func (n *RforkNode) Tree() *Tree {
 	return n.tree
 }
 
+func (n *RforkNode) String() string {
+	rforkstr := "rfork " + n.arg.val
+	tree := n.Tree()
+
+	if tree != nil {
+		rforkstr += " {\n"
+		block := tree.String()
+		stmts := strings.Split(block, "\n")
+
+		for i := 0; i < len(stmts); i++ {
+			stmts[i] = "\t" + stmts[i]
+		}
+
+		rforkstr += strings.Join(stmts, "\n") + "\n}"
+	}
+
+	return rforkstr
+}
+
 // NewArg creates a new argument
-func NewArg(pos Pos, val string) Arg {
+func NewArg(pos Pos, val string, quoted bool) Arg {
 	return Arg{
 		NodeType: NodeArg,
 		Pos:      pos,
 		val:      val,
+		quoted:   quoted,
 	}
 }
 
 // Tree returns the child tree of node
 func (n Arg) Tree() *Tree { return nil }
+
+func (n Arg) String() string {
+	if n.quoted {
+		return "\"" + n.val + "\""
+	}
+
+	return n.val
+}
 
 // NewCommentNode creates a new node for comments
 func NewCommentNode(pos Pos, val string) *CommentNode {
@@ -170,3 +216,7 @@ func NewCommentNode(pos Pos, val string) *CommentNode {
 
 // Tree returns the child tree of node
 func (n *CommentNode) Tree() *Tree { return nil }
+
+func (n *CommentNode) String() string {
+	return n.val
+}

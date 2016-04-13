@@ -9,16 +9,16 @@ import (
 	"os/exec"
 )
 
-var debugLevel int
+var debugLevel bool
 
 func debug(format string, a ...interface{}) {
-	if debugLevel > 0 {
+	if debugLevel {
 		fmt.Printf(format, a...)
 	}
 }
 
 // ExecuteString executes the commands specified by string content
-func ExecuteString(path, content string, debugVal int) error {
+func ExecuteString(path, content string, debugVal bool) error {
 	debugLevel = debugVal
 
 	parser := NewParser(path, content)
@@ -63,7 +63,7 @@ func ExecuteString(path, content string, debugVal int) error {
 }
 
 // Execute the cnt file at given path
-func Execute(path string, debugval int) error {
+func Execute(path string, debugval bool) error {
 	content, err := ioutil.ReadFile(path)
 
 	if err != nil {

@@ -1,10 +1,9 @@
 package cnt
 
 import (
-	"encoding/gob"
 	"fmt"
 	"math/rand"
-	"net/rpc"
+	"net"
 	"os"
 	"os/exec"
 	"syscall"
@@ -26,6 +25,11 @@ func randRunes(n int) string {
 }
 
 func executeRfork(rfork *RforkNode) error {
+	var (
+		tr *Tree
+		i  int
+	)
+
 	uid := os.Getuid()
 	gid := os.Getgid()
 
@@ -33,11 +37,11 @@ func executeRfork(rfork *RforkNode) error {
 
 	cmd := exec.Cmd{
 		Path: os.Args[0],
-		Args: append([]string{"cnt-rfork"}, "-rfork-sock", unixfile),
+		Args: append([]string{"-rcd-"}, "-addr", unixfile),
 	}
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: getflags(rfork.args),
+		Cloneflags: getflags(rfork.arg.val),
 		UidMappings: []syscall.SysProcIDMap{
 			{
 				ContainerID: 0,
@@ -63,47 +67,54 @@ func executeRfork(rfork *RforkNode) error {
 		return err
 	}
 
+	retries := 0
+
 retryRforkDial:
-	rforkClient, err := rpc.Dial("unix", unixfile)
-	retries = 0
+	rforkClient, err := net.Dial("unix", unixfile)
 
-	if err != nil && retries < 3 {
-		retries++
-		time.Sleep(retries * time.Second)
-		fmt.Printf("Retrying to dial cnt-rfork...\n")
+	if err != nil {
+		if retries < 3 {
+			retries++
+			time.Sleep(time.Duration(retries) * time.Second)
+			fmt.Printf("Retrying to dial cnt-rfork...\n")
 
-		goto retryRforkDial
+			goto retryRforkDial
+		}
+
+		goto rforkErr
 	}
 
 	defer rforkClient.Close()
 
-	tr := rfork.Tree()
+	tr = rfork.Tree()
 
 	if tr == nil || tr.Root == nil {
 		return fmt.Errorf("Rfork with no sub block")
 	}
 
-	enc := gob.NewEncoder(&rforkClient)
+	time.Sleep(10 * time.Second)
 
-	for i := 0; i < tr.Root.Nodes; i++ {
+	for i = 0; i < len(tr.Root.Nodes); i++ {
 		node := tr.Root.Nodes[i]
 
-		var status error
-		err = rforkClient.Call("RforkService.ExecuteNode", &node, &status)
+		n, err := rforkClient.Write([]byte(node.String()))
 
 		if err != nil {
-			return fmt.Printf("RPC call failed: %s", err.Error())
+			return fmt.Errorf("RPC call failed: %s", err.Error())
 		}
 
-		if status != nil {
-			return status
-		}
+		fmt.Printf("Written %d bytes\n", n)
 	}
+
+	time.Sleep(40 * time.Second)
 
 	return nil
 
+rforkErr:
+	return err
+
 }
 
-func getflags(flags string) int {
+func getflags(flags string) uintptr {
 	return syscall.CLONE_NEWUSER | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS
 }

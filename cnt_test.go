@@ -15,7 +15,7 @@ func init() {
 func TestExecute(t *testing.T) {
 	testfile := testDir + "/ex1.cnt"
 
-	err := Execute(testfile, 0)
+	err := Execute(testfile, false)
 
 	if err != nil {
 		t.Error(err)

@@ -16,11 +16,15 @@ func TestTreeRawCreation(t *testing.T) {
 	tr := NewTree("creating a tree by hand")
 
 	ln := NewListNode()
-	rfarg := NewArg(6, "unp")
+	rfarg := NewArg(6, "unp", false)
 
 	r := NewRforkNode(0)
 	r.SetFlags(rfarg)
 	ln.Push(r)
 
 	tr.Root = ln
+
+	if tr.String() != "rfork unp" {
+		t.Error("Failed to build AST by hand")
+	}
 }

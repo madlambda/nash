@@ -2,45 +2,62 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net"
-	"net/rpc"
 	"os"
+	"sync"
 	"time"
-
-	"github.com/tiago4orion/cnt"
 )
 
-type RforkRpc error
+func serveConn(conn net.Conn) {
+	fmt.Printf("New connection: %v", conn)
 
-func (r *RforkRpc) ExecuteNode(node cnt.Node, reply *error) error {
-	fmt.Printf("Executing node: %v\n", node)
-	return nil
+	var data [1024]byte
+
+	for {
+
+		n, err := conn.Read(data[:])
+
+		if err != nil {
+			fmt.Printf("Failed to read data: %s", err.Error())
+			return
+		}
+
+		fmt.Printf("Read '%d' bytes\n", n)
+		fmt.Printf("Value: %q\n", string(data[0:n]))
+
+		time.Sleep(1 * time.Second)
+	}
 }
 
-func startRpcServer(socketPath string, debug int) {
+func startRcd(socketPath string, debug bool) {
 	os.Remove(socketPath)
 
-	go func() {
-		myRpc := new(RforkRpc)
+	var wg sync.WaitGroup
 
-		if err := rpc.Register(RforkRpc); err != nil {
-			log.Fatal(err)
-		}
+	fmt.Printf("Starting server: %s\n", socketPath)
+
+	wg.Add(1)
+
+	go func() {
 		addr := &net.UnixAddr{Net: "unix", Name: socketPath}
+
 		listener, err := net.ListenUnix("unix", addr)
+
 		if err != nil {
-			log.Fatal(err)
+			fmt.Printf("ERROR: %s\n", err.Error())
+			return
 		}
+
 		for {
 			conn, err := listener.AcceptUnix()
+
 			if err != nil {
-				log.Fatal(err)
+				fmt.Printf("ERROR: %v", err.Error())
 			}
-			rpc.ServeConn(conn)
+
+			serveConn(conn)
 		}
 	}()
 
-	time.Sleep(2 * time.Second)
-	log.Println("server exiting")
+	wg.Wait()
 }

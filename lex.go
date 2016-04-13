@@ -285,6 +285,11 @@ func lexInsideCommand(l *lexer) stateFn {
 	case r == '"':
 		l.ignore()
 		return lexQuoteArg
+	case r == '{':
+		return l.errorf("Invalid left open brace inside command")
+	case r == '}':
+		l.emit(itemRightBlock)
+		return lexStart
 	}
 
 	return lexArg

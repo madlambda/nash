@@ -6,12 +6,6 @@ import (
 )
 
 type (
-	// Tree is the AST
-	Tree struct {
-		Name string
-		Root *ListNode // top-level root of the tree.
-	}
-
 	// Parser parses an cnt file
 	Parser struct {
 		name       string // filename or name of the buffer
@@ -99,7 +93,14 @@ func (p *Parser) parseCommand() (Node, error) {
 
 		switch it.typ {
 		case itemArg, itemString:
-			arg := NewArg(it.pos, it.val)
+			var arg Arg
+
+			if it.typ == itemString {
+				arg = NewArg(it.pos, it.val, true)
+			} else {
+				arg = NewArg(it.pos, it.val, false)
+			}
+
 			n.AddArg(arg)
 		case itemEOF:
 			return n, nil
@@ -129,7 +130,7 @@ func (p *Parser) parseRfork() (Node, error) {
 		return nil, fmt.Errorf("rfork requires one or more of the following flags: %s", rforkFlags)
 	}
 
-	n.SetFlags(NewArg(it.pos, it.val))
+	n.SetFlags(NewArg(it.pos, it.val, false))
 
 	it = p.peek()
 

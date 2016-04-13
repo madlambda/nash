@@ -16,7 +16,7 @@ var (
 	names      = []string{"rfork"}
 )
 
-func cli(debugval int) error {
+func cli(debugval bool) error {
 	var (
 		err   error
 		value string
