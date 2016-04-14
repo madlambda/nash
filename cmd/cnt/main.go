@@ -22,8 +22,9 @@ var (
 
 func init() {
 	flag.BoolVar(&debug, "debug", false, "enable debug")
+	flag.StringVar(&file, "file", "", "script file")
 
-	if os.Args[0] == "-rcd-" || os.Args[1] == "-rcd" {
+	if os.Args[0] == "-rcd-" || (len(os.Args) > 1 && os.Args[1] == "-rcd") {
 		flag.Bool("rcd", false, "force enable rcd mode")
 		flag.StringVar(&addr, "addr", "", "rcd unix file")
 	}

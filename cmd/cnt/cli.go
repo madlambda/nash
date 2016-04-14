@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -42,15 +43,36 @@ func cli(debugval bool) error {
 		f.Close()
 	}
 
+	var content bytes.Buffer
+	var lineidx int
+
 	for {
 		if value, err = line.Prompt("cnt> "); err == nil {
-			line.AppendHistory(value)
+			lineidx++
+
+			content.Write([]byte(value + "\n"))
+
+			parser := cnt.NewParser(fmt.Sprintf("line %d", lineidx), string(content.Bytes()))
+
+			tr, err := parser.Parse()
+
+			if err != nil && err.Error() == "Open '{' not closed" {
+				continue
+			}
+
+			line.AppendHistory(string(content.Bytes()))
+
+			content.Reset()
 
 			if value == "exit" {
 				break
 			}
 
-			err = cnt.ExecuteString("<input>", value, debugval)
+			err = cnt.ExecuteTree(tr, debugval)
+
+			if err != nil {
+				fmt.Printf("ERROR: %s\n", err.Error())
+			}
 		} else if err == liner.ErrPromptAborted {
 			log.Print("Aborted")
 			break

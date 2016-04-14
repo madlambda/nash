@@ -92,21 +92,16 @@ retryRforkDial:
 		return fmt.Errorf("Rfork with no sub block")
 	}
 
-	time.Sleep(10 * time.Second)
-
 	for i = 0; i < len(tr.Root.Nodes); i++ {
 		node := tr.Root.Nodes[i]
+		data := []byte(node.String() + "\n")
 
-		n, err := rforkClient.Write([]byte(node.String()))
+		n, err := rforkClient.Write(data)
 
-		if err != nil {
-			return fmt.Errorf("RPC call failed: %s", err.Error())
+		if err != nil || n != len(data) {
+			return fmt.Errorf("RPC call failed: Err: %v, bytes written: %d", err, n)
 		}
-
-		fmt.Printf("Written %d bytes\n", n)
 	}
-
-	time.Sleep(40 * time.Second)
 
 	return nil
 

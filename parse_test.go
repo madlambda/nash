@@ -182,6 +182,17 @@ func TestParseRforkWithBlock(t *testing.T) {
 
 }
 
+func TestUnpairedRforkBlocks(t *testing.T) {
+	parser := NewParser("unpaired", "rfork u {")
+
+	_, err := parser.Parse()
+
+	if err == nil {
+		t.Errorf("Should fail because of unpaired open/close blocks")
+		return
+	}
+}
+
 func comparePosition(expected Pos, value Pos) (bool, error) {
 	if expected != value {
 		return false, fmt.Errorf("Position mismatch: %d != %d", expected, value)

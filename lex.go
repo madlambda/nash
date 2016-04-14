@@ -49,12 +49,12 @@ const (
 	//	itemFor
 	itemRfork
 	itemRforkFlags
+	itemCd
 )
 
 const (
 	spaceChars = " \t\r\n"
 
-	rforkName  = "rfork"
 	rforkFlags = "nsmifup"
 )
 
@@ -229,13 +229,38 @@ func lexIdentifier(l *lexer) stateFn {
 
 	word := l.input[l.start:l.pos]
 
-	if word == rforkName {
+	switch word {
+	case "rfork":
 		l.emit(itemRfork)
 		return lexInsideRforkArgs
+	case "cd":
+		l.emit(itemCd)
+		return lexInsideCd
 	}
 
 	l.emit(itemCommand)
 	return lexInsideCommand
+}
+
+func lexInsideCd(l *lexer) stateFn {
+	// parse the cd directory
+	if l.accept(" \t") {
+		ignoreSpaces(l)
+	}
+
+	r := l.next()
+
+	if r == '"' {
+		l.ignore()
+		return func(l *lexer) stateFn {
+			return lexQuoteArg(l, lexStart)
+		}
+	}
+
+	// parse as normal argument
+	return func(l *lexer) stateFn {
+		return lexArg(l, lexStart)
+	}
 }
 
 // Rfork flags:
@@ -284,7 +309,9 @@ func lexInsideCommand(l *lexer) stateFn {
 		return lexStart
 	case r == '"':
 		l.ignore()
-		return lexQuoteArg
+		return func(l *lexer) stateFn {
+			return lexQuoteArg(l, lexInsideCommand)
+		}
 	case r == '{':
 		return l.errorf("Invalid left open brace inside command")
 	case r == '}':
@@ -292,10 +319,12 @@ func lexInsideCommand(l *lexer) stateFn {
 		return lexStart
 	}
 
-	return lexArg
+	return func(l *lexer) stateFn {
+		return lexArg(l, lexInsideCommand)
+	}
 }
 
-func lexQuoteArg(l *lexer) stateFn {
+func lexQuoteArg(l *lexer, nextFn stateFn) stateFn {
 	for {
 		r := l.next()
 
@@ -314,10 +343,10 @@ func lexQuoteArg(l *lexer) stateFn {
 		break
 	}
 
-	return lexInsideCommand
+	return nextFn
 }
 
-func lexArg(l *lexer) stateFn {
+func lexArg(l *lexer, nextFn stateFn) stateFn {
 	for {
 		r := l.next()
 
@@ -338,7 +367,7 @@ func lexArg(l *lexer) stateFn {
 		break
 	}
 
-	return lexInsideCommand
+	return nextFn
 }
 
 func lexComment(l *lexer) stateFn {
@@ -376,7 +405,7 @@ func isSpace(r rune) bool {
 
 // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
 func isAlphaNumeric(r rune) bool {
-	return r == '_' || r == '-' || r == '/' || unicode.IsLetter(r) || unicode.IsDigit(r)
+	return r == '=' || r == '_' || r == '-' || r == '/' || r == ':' || r == '.' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 // isEndOfLine reports whether r is an end-of-line character.

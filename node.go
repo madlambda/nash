@@ -1,6 +1,10 @@
 package cnt
 
-import "strings"
+import (
+	"errors"
+	"os"
+	"strings"
+)
 
 type (
 	// Node represents nodes in the grammar
@@ -40,12 +44,20 @@ type (
 		quoted bool
 	}
 
-	// RforkNode is a node for rfork
+	// RforkNode is a builtin node for rfork
 	RforkNode struct {
 		NodeType
 		Pos
 		arg  Arg
 		tree *Tree
+	}
+
+	// CdNode is a builtin node for change directories
+	CdNode struct {
+		NodeType
+		Pos
+		dir  Arg
+		Home bool
 	}
 
 	// CommentNode is the node for comments
@@ -70,6 +82,9 @@ const (
 
 	// NodeRfork are nodes for rfork command
 	NodeRfork
+
+	// NodeCd are nodes of builtin cd
+	NodeCd
 
 	// NodeRforkFlags are nodes rfork flags
 	NodeRforkFlags
@@ -182,6 +197,60 @@ func (n *RforkNode) String() string {
 	}
 
 	return rforkstr
+}
+
+// NewCdNode creates a new node for changing directory
+func NewCdNode(pos Pos) *CdNode {
+	return &CdNode{
+		NodeType: NodeCd,
+		Pos:      pos,
+	}
+}
+
+// SetHome sets the directory as $home
+func (n *CdNode) SetHome() {
+	n.Home = true
+}
+
+// SetDir sets the cd directory to dir
+func (n *CdNode) SetDir(dir Arg) {
+	n.dir = dir
+}
+
+// Dir returns the directory of cd node
+func (n *CdNode) Dir() (string, error) {
+	if n.Home {
+		homePath := os.Getenv("$home")
+
+		if homePath == "" {
+			homePath = os.Getenv("$HOME")
+
+			if homePath == "" {
+				return "", errors.New("No variable $home or $HOME set")
+			}
+		}
+
+		return homePath, nil
+	}
+
+	return n.dir.val, nil
+}
+
+// Tree returns the child tree if any
+func (n *CdNode) Tree() *Tree {
+	return nil
+}
+
+func (n *CdNode) String() string {
+	if n.Home {
+		return "cd"
+	}
+
+	if n.dir.quoted {
+		return `cd "` + n.dir.val + `"`
+	}
+
+	return "cd " + n.dir.val
 }
 
 // NewArg creates a new argument

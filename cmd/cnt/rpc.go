@@ -2,15 +2,14 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
-	"sync"
-	"time"
+
+	"github.com/tiago4orion/cnt"
 )
 
 func serveConn(conn net.Conn) {
-	fmt.Printf("New connection: %v", conn)
-
 	var data [1024]byte
 
 	for {
@@ -18,46 +17,50 @@ func serveConn(conn net.Conn) {
 		n, err := conn.Read(data[:])
 
 		if err != nil {
+			if err == io.EOF {
+				return
+			}
+
 			fmt.Printf("Failed to read data: %s", err.Error())
 			return
 		}
 
-		fmt.Printf("Read '%d' bytes\n", n)
-		fmt.Printf("Value: %q\n", string(data[0:n]))
+		if string(data[0:n]) == "quit" {
+			fmt.Printf("Closing container server\n")
+			return
+		}
 
-		time.Sleep(1 * time.Second)
+		err = cnt.ExecuteString("-rpc-", string(data[0:n]), true)
+
+		if err != nil {
+			fmt.Printf("rc: %s", err.Error())
+			return
+		}
 	}
 }
 
 func startRcd(socketPath string, debug bool) {
 	os.Remove(socketPath)
 
-	var wg sync.WaitGroup
+	addr := &net.UnixAddr{
+		Net:  "unix",
+		Name: socketPath,
+	}
 
-	fmt.Printf("Starting server: %s\n", socketPath)
+	listener, err := net.ListenUnix("unix", addr)
 
-	wg.Add(1)
+	if err != nil {
+		fmt.Printf("ERROR: %s\n", err.Error())
+		return
+	}
 
-	go func() {
-		addr := &net.UnixAddr{Net: "unix", Name: socketPath}
+	// Accept only one connection
+	conn, err := listener.AcceptUnix()
 
-		listener, err := net.ListenUnix("unix", addr)
+	if err != nil {
+		fmt.Printf("ERROR: %v", err.Error())
+	}
 
-		if err != nil {
-			fmt.Printf("ERROR: %s\n", err.Error())
-			return
-		}
-
-		for {
-			conn, err := listener.AcceptUnix()
-
-			if err != nil {
-				fmt.Printf("ERROR: %v", err.Error())
-			}
-
-			serveConn(conn)
-		}
-	}()
-
-	wg.Wait()
+	serveConn(conn)
+	listener.Close()
 }

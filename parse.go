@@ -115,6 +115,31 @@ func (p *Parser) parseCommand() (Node, error) {
 	return nil, errors.New("unreachable")
 }
 
+func (p *Parser) parseCd() (Node, error) {
+	it := p.next()
+
+	if it.typ != itemCd {
+		return nil, fmt.Errorf("Invalid item: %v", it)
+	}
+
+	n := NewCdNode(it.pos)
+
+	it = p.next()
+
+	if it.typ != itemArg && it.typ != itemString {
+		n.SetHome()
+		return n, nil
+	}
+
+	if it.typ == itemString {
+		n.SetDir(NewArg(it.pos, it.val, true))
+	} else {
+		n.SetDir(NewArg(it.pos, it.val, false))
+	}
+
+	return n, nil
+}
+
 func (p *Parser) parseRfork() (Node, error) {
 	it := p.next()
 
@@ -148,8 +173,6 @@ func (p *Parser) parseRfork() (Node, error) {
 		n.tree.Root = r
 	}
 
-	// TODO: block
-
 	return n, nil
 }
 
@@ -171,6 +194,8 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseCommand()
 	case itemRfork:
 		return p.parseRfork()
+	case itemCd:
+		return p.parseCd()
 	case itemComment:
 		return p.parseComment()
 	}
@@ -185,10 +210,8 @@ func (p *Parser) parseBlock() (*ListNode, error) {
 		it := p.peek()
 
 		switch it.typ {
-		case 0:
-			return ln, nil
-		case itemEOF:
-			return ln, nil
+		case 0, itemEOF:
+			goto finish
 		case itemError:
 			return nil, errors.New(it.val)
 		case itemLeftBlock:
@@ -213,6 +236,11 @@ func (p *Parser) parseBlock() (*ListNode, error) {
 
 			ln.Push(n)
 		}
+	}
+
+finish:
+	if p.openblocks != 0 {
+		return nil, fmt.Errorf("Open '{' not closed")
 	}
 
 	return ln, nil

@@ -18,8 +18,8 @@ func debug(format string, a ...interface{}) {
 }
 
 // ExecuteString executes the commands specified by string content
-func ExecuteString(path, content string, debugVal bool) error {
-	debugLevel = debugVal
+func ExecuteString(path, content string, debugval bool) error {
+	debugLevel = debugval
 
 	parser := NewParser(path, content)
 
@@ -29,9 +29,27 @@ func ExecuteString(path, content string, debugVal bool) error {
 		return err
 	}
 
-	if tr.Root == nil {
+	return ExecuteTree(tr, debugval)
+}
+
+// Execute the cnt file at given path
+func Execute(path string, debugval bool) error {
+	content, err := ioutil.ReadFile(path)
+
+	if err != nil {
+		return err
+	}
+
+	return ExecuteString(path, string(content), debugval)
+}
+
+// ExecuteTree evaluates the given tree
+func ExecuteTree(tr *Tree, debugval bool) error {
+	if tr == nil || tr.Root == nil {
 		return errors.New("nothing parsed")
 	}
+
+	debugLevel = debugval
 
 	root := tr.Root
 
@@ -45,11 +63,16 @@ func ExecuteString(path, content string, debugVal bool) error {
 			err := execute(node.(*CommandNode))
 
 			if err != nil {
-				fmt.Printf("Command failed: %s", err.Error())
 				return err
 			}
 		case NodeRfork:
 			err := executeRfork(node.(*RforkNode))
+
+			if err != nil {
+				return err
+			}
+		case NodeCd:
+			err := executeCd(node.(*CdNode))
 
 			if err != nil {
 				return err
@@ -60,17 +83,6 @@ func ExecuteString(path, content string, debugVal bool) error {
 	}
 
 	return nil
-}
-
-// Execute the cnt file at given path
-func Execute(path string, debugval bool) error {
-	content, err := ioutil.ReadFile(path)
-
-	if err != nil {
-		return err
-	}
-
-	return ExecuteString(path, string(content), debugval)
 }
 
 func execute(c *CommandNode) error {
@@ -116,4 +128,14 @@ func execute(c *CommandNode) error {
 	fmt.Printf("%s", out.Bytes())
 
 	return nil
+}
+
+func executeCd(cd *CdNode) error {
+	path, err := cd.Dir()
+
+	if err != nil {
+		return err
+	}
+
+	return os.Chdir(path)
 }

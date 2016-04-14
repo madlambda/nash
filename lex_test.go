@@ -270,3 +270,37 @@ func TestSomethingIdontcareanymore(t *testing.T) {
 
 	testTable("test whatever", "rfork u { ls }", expected, t)
 }
+
+func TestBuiltinCd(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemCd,
+			val: "cd",
+		},
+		item{
+			typ: itemString,
+			val: "some place",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testBuiltinCd", `cd "some place"`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCd,
+			val: "cd",
+		},
+		item{
+			typ: itemArg,
+			val: "/proc",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testBuiltinCdNoQuote", `cd /proc`, expected, t)
+}
