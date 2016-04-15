@@ -36,15 +36,15 @@ func main() {
 	flag.Parse()
 
 	if addr != "" {
-		startRcd(addr, debug)
+		startRcd(addr)
 	} else if file == "" {
-		err = cli(debug)
+		err = cli()
 	} else {
 		err = cnt.Execute(file, debug)
 	}
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err.Error())
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		os.Exit(1)
 	}
 }

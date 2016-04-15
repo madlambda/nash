@@ -1,30 +1,26 @@
 #!/bin/cnt
 
-# Like stage0
-mkdir -p rootfs
-mkdir -p pivot
+-rm -rf rootfs
 
-# Copy my-service to rootfs
+rfork upmis {
+    mount -t proc proc /proc
+    mkdir -p rootfs
+    mount -t tmpfs -o size=1G tmpfs rootfs
 
-rfork u {
-    mount -n -t tmpfs -o size=500M none rootfs
     cd rootfs
-    wget https://busybox.net/downloads/binaries/latest/busybox-x86_64
-    chmod +x ./busybox-x86_64
+
+    wget "https://busybox.net/downloads/binaries/latest/busybox-x86_64" -O busybox
+    chmod +x busybox
+
+    mkdir bin
+
+    ./busybox --install ./bin
+
     mkdir -p proc
     mkdir -p dev
     mount -t proc proc proc
     mount -t tmpfs tmpfs dev
 
-    mkdir oldroot
-
     cp ../cnt .
-
-    # setup network if required
-    # require root or suid binary
-
-    # cgroup -flags <k1=v1>,<k2=v2>,...
-
-    pivot_root . oldroot
-    chroot . ./busybox-x86_64 ls /
+    chroot . /bin/sh
 }

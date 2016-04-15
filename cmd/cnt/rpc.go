@@ -26,20 +26,32 @@ func serveConn(conn net.Conn) {
 		}
 
 		if string(data[0:n]) == "quit" {
-			fmt.Printf("Closing container server\n")
 			return
 		}
 
-		err = cnt.ExecuteString("-rpc-", string(data[0:n]), true)
+		err = cnt.ExecuteString("-rpc-", string(data[0:n]), debug)
 
 		if err != nil {
-			fmt.Printf("rc: %s", err.Error())
-			return
+			fmt.Printf("rc: %s\n", err.Error())
+
+			_, err = conn.Write([]byte("1"))
+
+			if err != nil {
+				fmt.Printf("Failed to send command status.\n")
+				return
+			}
+		} else {
+			_, err = conn.Write([]byte("0"))
+
+			if err != nil {
+				fmt.Printf("Failed to send command status.\n")
+				return
+			}
 		}
 	}
 }
 
-func startRcd(socketPath string, debug bool) {
+func startRcd(socketPath string) {
 	os.Remove(socketPath)
 
 	addr := &net.UnixAddr{

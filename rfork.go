@@ -2,46 +2,20 @@ package cnt
 
 import (
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"syscall"
 	"time"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func randRunes(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-	return string(b)
-}
-
-func executeRfork(rfork *RforkNode) error {
-	var (
-		tr *Tree
-		i  int
-	)
-
+func getProcAttrs(flags uintptr) *syscall.SysProcAttr {
 	uid := os.Getuid()
 	gid := os.Getgid()
 
-	unixfile := "/tmp/cnt." + randRunes(4) + ".sock"
-
-	cmd := exec.Cmd{
-		Path: os.Args[0],
-		Args: append([]string{"-rcd-"}, "-addr", unixfile),
-	}
-
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Cloneflags: getflags(rfork.arg.val),
+	return &syscall.SysProcAttr{
+		Cloneflags: flags,
 		UidMappings: []syscall.SysProcIDMap{
 			{
 				ContainerID: 0,
@@ -57,9 +31,48 @@ func executeRfork(rfork *RforkNode) error {
 			},
 		},
 	}
+}
 
+func dialRc(sockpath string) (net.Conn, error) {
+	retries := 0
+
+retryRforkDial:
+	client, err := net.Dial("unix", sockpath)
+
+	if err != nil {
+		if retries < 3 {
+			retries++
+			time.Sleep(time.Duration(retries) * time.Second)
+			goto retryRforkDial
+		}
+	}
+
+	return client, err
+}
+
+// executeRfork executes the calling program again but passing
+// a new name for the process on os.Args[0] and passing an unix
+// socket file to communicate to.
+func executeRfork(rfork *RforkNode) error {
+	var (
+		tr        *Tree
+		i         int
+		cntClient net.Conn
+	)
+
+	unixfile := "/tmp/cnt." + randRunes(4) + ".sock"
+
+	cmd := exec.Cmd{
+		Path: os.Args[0],
+		Args: append([]string{"-rcd-"}, "-addr", unixfile),
+	}
+
+	forkFlags := getflags(rfork.arg.val)
+
+	cmd.SysProcAttr = getProcAttrs(forkFlags)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	err := cmd.Start()
 
@@ -67,24 +80,9 @@ func executeRfork(rfork *RforkNode) error {
 		return err
 	}
 
-	retries := 0
+	cntClient, err = dialRc(unixfile)
 
-retryRforkDial:
-	rforkClient, err := net.Dial("unix", unixfile)
-
-	if err != nil {
-		if retries < 3 {
-			retries++
-			time.Sleep(time.Duration(retries) * time.Second)
-			fmt.Printf("Retrying to dial cnt-rfork...\n")
-
-			goto retryRforkDial
-		}
-
-		goto rforkErr
-	}
-
-	defer rforkClient.Close()
+	defer cntClient.Close()
 
 	tr = rfork.Tree()
 
@@ -96,20 +94,72 @@ retryRforkDial:
 		node := tr.Root.Nodes[i]
 		data := []byte(node.String() + "\n")
 
-		n, err := rforkClient.Write(data)
+		n, err := cntClient.Write(data)
 
 		if err != nil || n != len(data) {
 			return fmt.Errorf("RPC call failed: Err: %v, bytes written: %d", err, n)
 		}
+
+		// read response
+
+		var response [1024]byte
+		n, err = cntClient.Read(response[:])
+
+		if err != nil {
+			break
+		}
+
+		status, err := strconv.Atoi(string(response[0:n]))
+
+		if err != nil {
+			err = fmt.Errorf("Invalid status: %s", string(response[0:n]))
+			break
+		}
+
+		if status != 0 {
+			err = fmt.Errorf("rc: Exited with status %d", status)
+			break
+		}
+	}
+
+	// we're done with rfork daemon
+	cntClient.Write([]byte("quit"))
+
+	if err != nil {
+		return err
 	}
 
 	return nil
-
-rforkErr:
-	return err
-
 }
 
 func getflags(flags string) uintptr {
-	return syscall.CLONE_NEWUSER | syscall.CLONE_NEWPID | syscall.CLONE_NEWNS
+	var (
+		lflags uintptr
+	)
+
+	for i := 0; i < len(flags); i++ {
+		switch flags[i] {
+		case 'c':
+			lflags |= (syscall.CLONE_NEWUSER |
+				syscall.CLONE_NEWPID |
+				syscall.CLONE_NEWNET |
+				syscall.CLONE_NEWNS |
+				syscall.CLONE_NEWUTS |
+				syscall.CLONE_NEWIPC)
+		case 'u':
+			lflags |= syscall.CLONE_NEWUSER
+		case 'p':
+			lflags |= syscall.CLONE_NEWPID
+		case 'n':
+			lflags |= syscall.CLONE_NEWNET
+		case 'm':
+			lflags |= syscall.CLONE_NEWNS
+		case 's':
+			lflags |= syscall.CLONE_NEWUTS
+		case 'i':
+			lflags |= syscall.CLONE_NEWIPC
+		}
+	}
+
+	return lflags
 }

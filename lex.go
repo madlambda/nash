@@ -55,7 +55,7 @@ const (
 const (
 	spaceChars = " \t\r\n"
 
-	rforkFlags = "nsmifup"
+	rforkFlags = "cnsmifup"
 )
 
 var (
@@ -264,7 +264,7 @@ func lexInsideCd(l *lexer) stateFn {
 }
 
 // Rfork flags:
-// c = create new process -> clone(2)
+// c = stands for container (c == upnsmi)
 // u = user namespace
 // p = pid namespace
 // n = network namespace

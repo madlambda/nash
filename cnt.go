@@ -1,7 +1,6 @@
 package cnt
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -87,11 +86,18 @@ func ExecuteTree(tr *Tree, debugval bool) error {
 
 func execute(c *CommandNode) error {
 	var (
-		err error
-		out bytes.Buffer
+		err         error
+		ignoreError bool
 	)
 
 	cmdPath := c.name
+
+	if c.name[0] == '-' {
+		ignoreError = true
+		c.name = c.name[1:]
+
+		debug("Ignoring error\n")
+	}
 
 	if c.name[0] != '/' {
 		cmdPath, err = exec.LookPath(c.name)
@@ -111,7 +117,8 @@ func execute(c *CommandNode) error {
 
 	cmd := exec.Command(cmdPath, args...)
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = &out
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	err = cmd.Start()
 
@@ -121,11 +128,9 @@ func execute(c *CommandNode) error {
 
 	err = cmd.Wait()
 
-	if err != nil {
+	if err != nil && !ignoreError {
 		return err
 	}
-
-	fmt.Printf("%s", out.Bytes())
 
 	return nil
 }

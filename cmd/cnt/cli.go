@@ -17,7 +17,7 @@ var (
 	names      = []string{"rfork"}
 )
 
-func cli(debugval bool) error {
+func cli() error {
 	var (
 		err   error
 		value string
@@ -58,9 +58,9 @@ func cli(debugval bool) error {
 
 			if err != nil && err.Error() == "Open '{' not closed" {
 				continue
+			} else {
+				line.AppendHistory(string(content.Bytes()))
 			}
-
-			line.AppendHistory(string(content.Bytes()))
 
 			content.Reset()
 
@@ -68,7 +68,7 @@ func cli(debugval bool) error {
 				break
 			}
 
-			err = cnt.ExecuteTree(tr, debugval)
+			err = cnt.ExecuteTree(tr, debug)
 
 			if err != nil {
 				fmt.Printf("ERROR: %s\n", err.Error())
