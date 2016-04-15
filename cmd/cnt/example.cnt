@@ -1,4 +1,4 @@
-#!/bin/cnt
+#!/usr/bin/env cnt
 
 -rm -rf rootfs
 
