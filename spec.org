@@ -25,3 +25,28 @@
                 "\n" |
                 "\r"
 #+END_EXAMPLE
+
+rc BNF
+#+BEGIN_EXAMPLE
+<command>  :=
+<keyword>  := "for" | "in" | "while" | "if" | "not" | "switch" | "fn" | "~" | "!" | "@"
+#+END_EXAMPLE
+
+* rc <-> rcd protocol
+
+  For every rfork invocation a new rcd unix socket daemon is spawned
+  for namespace setup. The protocol used between rc and rcd is very
+  simple:
+
+#+BEGIN_EXAMPLE
+msize[4] mtype[1] tag[2] message
+
+msize[4] TCOMMAND tag[2] nargs[4] arg1size[4] arg1[arg1size]... argnsize[4] argn[argnsize]
+msize[4] RCOMMAND tag[2] pid[4] status[2]
+
+msize[4] TRFORK tag[2] arg[s] hastree[1]
+msize[4] RRFORK tag[2] status[2]
+
+msize[4] TBLOCK tag[2] length[4]
+
+#+END_EXAMPLE

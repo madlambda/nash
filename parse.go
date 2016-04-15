@@ -6,12 +6,6 @@ import (
 )
 
 type (
-	// Tree is the AST
-	Tree struct {
-		Name string
-		Root *ListNode // top-level root of the tree.
-	}
-
 	// Parser parses an cnt file
 	Parser struct {
 		name       string // filename or name of the buffer
@@ -99,7 +93,14 @@ func (p *Parser) parseCommand() (Node, error) {
 
 		switch it.typ {
 		case itemArg, itemString:
-			arg := NewArg(it.pos, it.val)
+			var arg Arg
+
+			if it.typ == itemString {
+				arg = NewArg(it.pos, it.val, true)
+			} else {
+				arg = NewArg(it.pos, it.val, false)
+			}
+
 			n.AddArg(arg)
 		case itemEOF:
 			return n, nil
@@ -114,6 +115,31 @@ func (p *Parser) parseCommand() (Node, error) {
 	return nil, errors.New("unreachable")
 }
 
+func (p *Parser) parseCd() (Node, error) {
+	it := p.next()
+
+	if it.typ != itemCd {
+		return nil, fmt.Errorf("Invalid item: %v", it)
+	}
+
+	n := NewCdNode(it.pos)
+
+	it = p.next()
+
+	if it.typ != itemArg && it.typ != itemString {
+		n.SetHome()
+		return n, nil
+	}
+
+	if it.typ == itemString {
+		n.SetDir(NewArg(it.pos, it.val, true))
+	} else {
+		n.SetDir(NewArg(it.pos, it.val, false))
+	}
+
+	return n, nil
+}
+
 func (p *Parser) parseRfork() (Node, error) {
 	it := p.next()
 
@@ -126,10 +152,10 @@ func (p *Parser) parseRfork() (Node, error) {
 	it = p.next()
 
 	if it.typ != itemRforkFlags {
-		return nil, fmt.Errorf("rfork requires an argument")
+		return nil, fmt.Errorf("rfork requires one or more of the following flags: %s", rforkFlags)
 	}
 
-	n.SetFlags(NewArg(it.pos, it.val))
+	n.SetFlags(NewArg(it.pos, it.val, false))
 
 	it = p.peek()
 
@@ -146,8 +172,6 @@ func (p *Parser) parseRfork() (Node, error) {
 
 		n.tree.Root = r
 	}
-
-	// TODO: block
 
 	return n, nil
 }
@@ -170,6 +194,8 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseCommand()
 	case itemRfork:
 		return p.parseRfork()
+	case itemCd:
+		return p.parseCd()
 	case itemComment:
 		return p.parseComment()
 	}
@@ -184,10 +210,8 @@ func (p *Parser) parseBlock() (*ListNode, error) {
 		it := p.peek()
 
 		switch it.typ {
-		case 0:
-			return ln, nil
-		case itemEOF:
-			return ln, nil
+		case 0, itemEOF:
+			goto finish
 		case itemError:
 			return nil, errors.New(it.val)
 		case itemLeftBlock:
@@ -212,6 +236,11 @@ func (p *Parser) parseBlock() (*ListNode, error) {
 
 			ln.Push(n)
 		}
+	}
+
+finish:
+	if p.openblocks != 0 {
+		return nil, fmt.Errorf("Open '{' not closed")
 	}
 
 	return ln, nil

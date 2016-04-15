@@ -1,24 +1,26 @@
-#!/bin/cnt
+#!/usr/bin/env cnt
 
-# Like stage0
-mkdir rootfs
-cd rootfs
-wget <url of busybox>
-tar xvf busibox.tar.gz
+-rm -rf rootfs
 
-# Copy my-service to rootfs
-cp ../my-service .
+rfork upmis {
+    mount -t proc proc /proc
+    mkdir -p rootfs
+    mount -t tmpfs -o size=1G tmpfs rootfs
 
-rfork n {
-    mount -t proc proc $PWD/proc
-    mount -t tmpfs tmpfs $PWD/dev
+    cd rootfs
 
-    # setup network if required
-    # require root or suid binary
+    wget "https://busybox.net/downloads/binaries/latest/busybox-x86_64" -O busybox
+    chmod +x busybox
 
-    cgroup -flags <k1=v1>,<k2=v2>,...
+    mkdir bin
 
-    chroot $PWD
+    ./busybox --install ./bin
 
-    /my-service $args
+    mkdir -p proc
+    mkdir -p dev
+    mount -t proc proc proc
+    mount -t tmpfs tmpfs dev
+
+    cp ../cnt .
+    chroot . /bin/sh
 }

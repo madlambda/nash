@@ -1,0 +1,10 @@
+* Ctn - Container shell
+
+Ctn is a very simple linux shell supposed to easy the setup of
+programs to run inside Linux namespaces.
+
+The idea is a write a pure shell (no extensions, no posix) and add a
+simple keyword for managing namespaces. This design is inspired by rc
+shell and the rfork command on Plan9. The Linux clone(2) syscall is
+heavy inspired in the plan9 rfork syscall, but linux lacks the
+userland tools to manage namespaces from shell, relying on very big

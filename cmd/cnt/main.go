@@ -1,23 +1,50 @@
+// Package main has two sides:
+// - User mode: shell
+// - tool mode: unix socket server for handling namespace operations
+// When started, the program choses their side based on the argv[0].
+// The name "rc" indicates a user shell and the name -nrc- indidcates
+// the namespace server tool.
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
 	"github.com/tiago4orion/cnt"
 )
 
+var (
+	debug bool
+	file  string
+	addr  string
+)
+
+func init() {
+	flag.BoolVar(&debug, "debug", false, "enable debug")
+	flag.StringVar(&file, "file", "", "script file")
+
+	if os.Args[0] == "-rcd-" || (len(os.Args) > 1 && os.Args[1] == "-rcd") {
+		flag.Bool("rcd", false, "force enable rcd mode")
+		flag.StringVar(&addr, "addr", "", "rcd unix file")
+	}
+}
+
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: %s <optional cnt file>\n", os.Args[0])
-		os.Exit(1)
+	var err error
+
+	flag.Parse()
+
+	if addr != "" {
+		startRcd(addr)
+	} else if file == "" {
+		err = cli()
+	} else {
+		err = cnt.Execute(file, debug)
 	}
 
-	path := os.Args[1]
-	err := cnt.Execute(path)
-
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s", err.Error())
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		os.Exit(1)
 	}
 }

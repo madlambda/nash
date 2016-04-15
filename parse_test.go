@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -25,13 +26,28 @@ func parserTestTable(name, content string, expected *Tree, t *testing.T) {
 		t.Error(err)
 		return
 	}
+
+	// Test if the reverse of tree is the content again... *hard*
+	trcontent := tr.String()
+	content = strings.Trim(content, "\n ")
+
+	if content != trcontent {
+		t.Errorf(`Failed to reverse the tree.
+Expected:
+'%s'
+
+But got:
+'%s'
+`, content, trcontent)
+		return
+	}
 }
 
 func TestParseSimple(t *testing.T) {
 	expected := NewTree("parser simple")
 	ln := NewListNode()
 	cmd := NewCommandNode(0, "echo")
-	cmd.AddArg(NewArg(6, "hello world"))
+	cmd.AddArg(NewArg(6, "hello world", true))
 	ln.Push(cmd)
 
 	expected.Root = ln
@@ -39,11 +55,38 @@ func TestParseSimple(t *testing.T) {
 	parserTestTable("parser simple", `echo "hello world"`, expected, t)
 }
 
+func TestParseReverseGetSame(t *testing.T) {
+	parser := NewParser("reverse simple", "echo \"hello world\"")
+
+	tr, err := parser.Parse()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if tr.String() != "echo \"hello world\"" {
+		t.Error("Failed to reverse tree: %s", tr.String())
+		return
+	}
+}
+
+func TestParseInvalid(t *testing.T) {
+	parser := NewParser("invalid", ";")
+
+	_, err := parser.Parse()
+
+	if err == nil {
+		t.Error("Parse must fail")
+		return
+	}
+}
+
 func TestParsePathCommand(t *testing.T) {
 	expected := NewTree("parser simple")
 	ln := NewListNode()
 	cmd := NewCommandNode(0, "/bin/echo")
-	cmd.AddArg(NewArg(11, "hello world"))
+	cmd.AddArg(NewArg(11, "hello world", true))
 	ln.Push(cmd)
 
 	expected.Root = ln
@@ -56,7 +99,7 @@ func TestParseWithShebang(t *testing.T) {
 	ln := NewListNode()
 	cmt := NewCommentNode(0, "#!/bin/cnt")
 	cmd := NewCommandNode(11, "echo")
-	cmd.AddArg(NewArg(16, "bleh"))
+	cmd.AddArg(NewArg(16, "bleh", false))
 	ln.Push(cmt)
 	ln.Push(cmd)
 
@@ -88,8 +131,8 @@ func TestParseCommandWithStringsEqualsNot(t *testing.T) {
 	ln := NewListNode()
 	cmd1 := NewCommandNode(0, "echo")
 	cmd2 := NewCommandNode(11, "echo")
-	cmd1.AddArg(NewArg(5, "hello"))
-	cmd2.AddArg(NewArg(17, "hello"))
+	cmd1.AddArg(NewArg(5, "hello", false))
+	cmd2.AddArg(NewArg(17, "hello", true))
 
 	ln.Push(cmd1)
 	ln.Push(cmd2)
@@ -104,7 +147,7 @@ func TestParseRfork(t *testing.T) {
 	expected := NewTree("test rfork")
 	ln := NewListNode()
 	cmd1 := NewRforkNode(0)
-	cmd1.SetFlags(NewArg(6, "u"))
+	cmd1.SetFlags(NewArg(6, "u", false))
 	ln.Push(cmd1)
 	expected.Root = ln
 
@@ -115,13 +158,13 @@ func TestParseRforkWithBlock(t *testing.T) {
 	expected := NewTree("rfork with block")
 	ln := NewListNode()
 	rfork := NewRforkNode(0)
-	rfork.SetFlags(NewArg(6, "u"))
+	rfork.SetFlags(NewArg(6, "u", false))
 
-	insideFork := NewCommandNode(14, "mount")
-	insideFork.AddArg(NewArg(20, "-t"))
-	insideFork.AddArg(NewArg(23, "proc"))
-	insideFork.AddArg(NewArg(28, "proc"))
-	insideFork.AddArg(NewArg(33, "/proc"))
+	insideFork := NewCommandNode(11, "mount")
+	insideFork.AddArg(NewArg(17, "-t", false))
+	insideFork.AddArg(NewArg(20, "proc", false))
+	insideFork.AddArg(NewArg(25, "proc", false))
+	insideFork.AddArg(NewArg(30, "/proc", false))
 	bln := NewListNode()
 	bln.Push(insideFork)
 	subtree := NewTree("rfork")
@@ -133,10 +176,21 @@ func TestParseRforkWithBlock(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("rfork with block", `rfork u {
-    mount -t proc proc /proc
+	mount -t proc proc /proc
 }
 `, expected, t)
 
+}
+
+func TestUnpairedRforkBlocks(t *testing.T) {
+	parser := NewParser("unpaired", "rfork u {")
+
+	_, err := parser.Parse()
+
+	if err == nil {
+		t.Errorf("Should fail because of unpaired open/close blocks")
+		return
+	}
 }
 
 func comparePosition(expected Pos, value Pos) (bool, error) {
