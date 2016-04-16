@@ -31,6 +31,14 @@ cnt> echo "hello world"
 hello world
 ```
 
+Make sure you have USER namespaces enabled in your kernel:
+```bash
+zgrep CONFIG_USER_NS /proc/config.gz
+CONFIG_USER_NS=y
+```
+
+If it's not enabled you will need root privileges to execute every example below...
+
 Creating a new process in a new USER namespace (u):
 
 ```
