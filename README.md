@@ -24,7 +24,7 @@ mimic what Plan9 `rfork` does, but with linux limitations in mind.
 Go ahead:
 
 ```
-go get github.com/tiago4orion/cnt
+go get github.com/tiago4orion/cnt/cmd/cnt
 # Make sure GOPATH/bin is in yout PATH
 cnt
 cnt> echo "hello world"
