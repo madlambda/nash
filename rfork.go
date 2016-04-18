@@ -61,20 +61,33 @@ func executeRfork(rfork *RforkNode) error {
 	)
 
 	unixfile := "/tmp/cnt." + randRunes(4) + ".sock"
+	cntPath := os.Args[0]
+
+	if _, err := os.Stat(cntPath); err != nil {
+		cntPath, err = os.Readlink("/proc/self/exe")
+
+		if err != nil {
+			return fmt.Errorf("Impossible to find cnt on PATH; %s", err.Error())
+		}
+	}
 
 	cmd := exec.Cmd{
-		Path: os.Args[0],
+		Path: cntPath,
 		Args: append([]string{"-rcd-"}, "-addr", unixfile),
 	}
 
-	forkFlags := getflags(rfork.arg.val)
+	forkFlags, err := getflags(rfork.arg.val)
+
+	if err != nil {
+		return err
+	}
 
 	cmd.SysProcAttr = getProcAttrs(forkFlags)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Start()
+	err = cmd.Start()
 
 	if err != nil {
 		return err
@@ -132,7 +145,7 @@ func executeRfork(rfork *RforkNode) error {
 	return nil
 }
 
-func getflags(flags string) uintptr {
+func getflags(flags string) (uintptr, error) {
 	var (
 		lflags uintptr
 	)
@@ -158,8 +171,14 @@ func getflags(flags string) uintptr {
 			lflags |= syscall.CLONE_NEWUTS
 		case 'i':
 			lflags |= syscall.CLONE_NEWIPC
+		default:
+			return 0, fmt.Errorf("Wrong rfork flag: %c", flags[i])
 		}
 	}
 
-	return lflags
+	if lflags == 0 {
+		return 0, fmt.Errorf("Rfork requires some flag")
+	}
+
+	return lflags, nil
 }
