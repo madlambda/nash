@@ -39,7 +39,7 @@ echo "hello world"
 #+BEGIN_EXAMPLE
 echo "Here is the global namespace"
 
-fork upm {
+rfork upm {
         echo "Here we are at some child namespace"
         echo "The global namespace was copied, and it still visible"
 
