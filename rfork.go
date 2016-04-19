@@ -53,26 +53,21 @@ retryRforkDial:
 // executeRfork executes the calling program again but passing
 // a new name for the process on os.Args[0] and passing an unix
 // socket file to communicate to.
-func executeRfork(rfork *RforkNode) error {
+func (sh *Shell) executeRfork(rfork *RforkNode) error {
 	var (
 		tr        *Tree
 		i         int
 		cntClient net.Conn
 	)
 
-	unixfile := "/tmp/cnt." + randRunes(4) + ".sock"
-	cntPath := os.Args[0]
-
-	if _, err := os.Stat(cntPath); err != nil {
-		cntPath, err = os.Readlink("/proc/self/exe")
-
-		if err != nil {
-			return fmt.Errorf("Impossible to find cnt on PATH; %s", err.Error())
-		}
+	if sh.cntdPath == "" {
+		return fmt.Errorf("Cntd not set")
 	}
 
+	unixfile := "/tmp/cnt." + randRunes(4) + ".sock"
+
 	cmd := exec.Cmd{
-		Path: cntPath,
+		Path: sh.cntdPath,
 		Args: append([]string{"-rcd-"}, "-addr", unixfile),
 	}
 
@@ -83,9 +78,9 @@ func executeRfork(rfork *RforkNode) error {
 	}
 
 	cmd.SysProcAttr = getProcAttrs(forkFlags)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdin = sh.stdin
+	cmd.Stdout = sh.stdout
+	cmd.Stderr = sh.stderr
 
 	err = cmd.Start()
 

@@ -17,7 +17,7 @@ var (
 	names      = []string{"rfork"}
 )
 
-func cli() error {
+func cli(sh *cnt.Shell) error {
 	var (
 		err   error
 		value string
@@ -68,7 +68,7 @@ func cli() error {
 				break
 			}
 
-			err = cnt.ExecuteTree(tr, debug)
+			err = sh.ExecuteTree(tr)
 
 			if err != nil {
 				fmt.Printf("ERROR: %s\n", err.Error())
