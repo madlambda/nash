@@ -53,28 +53,36 @@ retryRforkDial:
 // executeRfork executes the calling program again but passing
 // a new name for the process on os.Args[0] and passing an unix
 // socket file to communicate to.
-func executeRfork(rfork *RforkNode) error {
+func (sh *Shell) executeRfork(rfork *RforkNode) error {
 	var (
 		tr        *Tree
 		i         int
 		cntClient net.Conn
 	)
 
+	if sh.cntdPath == "" {
+		return fmt.Errorf("Cntd not set")
+	}
+
 	unixfile := "/tmp/cnt." + randRunes(4) + ".sock"
 
 	cmd := exec.Cmd{
-		Path: os.Args[0],
+		Path: sh.cntdPath,
 		Args: append([]string{"-rcd-"}, "-addr", unixfile),
 	}
 
-	forkFlags := getflags(rfork.arg.val)
+	forkFlags, err := getflags(rfork.arg.val)
+
+	if err != nil {
+		return err
+	}
 
 	cmd.SysProcAttr = getProcAttrs(forkFlags)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdin = sh.stdin
+	cmd.Stdout = sh.stdout
+	cmd.Stderr = sh.stderr
 
-	err := cmd.Start()
+	err = cmd.Start()
 
 	if err != nil {
 		return err
@@ -132,7 +140,7 @@ func executeRfork(rfork *RforkNode) error {
 	return nil
 }
 
-func getflags(flags string) uintptr {
+func getflags(flags string) (uintptr, error) {
 	var (
 		lflags uintptr
 	)
@@ -158,8 +166,14 @@ func getflags(flags string) uintptr {
 			lflags |= syscall.CLONE_NEWUTS
 		case 'i':
 			lflags |= syscall.CLONE_NEWIPC
+		default:
+			return 0, fmt.Errorf("Wrong rfork flag: %c", flags[i])
 		}
 	}
 
-	return lflags
+	if lflags == 0 {
+		return 0, fmt.Errorf("Rfork requires some flag")
+	}
+
+	return lflags, nil
 }

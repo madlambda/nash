@@ -3,23 +3,65 @@ package cnt
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 )
 
-var debugLevel bool
+type (
+	// Shell is the core data structure.
+	Shell struct {
+		debug    bool
+		log      LogFn
+		cntdPath string
 
-func debug(format string, a ...interface{}) {
-	if debugLevel {
-		fmt.Printf(format, a...)
+		stdin  io.Reader
+		stdout io.Writer
+		stderr io.Writer
+	}
+)
+
+const logNS = "cnt.Shell"
+
+// NewShell creates a new shell object
+func NewShell(debug bool) *Shell {
+	return &Shell{
+		log:      NewLog(logNS, debug),
+		cntdPath: cntdAutoDiscover(),
+		stdout:   os.Stdout,
+		stderr:   os.Stderr,
+		stdin:    os.Stdin,
 	}
 }
 
-// ExecuteString executes the commands specified by string content
-func ExecuteString(path, content string, debugval bool) error {
-	debugLevel = debugval
+// SetDebug enable/disable debug in the shell
+func (sh *Shell) SetDebug(debug bool) {
+	sh.log = NewLog(logNS, debug)
+}
 
+// SetCntdPath sets an alternativa path to cntd
+func (sh *Shell) SetCntdPath(path string) {
+	sh.cntdPath = path
+}
+
+// SetStdin sets the stdin for commands
+func (sh *Shell) SetStdin(in io.Reader) {
+	sh.stdin = in
+}
+
+// SetStdout sets stdout for commands
+func (sh *Shell) SetStdout(out io.Writer) {
+	sh.stdout = out
+}
+
+// SetStderr sets stderr for commands
+func (sh *Shell) SetStderr(err io.Writer) {
+	sh.stderr = err
+}
+
+// ExecuteString executes the commands specified by string content
+func (sh *Shell) ExecuteString(path, content string) error {
 	parser := NewParser(path, content)
 
 	tr, err := parser.Parse()
@@ -28,44 +70,42 @@ func ExecuteString(path, content string, debugval bool) error {
 		return err
 	}
 
-	return ExecuteTree(tr, debugval)
+	return sh.ExecuteTree(tr)
 }
 
 // Execute the cnt file at given path
-func Execute(path string, debugval bool) error {
+func (sh *Shell) Execute(path string) error {
 	content, err := ioutil.ReadFile(path)
 
 	if err != nil {
 		return err
 	}
 
-	return ExecuteString(path, string(content), debugval)
+	return sh.ExecuteString(path, string(content))
 }
 
 // ExecuteTree evaluates the given tree
-func ExecuteTree(tr *Tree, debugval bool) error {
+func (sh *Shell) ExecuteTree(tr *Tree) error {
 	if tr == nil || tr.Root == nil {
 		return errors.New("nothing parsed")
 	}
 
-	debugLevel = debugval
-
 	root := tr.Root
 
 	for _, node := range root.Nodes {
-		debug("Executing: %v\n", node)
+		sh.log("Executing: %v\n", node)
 
 		switch node.Type() {
 		case NodeComment:
 			continue
 		case NodeCommand:
-			err := execute(node.(*CommandNode))
+			err := sh.execute(node.(*CommandNode))
 
 			if err != nil {
 				return err
 			}
 		case NodeRfork:
-			err := executeRfork(node.(*RforkNode))
+			err := sh.executeRfork(node.(*RforkNode))
 
 			if err != nil {
 				return err
@@ -84,7 +124,7 @@ func ExecuteTree(tr *Tree, debugval bool) error {
 	return nil
 }
 
-func execute(c *CommandNode) error {
+func (sh *Shell) execute(c *CommandNode) error {
 	var (
 		err         error
 		ignoreError bool
@@ -96,7 +136,7 @@ func execute(c *CommandNode) error {
 		ignoreError = true
 		c.name = c.name[1:]
 
-		debug("Ignoring error\n")
+		sh.log("Ignoring error\n")
 	}
 
 	if c.name[0] != '/' {
@@ -107,7 +147,7 @@ func execute(c *CommandNode) error {
 		}
 	}
 
-	debug("Executing: %s\n", cmdPath)
+	sh.log("Executing: %s\n", cmdPath)
 
 	args := make([]string, len(c.args))
 
@@ -116,9 +156,9 @@ func execute(c *CommandNode) error {
 	}
 
 	cmd := exec.Command(cmdPath, args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdin = sh.stdin
+	cmd.Stdout = sh.stdout
+	cmd.Stderr = sh.stderr
 
 	err = cmd.Start()
 
@@ -143,4 +183,18 @@ func executeCd(cd *CdNode) error {
 	}
 
 	return os.Chdir(path)
+}
+
+func cntdAutoDiscover() string {
+	path, err := os.Readlink("/proc/self/exe")
+
+	if err != nil {
+		path = os.Args[0]
+
+		if _, err := os.Stat(path); err != nil {
+			return ""
+		}
+	}
+
+	return path
 }

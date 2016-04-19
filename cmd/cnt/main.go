@@ -35,12 +35,14 @@ func main() {
 
 	flag.Parse()
 
+	shell := cnt.NewShell(debug)
+
 	if addr != "" {
-		startRcd(addr)
+		startRcd(shell, addr)
 	} else if file == "" {
-		err = cli()
+		err = cli(shell)
 	} else {
-		err = cnt.Execute(file, debug)
+		err = shell.Execute(file)
 	}
 
 	if err != nil {

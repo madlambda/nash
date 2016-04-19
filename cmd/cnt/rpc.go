@@ -9,7 +9,7 @@ import (
 	"github.com/tiago4orion/cnt"
 )
 
-func serveConn(conn net.Conn) {
+func serveConn(sh *cnt.Shell, conn net.Conn) {
 	var data [1024]byte
 
 	for {
@@ -29,7 +29,7 @@ func serveConn(conn net.Conn) {
 			return
 		}
 
-		err = cnt.ExecuteString("-rpc-", string(data[0:n]), debug)
+		err = sh.ExecuteString("-rpc-", string(data[0:n]))
 
 		if err != nil {
 			fmt.Printf("rc: %s\n", err.Error())
@@ -51,7 +51,7 @@ func serveConn(conn net.Conn) {
 	}
 }
 
-func startRcd(socketPath string) {
+func startRcd(sh *cnt.Shell, socketPath string) {
 	os.Remove(socketPath)
 
 	addr := &net.UnixAddr{
@@ -73,6 +73,6 @@ func startRcd(socketPath string) {
 		fmt.Printf("ERROR: %v", err.Error())
 	}
 
-	serveConn(conn)
+	serveConn(sh, conn)
 	listener.Close()
 }
