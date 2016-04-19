@@ -4,4 +4,4 @@ build:
 	cd cmd/cnt && make build
 
 test: build
-	./hack/check.sh
+	GO15VENDOREXPERIMENT=1 ./hack/check.sh
