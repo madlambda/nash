@@ -1,4 +1,4 @@
 all: build
 
 build:
-	go build -v
+	GO15VENDOREXPERIMENT=1 go build -v

@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/tiago4orion/cnt.svg?branch=master)](https://travis-ci.org/tiago4orion/cnt) [![codecov.io](https://codecov.io/github/tiago4orion/cnt/coverage.svg?branch=master)](https://codecov.io/github/tiago4orion/cnt?branch=master)
 
-Cnt is a simple shell for sane containerized deploys. If you think
+Cnt is a simple shell for Linux namespace management. If you think
 every serious developer must have the power of namespace at their
 fingers, then `cnt` is for you.
 

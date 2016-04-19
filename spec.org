@@ -26,3 +26,33 @@
                 "\r"
 #+END_EXAMPLE
 
+* Examples
+
+Some code examples:
+
+#+BEGIN_EXAMPLE
+#!/bin/cnt
+
+echo "hello world"
+#+END_EXAMPLE
+
+#+BEGIN_EXAMPLE
+echo "Here is the global namespace"
+
+fork upm {
+        echo "Here we are at some child namespace"
+        echo "The global namespace was copied, and it still visible"
+
+        # Shows all processes running in the parent namespace
+        ps aux
+
+        # mount the procfs in this mount namespace
+        mount -t proc proc /proc
+
+        echo "Now we see only the processes running inside this namespace
+        ps aux
+}
+
+echo "Running commands in the parent namespace again"
+
+#+END_EXAMPLE

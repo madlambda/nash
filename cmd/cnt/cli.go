@@ -26,7 +26,7 @@ func cli(sh *cnt.Shell) error {
 	line := liner.NewLiner()
 	defer line.Close()
 
-	line.SetCtrlCAborts(true)
+	line.SetCtrlCAborts(false)
 
 	line.SetCompleter(func(line string) (c []string) {
 		for _, n := range names {
