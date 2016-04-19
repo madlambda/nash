@@ -10,6 +10,7 @@ import (
 )
 
 type (
+	// Shell is the core data structure.
 	Shell struct {
 		debug    bool
 		log      LogFn
@@ -23,6 +24,7 @@ type (
 
 const logNS = "cnt.Shell"
 
+// NewShell creates a new shell object
 func NewShell(debug bool) *Shell {
 	return &Shell{
 		log:      NewLog(logNS, debug),
@@ -33,22 +35,27 @@ func NewShell(debug bool) *Shell {
 	}
 }
 
+// SetDebug enable/disable debug in the shell
 func (sh *Shell) SetDebug(debug bool) {
 	sh.log = NewLog(logNS, debug)
 }
 
+// SetCntdPath sets an alternativa path to cntd
 func (sh *Shell) SetCntdPath(path string) {
 	sh.cntdPath = path
 }
 
+// SetStdin sets the stdin for commands
 func (sh *Shell) SetStdin(in io.Reader) {
 	sh.stdin = in
 }
 
+// SetStdout sets stdout for commands
 func (sh *Shell) SetStdout(out io.Writer) {
 	sh.stdout = out
 }
 
+// SetStderr sets stderr for commands
 func (sh *Shell) SetStderr(err io.Writer) {
 	sh.stderr = err
 }

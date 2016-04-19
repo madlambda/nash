@@ -1,9 +1,7 @@
 package cnt
 
 import (
-	"bytes"
 	"os"
-	"strings"
 	"testing"
 )
 
@@ -41,12 +39,8 @@ func TestExecute(t *testing.T) {
 }
 
 func TestExecuteRfork(t *testing.T) {
-	var out bytes.Buffer
-
 	sh := NewShell(false)
 	sh.SetCntdPath(cntdPath)
-	sh.SetStdout(&out)
-	sh.SetStderr(os.Stderr)
 
 	err := sh.ExecuteString("rfork test", `
         rfork u {
@@ -56,9 +50,5 @@ func TestExecuteRfork(t *testing.T) {
 
 	if err != nil {
 		t.Error(err)
-	}
-
-	if strings.Trim(string(out.Bytes()), "\n") != "0" {
-		t.Errorf("Differ '%s' != '%s'", "0", out.Bytes())
 	}
 }
