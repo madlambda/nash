@@ -15,7 +15,7 @@ script:
   - go get github.com/mattn/goveralls
   - go get github.com/golang/lint/golint
   - go get golang.org/x/tools/cmd/cover
-  - hack/check.sh
+  - make test
 #  - goveralls -coverprofile=coverage.txt -service=travis-ci
 before_install:
   - sudo pip install codecov
