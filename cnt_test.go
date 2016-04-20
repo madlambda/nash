@@ -52,3 +52,19 @@ func TestExecuteRfork(t *testing.T) {
 		t.Error(err)
 	}
 }
+
+func TestExecuteAssignment(t *testing.T) {
+	sh := NewShell(false)
+	sh.SetCntdPath(cntdPath)
+
+	err := sh.ExecuteString("assignment", `
+        name=i4k
+        echo $name
+        echo $path
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}

@@ -31,7 +31,7 @@ func testTable(name, content string, expected []item, t *testing.T) {
 
 	for i := 0; i < len(expected); i++ {
 		if expected[i].typ != result[i].typ {
-			t.Errorf("'%d' != '%d'", expected[i].typ, result[i].typ)
+			t.Errorf("'%v' != '%v'", expected[i].typ, result[i].typ)
 			fmt.Printf("Type: %d - %s\n", result[i].typ, result[i])
 			return
 		}
@@ -55,6 +55,24 @@ func TestShebangOnly(t *testing.T) {
 	}
 
 	testTable("testShebangonly", "#!/bin/cnt\n", expected, t)
+}
+
+func TestSimpleAssignment(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemVarValue,
+			val: "value",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testAssignment", "test=value", expected, t)
 }
 
 func TestSimpleCommand(t *testing.T) {

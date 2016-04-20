@@ -28,6 +28,14 @@ type (
 	// Pos is the position of a node in file
 	Pos int
 
+	// AssignmentNode is a node for variable assignments
+	AssignmentNode struct {
+		NodeType
+		Pos
+		name string
+		list []string
+	}
+
 	// CommandNode is a node for commands
 	CommandNode struct {
 		NodeType
@@ -71,8 +79,11 @@ type (
 //go:generate stringer -type=NodeType
 
 const (
+	// NodeAssignment are nodes for variable assignment
+	NodeAssignment NodeType = iota + 1
+
 	// NodeCommand are command statements
-	NodeCommand NodeType = iota + 1
+	NodeCommand
 
 	// NodeArg are nodes for command arguments
 	NodeArg
@@ -119,6 +130,27 @@ func (l *ListNode) Push(n Node) {
 
 // Tree returns the tree for this node
 func (l *ListNode) Tree() *Tree { return nil }
+
+// NewAssignmentNode creates a new assignment
+func NewAssignmentNode(pos Pos) *AssignmentNode {
+	return &AssignmentNode{
+		NodeType: NodeAssignment,
+		Pos:      pos,
+	}
+}
+
+// Tree returns the tree for this node
+func (n *AssignmentNode) Tree() *Tree { return nil }
+
+// SetVarName sets the name of the variable
+func (n *AssignmentNode) SetVarName(a string) {
+	n.name = a
+}
+
+// SetValueList sets the value of the variable
+func (n *AssignmentNode) SetValueList(alist []string) {
+	n.list = alist
+}
 
 // NewCommandNode creates a new node for commands
 func NewCommandNode(pos Pos, name string) *CommandNode {
