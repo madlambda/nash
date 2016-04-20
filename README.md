@@ -157,7 +157,7 @@ I've tested in the following environments:
 
     Linux 4.1.13 (amd64)
     Fedora release 23
-    SELinux disabled (required)
+    SELinux disabled (required because USER namespace is forbidden)
 
     Linux 4.3.3 (amd64)
     Archlinux
