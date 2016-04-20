@@ -292,11 +292,14 @@ nextelem:
 		l.next()
 	}
 
+	if l.start < l.pos {
+		l.emit(itemListElem)
+	}
+
 	r = l.next()
 
 	if isSpace(r) {
-		l.emit(itemListElem)
-
+		l.ignore()
 		goto nextelem
 	} else if r != ')' {
 		return l.errorf("Expected end of list ')' but found '%c'", r)
@@ -490,29 +493,6 @@ func isSpace(r rune) bool {
 // isIdentifier reports whether r is a valid identifier
 func isIdentifier(r rune) bool {
 	return r == '_' || r == '-' || r == '/' || r == ':' || r == '.' || unicode.IsLetter(r) || unicode.IsDigit(r)
-}
-
-func isAssignment(text string) bool {
-	var insideQuote bool
-
-	for i := 0; i < len(text); i++ {
-		switch text[i] {
-		case '"':
-			insideQuote = !insideQuote
-		case '=':
-			if !insideQuote {
-				if i == (len(text) - 1) {
-					return true
-				}
-
-				return false
-			}
-		case ' ':
-			return false
-		}
-	}
-
-	return false
 }
 
 // isEndOfLine reports whether r is an end-of-line character.

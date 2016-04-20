@@ -75,6 +75,45 @@ func TestSimpleAssignment(t *testing.T) {
 	testTable("testAssignment", "test=value", expected, t)
 }
 
+func TestListAssignment(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemListOpen,
+			val: "(",
+		},
+		item{
+			typ: itemListElem,
+			val: "plan9",
+		},
+		item{
+			typ: itemListElem,
+			val: "from",
+		},
+		item{
+			typ: itemListElem,
+			val: "bell",
+		},
+		item{
+			typ: itemListElem,
+			val: "labs",
+		},
+		item{
+			typ: itemListClose,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testListAssignment", "test=( plan9 from bell labs )", expected, t)
+	testTable("testListAssignment no space", "test=(plan9 from bell labs)", expected, t)
+}
+
 func TestSimpleCommand(t *testing.T) {
 	expected := []item{
 		item{
