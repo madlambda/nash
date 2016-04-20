@@ -140,6 +140,39 @@ func (p *Parser) parseCd() (Node, error) {
 	return n, nil
 }
 
+func (p *Parser) parseAssignment() (Node, error) {
+	it := p.next()
+
+	if it.typ != itemVarName {
+		return nil, fmt.Errorf("Invalid item: %v")
+	}
+
+	n := NewAssignmentNode(it.pos)
+	n.SetVarName(it.val)
+
+	it = p.next()
+
+	if it.typ == itemVarValue {
+		n.SetValueList(append(make([]string, 0, 1), it.val))
+	} else if it.typ == itemListOpen {
+		values := make([]string, 0, 128)
+
+		for it = p.next(); it.typ == itemListElem; it = p.next() {
+			values = append(values, it.val)
+		}
+
+		if it.typ != itemListClose {
+			return nil, fmt.Errorf("list variable assignment wrong. Expected ')' but found '%v'", it)
+		}
+
+		n.SetValueList(values)
+	} else {
+		return nil, fmt.Errorf("Unexpected token '%v'", it)
+	}
+
+	return n, nil
+}
+
 func (p *Parser) parseRfork() (Node, error) {
 	it := p.next()
 
@@ -190,6 +223,8 @@ func (p *Parser) parseStatement() (Node, error) {
 	it := p.peek()
 
 	switch it.typ {
+	case itemVarName:
+		return p.parseAssignment()
 	case itemCommand:
 		return p.parseCommand()
 	case itemRfork:

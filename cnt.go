@@ -7,9 +7,14 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 )
 
 type (
+	// Env is the environment map of lists
+	Env map[string][]string
+
 	// Shell is the core data structure.
 	Shell struct {
 		debug    bool
@@ -19,6 +24,8 @@ type (
 		stdin  io.Reader
 		stdout io.Writer
 		stderr io.Writer
+
+		env Env
 	}
 )
 
@@ -32,7 +39,19 @@ func NewShell(debug bool) *Shell {
 		stdout:   os.Stdout,
 		stderr:   os.Stderr,
 		stdin:    os.Stdin,
+		env:      NewEnv(),
 	}
+}
+
+// NewEnv creates a new environment with default values
+func NewEnv() Env {
+	env := make(Env)
+	env["*"] = os.Args
+	env["pid"] = append(make([]string, 0, 1), strconv.Itoa(os.Getpid()))
+	env["home"] = append(make([]string, 0, 1), os.Getenv("HOME"))
+	env["path"] = append(make([]string, 0, 128), os.Getenv("PATH"))
+
+	return env
 }
 
 // SetDebug enable/disable debug in the shell
@@ -97,7 +116,13 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 
 		switch node.Type() {
 		case NodeComment:
-			continue
+			continue // ignore comment
+		case NodeAssignment:
+			err := sh.executeAssignment(node.(*AssignmentNode))
+
+			if err != nil {
+				return err
+			}
 		case NodeCommand:
 			err := sh.execute(node.(*CommandNode))
 
@@ -121,6 +146,11 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 		}
 	}
 
+	return nil
+}
+
+func (sh *Shell) executeAssignment(v *AssignmentNode) error {
+	sh.env[v.name] = v.list
 	return nil
 }
 
@@ -152,7 +182,20 @@ func (sh *Shell) execute(c *CommandNode) error {
 	args := make([]string, len(c.args))
 
 	for i := 0; i < len(c.args); i++ {
-		args[i] = c.args[i].val
+		argval := c.args[i].val
+
+		// variable substitution
+		if len(argval) > 0 && argval[0] == '$' && sh.env[argval[1:]] != nil {
+			arglist := sh.env[argval[1:]]
+
+			if len(arglist) == 1 {
+				args[i] = arglist[0]
+			} else if len(arglist) > 1 {
+				args[i] = strings.Join(arglist, " ")
+			}
+		} else {
+			args[i] = argval
+		}
 	}
 
 	cmd := exec.Command(cmdPath, args...)

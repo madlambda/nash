@@ -1,0 +1,37 @@
+newline        = /* the Unicode code point U+000A */ .
+unicode_char   = /* an arbitrary Unicode code point except newline */ .
+unicode_letter = /* a Unicode code point classified as "Letter" */ .
+unicode_digit  = /* a Unicode code point classified as "Number, decimal digit" */ .
+
+letter         = unicode_letter | "_" .
+filename    = { [ "/" ]  { unicode_letter } } .
+
+identifier  = letter { letter | unicode_digit } .
+builtin     = rforkDecl | cdDecl | ifDecl | elseDecl | forDecl .
+rforkDecl   = "rfork" rforkFlags "{" program "}" .
+namespace   = "c" | "m" | "n" | "i" | "p" | "u" | "s" .
+rforkFlags  = { namespace } .
+cdDecl      = "cd" [ filename ] .
+ifDecl      = "if" identifier comparison ( identifier | varValue ) "{" program "}" .
+elseDecl    = "else" "{" program "}" .
+forDecl     = "for" ( identifier | varList ) "{" program "}" .
+
+comparison  = "==" | "!=" .
+
+string_lit             = raw_string_lit .
+raw_string_lit         = "`" { unicode_char | newline } "`" .
+
+varDecl  = identifier "=" varSpec .
+varSpec  = ( varList | varValue ) .
+varValue = ({ letter | unicode_digit }) | string_lit | raw_string_lit .
+varList  = "(" { varValue } ")" .
+
+command   = ( pathcmd | abscmd ) .
+pathcmd   = [ "-" ] identifier { argument } .
+abscmd    = [ "-" ] filename { argument } .
+argument  = unicode_char { unicode_char } .
+
+comment   = "#" { unicode_letter } .
+
+program   = { statement } .
+statement = varDecl | command | builtin | comment .

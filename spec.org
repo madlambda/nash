@@ -1,30 +1,9 @@
 #+TITLE: Cnt grammar specification
 #+AUTHOR: Tiago Natel de Moura <tiago4orion@gmail.com>
 
-* BNF
+* eBNF
 
-#+BEGIN_EXAMPLE
-<program>    := <block>
-<block>      := [ <statement> ]...
-
-<statement>  := <command> |
-                <rfork> |
-                <comment>
-
-<command>    := [ "-" ] <identifier> [ <argument> ]... [ "|" <command> ]... |
-                <filepath> [ <argument> ]... [ "|" <command> ]...
-
-<rfork>      := "rfork" <argument> [ "{" <block> "}" ]
-<comment>    := "#" <any> <eol>
-
-<argument>   := <alphanumeric> |
-                "\"" <alphanumeric "\"" |
-                "'" <alphanumeric> "'"
-<identifier> := <alphanumeric>
-<eol>        := "\r\n" |
-                "\n" |
-                "\r"
-#+END_EXAMPLE
+See ./spec.ebnf
 
 * Examples
 
@@ -35,6 +14,8 @@ Some code examples:
 
 echo "hello world"
 #+END_EXAMPLE
+
+Namespace management:
 
 #+BEGIN_EXAMPLE
 echo "Here is the global namespace"
@@ -54,5 +35,20 @@ rfork upm {
 }
 
 echo "Running commands in the parent namespace again"
+
+#+END_EXAMPLE
+
+Setting variables and looping
+
+#+BEGIN_EXAMPLE
+name=i4k  # shorthand for name=(i4k)
+
+echo "My name is" $i4k
+
+list=(tiago natel de moura)
+
+for name in list {
+    echo $name
+}
 
 #+END_EXAMPLE

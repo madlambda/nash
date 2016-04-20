@@ -38,6 +38,11 @@ const (
 	itemError itemType = iota + 1 // error ocurred
 	itemEOF
 	itemComment
+	itemVarName
+	itemVarValue
+	itemListOpen
+	itemListClose
+	itemListElem
 	itemCommand // alphanumeric identifier that's not a keyword
 	itemArg
 	itemLeftBlock  // {
@@ -196,7 +201,7 @@ func lexStart(l *lexer) stateFn {
 	case r == '#':
 		return lexComment
 
-	case isAlphaNumeric(r):
+	case isIdentifier(r):
 		return lexIdentifier
 
 	case r == '{':
@@ -218,7 +223,7 @@ func lexIdentifier(l *lexer) stateFn {
 	for {
 		r := l.next()
 
-		if isAlphaNumeric(r) {
+		if isIdentifier(r) {
 			continue // absorb
 		}
 
@@ -228,6 +233,11 @@ func lexIdentifier(l *lexer) stateFn {
 	l.backup() // pos is now ahead of the alphanum
 
 	word := l.input[l.start:l.pos]
+
+	if l.peek() == '=' {
+		l.emit(itemVarName)
+		return lexInsideAssignment
+	}
 
 	switch word {
 	case "rfork":
@@ -242,6 +252,83 @@ func lexIdentifier(l *lexer) stateFn {
 	return lexInsideCommand
 }
 
+func lexInsideAssignment(l *lexer) stateFn {
+	r := l.next()
+
+	if r != '=' {
+		return l.errorf("Invalid variable assignment. Found '%c' but expected '='.", r)
+	}
+
+	l.ignore()
+
+	switch r := l.peek(); {
+	case r == '(':
+		return lexInsideListVariable
+	case r == '"':
+		return lexQuote(l, lexStart)
+	case isIdentifier(r):
+		return lexInsideCommonVariable
+	}
+
+	return l.errorf("Unexpected variable value '%c'", r)
+}
+
+func lexInsideListVariable(l *lexer) stateFn {
+	r := l.next()
+
+	if r != '(' {
+		return l.errorf("Invalid list, expected '(' but found '%c'", r)
+	}
+
+	l.emit(itemListOpen)
+nextelem:
+	for {
+		r = l.peek()
+
+		if !isIdentifier(r) {
+			break
+		}
+
+		l.next()
+	}
+
+	if l.start < l.pos {
+		l.emit(itemListElem)
+	}
+
+	r = l.next()
+
+	if isSpace(r) {
+		l.ignore()
+		goto nextelem
+	} else if r != ')' {
+		return l.errorf("Expected end of list ')' but found '%c'", r)
+	}
+
+	l.emit(itemListClose)
+	return lexStart
+}
+
+func lexInsideCommonVariable(l *lexer) stateFn {
+	var r rune
+
+	for {
+		r = l.next()
+
+		if !isIdentifier(r) {
+			break
+		}
+	}
+
+	if r == '"' {
+		l.ignore()
+		return l.errorf("Invalid quote inside variable value")
+	}
+
+	l.emit(itemVarValue)
+	return lexStart
+}
+
 func lexInsideCd(l *lexer) stateFn {
 	// parse the cd directory
 	if l.accept(" \t") {
@@ -253,7 +340,7 @@ func lexInsideCd(l *lexer) stateFn {
 	if r == '"' {
 		l.ignore()
 		return func(l *lexer) stateFn {
-			return lexQuoteArg(l, lexStart)
+			return lexQuote(l, lexStart)
 		}
 	}
 
@@ -310,7 +397,7 @@ func lexInsideCommand(l *lexer) stateFn {
 	case r == '"':
 		l.ignore()
 		return func(l *lexer) stateFn {
-			return lexQuoteArg(l, lexInsideCommand)
+			return lexQuote(l, lexInsideCommand)
 		}
 	case r == '{':
 		return l.errorf("Invalid left open brace inside command")
@@ -324,7 +411,7 @@ func lexInsideCommand(l *lexer) stateFn {
 	}
 }
 
-func lexQuoteArg(l *lexer, nextFn stateFn) stateFn {
+func lexQuote(l *lexer, nextFn stateFn) stateFn {
 	for {
 		r := l.next()
 
@@ -358,7 +445,7 @@ func lexArg(l *lexer, nextFn stateFn) stateFn {
 			return nil
 		}
 
-		if isAlphaNumeric(r) {
+		if isIdentifier(r) {
 			continue
 		}
 
@@ -403,9 +490,9 @@ func isSpace(r rune) bool {
 	return r == ' ' || r == '\t'
 }
 
-// isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
-func isAlphaNumeric(r rune) bool {
-	return r == '=' || r == '_' || r == '-' || r == '/' || r == ':' || r == '.' || unicode.IsLetter(r) || unicode.IsDigit(r)
+// isIdentifier reports whether r is a valid identifier
+func isIdentifier(r rune) bool {
+	return r == '_' || r == '-' || r == '/' || r == ':' || r == '.' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 // isEndOfLine reports whether r is an end-of-line character.
