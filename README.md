@@ -1,13 +1,13 @@
-# cnt
+# nash
 
-[![Build Status](https://travis-ci.org/tiago4orion/cnt.svg?branch=master)](https://travis-ci.org/tiago4orion/cnt) [![codecov.io](https://codecov.io/github/tiago4orion/cnt/coverage.svg?branch=master)](https://codecov.io/github/tiago4orion/cnt?branch=master)
+[![Build Status](https://travis-ci.org/tiago4orion/nash.svg?branch=master)](https://travis-ci.org/tiago4orion/nash) [![codecov.io](https://codecov.io/github/tiago4orion/nash/coverage.svg?branch=master)](https://codecov.io/github/tiago4orion/nash?branch=master)
 
-Cnt is a simple shell for Linux namespace management. If you think
+Nash is a simple shell for Linux namespace management. If you think
 every serious developer must have the power of namespace at their
-fingers, then `cnt` is for you.
+fingers, then `nash` is for you.
 
 No, it's not POSIX. Every harmful features of mainstream shells was
-left behind. Cnt is inspired by Plan 9 `rc` shell, but very different
+left behind. Nash is inspired by Plan 9 `rc` shell, but very different
 syntax and purpose.
 
 # Concept
@@ -16,7 +16,7 @@ Nowadays everyone agrees that a sane deploy requires linux containers,
 but why this kind of tools (docker, rkt, etc) and libraries (lxc,
 libcontainer, etc) are so bloated and magical?
 
-Cnt is only a simple shell plus a keyword called `rfork`. Rfork try to
+Nash is only a simple shell plus a keyword called `rfork`. Rfork try to
 mimic what Plan9 `rfork` does, but with linux limitations in mind.
 
 # Show time!
@@ -24,10 +24,10 @@ mimic what Plan9 `rfork` does, but with linux limitations in mind.
 Go ahead:
 
 ```
-go get github.com/tiago4orion/cnt/cmd/cnt
+go get github.com/tiago4orion/nash/cmd/nash
 # Make sure GOPATH/bin is in yout PATH
-cnt
-cnt> echo "hello world"
+nash
+nash> echo "hello world"
 hello world
 ```
 
@@ -42,7 +42,7 @@ If it's not enabled you will need root privileges to execute every example below
 Creating a new process in a new USER namespace (u):
 
 ```
-cnt> rfork u {
+nash> rfork u {
      id
 }
 uid=0(root) gid=0(root) groups=0(root),65534
@@ -54,10 +54,10 @@ You can verify that other types of namespace still requires root
 capabilities, see for PID namespaces (p).
 
 ```
-cnt> rfork p {
+nash> rfork p {
     id
 }
-ERROR: fork/exec ./cnt: operation not permitted
+ERROR: fork/exec ./nash: operation not permitted
 ```
 
 The same happens for mount (m), ipc (i) and uts (s) if used without
@@ -67,16 +67,16 @@ The `c` flag stands for "container" and is an alias for upmnis (all
 types of namespaces).  If you want a shell inside the container:
 
 ```
-cnt> rfork c {
+nash> rfork c {
     bash
 }
-[root@stay-away cnt]# id
+[root@stay-away nash]# id
 uid=0(root) gid=0(root) groups=0(root),65534
-[root@stay-away cnt]# mount -t proc proc /proc
-[root@stay-away cnt]#
-[root@stay-away cnt]# ps aux
+[root@stay-away nash]# mount -t proc proc /proc
+[root@stay-away nash]#
+[root@stay-away nash]# ps aux
 USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
-root         1  0.0  0.0  34648  2748 pts/4    Sl   17:32   0:00 -rcd- -addr /tmp/cnt.qNQa.sock
+root         1  0.0  0.0  34648  2748 pts/4    Sl   17:32   0:00 -rcd- -addr /tmp/nash.qNQa.sock
 root         5  0.0  0.0  16028  3840 pts/4    S    17:32   0:00 /usr/bin/bash
 root        23  0.0  0.0  34436  3056 pts/4    R+   17:34   0:00 ps aux
 ```
@@ -96,7 +96,7 @@ rfork <flags> {
 Take a look in the script below:
 
 ```bash
-#!/usr/bin/env cnt
+#!/usr/bin/env nash
 
 -rm -rf rootfs
 
@@ -131,7 +131,7 @@ Execute with:
 
 ```bash
 
-./cnt -file example.cnt
+./nash -file example.sh
 --2016-04-15 17:54:02--  https://busybox.net/downloads/binaries/latest/busybox-x86_64
 Resolving busybox.net (busybox.net)... 140.211.167.224
 Connecting to busybox.net (busybox.net)|140.211.167.224|:443... connected.

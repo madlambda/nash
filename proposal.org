@@ -1,4 +1,4 @@
-#+TITLE: Container shell
+#+TITLE: Nash shell
 
 I'm experimenting the idea of using a limited shell with namespace
 capabilities to enhance the container user experience.
@@ -6,7 +6,7 @@ capabilities to enhance the container user experience.
 Example:
 
 #+BEGIN_SRC sh
-#!/bin/cnt
+#!/bin/nash
 
 # Like stage0
 mkdir rootfs

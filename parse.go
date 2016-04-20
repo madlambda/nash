@@ -1,4 +1,4 @@
-package cnt
+package nash
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 )
 
 type (
-	// Parser parses an cnt file
+	// Parser parses an nash file
 	Parser struct {
 		name       string // filename or name of the buffer
 		content    string

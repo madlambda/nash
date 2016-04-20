@@ -1,4 +1,4 @@
-package cnt
+package nash
 
 import (
 	"fmt"
@@ -55,19 +55,19 @@ retryRforkDial:
 // socket file to communicate to.
 func (sh *Shell) executeRfork(rfork *RforkNode) error {
 	var (
-		tr        *Tree
-		i         int
-		cntClient net.Conn
+		tr         *Tree
+		i          int
+		nashClient net.Conn
 	)
 
-	if sh.cntdPath == "" {
-		return fmt.Errorf("Cntd not set")
+	if sh.nashdPath == "" {
+		return fmt.Errorf("Nashd not set")
 	}
 
-	unixfile := "/tmp/cnt." + randRunes(4) + ".sock"
+	unixfile := "/tmp/nash." + randRunes(4) + ".sock"
 
 	cmd := exec.Cmd{
-		Path: sh.cntdPath,
+		Path: sh.nashdPath,
 		Args: append([]string{"-rcd-"}, "-addr", unixfile),
 	}
 
@@ -88,9 +88,9 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 		return err
 	}
 
-	cntClient, err = dialRc(unixfile)
+	nashClient, err = dialRc(unixfile)
 
-	defer cntClient.Close()
+	defer nashClient.Close()
 
 	tr = rfork.Tree()
 
@@ -102,7 +102,7 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 		node := tr.Root.Nodes[i]
 		data := []byte(node.String() + "\n")
 
-		n, err := cntClient.Write(data)
+		n, err := nashClient.Write(data)
 
 		if err != nil || n != len(data) {
 			return fmt.Errorf("RPC call failed: Err: %v, bytes written: %d", err, n)
@@ -111,7 +111,7 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 		// read response
 
 		var response [1024]byte
-		n, err = cntClient.Read(response[:])
+		n, err = nashClient.Read(response[:])
 
 		if err != nil {
 			break
@@ -131,7 +131,7 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 	}
 
 	// we're done with rfork daemon
-	cntClient.Write([]byte("quit"))
+	nashClient.Write([]byte("quit"))
 
 	if err != nil {
 		return err

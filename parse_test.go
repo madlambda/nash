@@ -1,4 +1,4 @@
-package cnt
+package nash
 
 import (
 	"errors"
@@ -97,15 +97,15 @@ func TestParsePathCommand(t *testing.T) {
 func TestParseWithShebang(t *testing.T) {
 	expected := NewTree("parser shebang")
 	ln := NewListNode()
-	cmt := NewCommentNode(0, "#!/bin/cnt")
-	cmd := NewCommandNode(11, "echo")
-	cmd.AddArg(NewArg(16, "bleh", false))
+	cmt := NewCommentNode(0, "#!/bin/nash")
+	cmd := NewCommandNode(12, "echo")
+	cmd.AddArg(NewArg(17, "bleh", false))
 	ln.Push(cmt)
 	ln.Push(cmd)
 
 	expected.Root = ln
 
-	parserTestTable("parser shebang", `#!/bin/cnt
+	parserTestTable("parser shebang", `#!/bin/nash
 echo bleh
 `, expected, t)
 }

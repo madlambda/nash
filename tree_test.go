@@ -1,4 +1,4 @@
-package cnt
+package nash
 
 import "testing"
 
