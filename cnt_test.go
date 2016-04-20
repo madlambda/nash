@@ -67,4 +67,14 @@ func TestExecuteAssignment(t *testing.T) {
 		t.Error(err)
 		return
 	}
+
+	err = sh.ExecuteString("list assignment", `
+        name=(honda civic)
+        echo $name
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
 }
