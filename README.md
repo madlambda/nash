@@ -155,15 +155,15 @@ deploy. My answer is: Coming soon.
 
 I've tested in the following environments:
 
-Linux 4.1.13 (amd64)
-Fedora release 23
-SELinux disabled (required)
+    Linux 4.1.13 (amd64)
+    Fedora release 23
+    SELinux disabled (required)
 
-Linux 4.3.3 (amd64)
-Archlinux
+    Linux 4.3.3 (amd64)
+    Archlinux
 
-Linux 4.1.13 (amd64)
-Debian 8
+    Linux 4.1.13 (amd64)
+    Debian 8
 
 # Want to contribute?
 
