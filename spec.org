@@ -1,4 +1,4 @@
-#+TITLE: Cnt grammar specification
+#+TITLE: Nash grammar specification
 #+AUTHOR: Tiago Natel de Moura <tiago4orion@gmail.com>
 
 * eBNF
@@ -10,7 +10,7 @@ See ./spec.ebnf
 Some code examples:
 
 #+BEGIN_EXAMPLE
-#!/bin/cnt
+#!/bin/nash
 
 echo "hello world"
 #+END_EXAMPLE

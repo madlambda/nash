@@ -1,4 +1,4 @@
-package cnt
+package nash
 
 import "fmt"
 import "testing"
@@ -85,14 +85,14 @@ func TestShebangOnly(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemComment,
-			val: "#!/bin/cnt",
+			val: "#!/bin/nash",
 		},
 		item{
 			typ: itemEOF,
 		},
 	}
 
-	testTable("testShebangonly", "#!/bin/cnt\n", expected, t)
+	testTable("testShebangonly", "#!/bin/nash\n", expected, t)
 }
 
 func TestSimpleAssignment(t *testing.T) {
