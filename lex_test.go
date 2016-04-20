@@ -43,6 +43,44 @@ func testTable(name, content string, expected []item, t *testing.T) {
 	}
 }
 
+func TestItemToString(t *testing.T) {
+	it := item{
+		typ: itemEOF,
+	}
+
+	if it.String() != "EOF" {
+		t.Errorf("Wrong eof string: %s", it.String())
+	}
+
+	it = item{
+		typ: itemError,
+		val: "some error",
+	}
+
+	if it.String() != "Error: some error" {
+		t.Errorf("wrong error string: %s", it.String())
+	}
+
+	it = item{
+		typ: itemCommand,
+		val: "echo",
+	}
+
+	if it.String() != "(itemKeyword) - pos: 0, val: \"echo\"" {
+		t.Errorf("wrong command name: %s", it.String())
+	}
+
+	it = item{
+		typ: itemCommand,
+		val: "echoooooooooooooooooooooooo",
+	}
+
+	// test if long names are truncated
+	if it.String() != "(itemKeyword) - pos: 0, val: \"echooooooo\"..." {
+		t.Errorf("wrong command name: %s", it.String())
+	}
+}
+
 func TestShebangOnly(t *testing.T) {
 	expected := []item{
 		item{

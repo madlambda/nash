@@ -80,10 +80,10 @@ func (i item) String() string {
 	}
 
 	if len(i.val) > 10 {
-		return fmt.Sprintf("(%s) - pos: %d, val: %.10q..., %s", i.typ, i.pos, i.val)
+		return fmt.Sprintf("(%s) - pos: %d, val: %.10q...", i.typ, i.pos, i.val)
 	}
 
-	return fmt.Sprintf("pos: %d, val: %q", i.pos, i.val)
+	return fmt.Sprintf("(%s) - pos: %d, val: %q", i.typ, i.pos, i.val)
 }
 
 // run lexes the input by executing state functions until the state is nil
