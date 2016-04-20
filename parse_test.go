@@ -143,6 +143,17 @@ echo "hello"
 `, expected, t)
 }
 
+func TestCd(t *testing.T) {
+	expected := NewTree("test cd")
+	ln := NewListNode()
+	cd := NewCdNode(0)
+	cd.SetDir(NewArg(0, "/tmp", false))
+	ln.Push(cd)
+	expected.Root = ln
+
+	parserTestTable("test cd", "cd /tmp", expected, t)
+}
+
 func TestParseRfork(t *testing.T) {
 	expected := NewTree("test rfork")
 	ln := NewListNode()
@@ -220,6 +231,30 @@ func compareArg(expected *Arg, value *Arg) (bool, error) {
 
 	if expected.val != value.val {
 		return false, fmt.Errorf("Argument value differs: '%s' != '%s'", expected.val, value.val)
+	}
+
+	return true, nil
+}
+
+func compareCdNode(expected, value *CdNode) (bool, error) {
+	if expected == nil && value == nil {
+		return true, nil
+	}
+
+	if (expected == nil) != (value == nil) {
+		return false, fmt.Errorf("One of the nodecommand are nil")
+	}
+
+	if expected.dir.val != value.dir.val {
+		return false, fmt.Errorf("Expected.dir.val (%v) != value.dir.val (%v)", expected.dir.val, value.dir.val)
+	}
+
+	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
+		return ok, fmt.Errorf(" CompareCommandNode (%v, %v)-> %s", expected, value, err.Error())
+	}
+
+	if expected.Home != value.Home {
+		return false, fmt.Errorf("expected.Home (%v) != value.Home (%v)", expected.Home, value.Home)
 	}
 
 	return true, nil
@@ -339,6 +374,10 @@ func compareNodes(expected Node, value Node) (bool, error) {
 	}
 
 	switch v := expected.(type) {
+	case *CdNode:
+		ec := expected.(*CdNode)
+		vc := value.(*CdNode)
+		valid, err = compareCdNode(ec, vc)
 	case *CommandNode:
 		ec := expected.(*CommandNode)
 		vc := value.(*CommandNode)

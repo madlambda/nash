@@ -143,7 +143,6 @@ busybox                 100%[===============================>] 950.39K  21.1KB/s
 
 2016-04-15 17:54:46 (22.1 KB/s) - ‘busybox’ saved [973200/973200]
 
-Hello World service
 ```
 
 Change the last line of chroot to invoke /bin/sh if you want a shell
@@ -152,6 +151,19 @@ inside the busybox.
 I know, I know, lots of questions in how to handle the hard parts of
 deploy. My answer is: Coming soon.
 
+# Didn't work?
+
+I've tested in the following environments:
+
+Linux 4.1.13 (amd64)
+Fedora release 23
+SELinux disabled (required)
+
+Linux 4.3.3 (amd64)
+Archlinux
+
+Linux 4.1.13 (amd64)
+Debian 8
 
 # Want to contribute?
 
