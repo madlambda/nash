@@ -98,7 +98,7 @@ Take a look in the script below:
 ```bash
 #!/usr/bin/env nash
 
-$image="https://busybox.net/downloads/binaries/latest/busybox-x86_64"
+image="https://busybox.net/downloads/binaries/latest/busybox-x86_64"
 
 -rm -rf rootfs
 
