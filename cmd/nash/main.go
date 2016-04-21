@@ -24,8 +24,8 @@ func init() {
 	flag.BoolVar(&debug, "debug", false, "enable debug")
 	flag.StringVar(&file, "file", "", "script file")
 
-	if os.Args[0] == "-rcd-" || (len(os.Args) > 1 && os.Args[1] == "-rcd") {
-		flag.Bool("rcd", false, "force enable rcd mode")
+	if os.Args[0] == "-nashd-" || (len(os.Args) > 1 && os.Args[1] == "-daemon") {
+		flag.Bool("daemon", false, "force enable nashd mode")
 		flag.StringVar(&addr, "addr", "", "rcd unix file")
 	}
 }
@@ -38,7 +38,7 @@ func main() {
 	shell := nash.NewShell(debug)
 
 	if addr != "" {
-		startRcd(shell, addr)
+		startNashd(shell, addr)
 	} else if file == "" {
 		err = cli(shell)
 	} else {

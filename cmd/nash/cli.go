@@ -74,11 +74,15 @@ func cli(sh *nash.Shell) error {
 				break
 			}
 
+			line.ResetMode()
 			err = sh.ExecuteTree(tr)
 
 			if err != nil {
 				fmt.Printf("ERROR: %s\n", err.Error())
 			}
+
+			line.InitialMode()
+
 		} else if err == liner.ErrPromptAborted {
 			log.Print("Aborted")
 			break

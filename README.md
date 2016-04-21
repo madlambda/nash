@@ -50,6 +50,25 @@ uid=0(root) gid=0(root) groups=0(root),65534
 Yes, Linux supports creation of containers by unprivileged users. Tell
 this to the customer success of your container-infrastructure-vendor.
 
+The default UID mapping is: Current UID (getuid) => 0 (no
+range support). I'll look into more options for this in the future.
+
+Yes, you can create multiple nested user namespaces. But kernel limits
+the number of nested user namespace clones to 32.
+```
+nash> rfork u {
+    echo "inside first container"
+
+    id
+
+    rfork u {
+        echo "inside second namespace..."
+
+        id
+    }
+}
+```
+
 You can verify that other types of namespace still requires root
 capabilities, see for PID namespaces (p).
 

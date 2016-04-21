@@ -78,7 +78,7 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 
 	cmd := exec.Cmd{
 		Path: sh.nashdPath,
-		Args: append([]string{"-rcd-"}, "-addr", unixfile),
+		Args: append([]string{"-nashd-"}, "-addr", unixfile),
 	}
 
 	forkFlags, err := getflags(rfork.arg.val)
@@ -103,6 +103,7 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 			return err
 		}
 	} else {
+		cmd.Stdout = sh.stdout
 		close(stdoutDone)
 	}
 
@@ -113,6 +114,7 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 			return err
 		}
 	} else {
+		cmd.Stderr = sh.stderr
 		close(stderrDone)
 	}
 
@@ -181,7 +183,7 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 		}
 
 		if status != 0 {
-			err = fmt.Errorf("rc: Exited with status %d", status)
+			err = fmt.Errorf("nash: Exited with status %d", status)
 			break
 		}
 	}

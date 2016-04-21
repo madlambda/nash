@@ -29,10 +29,10 @@ func serveConn(sh *nash.Shell, conn net.Conn) {
 			return
 		}
 
-		err = sh.ExecuteString("-rpc-", string(data[0:n]))
+		err = sh.ExecuteString("-nashd-", string(data[0:n]))
 
 		if err != nil {
-			fmt.Printf("rc: %s\n", err.Error())
+			fmt.Printf("nashd: %s\n", err.Error())
 
 			_, err = conn.Write([]byte("1"))
 
@@ -51,7 +51,7 @@ func serveConn(sh *nash.Shell, conn net.Conn) {
 	}
 }
 
-func startRcd(sh *nash.Shell, socketPath string) {
+func startNashd(sh *nash.Shell, socketPath string) {
 	os.Remove(socketPath)
 
 	addr := &net.UnixAddr{

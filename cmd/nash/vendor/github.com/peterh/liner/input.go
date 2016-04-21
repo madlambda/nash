@@ -52,6 +52,18 @@ func NewLiner() *State {
 	if s.inputRedirected && s.outputRedirected {
 		s.terminalSupported = false
 	}
+
+	s.InitialMode()
+
+	if !s.outputRedirected {
+		s.getColumns()
+		s.outputRedirected = s.columns <= 0
+	}
+
+	return &s
+}
+
+func (s *State) InitialMode() {
 	if s.terminalSupported && !s.inputRedirected && !s.outputRedirected {
 		mode := s.origMode
 		mode.Iflag &^= icrnl | inpck | istrip | ixon
@@ -65,13 +77,10 @@ func NewLiner() *State {
 
 		s.checkOutput()
 	}
+}
 
-	if !s.outputRedirected {
-		s.getColumns()
-		s.outputRedirected = s.columns <= 0
-	}
-
-	return &s
+func (s *State) ResetMode() {
+	s.origMode.ApplyMode()
 }
 
 var errTimedOut = errors.New("timeout")

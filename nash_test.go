@@ -106,6 +106,38 @@ func TestExecuteRforkUserNS(t *testing.T) {
 	}
 }
 
+func TestExecuteRforkUserNSNested(t *testing.T) {
+	if !enableUserNS {
+		t.Skip("User namespace not enabled")
+		return
+	}
+
+	var out bytes.Buffer
+
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err := sh.ExecuteString("rfork userns nested", `
+        rfork u {
+            id -u
+            rfork u {
+                id -u
+            }
+        }
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "0\n0\n" {
+		t.Errorf("User namespace not supported in your kernel")
+		return
+	}
+}
+
 func TestExecuteAssignment(t *testing.T) {
 	sh := NewShell(false)
 	sh.SetNashdPath(nashdPath)
