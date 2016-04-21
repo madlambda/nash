@@ -98,6 +98,8 @@ Take a look in the script below:
 ```bash
 #!/usr/bin/env nash
 
+$image="https://busybox.net/downloads/binaries/latest/busybox-x86_64"
+
 -rm -rf rootfs
 
 echo "Executing container"
@@ -110,7 +112,7 @@ rfork upmis {
 
     cd rootfs
 
-    wget "https://busybox.net/downloads/binaries/latest/busybox-x86_64" -O busybox
+    wget $image -O busybox
     chmod +x busybox
 
     mkdir bin
