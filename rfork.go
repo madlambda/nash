@@ -56,10 +56,19 @@ retryRforkDial:
 // socket file to communicate to.
 func (sh *Shell) executeRfork(rfork *RforkNode) error {
 	var (
-		tr         *Tree
-		i          int
-		nashClient net.Conn
+		tr               *Tree
+		i                int
+		nashClient       net.Conn
+		copyOut, copyErr bool
 	)
+
+	if sh.stdout != os.Stdout {
+		copyOut = true
+	}
+
+	if sh.stderr != os.Stderr {
+		copyErr = true
+	}
 
 	if sh.nashdPath == "" {
 		return fmt.Errorf("Nashd not set")
@@ -83,42 +92,28 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 	stdoutDone := make(chan bool)
 	stderrDone := make(chan bool)
 
-	if sh.stdout != os.Stdout {
-		var stdout io.ReadCloser
+	var (
+		stdout, stderr io.ReadCloser
+	)
 
+	if copyOut {
 		stdout, err = cmd.StdoutPipe()
 
 		if err != nil {
 			return err
 		}
-
-		go func() {
-			defer close(stdoutDone)
-
-			io.Copy(sh.stdout, stdout)
-		}()
 	} else {
 		close(stdoutDone)
-		cmd.Stdout = sh.stdout
 	}
 
-	if sh.stderr != os.Stderr {
-		var stderr io.ReadCloser
-
+	if copyErr {
 		stderr, err = cmd.StderrPipe()
 
 		if err != nil {
 			return err
 		}
-
-		go func() {
-			defer close(stderrDone)
-
-			io.Copy(sh.stderr, stderr)
-		}()
 	} else {
 		close(stderrDone)
-		cmd.Stderr = sh.stderr
 	}
 
 	cmd.Stdin = sh.stdin
@@ -127,6 +122,22 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 
 	if err != nil {
 		return err
+	}
+
+	if copyOut {
+		go func() {
+			defer close(stdoutDone)
+
+			io.Copy(sh.stdout, stdout)
+		}()
+	}
+
+	if copyErr {
+		go func() {
+			defer close(stderrDone)
+
+			io.Copy(sh.stderr, stderr)
+		}()
 	}
 
 	nashClient, err = dialRc(unixfile)
