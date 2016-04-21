@@ -28,6 +28,13 @@ func init() {
 		panic("Please, run make build before running tests")
 	}
 
+	// Travis build doesn't support /proc/config.gz but have userns enabled
+	if os.Getenv("TRAVIS_BUILD") == "1" {
+		enableUserNS = true
+
+		return
+	}
+
 	usernsCmd := exec.Command("zgrep", "CONFIG_USER_NS", "/proc/config.gz")
 
 	content, err := usernsCmd.CombinedOutput()
