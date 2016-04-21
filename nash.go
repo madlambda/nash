@@ -60,7 +60,7 @@ func (sh *Shell) GetPrompt() string {
 		return sh.env["prompt"][0]
 	}
 
-	return "nash>"
+	return "nash> "
 }
 
 // SetDebug enable/disable debug in the shell
