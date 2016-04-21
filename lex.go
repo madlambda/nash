@@ -267,7 +267,11 @@ func lexInsideAssignment(l *lexer) stateFn {
 	case r == '(':
 		return lexInsideListVariable
 	case r == '"':
-		return lexQuote(l, lexStart)
+		l.next()
+		l.ignore()
+		return func(l *lexer) stateFn {
+			return lexQuote(l, lexStart)
+		}
 	case isIdentifier(r) || r == '$':
 		return lexInsideCommonVariable
 	}
