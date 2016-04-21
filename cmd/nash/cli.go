@@ -56,7 +56,13 @@ func cli(sh *nash.Shell) error {
 
 			tr, err := parser.Parse()
 
-			if err != nil && err.Error() == "Open '{' not closed" {
+			if err != nil {
+				if err.Error() == "Open '{' not closed" {
+					continue
+				}
+
+				fmt.Printf("ERROR: %s\n", err.Error())
+				content.Reset()
 				continue
 			} else {
 				line.AppendHistory(string(content.Bytes()))

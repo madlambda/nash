@@ -226,6 +226,11 @@ func lexIdentifier(l *lexer) stateFn {
 
 	word := l.input[l.start:l.pos]
 
+	if len(word) == 0 {
+		// sanity check
+		return l.errorf("internal error")
+	}
+
 	if l.peek() == '=' {
 		l.emit(itemVarName)
 		return lexInsideAssignment
@@ -238,6 +243,11 @@ func lexIdentifier(l *lexer) stateFn {
 	case "cd":
 		l.emit(itemCd)
 		return lexInsideCd
+	}
+
+	if len(word) == 1 && word == "-" {
+		l.ignore()
+		return l.errorf("- requires a command")
 	}
 
 	l.emit(itemCommand)

@@ -143,6 +143,21 @@ echo "hello"
 `, expected, t)
 }
 
+func TestParseStringNotFinished(t *testing.T) {
+	parser := NewParser("string not finished", `echo "hello world`)
+	tr, err := parser.Parse()
+
+	if err == nil {
+		t.Error("Error: should fail")
+		return
+	}
+
+	if tr != nil {
+		t.Errorf("Failed to parse")
+		return
+	}
+}
+
 func TestCd(t *testing.T) {
 	expected := NewTree("test cd")
 	ln := NewListNode()

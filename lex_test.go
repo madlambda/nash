@@ -466,3 +466,17 @@ func TestBuiltinCd(t *testing.T) {
 
 	testTable("testBuiltinCdNoQuote", `cd /proc`, expected, t)
 }
+
+func TestMinusAlone(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemError,
+			val: "- requires a command",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test minus", "-", expected, t)
+}

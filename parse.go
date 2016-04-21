@@ -105,7 +105,7 @@ func (p *Parser) parseCommand() (Node, error) {
 		case itemEOF:
 			return n, nil
 		case itemError:
-			return nil, fmt.Errorf("Failed to parse document: %s", it)
+			return nil, fmt.Errorf("Failed to parse document: %s", it.val)
 		default:
 			p.backup(it)
 			return n, nil
@@ -223,6 +223,8 @@ func (p *Parser) parseStatement() (Node, error) {
 	it := p.peek()
 
 	switch it.typ {
+	case itemError:
+		return nil, errors.New(it.val)
 	case itemVarName:
 		return p.parseAssignment()
 	case itemCommand:
