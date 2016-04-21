@@ -2,6 +2,7 @@ package nash
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -78,9 +79,49 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 	}
 
 	cmd.SysProcAttr = getProcAttrs(forkFlags)
+
+	stdoutDone := make(chan bool)
+	stderrDone := make(chan bool)
+
+	if sh.stdout != os.Stdout {
+		var stdout io.ReadCloser
+
+		stdout, err = cmd.StdoutPipe()
+
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			defer close(stdoutDone)
+
+			io.Copy(sh.stdout, stdout)
+		}()
+	} else {
+		close(stdoutDone)
+		cmd.Stdout = sh.stdout
+	}
+
+	if sh.stderr != os.Stderr {
+		var stderr io.ReadCloser
+
+		stderr, err = cmd.StderrPipe()
+
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			defer close(stderrDone)
+
+			io.Copy(sh.stderr, stderr)
+		}()
+	} else {
+		close(stderrDone)
+		cmd.Stderr = sh.stderr
+	}
+
 	cmd.Stdin = sh.stdin
-	cmd.Stdout = sh.stdout
-	cmd.Stderr = sh.stderr
 
 	err = cmd.Start()
 
@@ -99,10 +140,14 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 	}
 
 	for i = 0; i < len(tr.Root.Nodes); i++ {
+		var (
+			n, status int
+		)
+
 		node := tr.Root.Nodes[i]
 		data := []byte(node.String() + "\n")
 
-		n, err := nashClient.Write(data)
+		n, err = nashClient.Write(data)
 
 		if err != nil || n != len(data) {
 			return fmt.Errorf("RPC call failed: Err: %v, bytes written: %d", err, n)
@@ -117,7 +162,7 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 			break
 		}
 
-		status, err := strconv.Atoi(string(response[0:n]))
+		status, err = strconv.Atoi(string(response[0:n]))
 
 		if err != nil {
 			err = fmt.Errorf("Invalid status: %s", string(response[0:n]))
@@ -133,8 +178,17 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 	// we're done with rfork daemon
 	nashClient.Write([]byte("quit"))
 
+	<-stdoutDone
+	<-stderrDone
+
+	err2 := cmd.Wait()
+
 	if err != nil {
 		return err
+	}
+
+	if err2 != nil {
+		return err2
 	}
 
 	return nil

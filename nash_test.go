@@ -1,6 +1,7 @@
 package nash
 
 import (
+	"bytes"
 	"os"
 	"testing"
 )
@@ -24,11 +25,14 @@ func init() {
 	}
 }
 
-func TestExecute(t *testing.T) {
+func TestExecuteFile(t *testing.T) {
 	testfile := testDir + "/ex1.sh"
+
+	var out bytes.Buffer
 
 	sh := NewShell(false)
 	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
 
 	err := sh.Execute(testfile)
 
@@ -36,11 +40,19 @@ func TestExecute(t *testing.T) {
 		t.Error(err)
 		return
 	}
+
+	if string(out.Bytes()) != "hello world\n" {
+		t.Errorf("Wrong command output: '%s'", string(out.Bytes()))
+		return
+	}
 }
 
 func TestExecuteRfork(t *testing.T) {
+	var out bytes.Buffer
+
 	sh := NewShell(false)
 	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
 
 	err := sh.ExecuteString("rfork test", `
         rfork u {
@@ -50,6 +62,11 @@ func TestExecuteRfork(t *testing.T) {
 
 	if err != nil {
 		t.Error(err)
+	}
+
+	if string(out.Bytes()) != "0\n" {
+		t.Errorf("User namespace not supported in your kernel")
+		return
 	}
 }
 

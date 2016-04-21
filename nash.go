@@ -199,15 +199,53 @@ func (sh *Shell) execute(c *CommandNode) error {
 	}
 
 	cmd := exec.Command(cmdPath, args...)
+
+	stdoutDone := make(chan bool)
+	stderrDone := make(chan bool)
+
+	if sh.stdout != os.Stdout {
+		stdout, err := cmd.StdoutPipe()
+
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			defer close(stdoutDone)
+
+			io.Copy(sh.stdout, stdout)
+		}()
+	} else {
+		close(stdoutDone)
+		cmd.Stdout = sh.stdout
+	}
+
+	if sh.stderr != os.Stderr {
+		stderr, err := cmd.StderrPipe()
+
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			defer close(stderrDone)
+			io.Copy(sh.stderr, stderr)
+		}()
+	} else {
+		close(stderrDone)
+		cmd.Stderr = sh.stderr
+	}
+
 	cmd.Stdin = sh.stdin
-	cmd.Stdout = sh.stdout
-	cmd.Stderr = sh.stderr
 
 	err = cmd.Start()
 
 	if err != nil {
 		return err
 	}
+
+	<-stdoutDone
+	<-stderrDone
 
 	err = cmd.Wait()
 

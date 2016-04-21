@@ -4,9 +4,9 @@ package nash
 
 import "fmt"
 
-const itemTypeName = "itemErroritemEOFitemCommentitemCommanditemArgitemLeftBlockitemRightBlockitemStringitemKeyworditemRforkitemRforkFlags"
+const itemTypeName = "itemErroritemEOFitemCommentitemVarNameitemVarValueitemListOpenitemListCloseitemListElemitemCommanditemArgitemLeftBlockitemRightBlockitemStringitemKeyworditemRforkitemRforkFlagsitemCd"
 
-var itemTypeIndex = [...]uint8{0, 9, 16, 27, 38, 45, 58, 72, 82, 93, 102, 116}
+var itemTypeIndex = [...]uint8{0, 9, 16, 27, 38, 50, 62, 75, 87, 98, 105, 118, 132, 142, 153, 162, 176, 182}
 
 func (i itemType) String() string {
 	i--

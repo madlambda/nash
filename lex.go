@@ -63,14 +63,6 @@ const (
 	rforkFlags = "cnsmifup"
 )
 
-var (
-	key = map[string]itemType{
-		//		"if": itemIf,
-		//		"for": itemFor,
-		"rfork": itemRfork,
-	}
-)
-
 func (i item) String() string {
 	switch i.typ {
 	case itemError:
@@ -266,7 +258,7 @@ func lexInsideAssignment(l *lexer) stateFn {
 		return lexInsideListVariable
 	case r == '"':
 		return lexQuote(l, lexStart)
-	case isIdentifier(r):
+	case isIdentifier(r) || r == '$':
 		return lexInsideCommonVariable
 	}
 
@@ -315,10 +307,12 @@ func lexInsideCommonVariable(l *lexer) stateFn {
 	for {
 		r = l.next()
 
-		if !isIdentifier(r) {
+		if r != '$' && !isIdentifier(r) {
 			break
 		}
 	}
+
+	l.backup()
 
 	if r == '"' {
 		l.ignore()

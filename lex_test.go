@@ -25,7 +25,13 @@ func testTable(name, content string, expected []item, t *testing.T) {
 	if len(result) != len(expected) {
 		t.Errorf("Failed to parse commands, length differs %d != %d",
 			len(result), len(expected))
-		fmt.Printf("%+v\n", result)
+
+		fmt.Printf("Parsing content: %s\n", content)
+
+		for _, res := range result {
+			fmt.Printf("parsed: %+v\n", res)
+		}
+
 		return
 	}
 
@@ -66,7 +72,7 @@ func TestItemToString(t *testing.T) {
 		val: "echo",
 	}
 
-	if it.String() != "(itemKeyword) - pos: 0, val: \"echo\"" {
+	if it.String() != "(itemCommand) - pos: 0, val: \"echo\"" {
 		t.Errorf("wrong command name: %s", it.String())
 	}
 
@@ -76,7 +82,7 @@ func TestItemToString(t *testing.T) {
 	}
 
 	// test if long names are truncated
-	if it.String() != "(itemKeyword) - pos: 0, val: \"echooooooo\"..." {
+	if it.String() != "(itemCommand) - pos: 0, val: \"echooooooo\"..." {
 		t.Errorf("wrong command name: %s", it.String())
 	}
 }
@@ -111,6 +117,67 @@ func TestSimpleAssignment(t *testing.T) {
 	}
 
 	testTable("testAssignment", "test=value", expected, t)
+
+	expected = []item{
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemVarValue,
+			val: "value",
+		},
+		item{
+			typ: itemVarName,
+			val: "other",
+		},
+		item{
+			typ: itemVarValue,
+			val: "other",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test multiple Assignments", `
+        test=value
+        other=other`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemVarValue,
+			val: "value",
+		},
+		item{
+			typ: itemVarName,
+			val: "other",
+		},
+		item{
+			typ: itemVarValue,
+			val: "$test",
+		},
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemArg,
+			val: "$other",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test multiple Assignments", `
+        test=value
+        other=$test
+        echo $other`, expected, t)
 }
 
 func TestListAssignment(t *testing.T) {
