@@ -54,6 +54,15 @@ func NewEnv() Env {
 	return env
 }
 
+// GetPrompt returns the environment prompt or the default one
+func (sh *Shell) GetPrompt() string {
+	if sh.env["prompt"] != nil && len(sh.env["prompt"]) > 0 {
+		return sh.env["prompt"][0]
+	}
+
+	return "nash>"
+}
+
 // SetDebug enable/disable debug in the shell
 func (sh *Shell) SetDebug(debug bool) {
 	sh.log = NewLog(logNS, debug)

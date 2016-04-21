@@ -47,7 +47,7 @@ func cli(sh *nash.Shell) error {
 	var lineidx int
 
 	for {
-		if value, err = line.Prompt("nash> "); err == nil {
+		if value, err = line.Prompt(sh.GetPrompt()); err == nil {
 			lineidx++
 
 			content.Write([]byte(value + "\n"))
