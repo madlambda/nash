@@ -5,16 +5,31 @@ unicode_digit  = /* a Unicode code point classified as "Number, decimal digit" *
 
 letter         = unicode_letter | "_" .
 filename    = { [ "/" ]  { unicode_letter } } .
+ipaddr      = unicode_digit { unicode_digit } "."
+              unicode_digit { unicode_digit } "."
+              unicode_digit { unicode_digit } "."
+              unicode_digit { unicode_digit } "." .
+port        = unicode_digit { unicode_digit } .
+networkaddr = ipaddr ":" port .
+location    = filename | networkaddr .
+schema      = "file" | "tcp" | "udp" | "unix" .
+uri         = schema "://" location .
 
 identifier  = letter { letter | unicode_digit } .
-builtin     = rforkDecl | cdDecl | ifDecl | elseDecl | forDecl .
+variable    = "$" identifier .
+builtin     = rforkDecl | cdDecl | ifDecl | elseDecl | forDecl | execDecl .
 rforkDecl   = "rfork" rforkFlags "{" program "}" .
-namespace   = "c" | "m" | "n" | "i" | "p" | "u" | "s" .
+namespace   = { "c" | "m" | "n" | "i" | "p" | "u" | "s" } .
 rforkFlags  = { namespace } .
 cdDecl      = "cd" [ filename ] .
 ifDecl      = "if" identifier comparison ( identifier | varValue ) "{" program "}" .
 elseDecl    = "else" "{" program "}" .
 forDecl     = "for" ( identifier | varList ) "{" program "}" .
+execDecl    = "exec" (varList | variable) { redirect } .
+redirect   = ( ">" ( filename | uri ) |
+               ">" "[" unicode_digit "]" ( filename | uri ) |
+               ">" "[" unicode_digit "=" unicode_digit "]" |
+               ">" "[" unicode_digit "=" "]" ) .
 
 comparison  = "==" | "!=" .
 
@@ -25,12 +40,14 @@ varSpec  = ( varList | varValue ) .
 varValue = ({ letter | unicode_digit }) | string_lit .
 varList  = "(" { varValue } ")" .
 
-command   = ( pathcmd | abscmd ) .
-pathcmd   = [ "-" ] identifier { argument } .
-abscmd    = [ "-" ] filename { argument } .
 argument  = unicode_char { unicode_char } .
+cmdpart   = [ "-" ] ( cmdname | abscmd ) { argument } { redirect } .
+pipe      = cmdpart "|" cmdpart [ { "|" cmdpart } ] .
+command   = ( cmdpart | pipe ) .
+cmdname   = identifier .
+abscmd    = filename .
 
-comment   = "#" { unicode_letter } .
+comment   = "#" { unicode_char } .
 
 program   = { statement } .
 statement = varDecl | command | builtin | comment .

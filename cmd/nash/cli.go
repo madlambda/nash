@@ -1,70 +1,146 @@
 package main
 
+// [27 91 51 49 109 206 187 27 91 48 109 32
+
 import (
 	"bytes"
 	"fmt"
+	"io"
+	"log"
+	"os"
+	"strings"
 
-	"github.com/nemith/goline"
+	"github.com/chzyer/readline"
 	"github.com/tiago4orion/nash"
+)
+
+var completer = readline.NewPrefixCompleter(
+	readline.PcItem("mode",
+		readline.PcItem("vi"),
+		readline.PcItem("emacs"),
+	),
+	readline.PcItem("rfork",
+		readline.PcItem("c"),
+		readline.PcItem("upmnis"),
+		readline.PcItem("upmis"),
+	),
+	readline.PcItem("prompt="),
+	readline.PcItem("path="),
 )
 
 func cli(sh *nash.Shell) error {
 	var (
-		err   error
-		value string
+		err  error
+		home string
 	)
 
-	gliner := goline.NewGoLine(sh)
+	home = os.Getenv("HOME")
 
-	gliner.AddHandler(goline.CHAR_CTRLC, goline.Finish)
-	gliner.AddHandler(goline.CHAR_CTRLD, goline.UserTerminated)
+	if home == "" {
+		user := os.Getenv("USER")
+
+		if user != "" {
+			home = "/home/" + user
+		} else {
+			home = "/tmp"
+		}
+	}
+
+	historyFile := home + "/.nash"
+
+	os.Mkdir(historyFile, 0755)
+
+	l, err := readline.NewEx(&readline.Config{
+		Prompt:          sh.Prompt(),
+		HistoryFile:     historyFile,
+		AutoComplete:    completer,
+		InterruptPrompt: "^C",
+		EOFPrompt:       "exit",
+	})
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer l.Close()
+
+	log.SetOutput(l.Stderr())
 
 	var content bytes.Buffer
 	var lineidx int
+	var line string
 
 	for {
-		if value, err = gliner.Line(); err == nil {
-			fmt.Printf("\n")
-			lineidx++
+		line, err = l.Readline()
 
-			content.Write([]byte(value + "\n"))
+		if err == readline.ErrInterrupt {
+			if len(line) == 0 {
+				break
+			} else {
+				continue
+			}
+		} else if err == io.EOF {
+			break
+		}
 
-			parser := nash.NewParser(fmt.Sprintf("line %d", lineidx), string(content.Bytes()))
+		lineidx++
 
-			tr, err := parser.Parse()
+		line = strings.TrimSpace(line)
 
-			if err != nil {
-				if err.Error() == "Open '{' not closed" {
-					sh.SetMultiLine(true)
-					continue
-				}
+		// handle special cli commands
 
-				fmt.Printf("ERROR: %s\n", err.Error())
-				content.Reset()
+		switch {
+		case strings.HasPrefix(line, "set mode "):
+			switch line[8:] {
+			case "vi":
+				l.SetVimMode(true)
+			case "emacs":
+				l.SetVimMode(false)
+			default:
+				fmt.Printf("invalid mode: %s\n", line[8:])
+			}
 
-				sh.SetMultiLine(false)
+			continue
+		case line == "mode":
+			if l.IsVimMode() {
+				fmt.Printf("Current mode: vim\n")
+			} else {
+				fmt.Printf("Current mode: emacs\n")
+			}
+
+			continue
+
+		case line == "exit":
+			break
+		}
+
+		content.Write([]byte(line + "\n"))
+
+		parser := nash.NewParser(fmt.Sprintf("line %d", lineidx), string(content.Bytes()))
+
+		tr, err := parser.Parse()
+
+		if err != nil {
+			if err.Error() == "Open '{' not closed" {
+				l.SetPrompt(">>> ")
 				continue
 			}
 
+			fmt.Printf("ERROR: %s\n", err.Error())
 			content.Reset()
-
-			if value == "exit" {
-				break
-			}
-
-			sh.SetMultiLine(false)
-
-			err = sh.ExecuteTree(tr)
-
-			if err != nil {
-				fmt.Printf("ERROR: %s\n", err.Error())
-			}
-		} else if err == goline.UserTerminatedError {
-			fmt.Println("Aborted")
-			break
-		} else {
-			panic(err)
+			l.SetPrompt(sh.Prompt())
+			continue
 		}
+
+		content.Reset()
+
+		err = sh.ExecuteTree(tr)
+
+		if err != nil {
+			fmt.Printf("ERROR: %s\n", err.Error())
+		}
+
+		l.SetPrompt(sh.Prompt())
 	}
 
 	return err

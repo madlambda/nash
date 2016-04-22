@@ -48,29 +48,24 @@ func NewShell(debug bool) *Shell {
 func NewEnv() Env {
 	env := make(Env)
 	env["*"] = os.Args
-	env["pid"] = append(make([]string, 0, 1), strconv.Itoa(os.Getpid()))
-	env["home"] = append(make([]string, 0, 1), os.Getenv("HOME"))
-	env["path"] = append(make([]string, 0, 128), os.Getenv("PATH"))
+	env["PID"] = append(make([]string, 0, 1), strconv.Itoa(os.Getpid()))
+	env["HOME"] = append(make([]string, 0, 1), os.Getenv("HOME"))
+	env["PATH"] = append(make([]string, 0, 128), os.Getenv("PATH"))
+
+	if os.Getenv("PROMPT") != "" {
+		env["PROMPT"] = append(make([]string, 0, 1), os.Getenv("PROMPT"))
+	}
 
 	return env
 }
 
 // Prompt returns the environment prompt or the default one
 func (sh *Shell) Prompt() string {
-	if sh.multiline {
-		return ""
+	if sh.env["PROMPT"] != nil && len(sh.env["PROMPT"]) > 0 {
+		return sh.env["PROMPT"][0]
 	}
 
-	if sh.env["prompt"] != nil && len(sh.env["prompt"]) > 0 {
-		return sh.env["prompt"][0]
-	}
-
-	return "nash> "
-}
-
-// SetMultiLine enables/disables multiline for cli
-func (sh *Shell) SetMultiLine(m bool) {
-	sh.multiline = m
+	return "\033[31mλ>\033[0m "
 }
 
 // SetDebug enable/disable debug in the shell

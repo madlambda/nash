@@ -23,16 +23,17 @@ mimic what Plan9 `rfork` does, but with linux limitations in mind.
 
 Go ahead:
 
-```
+```sh
 go get github.com/tiago4orion/nash/cmd/nash
 # Make sure GOPATH/bin is in yout PATH
 nash
-nash> echo "hello world"
+λ> echo "hello world"
 hello world
 ```
 
 Make sure you have USER namespaces enabled in your kernel:
-```bash
+
+```sh
 zgrep CONFIG_USER_NS /proc/config.gz
 CONFIG_USER_NS=y
 ```
@@ -41,8 +42,8 @@ If it's not enabled you will need root privileges to execute every example below
 
 Creating a new process in a new USER namespace (u):
 
-```
-nash> rfork u {
+```sh
+λ> rfork u {
      id
 }
 uid=0(root) gid=0(root) groups=0(root),65534
@@ -55,8 +56,9 @@ range support). I'll look into more options for this in the future.
 
 Yes, you can create multiple nested user namespaces. But kernel limits
 the number of nested user namespace clones to 32.
-```
-nash> rfork u {
+
+```sh
+λ> rfork u {
     echo "inside first container"
 
     id
@@ -72,8 +74,8 @@ nash> rfork u {
 You can verify that other types of namespace still requires root
 capabilities, see for PID namespaces (p).
 
-```
-nash> rfork p {
+```sh
+λ> rfork p {
     id
 }
 ERROR: fork/exec ./nash: operation not permitted
@@ -85,8 +87,8 @@ user namespace (u) flag.
 The `c` flag stands for "container" and is an alias for upmnis (all
 types of namespaces).  If you want a shell inside the container:
 
-```
-nash> rfork c {
+```sh
+λ> rfork c {
     bash
 }
 [root@stay-away nash]# id
@@ -114,7 +116,7 @@ rfork <flags> {
 
 Take a look in the script below:
 
-```bash
+```sh
 #!/usr/bin/env nash
 
 image="https://busybox.net/downloads/binaries/latest/busybox-x86_64"
@@ -150,7 +152,7 @@ rfork upmis {
 
 Execute with:
 
-```bash
+```sh
 
 ./nash -file example.sh
 --2016-04-15 17:54:02--  https://busybox.net/downloads/binaries/latest/busybox-x86_64
