@@ -28,6 +28,18 @@ type (
 		env       Env
 		multiline bool
 	}
+
+	RWCloser interface {
+		Read([]byte) (int, error)
+		Write([]byte) (int, error)
+		Close() error
+	}
+
+	SomePipe func() (RWCloser, error)
+
+	Redirect struct {
+		rmap map[int]io.ReadCloser
+	}
 )
 
 const logNS = "nash.Shell"
@@ -214,43 +226,59 @@ func (sh *Shell) execute(c *CommandNode) error {
 
 	cmd := exec.Command(cmdPath, args...)
 
+	stdinDone := make(chan bool)
 	stdoutDone := make(chan bool)
 	stderrDone := make(chan bool)
 
-	if sh.stdout != os.Stdout {
-		stdout, err := cmd.StdoutPipe()
-
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			defer close(stdoutDone)
-
-			io.Copy(sh.stdout, stdout)
-		}()
-	} else {
-		close(stdoutDone)
-		cmd.Stdout = sh.stdout
+	omap := map[int]RWCloser{
+		0: os.Stdin,
+		1: os.Stdout,
+		2: os.Stderr,
 	}
 
-	if sh.stderr != os.Stderr {
-		stderr, err := cmd.StderrPipe()
-
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			defer close(stderrDone)
-			io.Copy(sh.stderr, stderr)
-		}()
-	} else {
-		close(stderrDone)
-		cmd.Stderr = sh.stderr
+	fmap := map[int]SomePipe{
+		0: cmd.StdinPipe,
+		1: cmd.StdoutPipe,
+		2: cmd.StderrPipe,
 	}
 
-	cmd.Stdin = sh.stdin
+	cmap := map[int]chan bool{
+		0: stdinDone,
+		1: stdoutDone,
+		2: stderrDone,
+	}
+
+	gmap := map[int]*RWCloser{
+		0: cmd.Stdin,
+		1: cmd.Stdout,
+		2: cmd.Stderr,
+	}
+
+	rmap, err := buildRedirects(c.redirs)
+
+	if err != nil {
+		return err
+	}
+
+	for fdold, fdnew := range rmap {
+		if fdnew != omap[fdold] {
+			fdPipe, err := fmap[fdold]
+
+			if err != nil {
+				return err
+			}
+
+			go func() {
+				defer close(cmap[fdold])
+
+				io.Copy(fdnew, fdPipe)
+			}()
+		} else {
+			close(cmap[fdold])
+			cstd := gmap[fdold]
+			*cstd = omap[fdold]
+		}
+	}
 
 	err = cmd.Start()
 
@@ -258,6 +286,7 @@ func (sh *Shell) execute(c *CommandNode) error {
 		return err
 	}
 
+	<-stdinDone
 	<-stdoutDone
 	<-stderrDone
 
@@ -292,4 +321,31 @@ func nashdAutoDiscover() string {
 	}
 
 	return path
+}
+
+func buildRedirects(redirs []*RedirectNode) (map[int]RWCloser, error) {
+	rmap := make(map[int]RWCloser)
+
+	rmap[0] = os.Stdin
+	rmap[1] = os.Stdout
+	rmap[2] = os.Stderr
+
+	for _, redir := range redirs {
+		if rmap[redir.rmap.lfd] != nil {
+			if redir.rmap.rfd == redirMapSupress {
+				rmap[redir.rmap.lfd] = ioutil.Discard
+			} else if redir.rmap.rfd == redirMapNoValue && redir.location != "" {
+				fd, err := os.OpenFile(redir.location, os.O_RDWR, 0666)
+
+				if err != nil {
+					return nil, err
+				}
+
+				rmap[redir.rmap.lfd] = fd
+			}
+
+		}
+	}
+
+	return rmap, nil
 }

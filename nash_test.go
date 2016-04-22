@@ -3,6 +3,7 @@ package nash
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -139,19 +140,30 @@ func TestExecuteRforkUserNSNested(t *testing.T) {
 }
 
 func TestExecuteAssignment(t *testing.T) {
+	var out bytes.Buffer
+
 	sh := NewShell(false)
 	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
 
 	err := sh.ExecuteString("assignment", `
         name=i4k
         echo $name
-        echo $path
         `)
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "i4k" {
+		t.Error("assignment not work")
+		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), "i4k")
+
+		return
+	}
+
+	out.Reset()
 
 	err = sh.ExecuteString("list assignment", `
         name=(honda civic)
@@ -160,6 +172,39 @@ func TestExecuteAssignment(t *testing.T) {
 
 	if err != nil {
 		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "honda civic" {
+		t.Error("assignment not work")
+		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), "honda civic")
+
+		return
+	}
+}
+
+func TestExecuteRedirection(t *testing.T) {
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+
+	err := sh.ExecuteString("redirect", `
+        echo -n "hello world" > /tmp/test1.txt
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	content, err := ioutil.ReadFile("/tmp/test1.txt")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(content) != "hello world" {
+		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
 		return
 	}
 }
