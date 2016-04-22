@@ -25,7 +25,8 @@ type (
 		stdout io.Writer
 		stderr io.Writer
 
-		env Env
+		env       Env
+		multiline bool
 	}
 )
 
@@ -54,13 +55,21 @@ func NewEnv() Env {
 	return env
 }
 
-// GetPrompt returns the environment prompt or the default one
-func (sh *Shell) GetPrompt() string {
+// Prompt returns the environment prompt or the default one
+func (sh *Shell) Prompt() string {
+	if sh.multiline {
+		return ""
+	}
+
 	if sh.env["prompt"] != nil && len(sh.env["prompt"]) > 0 {
 		return sh.env["prompt"][0]
 	}
 
 	return "nash> "
+}
+
+func (sh *Shell) SetMultiLine(m bool) {
+	sh.multiline = m
 }
 
 // SetDebug enable/disable debug in the shell

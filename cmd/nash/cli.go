@@ -3,18 +3,9 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/peterh/liner"
+	"github.com/nemith/goline"
 	"github.com/tiago4orion/nash"
-)
-
-var (
-	history_fn = filepath.Join(os.TempDir(), ".nash_history")
-	names      = []string{"rfork"}
 )
 
 func cli(sh *nash.Shell) error {
@@ -23,31 +14,17 @@ func cli(sh *nash.Shell) error {
 		value string
 	)
 
-	line := liner.NewLiner()
-	defer line.Close()
+	gliner := goline.NewGoLine(sh)
 
-	line.SetCtrlCAborts(false)
-
-	line.SetCompleter(func(line string) (c []string) {
-		for _, n := range names {
-			if strings.HasPrefix(n, strings.ToLower(line)) {
-				c = append(c, n)
-			}
-		}
-
-		return
-	})
-
-	if f, err := os.Open(history_fn); err == nil {
-		line.ReadHistory(f)
-		f.Close()
-	}
+	gliner.AddHandler(goline.CHAR_CTRLC, goline.Finish)
+	gliner.AddHandler(goline.CHAR_CTRLD, goline.UserTerminated)
 
 	var content bytes.Buffer
 	var lineidx int
 
 	for {
-		if value, err = line.Prompt(sh.GetPrompt()); err == nil {
+		if value, err = gliner.Line(); err == nil {
+			fmt.Printf("\n")
 			lineidx++
 
 			content.Write([]byte(value + "\n"))
@@ -58,14 +35,15 @@ func cli(sh *nash.Shell) error {
 
 			if err != nil {
 				if err.Error() == "Open '{' not closed" {
+					sh.SetMultiLine(true)
 					continue
 				}
 
 				fmt.Printf("ERROR: %s\n", err.Error())
 				content.Reset()
+
+				sh.SetMultiLine(false)
 				continue
-			} else {
-				line.AppendHistory(string(content.Bytes()))
 			}
 
 			content.Reset()
@@ -74,37 +52,19 @@ func cli(sh *nash.Shell) error {
 				break
 			}
 
-			line.ResetMode()
+			sh.SetMultiLine(false)
+
 			err = sh.ExecuteTree(tr)
 
 			if err != nil {
 				fmt.Printf("ERROR: %s\n", err.Error())
 			}
-
-			line.InitialMode()
-
-		} else if err == liner.ErrPromptAborted {
-			log.Print("Aborted")
+		} else if err == goline.UserTerminatedError {
+			fmt.Println("Aborted")
 			break
 		} else {
-			if err.Error() == "EOF" {
-				err = nil
-				break
-			}
-
-			log.Print("Error reading line: ", err)
+			panic(err)
 		}
-
-		if err != nil {
-			fmt.Printf("%s\n", err.Error())
-		}
-	}
-
-	if f, err := os.Create(history_fn); err != nil {
-		log.Print("Error writing history file: ", err)
-	} else {
-		line.WriteHistory(f)
-		f.Close()
 	}
 
 	return err

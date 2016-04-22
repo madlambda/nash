@@ -18,12 +18,11 @@ forDecl     = "for" ( identifier | varList ) "{" program "}" .
 
 comparison  = "==" | "!=" .
 
-string_lit             = raw_string_lit .
-raw_string_lit         = "`" { unicode_char | newline } "`" .
+string_lit             = "\"" { unicode_char | newline } "\"" .
 
 varDecl  = identifier "=" varSpec .
 varSpec  = ( varList | varValue ) .
-varValue = ({ letter | unicode_digit }) | string_lit | raw_string_lit .
+varValue = ({ letter | unicode_digit }) | string_lit .
 varList  = "(" { varValue } ")" .
 
 command   = ( pathcmd | abscmd ) .
