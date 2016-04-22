@@ -11,10 +11,6 @@ set -ex
 
 GO="go"
 
-# Automatic checks
-test -z "$(gofmt -l -w .     | tee /dev/stderr)"
-#test -z "$(goimports -l -w . | tee /dev/stderr)"
-test -z "$(golint .          | tee /dev/stderr)"
 #$GO vet ./...
 
 # Run test coverage on each subdirectories and merge the coverage profile.
@@ -29,6 +25,10 @@ fi
 for dir in $(find "$TEST_DIRECTORY" -maxdepth 10 -not -path './.git*' -not -path './Godeps/*' -not -path './cmd/nash/vendor/*' -not -path './research/*' -type d);
 do
     if ls $dir/*.go &> /dev/null; then
+        # Automatic checks
+        test -z "$(gofmt -l -w "$dir"     | tee /dev/stderr)"
+        #test -z "$(goimports -l -w "$dir" | tee /dev/stderr)"
+        test -z "$(golint "$dir"          | tee /dev/stderr)"
 	$GO test -v -race -covermode=atomic -coverprofile="$dir/profile.tmp" "$dir"
 	if [ -f $dir/profile.tmp ]
 	then
