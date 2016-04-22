@@ -3,7 +3,13 @@ package nash
 import (
 	"errors"
 	"os"
+	"strconv"
 	"strings"
+)
+
+const (
+	redirMapNoValue int = -1
+	redirMapSupress     = -2
 )
 
 type (
@@ -40,8 +46,9 @@ type (
 	CommandNode struct {
 		NodeType
 		Pos
-		name string
-		args []Arg
+		name   string
+		args   []Arg
+		redirs []*RedirectNode
 	}
 
 	// Arg is a command argument
@@ -50,6 +57,14 @@ type (
 		Pos
 		val    string
 		quoted bool
+	}
+
+	// RedirectNode represents the output redirection part of a command
+	RedirectNode struct {
+		NodeType
+		Pos
+		rmap     RedirMap
+		location string
 	}
 
 	// RforkNode is a builtin node for rfork
@@ -73,6 +88,12 @@ type (
 		NodeType
 		Pos
 		val string
+	}
+
+	// RedirMap is the map of file descriptors of the redirection
+	RedirMap struct {
+		lfd int
+		rfd int
 	}
 )
 
@@ -172,22 +193,84 @@ func (n *CommandNode) SetArgs(args []Arg) {
 	n.args = args
 }
 
+// AddRedirect adds a new redirect node to command
+func (n *CommandNode) AddRedirect(redir *RedirectNode) {
+	n.redirs = append(n.redirs, redir)
+}
+
 // Tree returns the child tree of node
 func (n *CommandNode) Tree() *Tree { return nil }
 
 func (n *CommandNode) String() string {
 	content := make([]string, 0, 1024)
 	args := make([]string, 0, len(n.args))
+	redirs := make([]string, 0, len(n.redirs))
 
 	for i := 0; i < len(n.args); i++ {
 		args = append(args, n.args[i].String())
 	}
 
+	for i := 0; i < len(n.redirs); i++ {
+		redirs = append(redirs, n.redirs[i].String())
+	}
+
 	content = append(content, n.name)
 	content = append(content, args...)
+	content = append(content, redirs...)
 
 	return strings.Join(content, " ")
 }
+
+// NewRedirectNode creates a new redirection node for commands
+func NewRedirectNode(pos Pos) *RedirectNode {
+	return &RedirectNode{
+		rmap: RedirMap{
+			lfd: -1,
+			rfd: -1,
+		},
+		location: "",
+	}
+}
+
+// SetMap sets the redirection map. Eg.: [2=1]
+func (r *RedirectNode) SetMap(lfd int, rfd int) {
+	r.rmap.lfd = lfd
+	r.rmap.rfd = rfd
+}
+
+// SetLocation of the output
+func (r *RedirectNode) SetLocation(s string) {
+	r.location = s
+}
+
+func (r *RedirectNode) String() string {
+	var result string
+
+	if r.rmap.lfd == r.rmap.rfd {
+		if r.location != "" {
+			return "> " + r.location
+		}
+
+		return ""
+	}
+
+	if r.rmap.rfd >= 0 {
+		result = ">[" + strconv.Itoa(r.rmap.lfd) + "=" + strconv.Itoa(r.rmap.rfd) + "]"
+	} else if r.rmap.rfd == redirMapNoValue {
+		result = ">[" + strconv.Itoa(r.rmap.lfd) + "]"
+	} else if r.rmap.rfd == redirMapSupress {
+		result = ">[" + strconv.Itoa(r.rmap.lfd) + "=]"
+	}
+
+	if r.location != "" {
+		result = result + " " + r.location
+	}
+
+	return result
+}
+
+// Tree returns the tree of the node
+func (r *RedirectNode) Tree() *Tree { return nil }
 
 // NewRforkNode creates a new node for rfork
 func NewRforkNode(pos Pos) *RforkNode {

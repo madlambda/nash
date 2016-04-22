@@ -23,6 +23,7 @@ func parserTestTable(name, content string, expected *Tree, t *testing.T) {
 	}
 
 	if ok, err := compare(expected, tr); !ok {
+		fmt.Printf("Expected: %s\n\nResult: %s\n", expected.String(), tr.String())
 		t.Error(err)
 		return
 	}
@@ -124,6 +125,47 @@ func TestParseSingleCommand(t *testing.T) {
 	expected.Root.Push(NewCommandNode(0, "bleh"))
 
 	parserTestTable("single command", `bleh`, expected, t)
+}
+
+func TestParseRedirectSimple(t *testing.T) {
+	expected := NewTree("redirect")
+	ln := NewListNode()
+	cmd := NewCommandNode(0, "cmd")
+	redir := NewRedirectNode(0)
+	redir.SetMap(2, redirMapSupress)
+	cmd.AddRedirect(redir)
+	ln.Push(cmd)
+
+	expected.Root = ln
+
+	parserTestTable("simple redirect", `cmd >[2=]`, expected, t)
+
+	expected = NewTree("redirect2")
+	ln = NewListNode()
+	cmd = NewCommandNode(0, "cmd")
+	redir = NewRedirectNode(0)
+	redir.SetMap(2, 1)
+	cmd.AddRedirect(redir)
+	ln.Push(cmd)
+
+	expected.Root = ln
+
+	parserTestTable("simple redirect", `cmd >[2=1]`, expected, t)
+}
+
+func TestParseRedirectWithLocation(t *testing.T) {
+	expected := NewTree("redirect with location")
+	ln := NewListNode()
+	cmd := NewCommandNode(0, "cmd")
+	redir := NewRedirectNode(0)
+	redir.SetMap(2, redirMapNoValue)
+	redir.SetLocation("/var/log/service.log")
+	cmd.AddRedirect(redir)
+	ln.Push(cmd)
+
+	expected.Root = ln
+
+	parserTestTable("simple redirect", `cmd >[2] /var/log/service.log`, expected, t)
 }
 
 func TestParseCommandWithStringsEqualsNot(t *testing.T) {

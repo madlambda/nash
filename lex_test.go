@@ -49,7 +49,7 @@ func testTable(name, content string, expected []item, t *testing.T) {
 	}
 }
 
-func TestItemToString(t *testing.T) {
+func TestLexerItemToString(t *testing.T) {
 	it := item{
 		typ: itemEOF,
 	}
@@ -87,7 +87,7 @@ func TestItemToString(t *testing.T) {
 	}
 }
 
-func TestShebangOnly(t *testing.T) {
+func TestLexerShebangOnly(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemComment,
@@ -101,7 +101,7 @@ func TestShebangOnly(t *testing.T) {
 	testTable("testShebangonly", "#!/bin/nash\n", expected, t)
 }
 
-func TestSimpleAssignment(t *testing.T) {
+func TestLexerSimpleAssignment(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemVarName,
@@ -180,7 +180,7 @@ func TestSimpleAssignment(t *testing.T) {
         echo $other`, expected, t)
 }
 
-func TestListAssignment(t *testing.T) {
+func TestLexerListAssignment(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemVarName,
@@ -219,7 +219,7 @@ func TestListAssignment(t *testing.T) {
 	testTable("testListAssignment no space", "test=(plan9 from bell labs)", expected, t)
 }
 
-func TestSimpleCommand(t *testing.T) {
+func TestLexerSimpleCommand(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemCommand,
@@ -237,7 +237,7 @@ func TestSimpleCommand(t *testing.T) {
 	testTable("testSimpleCommand", `echo "hello world"`, expected, t)
 }
 
-func TestPathCommand(t *testing.T) {
+func TestLexerPathCommand(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemCommand,
@@ -255,7 +255,7 @@ func TestPathCommand(t *testing.T) {
 	testTable("testPathCommand", `/bin/echo "hello world"`, expected, t)
 }
 
-func TestInvalidBlock(t *testing.T) {
+func TestLexerInvalidBlock(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemError,
@@ -269,7 +269,7 @@ func TestInvalidBlock(t *testing.T) {
 	testTable("testInvalidBlock", "{", expected, t)
 }
 
-func TestQuotedStringNotFinished(t *testing.T) {
+func TestLexerQuotedStringNotFinished(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemCommand,
@@ -288,7 +288,7 @@ func TestQuotedStringNotFinished(t *testing.T) {
 	testTable("testQuotedstringnotfinished", "echo \"hello world", expected, t)
 }
 
-func TestVariousCommands(t *testing.T) {
+func TestLexerVariousCommands(t *testing.T) {
 	content := `
             echo "hello world"
             mount -t proc proc /proc
@@ -331,7 +331,7 @@ func TestVariousCommands(t *testing.T) {
 	testTable("testVariouscommands", content, expected, t)
 }
 
-func TestRfork(t *testing.T) {
+func TestLexerRfork(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemRfork,
@@ -385,7 +385,7 @@ func TestRfork(t *testing.T) {
         `, expected, t)
 }
 
-func TestRforkInvalidArguments(t *testing.T) {
+func TestLexerRforkInvalidArguments(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemRfork,
@@ -403,7 +403,7 @@ func TestRforkInvalidArguments(t *testing.T) {
 	testTable("testRfork", "rfork x\n", expected, t)
 }
 
-func TestSomethingIdontcareanymore(t *testing.T) {
+func TestLexerSomethingIdontcareanymore(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemRfork,
@@ -433,7 +433,7 @@ func TestSomethingIdontcareanymore(t *testing.T) {
 	testTable("test whatever", "rfork u { ls }", expected, t)
 }
 
-func TestBuiltinCd(t *testing.T) {
+func TestLexerBuiltinCd(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemCd,
@@ -467,7 +467,7 @@ func TestBuiltinCd(t *testing.T) {
 	testTable("testBuiltinCdNoQuote", `cd /proc`, expected, t)
 }
 
-func TestMinusAlone(t *testing.T) {
+func TestLexerMinusAlone(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemError,
@@ -481,7 +481,7 @@ func TestMinusAlone(t *testing.T) {
 	testTable("test minus", "-", expected, t)
 }
 
-func TestRedirectSimple(t *testing.T) {
+func TestLexerRedirectSimple(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemCommand,
@@ -564,7 +564,7 @@ func TestRedirectSimple(t *testing.T) {
 
 }
 
-func TestRedirectMap(t *testing.T) {
+func TestLexerRedirectMap(t *testing.T) {
 
 	// Suppress stderr output
 	expected := []item{
@@ -637,7 +637,7 @@ func TestRedirectMap(t *testing.T) {
 	testTable("test stderr=stdout", "cmd >[2=1]", expected, t)
 }
 
-func TestRedirectMapToLocation(t *testing.T) {
+func TestLexerRedirectMapToLocation(t *testing.T) {
 	// Suppress stderr output
 	expected := []item{
 		item{
@@ -715,4 +715,37 @@ func TestRedirectMapToLocation(t *testing.T) {
 	}
 
 	testTable("test stderr=stdout", "cmd >[2=1] file.out", expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "2",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemRedirFile,
+			val: "/var/log/service.log",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test suppress stderr", `cmd >[2] /var/log/service.log`, expected, t)
+
 }

@@ -3,6 +3,7 @@ package nash
 import (
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 type (
@@ -102,6 +103,14 @@ func (p *Parser) parseCommand() (Node, error) {
 			}
 
 			n.AddArg(arg)
+		case itemRedirRight:
+			redir, err := p.parseRedirection(it)
+
+			if err != nil {
+				return nil, err
+			}
+
+			n.AddRedirect(redir)
 		case itemEOF:
 			return n, nil
 		case itemError:
@@ -113,6 +122,94 @@ func (p *Parser) parseCommand() (Node, error) {
 	}
 
 	return nil, errors.New("unreachable")
+}
+
+func (p *Parser) parseRedirection(it item) (*RedirectNode, error) {
+	var (
+		lval, rval int = redirMapNoValue, redirMapNoValue
+		err        error
+	)
+
+	redir := NewRedirectNode(it.pos)
+
+	it = p.peek()
+
+	if it.typ != itemRedirLBracket && it.typ != itemRedirFile &&
+		it.typ != itemRedirNetAddr {
+		return nil, fmt.Errorf("Unexpected token: %v", it)
+	}
+
+	// [
+	if it.typ == itemRedirLBracket {
+		p.next()
+		it = p.peek()
+
+		if it.typ != itemRedirMapLSide {
+			return nil, fmt.Errorf("Expected lefthand side of redirection map, but found '%s'",
+				it.val)
+		}
+
+		lval, err = strconv.Atoi(it.val)
+
+		if err != nil {
+			return nil, fmt.Errorf("Redirection map expects integers. Found: %s", it.val)
+		}
+
+		p.next()
+		it = p.peek()
+
+		if it.typ != itemRedirMapEqual && it.typ != itemRedirRBracket {
+			return nil, fmt.Errorf("Unexpected token '%v'", it)
+		}
+
+		// [xxx=
+		if it.typ == itemRedirMapEqual {
+			p.next()
+			it = p.peek()
+
+			if it.typ != itemRedirMapRSide && it.typ != itemRedirRBracket {
+				return nil, fmt.Errorf("Unexpected token '%v'", it)
+			}
+
+			if it.typ == itemRedirMapRSide {
+				rval, err = strconv.Atoi(it.val)
+
+				if err != nil {
+					return nil, fmt.Errorf("Redirection map expects integers. Found: %s", it.val)
+				}
+
+				p.next()
+				it = p.peek()
+			} else {
+				rval = redirMapSupress
+			}
+		}
+
+		if it.typ != itemRedirRBracket {
+			return nil, fmt.Errorf("Unexpected token '%v'", it)
+		}
+
+		// [xxx=yyy]
+
+		redir.SetMap(lval, rval)
+
+		p.next()
+		it = p.peek()
+	}
+
+	if it.typ != itemRedirFile && it.typ != itemRedirNetAddr {
+		if rval != redirMapNoValue || lval != redirMapNoValue {
+			return redir, nil
+		}
+
+		return nil, fmt.Errorf("Unexpected token '%v'", it)
+	}
+
+	redir.SetLocation(it.val)
+
+	p.next()
+
+	return redir, nil
 }
 
 func (p *Parser) parseCd() (Node, error) {
@@ -237,7 +334,7 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseComment()
 	}
 
-	return nil, fmt.Errorf("Unexpected token parsing statement '%d'", it.typ)
+	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)
 }
 
 func (p *Parser) parseBlock() (*ListNode, error) {
