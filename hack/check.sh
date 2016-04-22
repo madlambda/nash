@@ -7,7 +7,7 @@
 # 5. race detector (http://blog.golang.org/race-detector)
 # 6. test coverage (http://blog.golang.org/cover)
 
-set -e
+set -ex
 
 GO="go"
 
