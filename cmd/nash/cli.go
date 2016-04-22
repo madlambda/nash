@@ -80,6 +80,7 @@ func cli(sh *nash.Shell) error {
 				continue
 			}
 		} else if err == io.EOF {
+			err = nil
 			break
 		}
 

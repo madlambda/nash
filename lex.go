@@ -45,9 +45,17 @@ const (
 	itemListElem
 	itemCommand // alphanumeric identifier that's not a keyword
 	itemArg
-	itemLeftBlock  // {
-	itemRightBlock // }
-	itemString
+	itemLeftBlock     // {
+	itemRightBlock    // }
+	itemString        // "<string>"
+	itemRedirRight    // >
+	itemRedirRBracket // [ eg.: cmd >[1] file.out
+	itemRedirLBracket // ]
+	itemRedirFile
+	itemRedirNetAddr
+	itemRedirMapEqual // = eg.: cmd >[2=1]
+	itemRedirMapLSide
+	itemRedirMapRSide
 
 	itemKeyword // used only to delimit the keywords
 	//	itemIf
@@ -412,6 +420,10 @@ func lexInsideCommand(l *lexer) stateFn {
 	case r == '}':
 		l.emit(itemRightBlock)
 		return lexStart
+
+	case r == '>':
+		l.emit(itemRedirRight)
+		return lexInsideRedirect
 	}
 
 	return func(l *lexer) stateFn {
@@ -463,6 +475,168 @@ func lexArg(l *lexer, nextFn stateFn) stateFn {
 	}
 
 	return nextFn
+}
+
+func lexInsideRedirect(l *lexer) stateFn {
+	var r rune
+
+	for {
+		r = l.next()
+
+		if !isSpace(r) {
+			break
+		}
+
+		l.ignore()
+	}
+
+	switch {
+	case r == '[':
+		l.emit(itemRedirLBracket)
+		return lexInsideRedirMapLeftSide
+	case r == ']':
+		return l.errorf("Unexpected ']' at pos %d", l.pos)
+	}
+
+	if isIdentifier(r) {
+		for {
+			r = l.next()
+
+			if !isIdentifier(r) {
+				l.backup()
+				break
+			}
+		}
+
+		word := l.input[l.start:l.pos]
+
+		if (len(word) > 6 && word[0:6] == "tcp://") ||
+			(len(word) > 6 && word[0:6] == "udp://") ||
+			(len(word) > 7 && word[0:7] == "unix://") {
+			l.emit(itemRedirNetAddr)
+		} else {
+			l.emit(itemRedirFile)
+		}
+	} else {
+		return l.errorf("Unexpected redirect identifier: %s", l.input[l.start:l.pos])
+	}
+
+	// verify if have more redirects
+
+	for {
+		r = l.next()
+
+		if !isSpace(r) {
+			break
+		}
+
+		l.ignore()
+	}
+
+	if r == '>' {
+		l.emit(itemRedirLBracket)
+		return lexInsideRedirect
+	}
+
+	return lexStart
+}
+
+func lexInsideRedirMapLeftSide(l *lexer) stateFn {
+	var r rune
+
+	for {
+		r = l.peek()
+
+		if !unicode.IsDigit(r) {
+			if len(l.input[l.start:l.pos]) == 0 {
+				return l.errorf("Unexpected %c at pos %d", r, l.pos)
+			}
+
+			if r == ']' {
+				// [xxx]
+				l.emit(itemRedirMapLSide)
+				l.next()
+				l.emit(itemRedirRBracket)
+
+				ignoreSpaces(l)
+
+				r = l.next()
+
+				if isIdentifier(r) {
+					return lexInsideRedirect
+				}
+
+				l.backup()
+
+				return lexStart
+			}
+
+			if r != '=' {
+				return l.errorf("Expected '=' but found '%c' at por %d", r, l.pos)
+			}
+
+			// [xxx=
+			l.emit(itemRedirMapLSide)
+			l.next()
+			l.emit(itemRedirMapEqual)
+
+			return lexInsideRedirMapRightSide
+		}
+
+		r = l.next()
+	}
+}
+
+func lexInsideRedirMapRightSide(l *lexer) stateFn {
+	var r rune
+
+	// [xxx=yyy]
+	for {
+		r = l.peek()
+
+		if !unicode.IsDigit(r) {
+			if len(l.input[l.start:l.pos]) == 0 {
+				if r == ']' {
+					l.next()
+					l.emit(itemRedirRBracket)
+
+					ignoreSpaces(l)
+
+					r = l.next()
+
+					if isIdentifier(r) {
+						return lexInsideRedirect
+					}
+
+					l.backup()
+
+					return lexStart
+				}
+
+				return l.errorf("Unexpected %c at pos %d", r, l.pos)
+			}
+
+			l.emit(itemRedirMapRSide)
+			l.next()
+			l.emit(itemRedirRBracket)
+
+			ignoreSpaces(l)
+
+			r = l.next()
+
+			if isIdentifier(r) {
+				return lexInsideRedirect
+			}
+
+			l.backup()
+			return lexStart
+		}
+
+		r = l.next()
+	}
+
+	return l.errorf("internal error")
+
 }
 
 func lexComment(l *lexer) stateFn {

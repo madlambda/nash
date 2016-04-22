@@ -480,3 +480,239 @@ func TestMinusAlone(t *testing.T) {
 
 	testTable("test minus", "-", expected, t)
 }
+
+func TestRedirectSimple(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirFile,
+			val: "file.out",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test simple redirect", "cmd > file.out", expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirNetAddr,
+			val: "tcp://localhost:8888",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test simple redirect", "cmd > tcp://localhost:8888", expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirNetAddr,
+			val: "udp://localhost:8888",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test simple redirect", "cmd > udp://localhost:8888", expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirNetAddr,
+			val: "unix:///tmp/sock.txt",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test simple redirect", "cmd > unix:///tmp/sock.txt", expected, t)
+
+}
+
+func TestRedirectMap(t *testing.T) {
+
+	// Suppress stderr output
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "2",
+		},
+		item{
+			typ: itemRedirMapEqual,
+			val: "=",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test suppress stderr", "cmd >[2=]", expected, t)
+
+	// points stderr to stdout
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "2",
+		},
+		item{
+			typ: itemRedirMapEqual,
+			val: "=",
+		},
+		item{
+			typ: itemRedirMapRSide,
+			val: "1",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test stderr=stdout", "cmd >[2=1]", expected, t)
+}
+
+func TestRedirectMapToLocation(t *testing.T) {
+	// Suppress stderr output
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "2",
+		},
+		item{
+			typ: itemRedirMapEqual,
+			val: "=",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemRedirFile,
+			val: "file.out",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test suppress stderr", "cmd >[2=] file.out", expected, t)
+
+	// points stderr to stdout
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "2",
+		},
+		item{
+			typ: itemRedirMapEqual,
+			val: "=",
+		},
+		item{
+			typ: itemRedirMapRSide,
+			val: "1",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemRedirFile,
+			val: "file.out",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test stderr=stdout", "cmd >[2=1] file.out", expected, t)
+}
