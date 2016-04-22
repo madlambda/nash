@@ -68,6 +68,7 @@ func (sh *Shell) Prompt() string {
 	return "nash> "
 }
 
+// SetMultiLine enables/disables multiline for cli
 func (sh *Shell) SetMultiLine(m bool) {
 	sh.multiline = m
 }
