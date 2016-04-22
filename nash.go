@@ -176,7 +176,7 @@ func (sh *Shell) execute(c *CommandNode) error {
 
 	cmdPath := c.name
 
-	if c.name[0] == '-' {
+	if len(c.name) > 1 && c.name[0] == '-' {
 		ignoreError = true
 		c.name = c.name[1:]
 
