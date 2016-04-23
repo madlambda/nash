@@ -6,9 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strconv"
-	"strings"
 )
 
 type (
@@ -28,21 +26,11 @@ type (
 		env       Env
 		multiline bool
 	}
-
-	RWCloser interface {
-		Read([]byte) (int, error)
-		Write([]byte) (int, error)
-		Close() error
-	}
-
-	SomePipe func() (RWCloser, error)
-
-	Redirect struct {
-		rmap map[int]io.ReadCloser
-	}
 )
 
-const logNS = "nash.Shell"
+const (
+	logNS = "nash.Shell"
+)
 
 // NewShell creates a new shell object
 func NewShell(debug bool) *Shell {
@@ -150,7 +138,7 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 				return err
 			}
 		case NodeCommand:
-			err := sh.execute(node.(*CommandNode))
+			err := sh.executeCommand(node.(*CommandNode))
 
 			if err != nil {
 				return err
@@ -175,127 +163,30 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 	return nil
 }
 
-func (sh *Shell) executeAssignment(v *AssignmentNode) error {
-	sh.env[v.name] = v.list
-	return nil
+func (sh *Shell) executeCommand(c *CommandNode) error {
+	cmd, err := NewCommand(c.name, sh)
+
+	if err != nil {
+		return err
+	}
+
+	err = cmd.SetArgs(c.args)
+
+	if err != nil {
+		return err
+	}
+
+	err = cmd.SetRedirects(c.redirs)
+
+	if err != nil {
+		return err
+	}
+
+	return cmd.Execute()
 }
 
-func (sh *Shell) execute(c *CommandNode) error {
-	var (
-		err         error
-		ignoreError bool
-	)
-
-	cmdPath := c.name
-
-	if len(c.name) > 1 && c.name[0] == '-' {
-		ignoreError = true
-		c.name = c.name[1:]
-
-		sh.log("Ignoring error\n")
-	}
-
-	if c.name[0] != '/' {
-		cmdPath, err = exec.LookPath(c.name)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	sh.log("Executing: %s\n", cmdPath)
-
-	args := make([]string, len(c.args))
-
-	for i := 0; i < len(c.args); i++ {
-		argval := c.args[i].val
-
-		// variable substitution
-		if len(argval) > 0 && argval[0] == '$' && sh.env[argval[1:]] != nil {
-			arglist := sh.env[argval[1:]]
-
-			if len(arglist) == 1 {
-				args[i] = arglist[0]
-			} else if len(arglist) > 1 {
-				args[i] = strings.Join(arglist, " ")
-			}
-		} else {
-			args[i] = argval
-		}
-	}
-
-	cmd := exec.Command(cmdPath, args...)
-
-	stdinDone := make(chan bool)
-	stdoutDone := make(chan bool)
-	stderrDone := make(chan bool)
-
-	omap := map[int]RWCloser{
-		0: os.Stdin,
-		1: os.Stdout,
-		2: os.Stderr,
-	}
-
-	fmap := map[int]SomePipe{
-		0: cmd.StdinPipe,
-		1: cmd.StdoutPipe,
-		2: cmd.StderrPipe,
-	}
-
-	cmap := map[int]chan bool{
-		0: stdinDone,
-		1: stdoutDone,
-		2: stderrDone,
-	}
-
-	gmap := map[int]*RWCloser{
-		0: cmd.Stdin,
-		1: cmd.Stdout,
-		2: cmd.Stderr,
-	}
-
-	rmap, err := buildRedirects(c.redirs)
-
-	if err != nil {
-		return err
-	}
-
-	for fdold, fdnew := range rmap {
-		if fdnew != omap[fdold] {
-			fdPipe, err := fmap[fdold]
-
-			if err != nil {
-				return err
-			}
-
-			go func() {
-				defer close(cmap[fdold])
-
-				io.Copy(fdnew, fdPipe)
-			}()
-		} else {
-			close(cmap[fdold])
-			cstd := gmap[fdold]
-			*cstd = omap[fdold]
-		}
-	}
-
-	err = cmd.Start()
-
-	if err != nil {
-		return err
-	}
-
-	<-stdinDone
-	<-stdoutDone
-	<-stderrDone
-
-	err = cmd.Wait()
-
-	if err != nil && !ignoreError {
-		return err
-	}
-
+func (sh *Shell) executeAssignment(v *AssignmentNode) error {
+	sh.env[v.name] = v.list
 	return nil
 }
 
@@ -321,31 +212,4 @@ func nashdAutoDiscover() string {
 	}
 
 	return path
-}
-
-func buildRedirects(redirs []*RedirectNode) (map[int]RWCloser, error) {
-	rmap := make(map[int]RWCloser)
-
-	rmap[0] = os.Stdin
-	rmap[1] = os.Stdout
-	rmap[2] = os.Stderr
-
-	for _, redir := range redirs {
-		if rmap[redir.rmap.lfd] != nil {
-			if redir.rmap.rfd == redirMapSupress {
-				rmap[redir.rmap.lfd] = ioutil.Discard
-			} else if redir.rmap.rfd == redirMapNoValue && redir.location != "" {
-				fd, err := os.OpenFile(redir.location, os.O_RDWR, 0666)
-
-				if err != nil {
-					return nil, err
-				}
-
-				rmap[redir.rmap.lfd] = fd
-			}
-
-		}
-	}
-
-	return rmap, nil
 }

@@ -534,7 +534,7 @@ func lexInsideRedirect(l *lexer) stateFn {
 	}
 
 	if r == '>' {
-		l.emit(itemRedirLBracket)
+		l.emit(itemRedirRight)
 		return lexInsideRedirect
 	}
 
@@ -563,6 +563,11 @@ func lexInsideRedirMapLeftSide(l *lexer) stateFn {
 				r = l.next()
 
 				if isIdentifier(r) {
+					return lexInsideRedirect
+				}
+
+				if r == '>' {
+					l.emit(itemRedirRight)
 					return lexInsideRedirect
 				}
 
@@ -608,6 +613,11 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 						return lexInsideRedirect
 					}
 
+					if r == '>' {
+						l.emit(itemRedirRight)
+						return lexInsideRedirect
+					}
+
 					l.backup()
 
 					return lexStart
@@ -625,6 +635,11 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 			r = l.next()
 
 			if isIdentifier(r) {
+				return lexInsideRedirect
+			}
+
+			if r == '>' {
+				l.emit(itemRedirRight)
 				return lexInsideRedirect
 			}
 

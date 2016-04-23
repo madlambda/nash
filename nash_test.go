@@ -102,7 +102,7 @@ func TestExecuteRforkUserNS(t *testing.T) {
 	}
 
 	if string(out.Bytes()) != "0\n" {
-		t.Errorf("User namespace not supported in your kernel")
+		t.Errorf("User namespace not supported in your kernel: %s", string(out.Bytes()))
 		return
 	}
 }
@@ -188,6 +188,32 @@ func TestExecuteRedirection(t *testing.T) {
 	sh.SetNashdPath(nashdPath)
 
 	err := sh.ExecuteString("redirect", `
+        echo -n "hello world" > /tmp/test1.txt
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	content, err := ioutil.ReadFile("/tmp/test1.txt")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(content) != "hello world" {
+		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
+		return
+	}
+}
+
+func TestExecuteRedirectionMap(t *testing.T) {
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+
+	err := sh.ExecuteString("redirect map", `
         echo -n "hello world" > /tmp/test1.txt
         `)
 

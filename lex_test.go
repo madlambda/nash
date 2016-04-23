@@ -747,5 +747,170 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 	}
 
 	testTable("test suppress stderr", `cmd >[2] /var/log/service.log`, expected, t)
+}
 
+func TestLexerRedirectMultipleMaps(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "1",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemRedirFile,
+			val: "file.out",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "2",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemRedirFile,
+			val: "file.err",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test suppress stderr", `cmd >[1] file.out >[2] file.err`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "2",
+		},
+		item{
+			typ: itemRedirMapEqual,
+			val: "=",
+		},
+		item{
+			typ: itemRedirMapRSide,
+			val: "1",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "1",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemRedirFile,
+			val: "/var/log/service.log",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test suppress stderr", `cmd >[2=1] >[1] /var/log/service.log`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "1",
+		},
+		item{
+			typ: itemRedirMapEqual,
+			val: "=",
+		},
+		item{
+			typ: itemRedirMapRSide,
+			val: "2",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "2",
+		},
+		item{
+			typ: itemRedirMapEqual,
+			val: "=",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test suppress stderr", `cmd >[1=2] >[2=]`, expected, t)
 }
