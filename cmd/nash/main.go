@@ -2,7 +2,7 @@
 // - User mode: shell
 // - tool mode: unix socket server for handling namespace operations
 // When started, the program choses their side based on the argv[0].
-// The name "rc" indicates a user shell and the name -nrc- indidcates
+// The name "rc" indicates a user shell and the name -nrc- indicates
 // the namespace server tool.
 package main
 
