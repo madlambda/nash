@@ -28,7 +28,7 @@ operating system and the software being deployed. All of the operating
 system packages/libraries going to production and the required network
 configurations in every machine was maintained by well-know
 scripts. Today we know that this approach have lots of problems and
-the container approach is a better alternative.
+the container approach is a better alternative. But Why?
 
 Before Linux namespace, BSD Jails, Solaris Zones, and so on, the
 sysadmin had to fight the global view of the operating
@@ -54,7 +54,10 @@ on the operating system and docker release.
 
 Nasn is a way for you, that understand the rules of the game, to make
 reliable deploy scripts using the good parts of the container
-technology.
+technology. If you are a programmer, you can use a good language to
+automate the devops instead of relying on lots of different
+technologies. And you can create libraries for code-reuse between
+teams.
 
 Nash is only a simple shell plus a keyword called `rfork`. Rfork try
 to mimic what Plan9 `rfork` does for namespaces, but with linux
