@@ -2,22 +2,73 @@
 
 [![Build Status](https://travis-ci.org/tiago4orion/nash.svg?branch=master)](https://travis-ci.org/tiago4orion/nash) [![codecov.io](https://codecov.io/github/tiago4orion/nash/coverage.svg?branch=master)](https://codecov.io/github/tiago4orion/nash?branch=master)
 
-Nash is a simple shell for Linux namespace management. If you think
-every serious developer must have the power of namespace at their
-fingers, then `nash` is for you.
+Nash is a Linux system shell that attempts to be more safe and give
+more power to user. It's safe in the sense of it's far more hard to
+shoot yourself in the foot, (or in the head in case of bash). It gives
+power to the user in the sense that you really can use `nash` to
+script deploys taking advantage of linux namespaces, cgroups, unionfs,
+etc, in an idiomatic way.
 
-No, it's not POSIX. Every harmful features of mainstream shells was
-left behind. Nash is inspired by Plan 9 `rc` shell, but very different
-syntax and purpose.
+It's more safe for devops/sysadmins because it doesn't have the unsafe
+features of all former shells and it aim to have a very simple, safe
+and frozen syntax specification. Every shell feature considered
+harmful was left behind, but some needed features are still missing.
+
+Nash is inspired by Plan 9 `rc` shell, but with very different syntax
+and purpose.
 
 # Concept
 
-Nowadays everyone agrees that a sane deploy requires linux containers,
-but why this kind of tools (docker, rkt, etc) and libraries (lxc,
+Nowadays everyone agrees that a good deploy requires containers, but
+why this kind of tools (docker, rkt, etc) and libraries (lxc,
 libcontainer, etc) are so bloated and magical?
 
-Nash is only a simple shell plus a keyword called `rfork`. Rfork try to
-mimic what Plan9 `rfork` does, but with linux limitations in mind.
+In the past, the UNIX sysadmin had the complete understanding of the
+operating system and the software being deployed. All of the operating
+system packages/libraries going to production and the required network
+configurations in every machine was maintained by well-know
+scripts. Today we know that this approach have lots of problems and
+the container approach is a better alternative. But Why?
+
+Before Linux namespace, BSD Jails, Solaris Zones, and so on, the
+sysadmin had to fight the global view of the operating
+system. There was only one root mount table, only one view of devices
+and processes, and so on. It was a mess. How to scale multiple
+versions of the same app, in the same machine, if the app write to a
+fixed path in the filesystem? Or, how to avoid clash of port numbers
+when scaling apps?
+
+But when the container idea arrived in the Linux world, it was in a
+completely different way. Instead of giving the power of namespaces to
+programmers or ops guys, the concept was hidden inside black
+boxes. I'm not saying the current solutions will never work, but the
+way it works could be harmful for community. Docker uses mount
+namespaces? If yes, why the global mount table is dirty after a docker
+run? Why docker needs root if linux kernel supports user namespace?
+What technologies are used for docker networking? Do you know how
+docker implements the union fs (layered fs) approach? Aufs, Union fs
+or Device Mapper? Are it using chroot in addition to containers? But
+how volumes are handled? If you know the answer for some of the
+questions above, you must know that the answer changes a lot depending
+on the operating system and docker release.
+
+Nasn is a way for you, that understand the rules of the game, to make
+reliable deploy scripts using the good parts of the container
+technology. If you are a programmer, you can use a good language to
+automate the devops instead of relying on lots of different
+technologies. And you can create libraries for code-reuse between
+teams.
+
+Nash is only a simple shell plus a keyword called `rfork`. Rfork try
+to mimic what Plan9 `rfork` does for namespaces, but with linux
+limitations in mind.
+
+Basically, your script can download an Operating System rootfs,
+copy/install your application inside, start the needed namespaces for
+serving this rootfs via chroot and then start the app. Or, if your
+application is statically compiled, create an empty directory, copy
+your application/micro-service into it, start the needed namespaces
+and run it.
 
 # Show time!
 
@@ -186,6 +237,12 @@ I've tested in the following environments:
 
     Linux 4.1.13 (amd64)
     Debian 8
+
+# Language specification
+
+The specification isn't complete yet, but can be found
+[here](https://github.com/tiago4orion/nash/blob/master/spec.ebnf).
+The file `spec_test.go` makes sure it is sane.
 
 # Want to contribute?
 

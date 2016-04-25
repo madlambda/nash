@@ -1,0 +1,4 @@
+total 2772
+-rw-rw-r-- 1 user user       0 Apr 24 18:00 file.txt
+-rw-rw-r-- 1 user user    2526 Apr 24 18:00 main.go
+-rwxr-xr-x 1 user user 2831960 Apr 24 18:00 redirect
