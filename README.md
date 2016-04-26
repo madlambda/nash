@@ -26,17 +26,23 @@ libcontainer, etc) are so bloated and magical?
 In the past, the UNIX sysadmin had the complete understanding of the
 operating system and the software being deployed. All of the operating
 system packages/libraries going to production and the required network
-configurations in every machine was maintained by well-know
+configurations in every machine was maintained by several un-maintanable
 scripts. Today we know that this approach have lots of problems and
 the container approach is a better alternative. But Why?
 
 Before Linux namespace, BSD Jails, Solaris Zones, and so on, the
 sysadmin had to fight the global view of the operating
 system. There was only one root mount table, only one view of devices
-and processes, and so on. It was a mess. How to scale multiple
-versions of the same app, in the same machine, if the app write to a
-fixed path in the filesystem? Or, how to avoid clash of port numbers
-when scaling apps?
+and processes, and so on. It was a mess. This approach then proved to 
+be much harder to scale because of the services conflicts (port numbers, 
+files on disk, resource exhaustion, etc) in the global interface. 
+The container/namespace idea creates an abstraction to the process in 
+a way that it thinks it's the only process running (not counting init), 
+it is the root and then, the filesystem of the container only has the files
+required for it (nothing more). 
+
+What's missing is a safe and robust shell for natural usage of namespace/container ideas 
+for everyone (programmers, sysadmins, etc).
 
 Nasn is a way for you, that understand the game rules, to make
 reliable deploy scripts using the good parts of the container
@@ -45,7 +51,7 @@ automate the devops instead of relying on lots of different
 technologies (docker, rkt, k8s, mesos, terraform, and so on). And you
 can create libraries for code-reuse.
 
-Nash is only a simple shell plus a keyword called `rfork`. Rfork try
+It's only a simple shell plus a keyword called `rfork`. Rfork try
 to mimic what Plan9 `rfork` does for namespaces, but with linux
 limitations in mind.
 
