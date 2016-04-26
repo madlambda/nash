@@ -38,9 +38,9 @@ versions of the same app, in the same machine, if the app write to a
 fixed path in the filesystem? Or, how to avoid clash of port numbers
 when scaling apps?
 
-Nasn is a way for you, that understand the rules of the game, to make
+Nasn is a way for you, that understand the game rules, to make
 reliable deploy scripts using the good parts of the container
-technology. If you are a programmer, you can use a good language to
+technologies. If you are a programmer, you can use a good language to
 automate the devops instead of relying on lots of different
 technologies (docker, rkt, k8s, mesos, terraform, and so on). And you
 can create libraries for code-reuse.
@@ -48,13 +48,6 @@ can create libraries for code-reuse.
 Nash is only a simple shell plus a keyword called `rfork`. Rfork try
 to mimic what Plan9 `rfork` does for namespaces, but with linux
 limitations in mind.
-
-Basically, your script can download an Operating System rootfs,
-copy/install your application inside, start the needed namespaces for
-serving this rootfs via chroot and then start the app. Or, if your
-application is statically compiled, create an empty directory, copy
-your application/micro-service into it, start the needed namespaces
-and run it.
 
 # Show time!
 
