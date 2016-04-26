@@ -38,26 +38,12 @@ versions of the same app, in the same machine, if the app write to a
 fixed path in the filesystem? Or, how to avoid clash of port numbers
 when scaling apps?
 
-But when the container idea arrived in the Linux world, it was in a
-completely different way. Instead of giving the power of namespaces to
-programmers or ops guys, the concept was hidden inside black
-boxes. I'm not saying the current solutions will never work, but the
-way it works could be harmful for community. Docker uses mount
-namespaces? If yes, why the global mount table is dirty after a docker
-run? Why docker needs root if linux kernel supports user namespace?
-What technologies are used for docker networking? Do you know how
-docker implements the union fs (layered fs) approach? Aufs, Union fs
-or Device Mapper? Are it using chroot in addition to containers? But
-how volumes are handled? If you know the answer for some of the
-questions above, you must know that the answer changes a lot depending
-on the operating system and docker release.
-
 Nasn is a way for you, that understand the rules of the game, to make
 reliable deploy scripts using the good parts of the container
 technology. If you are a programmer, you can use a good language to
 automate the devops instead of relying on lots of different
-technologies. And you can create libraries for code-reuse between
-teams.
+technologies (docker, rkt, k8s, mesos, terraform, and so on). And you
+can create libraries for code-reuse.
 
 Nash is only a simple shell plus a keyword called `rfork`. Rfork try
 to mimic what Plan9 `rfork` does for namespaces, but with linux
