@@ -259,10 +259,11 @@ The file `spec_test.go` makes sure it is sane.
 
 # Security
 
-The PID 1 of every namespace created by `nash` is a nash rpc server. It allows
-the parent namespace (the script that creates the namespace) to issue commands
-inside the child namespace. Today the communication is done via unix socket and
-it's not secure yet.
+The PID 1 of every namespace created by `nash` is the same nash binary reading
+commands from the parent shell via unix socket. It allows the parent namespace 
+(the script that creates the namespace) to issue commands inside the child 
+namespace. In the current implementation the unix socket communication is not 
+secure yet.
 
 # Want to contribute?
 
