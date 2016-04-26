@@ -136,18 +136,40 @@ Everything except the `rfork` is like a common shell. Rfork will spawn a
 new process with the namespace flags and executes the commands inside
 the block on this namespace. It has the form:
 
-```
+```sh
 rfork <flags> {
-    <comands to run inside the container>
+    <statements to run inside the container>
 }
 ```
 
-# OK, but what my deploy will look like?
+Nash stops executing the script at first error found. Commands have an explicitly
+way to bypass such restriction by prepending a dash '-' to the command statement.
+For example:
+
+```sh
+λ> rm file-not-exists
+rm: cannot remove ‘file-not-exists’: No such file or directory
+ERROR: exit status 1
+λ> -rm file-not-exists
+rm: cannot remove ‘file-not-exists’: No such file or directory
+λ> 
+```
+The dash '-' works only for OS commands, other kind of errors are impossible to bypass.
+
+```sh
+λ> echo $PATH
+/bin:/sbin:/usr/bin:/usr/local/bin:/home/user/.local/bin:/home/user/bin:/home/user/.gvm/pkgsets/go1.5.3/global/bin:/home/user/projects/3rdparty/plan9port/bin:/home/user/.gvm/gos/go1.5.3/bin
+λ> echo $bleh
+ERROR: Variable '$bleh' not set
+```
+# OK, but how scripts should look like?
 
 Take a look in the script below:
 
 ```sh
 #!/usr/bin/env nash
+#
+# Execute `my-service` inside a busybox container
 
 image="https://busybox.net/downloads/binaries/latest/busybox-x86_64"
 
