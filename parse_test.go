@@ -168,6 +168,25 @@ func TestParseRedirectWithLocation(t *testing.T) {
 	parserTestTable("simple redirect", `cmd >[2] /var/log/service.log`, expected, t)
 }
 
+func TestParseRedirectMultiples(t *testing.T) {
+	expected := NewTree("redirect multiples")
+	ln := NewListNode()
+	cmd := NewCommandNode(0, "cmd")
+	redir1 := NewRedirectNode(0)
+	redir2 := NewRedirectNode(0)
+
+	redir1.SetMap(1, 2)
+	redir2.SetMap(2, redirMapSupress)
+
+	cmd.AddRedirect(redir1)
+	cmd.AddRedirect(redir2)
+	ln.Push(cmd)
+
+	expected.Root = ln
+
+	parserTestTable("multiple redirects", `cmd >[1=2] >[2=]`, expected, t)
+}
+
 func TestParseCommandWithStringsEqualsNot(t *testing.T) {
 	expected := NewTree("strings works as expected")
 	ln := NewListNode()

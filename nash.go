@@ -6,9 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strconv"
-	"strings"
 )
 
 type (
@@ -30,7 +28,9 @@ type (
 	}
 )
 
-const logNS = "nash.Shell"
+const (
+	logNS = "nash.Shell"
+)
 
 // NewShell creates a new shell object
 func NewShell(debug bool) *Shell {
@@ -138,7 +138,7 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 				return err
 			}
 		case NodeCommand:
-			err := sh.execute(node.(*CommandNode))
+			err := sh.executeCommand(node.(*CommandNode))
 
 			if err != nil {
 				return err
@@ -163,110 +163,30 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 	return nil
 }
 
-func (sh *Shell) executeAssignment(v *AssignmentNode) error {
-	sh.env[v.name] = v.list
-	return nil
-}
-
-func (sh *Shell) execute(c *CommandNode) error {
-	var (
-		err         error
-		ignoreError bool
-	)
-
-	cmdPath := c.name
-
-	if len(c.name) > 1 && c.name[0] == '-' {
-		ignoreError = true
-		c.name = c.name[1:]
-
-		sh.log("Ignoring error\n")
-	}
-
-	if c.name[0] != '/' {
-		cmdPath, err = exec.LookPath(c.name)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	sh.log("Executing: %s\n", cmdPath)
-
-	args := make([]string, len(c.args))
-
-	for i := 0; i < len(c.args); i++ {
-		argval := c.args[i].val
-
-		// variable substitution
-		if len(argval) > 0 && argval[0] == '$' && sh.env[argval[1:]] != nil {
-			arglist := sh.env[argval[1:]]
-
-			if len(arglist) == 1 {
-				args[i] = arglist[0]
-			} else if len(arglist) > 1 {
-				args[i] = strings.Join(arglist, " ")
-			}
-		} else {
-			args[i] = argval
-		}
-	}
-
-	cmd := exec.Command(cmdPath, args...)
-
-	stdoutDone := make(chan bool)
-	stderrDone := make(chan bool)
-
-	if sh.stdout != os.Stdout {
-		stdout, err := cmd.StdoutPipe()
-
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			defer close(stdoutDone)
-
-			io.Copy(sh.stdout, stdout)
-		}()
-	} else {
-		close(stdoutDone)
-		cmd.Stdout = sh.stdout
-	}
-
-	if sh.stderr != os.Stderr {
-		stderr, err := cmd.StderrPipe()
-
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			defer close(stderrDone)
-			io.Copy(sh.stderr, stderr)
-		}()
-	} else {
-		close(stderrDone)
-		cmd.Stderr = sh.stderr
-	}
-
-	cmd.Stdin = sh.stdin
-
-	err = cmd.Start()
+func (sh *Shell) executeCommand(c *CommandNode) error {
+	cmd, err := NewCommand(c.name, sh)
 
 	if err != nil {
 		return err
 	}
 
-	<-stdoutDone
-	<-stderrDone
+	err = cmd.SetArgs(c.args)
 
-	err = cmd.Wait()
-
-	if err != nil && !ignoreError {
+	if err != nil {
 		return err
 	}
 
+	err = cmd.SetRedirects(c.redirs)
+
+	if err != nil {
+		return err
+	}
+
+	return cmd.Execute()
+}
+
+func (sh *Shell) executeAssignment(v *AssignmentNode) error {
+	sh.env[v.name] = v.list
 	return nil
 }
 
