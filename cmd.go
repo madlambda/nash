@@ -230,6 +230,18 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 
 			cmd.fdMap[2] = file
 		}
+	case redirMapNoValue:
+		if redirDecl.location == "" {
+			return ErrMissingFile.Params(redirDecl.rmap.lfd)
+		}
+
+		file, err := os.OpenFile(redirDecl.location, os.O_RDWR|os.O_CREATE, 0644)
+
+		if err != nil {
+			return err
+		}
+
+		cmd.fdMap[1] = file
 	}
 
 	return nil
