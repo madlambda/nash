@@ -255,5 +255,4 @@ The file `spec_test.go` makes sure it is sane.
 # Want to contribute?
 
 Open issues and PR :)
-The project is in an early stage, be patient because things can change
-a lot in the future.
+The project is in an early stage, be patient because things can change in the future.
