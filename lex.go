@@ -211,12 +211,9 @@ func lexStart(l *lexer) stateFn {
 	case r == '}':
 		l.emit(itemRightBlock)
 		return lexStart
-
-	default:
-		return l.errorf("Unrecognized character in action: %#U", r)
 	}
 
-	panic("Unreachable code")
+	return l.errorf("Unrecognized character in action: %#U", r)
 }
 
 func lexIdentifier(l *lexer) stateFn {
@@ -644,14 +641,13 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 			}
 
 			l.backup()
-			return lexStart
+			break
 		}
 
 		r = l.next()
 	}
 
-	return l.errorf("internal error")
-
+	return lexStart
 }
 
 func lexComment(l *lexer) stateFn {
@@ -661,7 +657,8 @@ func lexComment(l *lexer) stateFn {
 		if isEndOfLine(r) {
 			l.backup()
 			l.emit(itemComment)
-			return lexStart
+
+			break
 		}
 
 		if r == eof {
@@ -669,7 +666,7 @@ func lexComment(l *lexer) stateFn {
 		}
 	}
 
-	panic("not reached")
+	return lexStart
 }
 
 func lexSpaceArg(l *lexer) stateFn {
