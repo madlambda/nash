@@ -115,7 +115,8 @@ The same happens for mount (m), ipc (i) and uts (s) if used without
 user namespace (u) flag.
 
 The `c` flag stands for "container" and is an alias for upmnis (all
-types of namespaces).  If you want another shell (maybe bash) inside the container:
+types of namespaces).  If you want another shell (maybe bash) inside 
+the namespace:
 
 ```sh
 λ> rfork c {
