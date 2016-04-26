@@ -90,7 +90,7 @@ Creating a new process in a new USER namespace (u):
 uid=0(root) gid=0(root) groups=0(root),65534
 ```
 Yes, Linux supports creation of containers by unprivileged users. Tell
-this to the customer success of your container-infrastructure-vendor.
+this to the customer success of your container-infrastructure-vendor. :-)
 
 The default UID mapping is: Current UID (getuid) => 0 (no
 range support). I'll look into more options for this in the future.
