@@ -1,6 +1,6 @@
 # nash
 
-[![Build Status](https://travis-ci.org/tiago4orion/nash.svg?branch=master)](https://travis-ci.org/tiago4orion/nash) [![codecov.io](https://codecov.io/github/tiago4orion/nash/coverage.svg?branch=master)](https://codecov.io/github/tiago4orion/nash?branch=master)
+[![Build Status](https://travis-ci.org/NeowayLabs/nash.svg?branch=master)](https://travis-ci.org/NeowayLabs/nash) [![codecov.io](https://codecov.io/github/NeowayLabs/nash/coverage.svg?branch=master)](https://codecov.io/github/NeowayLabs/nash?branch=master)
 
 Nash is a Linux system shell that attempts to be more safe and give
 more power to user. It's safe in the sense of it's far more hard to
@@ -65,7 +65,7 @@ limitations in mind.
 Go ahead:
 
 ```sh
-go get github.com/tiago4orion/nash/cmd/nash
+go get github.com/NeowayLabs/nash/cmd/nash
 # Make sure GOPATH/bin is in yout PATH
 nash
 λ> echo "hello world"
@@ -254,7 +254,7 @@ I've tested in the following environments:
 # Language specification
 
 The specification isn't complete yet, but can be found
-[here](https://github.com/tiago4orion/nash/blob/master/spec.ebnf).
+[here](https://github.com/NeowayLabs/nash/blob/master/spec.ebnf).
 The file `spec_test.go` makes sure it is sane.
 
 # Security
