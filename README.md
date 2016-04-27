@@ -84,6 +84,8 @@ If it's not enabled you will need root privileges to execute every example below
 Creating a new process in a new USER namespace (u):
 
 ```sh
+λ> id
+uid=1000(user) gid=1000(user) groups=1000(user),98(qubes)
 λ> rfork u {
      id
 }
