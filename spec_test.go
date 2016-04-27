@@ -10,7 +10,7 @@ import (
 )
 
 func TestSpecificationIsSane(t *testing.T) {
-	filename := os.Getenv("GOPATH") + "/src/github.com/tiago4orion/nash/spec.ebnf"
+	filename := os.Getenv("GOPATH") + "/src/github.com/NeowayLabs/nash/spec.ebnf"
 	content, err := ioutil.ReadFile(filename)
 
 	if err != nil {

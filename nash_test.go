@@ -22,8 +22,8 @@ func init() {
 		panic("Please, run tests from inside GOPATH")
 	}
 
-	testDir = gopath + "/src/github.com/tiago4orion/nash/" + "testfiles"
-	nashdPath = gopath + "/src/github.com/tiago4orion/nash/cmd/nash/nash"
+	testDir = gopath + "/src/github.com/NeowayLabs/nash/" + "testfiles"
+	nashdPath = gopath + "/src/github.com/NeowayLabs/nash/cmd/nash/nash"
 
 	if _, err := os.Stat(nashdPath); err != nil {
 		panic("Please, run make build before running tests")
