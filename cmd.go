@@ -100,7 +100,7 @@ func (cmd *Command) SetArgs(cargs []Arg) error {
 					args[i+1] = strings.Join(arglist, " ")
 				}
 			} else {
-				return ErrVarNotSet
+				return ErrVarNotSet.Params(argval)
 			}
 		} else {
 			args[i+1] = argval

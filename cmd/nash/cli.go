@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/NeowayLabs/nash"
 	"github.com/chzyer/readline"
-	"github.com/tiago4orion/nash"
 )
 
 var completer = readline.NewPrefixCompleter(

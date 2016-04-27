@@ -6,7 +6,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/tiago4orion/nash"
+	"github.com/NeowayLabs/nash"
 )
 
 func serveConn(sh *nash.Shell, conn net.Conn) {
