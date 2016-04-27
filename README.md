@@ -1,6 +1,6 @@
 # nash
 
-[![Build Status](https://travis-ci.org/tiago4orion/nash.svg?branch=master)](https://travis-ci.org/tiago4orion/nash) [![codecov.io](https://codecov.io/github/tiago4orion/nash/coverage.svg?branch=master)](https://codecov.io/github/tiago4orion/nash?branch=master)
+[![Build Status](https://travis-ci.org/NeowayLabs/nash.svg?branch=master)](https://travis-ci.org/NeowayLabs/nash) [![codecov.io](https://codecov.io/github/NeowayLabs/nash/coverage.svg?branch=master)](https://codecov.io/github/NeowayLabs/nash?branch=master)
 
 Nash is a Linux system shell that attempts to be more safe and give
 more power to user. It's safe in the sense of it's far more hard to
@@ -26,17 +26,28 @@ libcontainer, etc) are so bloated and magical?
 In the past, the UNIX sysadmin had the complete understanding of the
 operating system and the software being deployed. All of the operating
 system packages/libraries going to production and the required network
-configurations in every machine was maintained by well-know
-scripts. Today we know that this approach have lots of problems and
-the container approach is a better alternative. But Why?
+configurations in every machine was maintained by several (sometimes 
+un-mantainable) scripts. Today we know that this approach have lots of 
+problems and the container approach is a better alternative. But in the 
+other end, we're paying a high cost for the lose of control. The 
+container-technologies in the market are very unsafe and few people are 
+worrying about. No one knows for hundred percent sure, how the things 
+really works because after every release it's done differently. On my
+view it's getting worse and worse...
 
 Before Linux namespace, BSD Jails, Solaris Zones, and so on, the
 sysadmin had to fight the global view of the operating
 system. There was only one root mount table, only one view of devices
-and processes, and so on. It was a mess. How to scale multiple
-versions of the same app, in the same machine, if the app write to a
-fixed path in the filesystem? Or, how to avoid clash of port numbers
-when scaling apps?
+and processes, and so on. It was a mess. This approach then proved to 
+be much harder to scale because of the services conflicts (port numbers, 
+files on disk, resource exhaustion, etc) in the global interface. 
+The container/namespace idea creates an abstraction to the process in 
+a way that it thinks it's the only process running (not counting init), 
+it is the root and then, the filesystem of the container only has the files
+required for it (nothing more). 
+
+What's missing is a safe and robust shell for natural usage of namespace/container ideas 
+for everyone (programmers, sysadmins, etc).
 
 Nasn is a way for you, that understand the game rules, to make
 reliable deploy scripts using the good parts of the container
@@ -45,7 +56,7 @@ automate the devops instead of relying on lots of different
 technologies (docker, rkt, k8s, mesos, terraform, and so on). And you
 can create libraries for code-reuse.
 
-Nash is only a simple shell plus a keyword called `rfork`. Rfork try
+It's only a simple shell plus a keyword called `rfork`. Rfork try
 to mimic what Plan9 `rfork` does for namespaces, but with linux
 limitations in mind.
 
@@ -54,7 +65,7 @@ limitations in mind.
 Go ahead:
 
 ```sh
-go get github.com/tiago4orion/nash/cmd/nash
+go get github.com/NeowayLabs/nash/cmd/nash
 # Make sure GOPATH/bin is in yout PATH
 nash
 λ> echo "hello world"
@@ -79,7 +90,7 @@ Creating a new process in a new USER namespace (u):
 uid=0(root) gid=0(root) groups=0(root),65534
 ```
 Yes, Linux supports creation of containers by unprivileged users. Tell
-this to the customer success of your container-infrastructure-vendor.
+this to the customer success of your container-infrastructure-vendor. :-)
 
 The default UID mapping is: Current UID (getuid) => 0 (no
 range support). I'll look into more options for this in the future.
@@ -115,7 +126,8 @@ The same happens for mount (m), ipc (i) and uts (s) if used without
 user namespace (u) flag.
 
 The `c` flag stands for "container" and is an alias for upmnis (all
-types of namespaces).  If you want another shell (maybe bash) inside the container:
+types of namespaces).  If you want another shell (maybe bash) inside 
+the namespace:
 
 ```sh
 λ> rfork c {
@@ -136,18 +148,40 @@ Everything except the `rfork` is like a common shell. Rfork will spawn a
 new process with the namespace flags and executes the commands inside
 the block on this namespace. It has the form:
 
-```
+```sh
 rfork <flags> {
-    <comands to run inside the container>
+    <statements to run inside the container>
 }
 ```
 
-# OK, but what my deploy will look like?
+Nash stops executing the script at first error found. Commands have an explicitly
+way to bypass such restriction by prepending a dash '-' to the command statement.
+For example:
+
+```sh
+λ> rm file-not-exists
+rm: cannot remove ‘file-not-exists’: No such file or directory
+ERROR: exit status 1
+λ> -rm file-not-exists
+rm: cannot remove ‘file-not-exists’: No such file or directory
+λ> 
+```
+The dash '-' works only for OS commands, other kind of errors are impossible to bypass.
+
+```sh
+λ> echo $PATH
+/bin:/sbin:/usr/bin:/usr/local/bin:/home/user/.local/bin:/home/user/bin:/home/user/.gvm/pkgsets/go1.5.3/global/bin:/home/user/projects/3rdparty/plan9port/bin:/home/user/.gvm/gos/go1.5.3/bin
+λ> echo $bleh
+ERROR: Variable '$bleh' not set
+```
+# OK, but how scripts should look like?
 
 Take a look in the script below:
 
 ```sh
 #!/usr/bin/env nash
+#
+# Execute `my-service` inside a busybox container
 
 image="https://busybox.net/downloads/binaries/latest/busybox-x86_64"
 
@@ -220,11 +254,18 @@ I've tested in the following environments:
 # Language specification
 
 The specification isn't complete yet, but can be found
-[here](https://github.com/tiago4orion/nash/blob/master/spec.ebnf).
+[here](https://github.com/NeowayLabs/nash/blob/master/spec.ebnf).
 The file `spec_test.go` makes sure it is sane.
+
+# Security
+
+The PID 1 of every namespace created by `nash` is the same nash binary reading
+commands from the parent shell via unix socket. It allows the parent namespace 
+(the script that creates the namespace) to issue commands inside the child 
+namespace. In the current implementation the unix socket communication is not 
+secure yet.
 
 # Want to contribute?
 
 Open issues and PR :)
-The project is in an early stage, be patient because things can change
-a lot in the future.
+The project is in an early stage, be patient because things can change in the future.
