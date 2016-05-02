@@ -33,14 +33,14 @@ redirect   = ( ">" ( filename | uri ) |
 
 comparison  = "==" | "!=" .
 
-string_lit             = "\"" { unicode_char | newline } "\"" .
+string_lit = "\"" { unicode_char | newline } "\"" .
 
 varDecl  = identifier "=" varSpec .
 varSpec  = ( varList | varValue ) .
 varValue = ({ letter | unicode_digit }) | string_lit .
 varList  = "(" { varValue } ")" .
 
-argument  = unicode_char { unicode_char } .
+argument  = ( unicode_char { unicode_char } ) | string_lit .
 cmdpart   = [ "-" ] ( cmdname | abscmd ) { argument } { redirect } .
 pipe      = cmdpart "|" cmdpart [ { "|" cmdpart } ] .
 command   = ( cmdpart | pipe ) .

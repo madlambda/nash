@@ -249,7 +249,7 @@ func (p *Parser) parseAssignment() (Node, error) {
 
 	it = p.next()
 
-	if it.typ == itemVarValue || it.typ == itemString {
+	if it.typ == itemVariable || it.typ == itemString {
 		n.SetValueList(append(make([]string, 0, 1), it.val))
 	} else if it.typ == itemListOpen {
 		values := make([]string, 0, 128)

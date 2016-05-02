@@ -39,7 +39,7 @@ const (
 	itemEOF
 	itemComment
 	itemVarName
-	itemVarValue
+	itemVariable
 	itemListOpen
 	itemListClose
 	itemListElem
@@ -204,6 +204,9 @@ func lexStart(l *lexer) stateFn {
 	case isIdentifier(r):
 		return lexIdentifier
 
+	case isSafePath(r):
+		return lexInsideCommandName
+
 	case r == '{':
 		l.ignore()
 		return l.errorf("Unexpected open block \"%#U\"", r)
@@ -250,11 +253,6 @@ func lexIdentifier(l *lexer) stateFn {
 		return lexInsideCd
 	}
 
-	if len(word) == 1 && word == "-" {
-		l.ignore()
-		return l.errorf("- requires a command")
-	}
-
 	l.emit(itemCommand)
 	return lexInsideCommand
 }
@@ -268,20 +266,39 @@ func lexInsideAssignment(l *lexer) stateFn {
 
 	l.ignore()
 
-	switch r := l.peek(); {
+	r = l.peek()
+
+	switch {
 	case r == '(':
 		return lexInsideListVariable
 	case r == '"':
 		l.next()
 		l.ignore()
 		return func(l *lexer) stateFn {
-			return lexQuote(l, lexStart)
+			next := lexQuote(l, lexStart)
+
+			ignoreSpaces(l)
+
+			r := l.peek()
+
+			switch {
+			case r == '+':
+				panic("TODO: concatenation")
+			}
+
+			if !isEndOfLine(r) && r != eof {
+				return l.errorf("Invalid assignment. Expected '+' or EOL, but found %q at pos '%d'",
+					r, l.pos)
+			}
+
+			return next
 		}
-	case isIdentifier(r) || r == '$':
+
+	case r == '$':
 		return lexInsideCommonVariable
 	}
 
-	return l.errorf("Unexpected variable value '%c'", r)
+	return l.errorf("Unexpected variable value '%c'. Expected '\"' for quoted string or '$' for variable.", r)
 }
 
 func lexInsideListVariable(l *lexer) stateFn {
@@ -323,10 +340,16 @@ nextelem:
 func lexInsideCommonVariable(l *lexer) stateFn {
 	var r rune
 
+	r = l.next()
+
+	if r != '$' {
+		return l.errorf("Invalid variable. Unexpected '%c'", r)
+	}
+
 	for {
 		r = l.next()
 
-		if r != '$' && !isIdentifier(r) {
+		if !isIdentifier(r) {
 			break
 		}
 	}
@@ -338,7 +361,7 @@ func lexInsideCommonVariable(l *lexer) stateFn {
 		return l.errorf("Invalid quote inside variable value")
 	}
 
-	l.emit(itemVarValue)
+	l.emit(itemVariable)
 	return lexStart
 }
 
@@ -395,6 +418,35 @@ func lexInsideRforkArgs(l *lexer) stateFn {
 	}
 
 	return lexStart
+}
+
+func lexInsideCommandName(l *lexer) stateFn {
+	for {
+		r := l.next()
+
+		if isSafePath(r) {
+			continue // absorb
+		}
+
+		break
+	}
+
+	l.backup() // pos is now ahead of the alphanum
+
+	word := l.input[l.start:l.pos]
+
+	if len(word) == 0 {
+		// sanity check
+		return l.errorf("internal error")
+	}
+
+	if len(word) == 1 && word == "-" {
+		l.ignore()
+		return l.errorf("- requires a command")
+	}
+
+	l.emit(itemCommand)
+	return lexInsideCommand
 }
 
 func lexInsideCommand(l *lexer) stateFn {
@@ -495,14 +547,34 @@ func lexInsideRedirect(l *lexer) stateFn {
 		return l.errorf("Unexpected ']' at pos %d", l.pos)
 	}
 
-	if isIdentifier(r) {
+	if isSafePath(r) {
 		for {
 			r = l.next()
 
-			if !isIdentifier(r) {
+			if !isSafePath(r) {
 				l.backup()
 				break
 			}
+		}
+
+		l.emit(itemRedirFile)
+	} else if r == '"' {
+		l.ignore()
+
+		for {
+			r := l.next()
+
+			if r != '"' && r != eof {
+				continue
+			}
+
+			if r == eof {
+				return l.errorf("Quoted string not finished: %s", l.input[l.start:])
+			}
+
+			l.backup()
+
+			break
 		}
 
 		word := l.input[l.start:l.pos]
@@ -514,6 +586,9 @@ func lexInsideRedirect(l *lexer) stateFn {
 		} else {
 			l.emit(itemRedirFile)
 		}
+
+		l.next() // get last '"' again
+		l.ignore()
 	} else {
 		return l.errorf("Unexpected redirect identifier: %s", l.input[l.start:l.pos])
 	}
@@ -559,7 +634,7 @@ func lexInsideRedirMapLeftSide(l *lexer) stateFn {
 
 				r = l.next()
 
-				if isIdentifier(r) {
+				if isSafePath(r) || r == '"' {
 					return lexInsideRedirect
 				}
 
@@ -606,7 +681,7 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 
 					r = l.next()
 
-					if isIdentifier(r) {
+					if isSafePath(r) || r == '"' {
 						return lexInsideRedirect
 					}
 
@@ -631,7 +706,7 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 
 			r = l.next()
 
-			if isIdentifier(r) {
+			if isSafePath(r) || r == '"' {
 				return lexInsideRedirect
 			}
 
@@ -684,9 +759,14 @@ func isSpace(r rune) bool {
 	return r == ' ' || r == '\t'
 }
 
+func isSafePath(r rune) bool {
+	isId := isIdentifier(r)
+	return isId || r == '_' || r == '-' || r == '/' || r == '.'
+}
+
 // isIdentifier reports whether r is a valid identifier
 func isIdentifier(r rune) bool {
-	return r == '_' || r == '-' || r == '/' || r == ':' || r == '.' || unicode.IsLetter(r) || unicode.IsDigit(r)
+	return unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 // isEndOfLine reports whether r is an end-of-line character.

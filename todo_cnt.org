@@ -1,2 +1,3 @@
-* Cnt
-** TODO Test the use of runtime.LockOSThread() to allow some namespace syscalls in Go.
+* Nash
+** TODO Bypass CTRL-C to currently running process
+** TODO Add variable concatenation. Eg.: STALI_SRC=$PWD + "/src"

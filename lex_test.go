@@ -108,7 +108,7 @@ func TestLexerSimpleAssignment(t *testing.T) {
 			val: "test",
 		},
 		item{
-			typ: itemVarValue,
+			typ: itemString,
 			val: "value",
 		},
 		item{
@@ -116,7 +116,7 @@ func TestLexerSimpleAssignment(t *testing.T) {
 		},
 	}
 
-	testTable("testAssignment", "test=value", expected, t)
+	testTable("testAssignment", `test="value"`, expected, t)
 
 	expected = []item{
 		item{
@@ -124,7 +124,7 @@ func TestLexerSimpleAssignment(t *testing.T) {
 			val: "test",
 		},
 		item{
-			typ: itemVarValue,
+			typ: itemString,
 			val: "value",
 		},
 		item{
@@ -132,7 +132,7 @@ func TestLexerSimpleAssignment(t *testing.T) {
 			val: "other",
 		},
 		item{
-			typ: itemVarValue,
+			typ: itemString,
 			val: "other",
 		},
 		item{
@@ -141,8 +141,8 @@ func TestLexerSimpleAssignment(t *testing.T) {
 	}
 
 	testTable("test multiple Assignments", `
-        test=value
-        other=other`, expected, t)
+        test="value"
+        other="other"`, expected, t)
 
 	expected = []item{
 		item{
@@ -150,7 +150,7 @@ func TestLexerSimpleAssignment(t *testing.T) {
 			val: "test",
 		},
 		item{
-			typ: itemVarValue,
+			typ: itemString,
 			val: "value",
 		},
 		item{
@@ -158,7 +158,7 @@ func TestLexerSimpleAssignment(t *testing.T) {
 			val: "other",
 		},
 		item{
-			typ: itemVarValue,
+			typ: itemVariable,
 			val: "$test",
 		},
 		item{
@@ -175,7 +175,7 @@ func TestLexerSimpleAssignment(t *testing.T) {
 	}
 
 	testTable("test multiple Assignments", `
-        test=value
+        test="value"
         other=$test
         echo $other`, expected, t)
 }
@@ -217,6 +217,28 @@ func TestLexerListAssignment(t *testing.T) {
 
 	testTable("testListAssignment", "test=( plan9 from bell labs )", expected, t)
 	testTable("testListAssignment no space", "test=(plan9 from bell labs)", expected, t)
+}
+
+func TestLexerInvalidAssignments(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemString,
+			val: "value",
+		},
+		item{
+			typ: itemError,
+			val: "Invalid assignment. Expected '+' or EOL, but found 'o' at pos '13'",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testInvalidAssignments", `test="value" other`, expected, t)
 }
 
 func TestLexerSimpleCommand(t *testing.T) {
@@ -520,7 +542,7 @@ func TestLexerRedirectSimple(t *testing.T) {
 		},
 	}
 
-	testTable("test simple redirect", "cmd > tcp://localhost:8888", expected, t)
+	testTable("test simple redirect", `cmd > "tcp://localhost:8888"`, expected, t)
 
 	expected = []item{
 		item{
@@ -540,7 +562,7 @@ func TestLexerRedirectSimple(t *testing.T) {
 		},
 	}
 
-	testTable("test simple redirect", "cmd > udp://localhost:8888", expected, t)
+	testTable("test simple redirect", `cmd > "udp://localhost:8888"`, expected, t)
 
 	expected = []item{
 		item{
@@ -560,7 +582,7 @@ func TestLexerRedirectSimple(t *testing.T) {
 		},
 	}
 
-	testTable("test simple redirect", "cmd > unix:///tmp/sock.txt", expected, t)
+	testTable("test simple redirect", `cmd > "unix:///tmp/sock.txt"`, expected, t)
 
 }
 

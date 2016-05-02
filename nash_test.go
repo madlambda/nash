@@ -147,7 +147,7 @@ func TestExecuteAssignment(t *testing.T) {
 	sh.SetStdout(&out)
 
 	err := sh.ExecuteString("assignment", `
-        name=i4k
+        name="i4k"
         echo $name
         `)
 

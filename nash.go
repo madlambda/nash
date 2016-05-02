@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type (
@@ -44,17 +45,24 @@ func NewShell(debug bool) *Shell {
 	}
 }
 
-// NewEnv creates a new environment with default values
+// NewEnv creates a new environment from old one
 func NewEnv() Env {
 	env := make(Env)
-	env["*"] = os.Args
-	env["PID"] = append(make([]string, 0, 1), strconv.Itoa(os.Getpid()))
-	env["HOME"] = append(make([]string, 0, 1), os.Getenv("HOME"))
-	env["PATH"] = append(make([]string, 0, 128), os.Getenv("PATH"))
+	processEnv := os.Environ()
 
-	if os.Getenv("PROMPT") != "" {
-		env["PROMPT"] = append(make([]string, 0, 1), os.Getenv("PROMPT"))
+	env["*"] = os.Args
+
+	for _, penv := range processEnv {
+		p := strings.Split(penv, "=")
+
+		if len(p) == 1 {
+			env[p[0]] = make([]string, 0, 1)
+		} else if len(p) > 1 {
+			env[p[0]] = append(make([]string, 0, 256), p[1:]...)
+		}
 	}
+
+	env["PID"] = append(make([]string, 0, 1), strconv.Itoa(os.Getpid()))
 
 	return env
 }

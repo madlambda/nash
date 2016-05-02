@@ -2,6 +2,7 @@ package nash
 
 import (
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -17,4 +18,21 @@ func randRunes(n int) string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
+}
+
+func buildenv(e Env) []string {
+	env := make([]string, 0, len(e))
+
+	for k, v := range e {
+		vlen := len(v)
+		if vlen == 0 {
+			env = append(env, k+"=")
+		} else if len(v) == 1 {
+			env = append(env, k+"="+v[0])
+		} else {
+			env = append(env, k+"=("+strings.Join(v, " ")+")")
+		}
+	}
+
+	return env
 }

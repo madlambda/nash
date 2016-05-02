@@ -67,6 +67,7 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 			Stdin:  os.Stdin,
 			Stdout: os.Stdout,
 			Stderr: os.Stderr,
+			Env:    buildenv(sh.env),
 		},
 		fdMap:      make(FDMap),
 		stdinDone:  make(chan bool, 1),
