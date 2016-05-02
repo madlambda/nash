@@ -39,6 +39,7 @@ const (
 	itemEOF
 	itemComment
 	itemVarName
+	itemConcat
 	itemVariable
 	itemListOpen
 	itemListClose
@@ -241,6 +242,8 @@ func lexIdentifier(l *lexer) stateFn {
 
 	if l.peek() == '=' {
 		l.emit(itemVarName)
+		l.next()
+		l.ignore()
 		return lexInsideAssignment
 	}
 
@@ -258,15 +261,9 @@ func lexIdentifier(l *lexer) stateFn {
 }
 
 func lexInsideAssignment(l *lexer) stateFn {
-	r := l.next()
+	ignoreSpaces(l)
 
-	if r != '=' {
-		return l.errorf("Invalid variable assignment. Found '%c' but expected '='.", r)
-	}
-
-	l.ignore()
-
-	r = l.peek()
+	r := l.peek()
 
 	switch {
 	case r == '(':
@@ -274,8 +271,9 @@ func lexInsideAssignment(l *lexer) stateFn {
 	case r == '"':
 		l.next()
 		l.ignore()
+
 		return func(l *lexer) stateFn {
-			next := lexQuote(l, lexStart)
+			lexQuote(l, nil)
 
 			ignoreSpaces(l)
 
@@ -283,7 +281,10 @@ func lexInsideAssignment(l *lexer) stateFn {
 
 			switch {
 			case r == '+':
-				panic("TODO: concatenation")
+				l.next()
+				l.emit(itemConcat)
+
+				return lexInsideAssignment
 			}
 
 			if !isEndOfLine(r) && r != eof {
@@ -291,7 +292,7 @@ func lexInsideAssignment(l *lexer) stateFn {
 					r, l.pos)
 			}
 
-			return next
+			return lexStart
 		}
 
 	case r == '$':
@@ -362,6 +363,24 @@ func lexInsideCommonVariable(l *lexer) stateFn {
 	}
 
 	l.emit(itemVariable)
+
+	ignoreSpaces(l)
+
+	r = l.peek()
+
+	switch {
+	case r == '+':
+		l.next()
+		l.emit(itemConcat)
+
+		return lexInsideAssignment
+	}
+
+	if !isEndOfLine(r) && r != eof {
+		return l.errorf("Invalid assignment. Expected '+' or EOL, but found %q at pos '%d'",
+			r, l.pos)
+	}
+
 	return lexStart
 }
 
@@ -514,7 +533,7 @@ func lexArg(l *lexer, nextFn stateFn) stateFn {
 			return nil
 		}
 
-		if isIdentifier(r) {
+		if isIdentifier(r) || isSafePath(r) {
 			continue
 		}
 

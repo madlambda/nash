@@ -34,12 +34,19 @@ type (
 	// Pos is the position of a node in file
 	Pos int
 
+	ElemNode struct {
+		NodeType
+		Pos
+		concats []string
+		elem    string
+	}
+
 	// AssignmentNode is a node for variable assignments
 	AssignmentNode struct {
 		NodeType
 		Pos
 		name string
-		list []string
+		list []ElemNode
 	}
 
 	// CommandNode is a node for commands
@@ -109,6 +116,9 @@ const (
 	// NodeArg are nodes for command arguments
 	NodeArg
 
+	// NodeElem represents one element of a list
+	NodeElem
+
 	// NodeString are nodes for argument strings
 	NodeString
 
@@ -169,8 +179,55 @@ func (n *AssignmentNode) SetVarName(a string) {
 }
 
 // SetValueList sets the value of the variable
-func (n *AssignmentNode) SetValueList(alist []string) {
+func (n *AssignmentNode) SetValueList(alist []ElemNode) {
 	n.list = alist
+}
+
+func (n *AssignmentNode) String() string {
+	ret := n.name + "="
+
+	if len(n.list) == 1 {
+		elem := n.list[0]
+
+		if len(elem.concats) == 0 {
+			if len(elem.elem) > 0 && elem.elem[0] == '$' {
+				return n.name + `=` + elem.elem
+			}
+
+			return n.name + `="` + elem.elem + `"`
+		}
+
+		for i := 0; i < len(elem.concats); i++ {
+			e := elem.concats[i]
+
+			if len(e) > 0 && e[0] == '$' {
+				ret += e
+			} else {
+				ret += `"` + e + `"`
+			}
+
+			if i < (len(elem.concats) - 1) {
+				ret += " + "
+			}
+		}
+
+		return ret
+	} else if len(n.list) == 0 {
+		return n.name + `=""`
+	}
+
+	ret += "("
+
+	for i := 0; i < len(n.list); i++ {
+		ret += n.list[i].elem
+
+		if i < len(n.list)-1 {
+			ret += " "
+		}
+	}
+
+	ret += ")"
+	return ret
 }
 
 // NewCommandNode creates a new node for commands

@@ -257,6 +257,22 @@ func TestLexerSimpleCommand(t *testing.T) {
 	}
 
 	testTable("testSimpleCommand", `echo "hello world"`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemArg,
+			val: "rootfs-x86_64",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSimpleCommand", `echo rootfs-x86_64`, expected, t)
 }
 
 func TestLexerPathCommand(t *testing.T) {

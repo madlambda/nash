@@ -4,14 +4,14 @@ package nash
 
 import "fmt"
 
-const nodeTypeName = "NodeAssignmentNodeCommandNodeArgNodeStringNodeRforkNodeCdNodeRforkFlagsNodeComment"
+const _NodeType_name = "NodeAssignmentNodeCommandNodeArgNodeElemNodeStringNodeRforkNodeCdNodeRforkFlagsNodeComment"
 
-var nodeTypeIndex = [...]uint8{0, 14, 25, 32, 42, 51, 57, 71, 82}
+var _NodeType_index = [...]uint8{0, 14, 25, 32, 40, 50, 59, 65, 79, 90}
 
 func (i NodeType) String() string {
-	i--
-	if i < 0 || i >= NodeType(len(nodeTypeIndex)-1) {
+	i -= 1
+	if i < 0 || i >= NodeType(len(_NodeType_index)-1) {
 		return fmt.Sprintf("NodeType(%d)", i+1)
 	}
-	return nodeTypeName[nodeTypeIndex[i]:nodeTypeIndex[i+1]]
+	return _NodeType_name[_NodeType_index[i]:_NodeType_index[i+1]]
 }

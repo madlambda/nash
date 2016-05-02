@@ -193,8 +193,52 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 	return cmd.Execute()
 }
 
+func (sh *Shell) evalVariable(a string) ([]string, error) {
+	if v, ok := sh.env[a[1:]]; ok {
+		return v, nil
+	}
+
+	return nil, fmt.Errorf("Variable %s not set", a)
+}
+
 func (sh *Shell) executeAssignment(v *AssignmentNode) error {
-	sh.env[v.name] = v.list
+	elems := v.list
+	strelems := make([]string, 0, len(elems))
+
+	for i := 0; i < len(elems); i++ {
+		elem := elems[i]
+
+		if len(elem.concats) > 0 {
+			value := ""
+
+			for j := 0; j < len(elem.concats); j++ {
+				ec := elem.concats[j]
+
+				if len(ec) > 0 && ec[0] == '$' {
+					elemstr, err := sh.evalVariable(elem.concats[j])
+					if err != nil {
+						return err
+					}
+
+					if len(elemstr) > 1 {
+						return errors.New("Impossible to concat list variable and string")
+					}
+
+					if len(elemstr) == 1 {
+						value = value + elemstr[0]
+					}
+				} else {
+					value = value + ec
+				}
+			}
+
+			strelems = append(strelems, value)
+		} else {
+			strelems = append(strelems, elem.elem)
+		}
+	}
+
+	sh.env[v.name] = strelems
 	return nil
 }
 

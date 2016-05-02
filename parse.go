@@ -114,7 +114,7 @@ func (p *Parser) parseCommand() (Node, error) {
 		case itemEOF:
 			return n, nil
 		case itemError:
-			return nil, fmt.Errorf("Failed to parse document: %s", it.val)
+			return nil, fmt.Errorf("Syntax error: %s", it.val)
 		default:
 			p.backup(it)
 			return n, nil
@@ -250,12 +250,49 @@ func (p *Parser) parseAssignment() (Node, error) {
 	it = p.next()
 
 	if it.typ == itemVariable || it.typ == itemString {
-		n.SetValueList(append(make([]string, 0, 1), it.val))
+		elems := make([]ElemNode, 0, 1)
+		elem := ElemNode{
+			elem:    it.val,
+			concats: make([]string, 0, 16),
+		}
+
+		elems = append(elems, elem)
+
+		n.SetValueList(elems)
+
+		firstConcat := false
+
+	hasConcat:
+		it = p.peek()
+
+		if it.typ == itemConcat {
+			p.ignore()
+
+			if !firstConcat {
+				firstConcat = true
+				elem.concats = append(elem.concats, elem.elem)
+				elem.elem = ""
+			}
+
+			it = p.next()
+
+			if it.typ == itemString || it.typ == itemVariable {
+				elem.concats = append(elem.concats, it.val)
+				elems[0] = elem
+				n.SetValueList(elems)
+				goto hasConcat
+			} else {
+				return nil, fmt.Errorf("Unexpected token %v", it)
+			}
+		}
+
 	} else if it.typ == itemListOpen {
-		values := make([]string, 0, 128)
+		values := make([]ElemNode, 0, 128)
 
 		for it = p.next(); it.typ == itemListElem; it = p.next() {
-			values = append(values, it.val)
+			values = append(values, ElemNode{
+				elem: it.val,
+			})
 		}
 
 		if it.typ != itemListClose {
@@ -321,7 +358,7 @@ func (p *Parser) parseStatement() (Node, error) {
 
 	switch it.typ {
 	case itemError:
-		return nil, errors.New(it.val)
+		return nil, fmt.Errorf("Syntax error: %s", it.val)
 	case itemVarName:
 		return p.parseAssignment()
 	case itemCommand:
@@ -347,16 +384,16 @@ func (p *Parser) parseBlock() (*ListNode, error) {
 		case 0, itemEOF:
 			goto finish
 		case itemError:
-			return nil, errors.New(it.val)
+			return nil, fmt.Errorf("Syntax error: %s", it.val)
 		case itemLeftBlock:
 			p.ignore()
 
-			return nil, errors.New("Blocks are only allowed inside rfork")
+			return nil, errors.New("Parser error: Blocks are only allowed inside rfork")
 		case itemRightBlock:
 			p.ignore()
 
 			if p.openblocks <= 0 {
-				return nil, fmt.Errorf("No block open for close")
+				return nil, errors.New("Parser error: No block open for close")
 			}
 
 			p.openblocks--

@@ -72,6 +72,58 @@ func TestParseReverseGetSame(t *testing.T) {
 	}
 }
 
+func TestBasicAssignment(t *testing.T) {
+	expected := NewTree("simple assignment")
+	ln := NewListNode()
+	assign := NewAssignmentNode(0)
+	assign.SetVarName("test")
+	elems := make([]ElemNode, 1, 1)
+	elems[0] = ElemNode{
+		elem: "hello",
+	}
+
+	assign.SetValueList(elems)
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTestTable("simple assignment", `test="hello"`, expected, t)
+
+	// test concatenation of strings and variables
+
+	ln = NewListNode()
+	assign = NewAssignmentNode(0)
+	assign.SetVarName("test")
+	elems = make([]ElemNode, 1, 1)
+	concats := make([]string, 2, 2)
+	concats[0] = "hello"
+	concats[1] = "$var"
+	elems[0] = ElemNode{
+		concats: concats,
+	}
+
+	assign.SetValueList(elems)
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTestTable("test", `test="hello" + $var`, expected, t)
+
+	// invalid, requires quote
+	// test=hello
+	parser := NewParser("", `test=hello`)
+
+	tr, err := parser.Parse()
+
+	if err == nil {
+		t.Error("Must fail")
+		return
+	}
+
+	if tr != nil {
+		t.Error("tr must be nil")
+		return
+	}
+}
+
 func TestParseInvalid(t *testing.T) {
 	parser := NewParser("invalid", ";")
 
@@ -394,6 +446,45 @@ func compareCommentNode(expected, value *CommentNode) (bool, error) {
 	return true, nil
 }
 
+func compareAssignment(expected, value *AssignmentNode) (bool, error) {
+	if expected == nil && value == nil {
+		return true, nil
+	}
+
+	if (expected == nil) != (value == nil) {
+		return false, fmt.Errorf("Only one of the nodes are nil. %v != %v", expected, value)
+	}
+
+	if expected.name != value.name {
+		return false, fmt.Errorf("Variable name differs. '%s' != '%s'", expected.name, value.name)
+	}
+
+	if len(expected.list) != len(value.list) {
+		return false, fmt.Errorf("Variable list value length differs. %d != %d", len(expected.list), len(value.list))
+	}
+
+	for i := 0; i < len(expected.list); i++ {
+		ev := expected.list[i]
+		vv := value.list[i]
+
+		if ev.elem != vv.elem {
+			return false, fmt.Errorf("Variable list differs at index %d. %s != %s", i, ev, vv)
+		}
+
+		if len(ev.concats) != len(vv.concats) {
+			return false, fmt.Errorf("Variable list concats length differs. %d != %d", len(ev.concats), len(vv.concats))
+		}
+
+		for j := 0; j < len(ev.concats); j++ {
+			if ev.concats[j] != vv.concats[j] {
+				return false, fmt.Errorf("Variable concatenation entry differ. '%s' != '%s'", ev.concats[j], vv.concats[j])
+			}
+		}
+	}
+
+	return true, nil
+}
+
 func compareRforkNode(expected, value *RforkNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
@@ -450,6 +541,10 @@ func compareNodes(expected Node, value Node) (bool, error) {
 	}
 
 	switch v := expected.(type) {
+	case *AssignmentNode:
+		ec := expected.(*AssignmentNode)
+		vc := value.(*AssignmentNode)
+		valid, err = compareAssignment(ec, vc)
 	case *CdNode:
 		ec := expected.(*CdNode)
 		vc := value.(*CdNode)

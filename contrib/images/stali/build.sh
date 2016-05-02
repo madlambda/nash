@@ -4,6 +4,8 @@
 
 -rm -rf toolchain
 -rm -rf src
+-rm -rf rootfs-x86_64/
+
 mkdir rootfs-x86_64
 
 git clone http://git.sta.li/toolchain
@@ -13,7 +15,8 @@ STALI_SRC=$PWD + "/src"
 
 cd src
 mv config.mk config.mk.orig
-cat config.mk.orig | sed 's/DESTDIR\=.*/DESTDIR=$(PWD)/rootfs-x86_64/g' > config.mk
+sedcmd="sed 's/DESTDIR\=.*/DESTDIR=" + $PWD + "/rootfs-x86_64/g'"
+cat config.mk.orig | exec $sedcmd > config.mk
 make
 make install
 
