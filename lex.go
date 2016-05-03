@@ -780,12 +780,12 @@ func isSpace(r rune) bool {
 
 func isSafePath(r rune) bool {
 	isId := isIdentifier(r)
-	return isId || r == '_' || r == '-' || r == '/' || r == '.'
+	return isId || r == '_' || r == '-' || r == '/' || r == '.' || r == ':' || r == '='
 }
 
 // isIdentifier reports whether r is a valid identifier
 func isIdentifier(r rune) bool {
-	return unicode.IsLetter(r) || unicode.IsDigit(r)
+	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 // isEndOfLine reports whether r is an end-of-line character.

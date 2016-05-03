@@ -234,3 +234,46 @@ func TestExecuteRedirectionMap(t *testing.T) {
 		return
 	}
 }
+
+/*
+func TestExecuteCd(t *testing.T) {
+	var out bytes.Buffer
+
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err := sh.ExecuteString("test cd", `
+        cd /tmp
+        pwd
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "/tmp" {
+		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "/tmp")
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test cd", `
+        HOME="/"
+        cd
+        pwd
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "/" {
+		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "/tmp")
+		return
+	}
+}
+*/

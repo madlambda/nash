@@ -1,8 +1,6 @@
 package nash
 
 import (
-	"errors"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -86,8 +84,7 @@ type (
 	CdNode struct {
 		NodeType
 		Pos
-		dir  Arg
-		Home bool
+		dir Arg
 	}
 
 	// CommentNode is the node for comments
@@ -379,33 +376,14 @@ func NewCdNode(pos Pos) *CdNode {
 	}
 }
 
-// SetHome sets the directory as $home
-func (n *CdNode) SetHome() {
-	n.Home = true
-}
-
 // SetDir sets the cd directory to dir
 func (n *CdNode) SetDir(dir Arg) {
 	n.dir = dir
 }
 
 // Dir returns the directory of cd node
-func (n *CdNode) Dir() (string, error) {
-	if n.Home {
-		homePath := os.Getenv("$home")
-
-		if homePath == "" {
-			homePath = os.Getenv("$HOME")
-
-			if homePath == "" {
-				return "", errors.New("No variable $home or $HOME set")
-			}
-		}
-
-		return homePath, nil
-	}
-
-	return n.dir.val, nil
+func (n *CdNode) Dir() string {
+	return n.dir.val
 }
 
 // Tree returns the child tree if any
@@ -414,15 +392,15 @@ func (n *CdNode) Tree() *Tree {
 }
 
 func (n *CdNode) String() string {
-	if n.Home {
-		return "cd"
-	}
-
 	if n.dir.quoted {
 		return `cd "` + n.dir.val + `"`
 	}
 
-	return "cd " + n.dir.val
+	if len(n.dir.val) > 0 {
+		return "cd " + n.dir.val
+	}
+
+	return "cd"
 }
 
 // NewArg creates a new argument

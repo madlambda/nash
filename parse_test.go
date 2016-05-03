@@ -381,10 +381,6 @@ func compareCdNode(expected, value *CdNode) (bool, error) {
 		return ok, fmt.Errorf(" CompareCommandNode (%v, %v)-> %s", expected, value, err.Error())
 	}
 
-	if expected.Home != value.Home {
-		return false, fmt.Errorf("expected.Home (%v) != value.Home (%v)", expected.Home, value.Home)
-	}
-
 	return true, nil
 }
 

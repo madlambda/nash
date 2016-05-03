@@ -224,7 +224,6 @@ func (p *Parser) parseCd() (Node, error) {
 	it = p.next()
 
 	if it.typ != itemArg && it.typ != itemString {
-		n.SetHome()
 		return n, nil
 	}
 

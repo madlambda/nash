@@ -158,7 +158,7 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 				return err
 			}
 		case NodeCd:
-			err := executeCd(node.(*CdNode))
+			err := sh.executeCd(node.(*CdNode))
 
 			if err != nil {
 				return err
@@ -242,12 +242,27 @@ func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 	return nil
 }
 
-func executeCd(cd *CdNode) error {
-	path, err := cd.Dir()
+func (sh *Shell) executeCd(cd *CdNode) error {
+	var (
+		ok       bool
+		pathlist []string
+	)
 
-	if err != nil {
-		return err
+	path := cd.Dir()
+
+	if path == "" {
+		if pathlist, ok = sh.env["HOME"]; !ok {
+			return errors.New("Nash don't know where to cd. No variable $HOME or $home set")
+		}
+
+		if len(pathlist) > 0 && pathlist[0] != "" {
+			path = pathlist[0]
+		} else {
+			return fmt.Errorf("Invalid $HOME value: %v", pathlist)
+		}
 	}
+
+	fmt.Printf("path: '%s'\n", path)
 
 	return os.Chdir(path)
 }

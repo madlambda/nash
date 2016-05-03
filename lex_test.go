@@ -178,6 +178,31 @@ func TestLexerSimpleAssignment(t *testing.T) {
         test="value"
         other=$test
         echo $other`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemVarName,
+			val: "STALI_SRC",
+		},
+		item{
+			typ: itemVariable,
+			val: "$PWD",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemString,
+			val: "/src",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test underscore", `STALI_SRC=$PWD + "/src"`, expected, t)
+
 }
 
 func TestLexerListAssignment(t *testing.T) {
@@ -273,6 +298,30 @@ func TestLexerSimpleCommand(t *testing.T) {
 	}
 
 	testTable("testSimpleCommand", `echo rootfs-x86_64`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "git",
+		},
+		item{
+			typ: itemArg,
+			val: "clone",
+		},
+		item{
+			typ: itemArg,
+			val: "--depth=1",
+		},
+		item{
+			typ: itemArg,
+			val: "http://git.sta.li/toolchain",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSimpleCommand", `git clone --depth=1 http://git.sta.li/toolchain`, expected, t)
 }
 
 func TestLexerPathCommand(t *testing.T) {
@@ -503,6 +552,44 @@ func TestLexerBuiltinCd(t *testing.T) {
 	}
 
 	testTable("testBuiltinCdNoQuote", `cd /proc`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCd,
+			val: "cd",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+	/*
+	   	testTable("testBuiltincd home", `cd`, expected, t)
+
+	   	expected = []item{
+	   		item{
+	   			typ: itemVarName,
+	   			val: "HOME",
+	   		},
+	   		item{
+	   			typ: itemString,
+	   			val: "/",
+	   		},
+	   		item{
+	   			typ: itemCd,
+	   			val: "cd",
+	   		},
+	   		item{
+	   			typ: itemCommand,
+	   			val: "pwd",
+	   		},
+	   	}
+
+	   	testTable("testBuiltin cd bug", `
+	               HOME="/"
+	               cd
+	               pwd
+	           `, expected, t)*/
+
 }
 
 func TestLexerMinusAlone(t *testing.T) {

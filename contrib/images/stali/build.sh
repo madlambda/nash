@@ -8,15 +8,16 @@
 
 mkdir rootfs-x86_64
 
-git clone http://git.sta.li/toolchain
-git clone http://git.sta.li/src
+git clone --depth=1 http://git.sta.li/toolchain
+git clone --depth=1 http://git.sta.li/src
 
 STALI_SRC=$PWD + "/src"
 
+mv src/config.mk src/config.mk.orig
+cp config.mk src/config.mk
+
 cd src
-mv config.mk config.mk.orig
-sedcmd="sed 's/DESTDIR\=.*/DESTDIR=" + $PWD + "/rootfs-x86_64/g'"
-cat config.mk.orig | exec $sedcmd > config.mk
+
 make
 make install
 
