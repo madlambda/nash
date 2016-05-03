@@ -13,6 +13,7 @@ import (
 type (
 	// Env is the environment map of lists
 	Env map[string][]string
+	Var Env
 
 	// Shell is the core data structure.
 	Shell struct {
@@ -25,6 +26,7 @@ type (
 		stderr io.Writer
 
 		env       Env
+		vars      Var
 		multiline bool
 	}
 )
@@ -42,6 +44,7 @@ func NewShell(debug bool) *Shell {
 		stderr:    os.Stderr,
 		stdin:     os.Stdin,
 		env:       NewEnv(),
+		vars:      make(Var),
 	}
 }
 
@@ -139,6 +142,12 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 		switch node.Type() {
 		case NodeComment:
 			continue // ignore comment
+		case NodeSetAssignment:
+			err := sh.executeSetAssignment(node.(*SetAssignmentNode))
+
+			if err != nil {
+				return err
+			}
 		case NodeAssignment:
 			err := sh.executeAssignment(node.(*AssignmentNode))
 
@@ -194,11 +203,28 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 }
 
 func (sh *Shell) evalVariable(a string) ([]string, error) {
-	if v, ok := sh.env[a[1:]]; ok {
+	if v, ok := sh.vars[a[1:]]; ok {
 		return v, nil
 	}
 
 	return nil, fmt.Errorf("Variable %s not set", a)
+}
+
+func (sh *Shell) executeSetAssignment(v *SetAssignmentNode) error {
+	var (
+		varValue []string
+		ok       bool
+	)
+
+	varName := v.varName
+
+	if varValue, ok = sh.vars[varName]; !ok {
+		return fmt.Errorf("Variable '%s' not set", varName)
+	}
+
+	sh.env[varName] = varValue
+
+	return nil
 }
 
 func (sh *Shell) executeAssignment(v *AssignmentNode) error {
@@ -238,7 +264,7 @@ func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 		}
 	}
 
-	sh.env[v.name] = strelems
+	sh.vars[v.name] = strelems
 	return nil
 }
 
@@ -261,8 +287,6 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 			return fmt.Errorf("Invalid $HOME value: %v", pathlist)
 		}
 	}
-
-	fmt.Printf("path: '%s'\n", path)
 
 	return os.Chdir(path)
 }

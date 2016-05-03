@@ -236,6 +236,26 @@ func (p *Parser) parseCd() (Node, error) {
 	return n, nil
 }
 
+func (p *Parser) parseSet() (Node, error) {
+	it := p.next()
+
+	if it.typ != itemSet {
+		return nil, fmt.Errorf("Failed sanity check. Unexpected %v", it)
+	}
+
+	pos := it.pos
+
+	it = p.next()
+
+	if it.typ != itemVarName {
+		return nil, fmt.Errorf("Unexpected token %v, expected variable", it)
+	}
+
+	n := NewSetAssignment(pos, it.val)
+
+	return n, nil
+}
+
 func (p *Parser) parseAssignment() (Node, error) {
 	it := p.next()
 
@@ -358,6 +378,8 @@ func (p *Parser) parseStatement() (Node, error) {
 	switch it.typ {
 	case itemError:
 		return nil, fmt.Errorf("Syntax error: %s", it.val)
+	case itemSet:
+		return p.parseSet()
 	case itemVarName:
 		return p.parseAssignment()
 	case itemCommand:

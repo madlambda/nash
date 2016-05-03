@@ -92,16 +92,22 @@ func (cmd *Command) SetArgs(cargs []Arg) error {
 
 		// variable substitution
 		if len(argval) > 0 && argval[0] == '$' {
-			if sh.env[argval[1:]] != nil {
-				arglist := sh.env[argval[1:]]
+			var arglist []string
 
-				if len(arglist) == 1 {
-					args[i+1] = arglist[0]
-				} else if len(arglist) > 1 {
-					args[i+1] = strings.Join(arglist, " ")
-				}
+			if sh.vars[argval[1:]] != nil {
+				arglist = sh.vars[argval[1:]]
+			} else if sh.env[argval[1:]] != nil {
+				arglist = sh.env[argval[1:]]
 			} else {
 				return ErrVarNotSet.Params(argval)
+			}
+
+			if len(arglist) == 0 {
+				return ErrVarNotSet.Params(argval)
+			} else if len(arglist) == 1 {
+				args[i+1] = arglist[0]
+			} else if len(arglist) > 1 {
+				args[i+1] = strings.Join(arglist, " ")
 			}
 		} else {
 			args[i+1] = argval

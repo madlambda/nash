@@ -7,8 +7,6 @@ import (
 	"unicode/utf8"
 )
 
-const eof = -1
-
 // Itemtype identifies the type of lex items
 type (
 	itemType int
@@ -35,9 +33,12 @@ type (
 //go:generate stringer -type=itemType
 
 const (
+	eof = -1
+
 	itemError itemType = iota + 1 // error ocurred
 	itemEOF
 	itemComment
+	itemSet
 	itemVarName
 	itemConcat
 	itemVariable
@@ -254,10 +255,39 @@ func lexIdentifier(l *lexer) stateFn {
 	case "cd":
 		l.emit(itemCd)
 		return lexInsideCd
+	case "setenv":
+		l.emit(itemSet)
+		return lexInsideSetenv
 	}
 
 	l.emit(itemCommand)
 	return lexInsideCommand
+}
+
+func lexInsideSetenv(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	for {
+		r := l.next()
+
+		if isIdentifier(r) {
+			continue // absorb
+		}
+
+		break
+	}
+
+	l.backup() // pos is now ahead of the alphanum
+
+	word := l.input[l.start:l.pos]
+
+	if len(word) == 0 {
+		// sanity check
+		return l.errorf("internal error")
+	}
+
+	l.emit(itemVarName)
+	return lexStart
 }
 
 func lexInsideAssignment(l *lexer) stateFn {
@@ -386,9 +416,7 @@ func lexInsideCommonVariable(l *lexer) stateFn {
 
 func lexInsideCd(l *lexer) stateFn {
 	// parse the cd directory
-	if l.accept(" \t") {
-		ignoreSpaces(l)
-	}
+	ignoreSpaces(l)
 
 	r := l.next()
 
@@ -399,10 +427,15 @@ func lexInsideCd(l *lexer) stateFn {
 		}
 	}
 
-	// parse as normal argument
-	return func(l *lexer) stateFn {
-		return lexArg(l, lexStart)
+	if isIdentifier(r) || isSafePath(r) {
+		// parse as normal argument
+		return func(l *lexer) stateFn {
+			return lexArg(l, lexStart)
+		}
 	}
+
+	l.backup()
+	return lexStart
 }
 
 // Rfork flags:

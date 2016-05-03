@@ -72,6 +72,17 @@ func TestParseReverseGetSame(t *testing.T) {
 	}
 }
 
+func TestBasicSetAssignment(t *testing.T) {
+	expected := NewTree("simple set assignment")
+	ln := NewListNode()
+	set := NewSetAssignment(0, "test")
+
+	ln.Push(set)
+	expected.Root = ln
+
+	parserTestTable("simple set assignment", `setenv test`, expected, t)
+}
+
 func TestBasicAssignment(t *testing.T) {
 	expected := NewTree("simple assignment")
 	ln := NewListNode()
@@ -442,6 +453,26 @@ func compareCommentNode(expected, value *CommentNode) (bool, error) {
 	return true, nil
 }
 
+func compareSetAssignment(expected, value *SetAssignmentNode) (bool, error) {
+	if expected == nil && value == nil {
+		return true, nil
+	}
+
+	if (expected == nil) != (value == nil) {
+		return false, fmt.Errorf("Only one of the nodes are nil. %v != %v", expected, value)
+	}
+
+	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
+		return ok, fmt.Errorf(" CompareRforkNode (%v, %v) -> %s", expected, value, err.Error())
+	}
+
+	if expected.varName != value.varName {
+		return false, fmt.Errorf("Set identifier mismatch. %s != %s", expected.varName, value.varName)
+	}
+
+	return true, nil
+}
+
 func compareAssignment(expected, value *AssignmentNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
@@ -537,6 +568,11 @@ func compareNodes(expected Node, value Node) (bool, error) {
 	}
 
 	switch v := expected.(type) {
+	case *SetAssignmentNode:
+		ec := expected.(*SetAssignmentNode)
+		vc := value.(*SetAssignmentNode)
+
+		valid, err = compareSetAssignment(ec, vc)
 	case *AssignmentNode:
 		ec := expected.(*AssignmentNode)
 		vc := value.(*AssignmentNode)

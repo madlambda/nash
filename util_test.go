@@ -79,7 +79,7 @@ func TestBuildEnv(t *testing.T) {
 	}
 
 	if penv[1] != "path=abracadabra" {
-		t.Errorf("Invalid env value: %s", penv[1])
+		t.Errorf("Invalid env value: '%s'", penv[1])
 		return
 	}
 }

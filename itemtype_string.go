@@ -4,14 +4,14 @@ package nash
 
 import "fmt"
 
-const _itemType_name = "itemErroritemEOFitemCommentitemVarNameitemConcatitemVariableitemListOpenitemListCloseitemListElemitemCommanditemArgitemLeftBlockitemRightBlockitemStringitemRedirRightitemRedirRBracketitemRedirLBracketitemRedirFileitemRedirNetAddritemRedirMapEqualitemRedirMapLSideitemRedirMapRSideitemKeyworditemRforkitemRforkFlagsitemCd"
+const _itemType_name = "itemErroritemEOFitemCommentitemSetitemVarNameitemConcatitemVariableitemListOpenitemListCloseitemListElemitemCommanditemArgitemLeftBlockitemRightBlockitemStringitemRedirRightitemRedirRBracketitemRedirLBracketitemRedirFileitemRedirNetAddritemRedirMapEqualitemRedirMapLSideitemRedirMapRSideitemKeyworditemRforkitemRforkFlagsitemCd"
 
-var _itemType_index = [...]uint16{0, 9, 16, 27, 38, 48, 60, 72, 85, 97, 108, 115, 128, 142, 152, 166, 183, 200, 213, 229, 246, 263, 280, 291, 300, 314, 320}
+var _itemType_index = [...]uint16{0, 9, 16, 27, 34, 45, 55, 67, 79, 92, 104, 115, 122, 135, 149, 159, 173, 190, 207, 220, 236, 253, 270, 287, 298, 307, 321, 327}
 
 func (i itemType) String() string {
-	i -= 1
+	i -= 2
 	if i < 0 || i >= itemType(len(_itemType_index)-1) {
-		return fmt.Sprintf("itemType(%d)", i+1)
+		return fmt.Sprintf("itemType(%d)", i+2)
 	}
 	return _itemType_name[_itemType_index[i]:_itemType_index[i+1]]
 }

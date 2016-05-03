@@ -17,7 +17,8 @@ uri         = schema "://" location .
 
 identifier  = letter { letter | unicode_digit } .
 variable    = "$" identifier .
-builtin     = rforkDecl | cdDecl | ifDecl | elseDecl | forDecl | execDecl .
+builtin     = rforkDecl | cdDecl | ifDecl | elseDecl |
+              forDecl | execDecl | setenv .
 rforkDecl   = "rfork" rforkFlags "{" program "}" .
 namespace   = { "c" | "m" | "n" | "i" | "p" | "u" | "s" } .
 rforkFlags  = { namespace } .
@@ -25,6 +26,7 @@ cdDecl      = "cd" [ filename ] .
 ifDecl      = "if" identifier comparison ( identifier | varValue ) "{" program "}" .
 elseDecl    = "else" "{" program "}" .
 forDecl     = "for" ( identifier | varList ) "{" program "}" .
+setenv         = "setenv" identifier .
 execDecl    = "exec" (varList | variable) { redirect } .
 redirect   = ( ">" ( filename | uri ) |
                ">" "[" unicode_digit "]" ( filename | uri ) |

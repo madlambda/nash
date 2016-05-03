@@ -101,6 +101,24 @@ func TestLexerShebangOnly(t *testing.T) {
 	testTable("testShebangonly", "#!/bin/nash\n", expected, t)
 }
 
+func TestLexerSimpleSetAssignment(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemSet,
+			val: "setenv",
+		},
+		item{
+			typ: itemVarName,
+			val: "name",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSet", `setenv name`, expected, t)
+}
+
 func TestLexerSimpleAssignment(t *testing.T) {
 	expected := []item{
 		item{
@@ -562,33 +580,36 @@ func TestLexerBuiltinCd(t *testing.T) {
 			typ: itemEOF,
 		},
 	}
-	/*
-	   	testTable("testBuiltincd home", `cd`, expected, t)
 
-	   	expected = []item{
-	   		item{
-	   			typ: itemVarName,
-	   			val: "HOME",
-	   		},
-	   		item{
-	   			typ: itemString,
-	   			val: "/",
-	   		},
-	   		item{
-	   			typ: itemCd,
-	   			val: "cd",
-	   		},
-	   		item{
-	   			typ: itemCommand,
-	   			val: "pwd",
-	   		},
-	   	}
+	testTable("testBuiltincd home", `cd`, expected, t)
 
-	   	testTable("testBuiltin cd bug", `
+	expected = []item{
+		item{
+			typ: itemVarName,
+			val: "HOME",
+		},
+		item{
+			typ: itemString,
+			val: "/",
+		},
+		item{
+			typ: itemCd,
+			val: "cd",
+		},
+		item{
+			typ: itemCommand,
+			val: "pwd",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testBuiltin cd bug", `
 	               HOME="/"
 	               cd
 	               pwd
-	           `, expected, t)*/
+	           `, expected, t)
 
 }
 
