@@ -224,6 +224,7 @@ func (p *Parser) parseCd() (Node, error) {
 	it = p.next()
 
 	if it.typ != itemArg && it.typ != itemString {
+		p.backup(it)
 		return n, nil
 	}
 
@@ -251,7 +252,7 @@ func (p *Parser) parseSet() (Node, error) {
 		return nil, fmt.Errorf("Unexpected token %v, expected variable", it)
 	}
 
-	n := NewSetAssignment(pos, it.val)
+	n := NewSetAssignmentNode(pos, it.val)
 
 	return n, nil
 }

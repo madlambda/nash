@@ -235,7 +235,6 @@ func TestExecuteRedirectionMap(t *testing.T) {
 	}
 }
 
-/*
 func TestExecuteCd(t *testing.T) {
 	var out bytes.Buffer
 
@@ -260,8 +259,12 @@ func TestExecuteCd(t *testing.T) {
 
 	out.Reset()
 
+	var out2 bytes.Buffer
+	sh.SetStdout(&out2)
+
 	err = sh.ExecuteString("test cd", `
         HOME="/"
+        setenv HOME
         cd
         pwd
         `)
@@ -271,9 +274,8 @@ func TestExecuteCd(t *testing.T) {
 		return
 	}
 
-	if strings.TrimSpace(string(out.Bytes())) != "/" {
-		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "/tmp")
+	if strings.TrimSpace(string(out2.Bytes())) != "/" {
+		t.Errorf("Cd failed. '%s' != '%s'", string(out2.Bytes()), "/")
 		return
 	}
 }
-*/

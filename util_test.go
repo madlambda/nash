@@ -1,6 +1,9 @@
 package nash
 
-import "testing"
+import (
+	"sort"
+	"testing"
+)
 
 func TestBuildEnv(t *testing.T) {
 	env := Env{
@@ -73,8 +76,10 @@ func TestBuildEnv(t *testing.T) {
 		return
 	}
 
+	sort.Strings(penv)
+
 	if penv[0] != "PATH=(/bin /usr/bin)" {
-		t.Errorf("Invalid env value: %s", penv[0])
+		t.Errorf("Invalid env value: '%s'", penv[0])
 		return
 	}
 

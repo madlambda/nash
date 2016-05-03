@@ -75,7 +75,7 @@ func TestParseReverseGetSame(t *testing.T) {
 func TestBasicSetAssignment(t *testing.T) {
 	expected := NewTree("simple set assignment")
 	ln := NewListNode()
-	set := NewSetAssignment(0, "test")
+	set := NewSetAssignmentNode(0, "test")
 
 	ln.Push(set)
 	expected.Root = ln
@@ -282,7 +282,7 @@ func TestParseStringNotFinished(t *testing.T) {
 	}
 }
 
-func TestCd(t *testing.T) {
+func TestParseCd(t *testing.T) {
 	expected := NewTree("test cd")
 	ln := NewListNode()
 	cd := NewCdNode(0)
@@ -291,6 +291,39 @@ func TestCd(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("test cd", "cd /tmp", expected, t)
+
+	// test cd into home
+	expected = NewTree("test cd into home")
+	ln = NewListNode()
+	cd = NewCdNode(0)
+	ln.Push(cd)
+	expected.Root = ln
+
+	parserTestTable("test cd into home", "cd", expected, t)
+
+	expected = NewTree("cd into HOME by setenv")
+	ln = NewListNode()
+	assign := NewAssignmentNode(0)
+	assign.SetVarName("HOME")
+	assign.SetValueList(append(make([]ElemNode, 0, 1), ElemNode{
+		elem: "/",
+	}))
+	set := NewSetAssignmentNode(9, "HOME")
+	cd = NewCdNode(21)
+	pwd := NewCommandNode(24, "pwd")
+
+	ln.Push(assign)
+	ln.Push(set)
+	ln.Push(cd)
+	ln.Push(pwd)
+
+	expected.Root = ln
+
+	parserTestTable("test cd into HOME by setenv", `HOME="/"
+setenv HOME
+cd
+pwd`, expected, t)
+
 }
 
 func TestParseRfork(t *testing.T) {

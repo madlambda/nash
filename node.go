@@ -168,7 +168,7 @@ func (l *ListNode) Push(n Node) {
 // Tree returns the tree for this node
 func (l *ListNode) Tree() *Tree { return nil }
 
-func NewSetAssignment(pos Pos, name string) *SetAssignmentNode {
+func NewSetAssignmentNode(pos Pos, name string) *SetAssignmentNode {
 	return &SetAssignmentNode{
 		NodeType: NodeSetAssignment,
 		Pos:      pos,

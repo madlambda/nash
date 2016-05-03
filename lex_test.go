@@ -593,6 +593,14 @@ func TestLexerBuiltinCd(t *testing.T) {
 			val: "/",
 		},
 		item{
+			typ: itemSet,
+			val: "setenv",
+		},
+		item{
+			typ: itemVarName,
+			val: "HOME",
+		},
+		item{
 			typ: itemCd,
 			val: "cd",
 		},
@@ -607,6 +615,7 @@ func TestLexerBuiltinCd(t *testing.T) {
 
 	testTable("testBuiltin cd bug", `
 	               HOME="/"
+                       setenv HOME
 	               cd
 	               pwd
 	           `, expected, t)
