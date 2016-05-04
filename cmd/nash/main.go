@@ -36,8 +36,6 @@ func init() {
 }
 
 func main() {
-	var err error
-
 	flag.Parse()
 
 	if version {
@@ -63,6 +61,8 @@ func main() {
 			}
 		}
 	}
+
+	var err error
 
 	if addr != "" {
 		startNashd(shell, addr)
