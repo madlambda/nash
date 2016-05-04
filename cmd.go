@@ -73,7 +73,7 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 			Stdin:  os.Stdin,
 			Stdout: os.Stdout,
 			Stderr: os.Stderr,
-			Env:    buildenv(sh.env),
+			Env:    envVars,
 		},
 		fdMap:      make(FDMap),
 		stdinDone:  make(chan bool, 1),
@@ -153,6 +153,7 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 		return ErrInvalidFD.Params(redirDecl.rmap.rfd)
 	}
 
+	// Note(i4k): We need to remove the repetitive code in some smarter way
 	switch redirDecl.rmap.lfd {
 	case 0:
 		switch redirDecl.rmap.rfd {

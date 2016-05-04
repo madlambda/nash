@@ -64,12 +64,14 @@ func main() {
 
 	initFile := home + "/.nash/init"
 
-	if _, err := os.Stat(initFile); err == nil {
-		err = shell.Execute(initFile)
+	if d, err := os.Stat(initFile); err == nil {
+		if m := d.Mode(); !m.IsDir() {
+			err = shell.Execute(initFile)
 
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to evaluate '%s': %s\n", initFile, err.Error())
-			os.Exit(1)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to evaluate '%s': %s\n", initFile, err.Error())
+				os.Exit(1)
+			}
 		}
 	}
 
