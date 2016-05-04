@@ -15,12 +15,17 @@ import (
 )
 
 var (
-	debug bool
-	file  string
-	addr  string
+	// version is set at build time
+	VersionString = "No version provided"
+
+	version bool
+	debug   bool
+	file    string
+	addr    string
 )
 
 func init() {
+	flag.BoolVar(&version, "version", false, "Show version")
 	flag.BoolVar(&debug, "debug", false, "enable debug")
 	flag.StringVar(&file, "file", "", "script file")
 
@@ -35,7 +40,27 @@ func main() {
 
 	flag.Parse()
 
+	if version {
+		fmt.Printf("%s\n", VersionString)
+		os.Exit(0)
+	}
+
 	shell := nash.NewShell(debug)
+
+	home := os.Getenv("HOME")
+
+	if home != "" {
+		initFile := home + "/.nash/init"
+
+		if _, err = os.Stat(initFile); err == nil {
+			err = shell.Execute(initFile)
+
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to evaluate '%s': %s\n", initFile, err.Error())
+				os.Exit(1)
+			}
+		}
+	}
 
 	if addr != "" {
 		startNashd(shell, addr)
