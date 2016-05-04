@@ -423,3 +423,26 @@ func TestParseImport(t *testing.T) {
 
 	parserTestTable("test import", `import "env.sh"`, expected, t)
 }
+
+func TestParseIf(t *testing.T) {
+	expected := NewTree("test if")
+	ln := NewListNode()
+	ifDecl := NewIfNode(0)
+	ifDecl.SetLArg(NewArg(0, "test", true))
+	ifDecl.SetRArg(NewArg(0, "other", true))
+	ifDecl.SetOp("==")
+
+	subBlock := NewListNode()
+	cmd := NewCommandNode(0, "pwd")
+	subBlock.Push(cmd)
+
+	ifTree := NewTree("if block")
+	ifTree.Root = subBlock
+
+	ifDecl.tree = ifTree
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("test if", `if "test" == "other" { pwd }`, expected, t)
+}

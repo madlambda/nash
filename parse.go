@@ -393,6 +393,67 @@ func (p *Parser) parseRfork() (Node, error) {
 	return n, nil
 }
 
+func (p *Parser) parseIf() (Node, error) {
+	it := p.next()
+
+	n := NewIfNode(it.pos)
+
+	it = p.next()
+
+	if it.typ != itemString && it.typ != itemVariable {
+		return nil, fmt.Errorf("if requires an lvalue of type string or variable. Found %v", it)
+	}
+
+	if it.typ == itemString {
+		n.SetLArg(NewArg(it.pos, it.val, true))
+	} else {
+		n.SetLArg(NewArg(it.pos, it.val, false))
+	}
+
+	it = p.next()
+
+	if it.typ != itemComparison {
+		return nil, fmt.Errorf("Expected comparison. but found %v", it)
+	}
+
+	if it.val != "==" && it.val != "!=" {
+		return nil, fmt.Errorf("Invalid if operator '%s'. Valid comparison operators are '==' and '!='", it.val)
+	}
+
+	n.SetOp(it.val)
+
+	it = p.next()
+
+	if it.typ != itemString && it.typ != itemVariable {
+		return nil, fmt.Errorf("if requires an rvalue of type string or variable. Found %v", it)
+	}
+
+	if it.typ == itemString {
+		n.SetRArg(NewArg(it.pos, it.val, true))
+	} else {
+		n.SetRArg(NewArg(it.pos, it.val, false))
+	}
+
+	it = p.next()
+
+	if it.typ != itemLeftBlock {
+		return nil, fmt.Errorf("Expected '{' but found %v", it)
+	}
+
+	p.openblocks++
+
+	n.tree = NewTree("if block")
+	r, err := p.parseBlock()
+
+	if err != nil {
+		return nil, err
+	}
+
+	n.tree.Root = r
+
+	return n, nil
+}
+
 func (p *Parser) parseComment() (Node, error) {
 	it := p.next()
 
@@ -425,6 +486,8 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseCd()
 	case itemComment:
 		return p.parseComment()
+	case itemIf:
+		return p.parseIf()
 	}
 
 	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)

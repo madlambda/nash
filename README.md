@@ -259,7 +259,7 @@ The specification isn't complete yet, but can be found
 [here](https://github.com/NeowayLabs/nash/blob/master/spec.ebnf).
 The file `spec_test.go` makes sure it is sane.
 
-# Bash comparison
+# Some Bash comparisons
 
 | Bash | Nash | Description	|
 | --- | --- | --- |

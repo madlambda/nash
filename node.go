@@ -116,6 +116,16 @@ type (
 		lfd int
 		rfd int
 	}
+
+	IfNode struct {
+		NodeType
+		Pos
+		larg Arg
+		rarg Arg
+		op   string
+
+		tree *Tree
+	}
 )
 
 //go:generate stringer -type=NodeType
@@ -153,6 +163,8 @@ const (
 
 	// NodeRforkFlags are nodes rfork flags
 	NodeRforkFlags
+
+	NodeIf
 
 	// NodeComment are nodes for comment
 	NodeComment
@@ -510,4 +522,58 @@ func (n *CommentNode) Tree() *Tree { return nil }
 
 func (n *CommentNode) String() string {
 	return n.val
+}
+
+func NewIfNode(pos Pos) *IfNode {
+	return &IfNode{
+		NodeType: NodeIf,
+		Pos:      pos,
+	}
+}
+
+func (n *IfNode) SetLArg(arg Arg) {
+	n.larg = arg
+}
+
+func (n *IfNode) SetRArg(arg Arg) {
+	n.rarg = arg
+}
+
+func (n *IfNode) SetOp(op string) {
+	n.op = op
+}
+
+func (n *IfNode) Tree() *Tree { return n.tree }
+
+func (n *IfNode) String() string {
+	var lstr, rstr string
+
+	if n.larg.quoted {
+		lstr = `"` + n.larg.val + `"`
+	} else {
+		lstr = n.larg.val // in case of variable
+	}
+
+	if n.rarg.quoted {
+		rstr = `"` + n.rarg.val + `"`
+	} else {
+		rstr = n.rarg.val
+	}
+
+	ifStr := "if " + lstr + " " + n.op + " " + rstr + " {\n"
+
+	tree := n.Tree()
+
+	if tree != nil {
+		block := tree.String()
+		stmts := strings.Split(block, "\n")
+
+		for i := 0; i < len(stmts); i++ {
+			stmts[i] = "\t" + stmts[i]
+		}
+
+		ifStr += strings.Join(stmts, "\n") + "\n}"
+	}
+
+	return ifStr
 }

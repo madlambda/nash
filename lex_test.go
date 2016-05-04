@@ -1133,3 +1133,108 @@ func TestLexerImport(t *testing.T) {
 
 	testTable("test import", `import env.sh`, expected, t)
 }
+
+func TestLexerSimpleIf(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemIf,
+			val: "if",
+		},
+		item{
+			typ: itemString,
+			val: "test",
+		},
+		item{
+			typ: itemComparison,
+			val: "==",
+		},
+		item{
+			typ: itemString,
+			val: "other",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCommand,
+			val: "rm",
+		},
+		item{
+			typ: itemArg,
+			val: "-rf",
+		},
+		item{
+			typ: itemArg,
+			val: "/",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test simple if", `if "test" == "other" { rm -rf / }`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemIf,
+			val: "if",
+		},
+		item{
+			typ: itemString,
+			val: "test",
+		},
+		item{
+			typ: itemComparison,
+			val: "!=",
+		},
+		item{
+			typ: itemVariable,
+			val: "$test",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCommand,
+			val: "rm",
+		},
+		item{
+			typ: itemArg,
+			val: "-rf",
+		},
+		item{
+			typ: itemArg,
+			val: "/",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test simple if", `if "test" != $test {
+            rm -rf /
+        }`, expected, t)
+
+	testTable("test simple if", `
+
+        if "test" != $test {
+            rm -rf /
+        }`, expected, t)
+
+	/*	testTableFail("test simple if", `
+
+		if "test" != $test
+		{
+		    rm -rf /
+		}`, expected, t) */
+}
