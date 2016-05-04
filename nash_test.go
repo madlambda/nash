@@ -342,3 +342,42 @@ func TestExecuteImport(t *testing.T) {
 		return
 	}
 }
+
+func TestExecuteShowEnv(t *testing.T) {
+	var out bytes.Buffer
+
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	sh.SetEnv(make(Env)) // zero'ing the env
+
+	err := sh.ExecuteString("test showenv", "showenv")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "" {
+		t.Errorf("Must be empty. '%s' != ''", string(out.Bytes()))
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test showenv", `PATH="/bin"
+        setenv PATH
+        showenv
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "PATH=/bin" {
+		t.Errorf("Error: '%s' != 'PATH=/bin'", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+}

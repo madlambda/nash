@@ -1,7 +1,7 @@
-newline        = .
-unicode_char   = .
-unicode_letter = .
-unicode_digit  = .
+newline        = /* the Unicode code point U+000A */ .
+unicode_char   = /* an arbitrary Unicode code point except newline */ .
+unicode_letter = /* a Unicode code point classified as "Letter" */ .
+unicode_digit  = /* a Unicode code point classified as "Number, decimal digit" */ .
 
 letter         = unicode_letter | "_" .
 filename    = { [ "/" ]  { unicode_letter } } .
@@ -18,7 +18,7 @@ uri         = schema "://" location .
 identifier  = letter { letter | unicode_digit } .
 variable    = "$" identifier .
 builtin     = importDecl | rforkDecl | cdDecl | ifDecl | elseDecl |
-              forDecl | execDecl | setenvDecl | fnDecl .
+              forDecl | execDecl | setenvDecl | showenvDecl | fnDecl .
 importDecl  = "import" ( filename | string_lit ) .
 rforkDecl   = "rfork" rforkFlags "{" program "}" .
 namespace   = { "c" | "m" | "n" | "i" | "p" | "u" | "s" } .
@@ -28,6 +28,7 @@ ifDecl      = "if" ( identifier | varValue ) comparison ( identifier | varValue 
 elseDecl    = "else" "{" program "}" .
 forDecl     = "for" ( identifier | varList ) "{" program "}" .
 setenvDecl  = "setenv" identifier .
+showenvDecl = "showenv" .
 execDecl    = "exec" (varList | variable) { redirect } .
 fnDecl      = "fn" identifier "(" fnArgs ")" "{" program "}" .
 redirect    = ( ">" ( filename | uri ) |

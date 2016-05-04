@@ -42,6 +42,17 @@ But got:
 	}
 }
 
+func TestParseShowEnv(t *testing.T) {
+	expected := NewTree("parse showenv")
+	ln := NewListNode()
+	showenv := NewShowEnvNode(0)
+	ln.Push(showenv)
+
+	expected.Root = ln
+
+	parserTestTable("parse showenv", `showenv`, expected, t)
+}
+
 func TestParseSimple(t *testing.T) {
 	expected := NewTree("parser simple")
 	ln := NewListNode()

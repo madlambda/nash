@@ -51,6 +51,11 @@ type (
 		varName string
 	}
 
+	ShowEnvNode struct {
+		NodeType
+		Pos
+	}
+
 	// AssignmentNode is a node for variable assignments
 	AssignmentNode struct {
 		NodeType
@@ -116,13 +121,16 @@ type (
 //go:generate stringer -type=NodeType
 
 const (
-	// NodeSetAssignment are nodes for environment assignment
+	// NodeSetAssignment is the type for "setenv" builtin keyword
 	NodeSetAssignment NodeType = iota + 1
+
+	// NodeShowEnv is the type for "showenv" builtin keyword
+	NodeShowEnv
 
 	// NodeAssignment are nodes for variable assignment
 	NodeAssignment
 
-	// NodeImport are import statements
+	// NodeImport is the type for "import" builtin keyword
 	NodeImport
 
 	// NodeCommand are command statements
@@ -211,6 +219,17 @@ func (n *SetAssignmentNode) Tree() *Tree { return nil }
 func (n *SetAssignmentNode) String() string {
 	return "setenv " + n.varName
 }
+
+func NewShowEnvNode(pos Pos) *ShowEnvNode {
+	return &ShowEnvNode{
+		NodeType: NodeShowEnv,
+		Pos:      pos,
+	}
+}
+
+func (n *ShowEnvNode) Tree() *Tree { return nil }
+
+func (n *ShowEnvNode) String() string { return "showenv" }
 
 // NewAssignmentNode creates a new assignment
 func NewAssignmentNode(pos Pos) *AssignmentNode {

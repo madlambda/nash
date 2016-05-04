@@ -236,6 +236,12 @@ func (p *Parser) parseImport() (Node, error) {
 	return n, nil
 }
 
+func (p *Parser) parseShowEnv() (Node, error) {
+	it := p.next()
+
+	return NewShowEnvNode(it.pos), nil
+}
+
 func (p *Parser) parseCd() (Node, error) {
 	it := p.next()
 
@@ -264,7 +270,7 @@ func (p *Parser) parseCd() (Node, error) {
 func (p *Parser) parseSet() (Node, error) {
 	it := p.next()
 
-	if it.typ != itemSet {
+	if it.typ != itemSetEnv {
 		return nil, fmt.Errorf("Failed sanity check. Unexpected %v", it)
 	}
 
@@ -405,7 +411,9 @@ func (p *Parser) parseStatement() (Node, error) {
 		return nil, fmt.Errorf("Syntax error: %s", it.val)
 	case itemImport:
 		return p.parseImport()
-	case itemSet:
+	case itemShowEnv:
+		return p.parseShowEnv()
+	case itemSetEnv:
 		return p.parseSet()
 	case itemVarName:
 		return p.parseAssignment()

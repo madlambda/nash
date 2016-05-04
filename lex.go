@@ -39,7 +39,8 @@ const (
 	itemEOF
 	itemImport
 	itemComment
-	itemSet
+	itemSetEnv
+	itemShowEnv
 	itemVarName
 	itemConcat
 	itemVariable
@@ -260,8 +261,25 @@ func lexIdentifier(l *lexer) stateFn {
 		l.emit(itemCd)
 		return lexInsideCd
 	case "setenv":
-		l.emit(itemSet)
+		l.emit(itemSetEnv)
 		return lexInsideSetenv
+	case "showenv":
+		l.emit(itemShowEnv)
+
+		ignoreSpaces(l)
+
+		r := l.next()
+
+		if !isEndOfLine(r) && r != eof {
+			pos := l.pos
+
+			l.backup()
+			return l.errorf("Unexpected character %q at pos %d. Showenv doesn't have arguments.",
+				r, pos)
+		}
+
+		l.backup()
+		return lexSpace
 	}
 
 	l.emit(itemCommand)

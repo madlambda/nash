@@ -71,8 +71,12 @@ func NewEnv() Env {
 	return env
 }
 
-func (sh *Shell) Environment() Env {
+func (sh *Shell) Env() Env {
 	return sh.env
+}
+
+func (sh *Shell) SetEnv(env Env) {
+	sh.env = env
 }
 
 // Prompt returns the environment prompt or the default one
@@ -157,6 +161,8 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 		switch node.Type() {
 		case NodeImport:
 			err = sh.executeImport(node.(*ImportNode))
+		case NodeShowEnv:
+			err = sh.executeShowEnv(node.(*ShowEnvNode))
 		case NodeComment:
 			continue // ignore comment
 		case NodeSetAssignment:
@@ -188,6 +194,15 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 
 func (sh *Shell) executeImport(node *ImportNode) error {
 	return sh.Execute(node.path.val)
+}
+
+func (sh *Shell) executeShowEnv(node *ShowEnvNode) error {
+	envVars := buildenv(sh.env)
+	for _, e := range envVars {
+		fmt.Fprintf(sh.stdout, "%s\n", e)
+	}
+
+	return nil
 }
 
 func (sh *Shell) executeCommand(c *CommandNode) error {

@@ -101,10 +101,40 @@ func TestLexerShebangOnly(t *testing.T) {
 	testTable("testShebangonly", "#!/bin/nash\n", expected, t)
 }
 
+func TestLexerShowEnv(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemShowEnv,
+			val: "showenv",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testShowEnv", `showenv`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemShowEnv,
+			val: "showenv",
+		},
+		item{
+			typ: itemError,
+			val: "Unexpected character 'a' at pos 9. Showenv doesn't have arguments.",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testShowEnv", `showenv a`, expected, t)
+}
+
 func TestLexerSimpleSetAssignment(t *testing.T) {
 	expected := []item{
 		item{
-			typ: itemSet,
+			typ: itemSetEnv,
 			val: "setenv",
 		},
 		item{
@@ -593,7 +623,7 @@ func TestLexerBuiltinCd(t *testing.T) {
 			val: "/",
 		},
 		item{
-			typ: itemSet,
+			typ: itemSetEnv,
 			val: "setenv",
 		},
 		item{
