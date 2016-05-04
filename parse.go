@@ -247,14 +247,14 @@ func (p *Parser) parseCd() (Node, error) {
 
 	it = p.next()
 
-	if it.typ != itemArg && it.typ != itemString {
+	if it.typ != itemArg && it.typ != itemString && it.typ != itemVariable {
 		p.backup(it)
 		return n, nil
 	}
 
 	if it.typ == itemString {
 		n.SetDir(NewArg(it.pos, it.val, true))
-	} else {
+	} else if it.typ == itemArg || it.typ == itemVariable {
 		n.SetDir(NewArg(it.pos, it.val, false))
 	}
 

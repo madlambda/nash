@@ -7,14 +7,13 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/NeowayLabs/nash"
 	"github.com/chzyer/readline"
 )
 
-var completer = readline.NewPrefixCompleter(
+var completers = []readline.PrefixCompleterInterface{
 	readline.PcItem("mode",
 		readline.PcItem("vi"),
 		readline.PcItem("emacs"),
@@ -24,31 +23,20 @@ var completer = readline.NewPrefixCompleter(
 		readline.PcItem("upmnis"),
 		readline.PcItem("upmis"),
 	),
-	readline.PcItem("prompt="),
-	readline.PcItem("path="),
-)
+}
 
 func cli(sh *nash.Shell) error {
 	var (
-		err  error
-		home string
+		err error
 	)
 
-	home = os.Getenv("HOME")
+	historyFile := sh.DotDir() + "/history"
 
-	if home == "" {
-		user := os.Getenv("USER")
-
-		if user != "" {
-			home = "/home/" + user
-		} else {
-			home = "/tmp"
-		}
+	for envName, _ := range sh.Environment() {
+		completers = append(completers, readline.PcItem(envName))
 	}
 
-	historyFile := home + "/.nash"
-
-	os.Mkdir(historyFile, 0755)
+	completer := readline.NewPrefixCompleter(completers...)
 
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:          sh.Prompt(),

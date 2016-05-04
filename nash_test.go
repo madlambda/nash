@@ -259,9 +259,6 @@ func TestExecuteCd(t *testing.T) {
 
 	out.Reset()
 
-	var out2 bytes.Buffer
-	sh.SetStdout(&out2)
-
 	err = sh.ExecuteString("test cd", `
         HOME="/"
         setenv HOME
@@ -274,8 +271,45 @@ func TestExecuteCd(t *testing.T) {
 		return
 	}
 
-	if strings.TrimSpace(string(out2.Bytes())) != "/" {
-		t.Errorf("Cd failed. '%s' != '%s'", string(out2.Bytes()), "/")
+	if strings.TrimSpace(string(out.Bytes())) != "/" {
+		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "/")
+		return
+	}
+
+	// test cd into $var
+	out.Reset()
+
+	err = sh.ExecuteString("test cd", `
+        var="/tmp"
+        cd $var
+        pwd
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "/tmp" {
+		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "/tmp")
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test error", `
+        var=("val1" "val2" "val3")
+        cd $var
+        pwd
+        `)
+
+	if err == nil {
+		t.Error("Must fail... Impossible to cd into variable containing a list")
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "" {
+		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "")
 		return
 	}
 }

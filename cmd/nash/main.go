@@ -47,18 +47,29 @@ func main() {
 
 	home := os.Getenv("HOME")
 
-	if home != "" {
-		initFile := home + "/.nash/init"
+	if home == "" {
+		user := os.Getenv("USER")
 
-		if _, err := os.Stat(initFile); err == nil {
-			fmt.Printf("Here: %s\n", err.Error())
+		if user != "" {
+			home = "/home/" + user
+		} else {
+			home = "/tmp"
+		}
+	}
 
-			err = shell.Execute(initFile)
+	nashDir := home + "/.nash"
+	shell.SetDotDir(nashDir)
 
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to evaluate '%s': %s\n", initFile, err.Error())
-				os.Exit(1)
-			}
+	os.Mkdir(nashDir, 0755)
+
+	initFile := home + "/.nash/init"
+
+	if _, err := os.Stat(initFile); err == nil {
+		err = shell.Execute(initFile)
+
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to evaluate '%s': %s\n", initFile, err.Error())
+			os.Exit(1)
 		}
 	}
 

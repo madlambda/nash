@@ -322,6 +322,25 @@ setenv HOME
 cd
 pwd`, expected, t)
 
+	// Test cd into custom variable
+	expected = NewTree("cd into variable value")
+	ln = NewListNode()
+	assign = NewAssignmentNode(0)
+	assign.SetVarName("GOPATH")
+	assign.SetValueList(append(make([]ElemNode, 0, 1), ElemNode{
+		elem: "/home/i4k/gopath",
+	}))
+	cd = NewCdNode(26)
+	cd.SetDir(NewArg(0, "$GOPATH", false))
+
+	ln.Push(assign)
+	ln.Push(cd)
+
+	expected.Root = ln
+
+	parserTestTable("test cd into variable value", `GOPATH="/home/i4k/gopath"
+cd $GOPATH`, expected, t)
+
 }
 
 func TestParseRfork(t *testing.T) {

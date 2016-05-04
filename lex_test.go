@@ -620,6 +620,22 @@ func TestLexerBuiltinCd(t *testing.T) {
 	               pwd
 	           `, expected, t)
 
+	expected = []item{
+		item{
+			typ: itemCd,
+			val: "cd",
+		},
+		item{
+			typ: itemVariable,
+			val: "$GOPATH",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test builtin cd into variable", `cd $GOPATH`, expected, t)
+
 }
 
 func TestLexerMinusAlone(t *testing.T) {

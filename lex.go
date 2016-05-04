@@ -416,7 +416,7 @@ func lexInsideCommonVariable(l *lexer) stateFn {
 
 	if r == '"' {
 		l.ignore()
-		return l.errorf("Invalid quote inside variable value")
+		return l.errorf("Invalid quote inside variable name")
 	}
 
 	l.emit(itemVariable)
@@ -452,6 +452,26 @@ func lexInsideCd(l *lexer) stateFn {
 		return func(l *lexer) stateFn {
 			return lexQuote(l, lexStart)
 		}
+	}
+
+	if r == '$' {
+		for {
+			r = l.next()
+
+			if !isIdentifier(r) {
+				break
+			}
+		}
+
+		l.backup()
+
+		if r == '"' {
+			l.ignore()
+			return l.errorf("Invalid quote inside variable name")
+		}
+
+		l.emit(itemVariable)
+		return lexStart
 	}
 
 	if isIdentifier(r) || isSafePath(r) {

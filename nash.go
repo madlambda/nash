@@ -20,6 +20,7 @@ type (
 		debug     bool
 		log       LogFn
 		nashdPath string
+		dotDir    string
 
 		stdin  io.Reader
 		stdout io.Writer
@@ -70,6 +71,10 @@ func NewEnv() Env {
 	return env
 }
 
+func (sh *Shell) Environment() Env {
+	return sh.env
+}
+
 // Prompt returns the environment prompt or the default one
 func (sh *Shell) Prompt() string {
 	if sh.env["PROMPT"] != nil && len(sh.env["PROMPT"]) > 0 {
@@ -87,6 +92,14 @@ func (sh *Shell) SetDebug(debug bool) {
 // SetNashdPath sets an alternativa path to nashd
 func (sh *Shell) SetNashdPath(path string) {
 	sh.nashdPath = path
+}
+
+func (sh *Shell) SetDotDir(path string) {
+	sh.dotDir = path
+}
+
+func (sh *Shell) DotDir() string {
+	return sh.dotDir
 }
 
 // SetStdin sets the stdin for commands
@@ -283,6 +296,22 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 		} else {
 			return fmt.Errorf("Invalid $HOME value: %v", pathlist)
 		}
+	} else if path[0] == '$' {
+		elemstr, err := sh.evalVariable(path)
+
+		if err != nil {
+			return err
+		}
+
+		if len(elemstr) == 0 {
+			return errors.New("Variable $path contains an empty list.")
+		}
+
+		if len(elemstr) > 1 {
+			return fmt.Errorf("Variable $path contains a list: %q", elemstr)
+		}
+
+		path = elemstr[0]
 	}
 
 	return os.Chdir(path)
