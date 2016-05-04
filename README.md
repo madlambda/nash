@@ -261,17 +261,16 @@ The file `spec_test.go` makes sure it is sane.
 
 # Bash comparison
 
-| Bash                            	| Nash                                  	| Description                                                                      	|
-|---------------------------------	|---------------------------------------	|----------------------------------------------------------------------------------	|
-| `GOPATH=/home/user/gopath`        	| `GOPATH="/home/user/gopath"`            	| Nash enforces quoted strings                                                     	|
-| `GOPATH="$HOME/gopath"`           	| `GOPATH=$HOME+"/gopath"`                	| Nash doesn't do string expansion                                                 	|
-| `export PATH=/usr/bin`       	| `PATH="/usr/bin"`<br>`setenv PATH`      	| setenv operates only on valid variables                                          	|
-| `export`                          	| `showenv`                               	|                                                                                  	|
-| `ls -la`                          	| `ls -la`                                	| Simple commads are identical                                                     	|
-| `ls -la "$GOPATH"`                	| `ls -la $GOPATH`                        	| Nash variables shouldn't be enclosed in quotes, because it's default behaviour. 	|
-| `./worker 2>log.err 1>log.out` 	| `./worker >[2] log.err >[1] log.out` 	| Nash redirection works like plan9 rc                                             	|
-| `./worker 2>&1`                	| `./worker >[2=1]`                    	| Redirection map only works for standard file descriptors (0,1,2)                 	|
-
+| Bash | Nash | Description	|
+| --- | --- | --- |
+| `GOPATH=/home/user/gopath` | `GOPATH="/home/user/gopath"` | Nash enforces quoted strings |
+| `GOPATH="$HOME/gopath"` | `GOPATH=$HOME+"/gopath"` | Nash doesn't do string expansion |
+| `export PATH=/usr/bin` | `PATH="/usr/bin"`<br>`setenv PATH` | setenv operates only on valid variables |
+| `export` | `showenv` | |
+| `ls -la` | `ls -la` | Simple commads are identical |
+| `ls -la "$GOPATH"` | `ls -la $GOPATH` | Nash variables shouldn't be enclosed in quotes, because it's default behaviour |
+| `./worker 2>log.err 1>log.out` | `./worker >[2] log.err >[1] log.out` | Nash redirection works like plan9 rc |
+| `./worker 2>&1` | `./worker >[2=1]` | Redirection map only works for standard file descriptors (0,1,2) |
 
 # Security
 
