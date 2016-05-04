@@ -1069,3 +1069,21 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 
 	testTable("test suppress stderr", `cmd >[1=2] >[2=]`, expected, t)
 }
+
+func TestLexerImport(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemImport,
+			val: "import",
+		},
+		item{
+			typ: itemArg,
+			val: "env.sh",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test import", `import env.sh`, expected, t)
+}

@@ -1,7 +1,7 @@
-newline        = /* the Unicode code point U+000A */ .
-unicode_char   = /* an arbitrary Unicode code point except newline */ .
-unicode_letter = /* a Unicode code point classified as "Letter" */ .
-unicode_digit  = /* a Unicode code point classified as "Number, decimal digit" */ .
+newline        = .
+unicode_char   = .
+unicode_letter = .
+unicode_digit  = .
 
 letter         = unicode_letter | "_" .
 filename    = { [ "/" ]  { unicode_letter } } .
@@ -17,18 +17,20 @@ uri         = schema "://" location .
 
 identifier  = letter { letter | unicode_digit } .
 variable    = "$" identifier .
-builtin     = rforkDecl | cdDecl | ifDecl | elseDecl |
-              forDecl | execDecl | setenv .
+builtin     = importDecl | rforkDecl | cdDecl | ifDecl | elseDecl |
+              forDecl | execDecl | setenvDecl | fnDecl .
+importDecl  = "import" ( filename | string_lit ) .
 rforkDecl   = "rfork" rforkFlags "{" program "}" .
 namespace   = { "c" | "m" | "n" | "i" | "p" | "u" | "s" } .
 rforkFlags  = { namespace } .
 cdDecl      = "cd" [ filename ] .
-ifDecl      = "if" identifier comparison ( identifier | varValue ) "{" program "}" .
+ifDecl      = "if" ( identifier | varValue ) comparison ( identifier | varValue ) "{" program "}" .
 elseDecl    = "else" "{" program "}" .
 forDecl     = "for" ( identifier | varList ) "{" program "}" .
-setenv         = "setenv" identifier .
+setenvDecl  = "setenv" identifier .
 execDecl    = "exec" (varList | variable) { redirect } .
-redirect   = ( ">" ( filename | uri ) |
+fnDecl      = "fn" identifier "(" fnArgs ")" "{" program "}" .
+redirect    = ( ">" ( filename | uri ) |
                ">" "[" unicode_digit "]" ( filename | uri ) |
                ">" "[" unicode_digit "=" unicode_digit "]" |
                ">" "[" unicode_digit "=" "]" ) .
@@ -48,6 +50,9 @@ pipe      = cmdpart "|" cmdpart [ { "|" cmdpart } ] .
 command   = ( cmdpart | pipe ) .
 cmdname   = identifier .
 abscmd    = filename .
+
+fnArg     = ( string_lit | variable ) .
+fnArgs    = { fnArg [ "," ] } .
 
 comment   = "#" { unicode_char } .
 

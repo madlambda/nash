@@ -2,27 +2,41 @@
 # Build the stali rootfs
 # Requires: build-essential mawk
 
--rm -rf toolchain
--rm -rf src
--rm -rf rootfs-x86_64/
+imagename = "stali-x86_64"
 
-mkdir rootfs-x86_64
+fn cleanup() {
+    -rm -rf toolchain
+    -rm -rf src
+    -rm -rf rootfs-x86_64/
+}
 
-git clone --depth=1 http://git.sta.li/toolchain
-git clone --depth=1 http://git.sta.li/src
+fn download() {
+    git clone --depth=1 http://git.sta.li/toolchain
+    git clone --depth=1 http://git.sta.li/src
+}
 
-STALI_SRC=$PWD + "/src"
+fn buildStali() {
+    cleanup()
+    download()
 
-mv src/config.mk src/config.mk.orig
-cp config.mk src/config.mk
+    mkdir $imagename
+     STALI_SRC = $PWD + "/src"
 
-cd src
+    mv src/config.mk src/config.mk.orig
+    cp config.mk src/config.mk
 
-make
-make install
+    cd src
 
-cd ..
-tar cvf rootfs-x86_64.tar rootfs-x86_64
-bzip2 rootfs-x86_64.tar
+    make
+    make install
 
-echo "Stali image generated."
+    cd ..
+    tar cvf $imagename+".tar" $imagename
+    bzip2 $imagename+".tar"
+
+    echo "Stali image generated: " + $imagename + ".tar.bz2"
+
+    return $PWD + "/" + $imagename + ".tar.bz2"
+}
+
+buildStali()

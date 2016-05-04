@@ -4,9 +4,9 @@ package nash
 
 import "fmt"
 
-const _itemType_name = "itemErroritemEOFitemCommentitemSetitemVarNameitemConcatitemVariableitemListOpenitemListCloseitemListElemitemCommanditemArgitemLeftBlockitemRightBlockitemStringitemRedirRightitemRedirRBracketitemRedirLBracketitemRedirFileitemRedirNetAddritemRedirMapEqualitemRedirMapLSideitemRedirMapRSideitemKeyworditemRforkitemRforkFlagsitemCd"
+const _itemType_name = "itemErroritemEOFitemImportitemCommentitemSetitemVarNameitemConcatitemVariableitemListOpenitemListCloseitemListElemitemCommanditemArgitemLeftBlockitemRightBlockitemStringitemRedirRightitemRedirRBracketitemRedirLBracketitemRedirFileitemRedirNetAddritemRedirMapEqualitemRedirMapLSideitemRedirMapRSideitemKeyworditemRforkitemRforkFlagsitemCd"
 
-var _itemType_index = [...]uint16{0, 9, 16, 27, 34, 45, 55, 67, 79, 92, 104, 115, 122, 135, 149, 159, 173, 190, 207, 220, 236, 253, 270, 287, 298, 307, 321, 327}
+var _itemType_index = [...]uint16{0, 9, 16, 26, 37, 44, 55, 65, 77, 89, 102, 114, 125, 132, 145, 159, 169, 183, 200, 217, 230, 246, 263, 280, 297, 308, 317, 331, 337}
 
 func (i itemType) String() string {
 	i -= 2

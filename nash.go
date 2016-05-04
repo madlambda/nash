@@ -130,6 +130,8 @@ func (sh *Shell) Execute(path string) error {
 
 // ExecuteTree evaluates the given tree
 func (sh *Shell) ExecuteTree(tr *Tree) error {
+	var err error
+
 	if tr == nil || tr.Root == nil {
 		return errors.New("nothing parsed")
 	}
@@ -140,6 +142,8 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 		sh.log("Executing: %v\n", node)
 
 		switch node.Type() {
+		case NodeImport:
+			err = sh.executeImport(node.(*ImportNode))
 		case NodeComment:
 			continue // ignore comment
 		case NodeSetAssignment:
@@ -149,35 +153,28 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 				return err
 			}
 		case NodeAssignment:
-			err := sh.executeAssignment(node.(*AssignmentNode))
-
-			if err != nil {
-				return err
-			}
+			err = sh.executeAssignment(node.(*AssignmentNode))
 		case NodeCommand:
-			err := sh.executeCommand(node.(*CommandNode))
-
-			if err != nil {
-				return err
-			}
+			err = sh.executeCommand(node.(*CommandNode))
 		case NodeRfork:
-			err := sh.executeRfork(node.(*RforkNode))
-
-			if err != nil {
-				return err
-			}
+			err = sh.executeRfork(node.(*RforkNode))
 		case NodeCd:
-			err := sh.executeCd(node.(*CdNode))
-
-			if err != nil {
-				return err
-			}
+			err = sh.executeCd(node.(*CdNode))
 		default:
-			fmt.Printf("invalid command")
+			// should never get here
+			return fmt.Errorf("invalid node: %v.", node.Type())
+		}
+
+		if err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+func (sh *Shell) executeImport(node *ImportNode) error {
+	return sh.Execute(node.path.val)
 }
 
 func (sh *Shell) executeCommand(c *CommandNode) error {

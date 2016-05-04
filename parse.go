@@ -212,6 +212,30 @@ func (p *Parser) parseRedirection(it item) (*RedirectNode, error) {
 	return redir, nil
 }
 
+func (p *Parser) parseImport() (Node, error) {
+	it := p.next()
+
+	if it.typ != itemImport {
+		return nil, fmt.Errorf("Invalid item: %v", it)
+	}
+
+	n := NewImportNode(it.pos)
+
+	it = p.next()
+
+	if it.typ != itemArg && it.typ != itemString {
+		return nil, fmt.Errorf("Unexpected token %v", it)
+	}
+
+	if it.typ == itemString {
+		n.SetPath(NewArg(it.pos, it.val, true))
+	} else {
+		n.SetPath(NewArg(it.pos, it.val, false))
+	}
+
+	return n, nil
+}
+
 func (p *Parser) parseCd() (Node, error) {
 	it := p.next()
 
@@ -379,6 +403,8 @@ func (p *Parser) parseStatement() (Node, error) {
 	switch it.typ {
 	case itemError:
 		return nil, fmt.Errorf("Syntax error: %s", it.val)
+	case itemImport:
+		return p.parseImport()
 	case itemSet:
 		return p.parseSet()
 	case itemVarName:

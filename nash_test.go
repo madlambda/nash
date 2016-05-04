@@ -279,3 +279,32 @@ func TestExecuteCd(t *testing.T) {
 		return
 	}
 }
+
+func TestExecuteImport(t *testing.T) {
+	var out bytes.Buffer
+
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err := ioutil.WriteFile("/tmp/test.sh", []byte(`TESTE="teste"`), 0644)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = sh.ExecuteString("test import", `import /tmp/test.sh
+        echo $TESTE
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "teste" {
+		t.Error("Import does not work")
+		return
+	}
+}

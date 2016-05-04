@@ -39,6 +39,12 @@ type (
 		elem    string
 	}
 
+	ImportNode struct {
+		NodeType
+		Pos
+		path Arg
+	}
+
 	SetAssignmentNode struct {
 		NodeType
 		Pos
@@ -116,6 +122,9 @@ const (
 	// NodeAssignment are nodes for variable assignment
 	NodeAssignment
 
+	// NodeImport are import statements
+	NodeImport
+
 	// NodeCommand are command statements
 	NodeCommand
 
@@ -167,6 +176,27 @@ func (l *ListNode) Push(n Node) {
 
 // Tree returns the tree for this node
 func (l *ListNode) Tree() *Tree { return nil }
+
+func NewImportNode(pos Pos) *ImportNode {
+	return &ImportNode{
+		NodeType: NodeImport,
+		Pos:      pos,
+	}
+}
+
+func (n *ImportNode) SetPath(arg Arg) {
+	n.path = arg
+}
+
+func (n *ImportNode) Tree() *Tree { return nil }
+
+func (n *ImportNode) String() string {
+	if n.path.quoted {
+		return `import "` + n.path.val + `"`
+	} else {
+		return "import " + n.path.val
+	}
+}
 
 func NewSetAssignmentNode(pos Pos, name string) *SetAssignmentNode {
 	return &SetAssignmentNode{

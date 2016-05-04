@@ -37,6 +37,7 @@ const (
 
 	itemError itemType = iota + 1 // error ocurred
 	itemEOF
+	itemImport
 	itemComment
 	itemSet
 	itemVarName
@@ -249,6 +250,9 @@ func lexIdentifier(l *lexer) stateFn {
 	}
 
 	switch word {
+	case "import":
+		l.emit(itemImport)
+		return lexInsideImport
 	case "rfork":
 		l.emit(itemRfork)
 		return lexInsideRforkArgs
@@ -262,6 +266,29 @@ func lexIdentifier(l *lexer) stateFn {
 
 	l.emit(itemCommand)
 	return lexInsideCommand
+}
+
+func lexInsideImport(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	r := l.next()
+
+	if r == '"' {
+		l.ignore()
+		return func(l *lexer) stateFn {
+			return lexQuote(l, lexStart)
+		}
+	}
+
+	if isIdentifier(r) || isSafePath(r) {
+		// parse as normal argument
+		return func(l *lexer) stateFn {
+			return lexArg(l, lexStart)
+		}
+	}
+
+	l.backup()
+	return lexStart
 }
 
 func lexInsideSetenv(l *lexer) stateFn {
