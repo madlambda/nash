@@ -52,7 +52,9 @@ func main() {
 	if home != "" {
 		initFile := home + "/.nash/init"
 
-		if _, err = os.Stat(initFile); err == nil {
+		if _, err := os.Stat(initFile); err == nil {
+			fmt.Printf("Here: %s\n", err.Error())
+
 			err = shell.Execute(initFile)
 
 			if err != nil {
