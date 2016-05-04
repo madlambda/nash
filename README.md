@@ -263,9 +263,9 @@ The file `spec_test.go` makes sure it is sane.
 
 | Bash                            	| Nash                                  	| Description                                                                      	|
 |---------------------------------	|---------------------------------------	|----------------------------------------------------------------------------------	|
-| GOPATH=/home/user/gopath        	| GOPATH="/home/user/gopath"            	| Nash enforces quoted strings                                                     	|
-| GOPATH="$HOME/gopath"           	| GOPATH=$HOME+"/gopath"                	| Nash doesn't do string expansion                                                 	|
-| export PATH=/bin:/usr/bin       	| PATH="/bin:/usr/bin" setenv PATH      	| setenv operates only on valid variables                                          	|
+| `GOPATH=/home/user/gopath`        	| `GOPATH="/home/user/gopath"`            	| Nash enforces quoted strings                                                     	|
+| `GOPATH="$HOME/gopath"`           	| `GOPATH=$HOME+"/gopath"`                	| Nash doesn't do string expansion                                                 	|
+| `export PATH=/bin:/usr/bin`       	| `PATH="/bin:/usr/bin"`<br>`setenv PATH`      	| setenv operates only on valid variables                                          	|
 | export                          	| showenv                               	|                                                                                  	|
 | ls -la                          	| ls -la                                	| Simple commads are identical                                                     	|
 | ls -la "$GOPATH"                	| ls -la $GOPATH                        	| Nash variables shouldn't be enclosed in quotes, because it's default behaviour. 	|
