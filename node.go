@@ -120,9 +120,9 @@ type (
 	IfNode struct {
 		NodeType
 		Pos
-		larg Arg
-		rarg Arg
-		op   string
+		lvalue Arg
+		rvalue Arg
+		op     string
 
 		tree *Tree
 	}
@@ -531,13 +531,23 @@ func NewIfNode(pos Pos) *IfNode {
 	}
 }
 
-func (n *IfNode) SetLArg(arg Arg) {
-	n.larg = arg
+func (n *IfNode) Lvalue() Arg {
+	return n.lvalue
 }
 
-func (n *IfNode) SetRArg(arg Arg) {
-	n.rarg = arg
+func (n *IfNode) Rvalue() Arg {
+	return n.rvalue
 }
+
+func (n *IfNode) SetLvalue(arg Arg) {
+	n.lvalue = arg
+}
+
+func (n *IfNode) SetRvalue(arg Arg) {
+	n.rvalue = arg
+}
+
+func (n *IfNode) Op() string { return n.op }
 
 func (n *IfNode) SetOp(op string) {
 	n.op = op
@@ -548,16 +558,16 @@ func (n *IfNode) Tree() *Tree { return n.tree }
 func (n *IfNode) String() string {
 	var lstr, rstr string
 
-	if n.larg.quoted {
-		lstr = `"` + n.larg.val + `"`
+	if n.lvalue.quoted {
+		lstr = `"` + n.lvalue.val + `"`
 	} else {
-		lstr = n.larg.val // in case of variable
+		lstr = n.lvalue.val // in case of variable
 	}
 
-	if n.rarg.quoted {
-		rstr = `"` + n.rarg.val + `"`
+	if n.rvalue.quoted {
+		rstr = `"` + n.rvalue.val + `"`
 	} else {
-		rstr = n.rarg.val
+		rstr = n.rvalue.val
 	}
 
 	ifStr := "if " + lstr + " " + n.op + " " + rstr + " {\n"

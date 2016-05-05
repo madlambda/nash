@@ -405,9 +405,9 @@ func (p *Parser) parseIf() (Node, error) {
 	}
 
 	if it.typ == itemString {
-		n.SetLArg(NewArg(it.pos, it.val, true))
+		n.SetLvalue(NewArg(it.pos, it.val, true))
 	} else {
-		n.SetLArg(NewArg(it.pos, it.val, false))
+		n.SetLvalue(NewArg(it.pos, it.val, false))
 	}
 
 	it = p.next()
@@ -429,9 +429,9 @@ func (p *Parser) parseIf() (Node, error) {
 	}
 
 	if it.typ == itemString {
-		n.SetRArg(NewArg(it.pos, it.val, true))
+		n.SetRvalue(NewArg(it.pos, it.val, true))
 	} else {
-		n.SetRArg(NewArg(it.pos, it.val, false))
+		n.SetRvalue(NewArg(it.pos, it.val, false))
 	}
 
 	it = p.next()

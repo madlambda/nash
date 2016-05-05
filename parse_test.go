@@ -428,12 +428,12 @@ func TestParseIf(t *testing.T) {
 	expected := NewTree("test if")
 	ln := NewListNode()
 	ifDecl := NewIfNode(0)
-	ifDecl.SetLArg(NewArg(0, "test", true))
-	ifDecl.SetRArg(NewArg(0, "other", true))
+	ifDecl.SetLvalue(NewArg(4, "test", true))
+	ifDecl.SetRvalue(NewArg(14, "other", true))
 	ifDecl.SetOp("==")
 
 	subBlock := NewListNode()
-	cmd := NewCommandNode(0, "pwd")
+	cmd := NewCommandNode(24, "pwd")
 	subBlock.Push(cmd)
 
 	ifTree := NewTree("if block")
@@ -444,5 +444,32 @@ func TestParseIf(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if "test" == "other" { pwd }`, expected, t)
+	parserTestTable("test if", `if "test" == "other" {
+	pwd
+}`, expected, t)
+}
+
+func TestParseIfLvariable(t *testing.T) {
+	expected := NewTree("test if with variable")
+	ln := NewListNode()
+	ifDecl := NewIfNode(0)
+	ifDecl.SetLvalue(NewArg(4, "$test", false))
+	ifDecl.SetRvalue(NewArg(15, "other", true))
+	ifDecl.SetOp("==")
+
+	subBlock := NewListNode()
+	cmd := NewCommandNode(25, "pwd")
+	subBlock.Push(cmd)
+
+	ifTree := NewTree("if block")
+	ifTree.Root = subBlock
+
+	ifDecl.tree = ifTree
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("test if", `if "$test" == "other" {
+	pwd
+}`, expected, t)
 }
