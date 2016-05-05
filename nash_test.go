@@ -381,3 +381,43 @@ func TestExecuteShowEnv(t *testing.T) {
 		return
 	}
 }
+
+func TestExecuteIfEqual(t *testing.T) {
+	var out bytes.Buffer
+
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err := sh.ExecuteString("test if equal", `
+        if "" == "" {
+            echo "empty string works"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "empty string works" {
+		t.Errorf("Must be empty. '%s' != 'empty string works'", string(out.Bytes()))
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test if equal 2", `
+        if "i4k" == "_i4k_" {
+            echo "do not print"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "" {
+		t.Errorf("Error: '%s' != ''", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+}
