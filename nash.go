@@ -179,6 +179,8 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 			err = sh.executeRfork(node.(*RforkNode))
 		case NodeCd:
 			err = sh.executeCd(node.(*CdNode))
+		case NodeIf:
+			err = sh.executeIf(node.(*IfNode))
 		default:
 			// should never get here
 			return fmt.Errorf("invalid node: %v.", node.Type())
@@ -330,6 +332,93 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 	}
 
 	return os.Chdir(path)
+}
+
+func (sh *Shell) evalIfArguments(n *IfNode) (string, string, error) {
+	var (
+		lstr, rstr string
+	)
+
+	lvalue := n.Lvalue()
+	rvalue := n.Rvalue()
+
+	if len(lvalue.val) > 0 && lvalue.val[0] == '$' {
+		variableValue, err := sh.evalVariable(lvalue.val)
+
+		if err != nil {
+			return "", "", err
+		}
+
+		if len(variableValue) > 1 {
+			return "", "", fmt.Errorf("List is not comparable")
+		} else if len(variableValue) == 0 {
+			lstr = ""
+		} else {
+			lstr = variableValue[0]
+		}
+	} else {
+		lstr = lvalue.val
+	}
+
+	if len(rvalue.val) > 0 && rvalue.val[0] == '$' {
+		variableValue, err := sh.evalVariable(rvalue.val)
+
+		if err != nil {
+			return "", "", err
+		}
+
+		if len(variableValue) > 1 {
+			return "", "", fmt.Errorf("List is not comparable")
+		} else if len(variableValue) == 0 {
+			rstr = ""
+		} else {
+			rstr = variableValue[0]
+		}
+	} else {
+		rstr = rvalue.val
+	}
+
+	return lstr, rstr, nil
+}
+
+func (sh *Shell) executeIfEqual(n *IfNode) error {
+	lstr, rstr, err := sh.evalIfArguments(n)
+
+	if err != nil {
+		return err
+	}
+
+	if lstr == rstr {
+		return sh.ExecuteTree(n.Tree())
+	}
+
+	return nil
+}
+
+func (sh *Shell) executeIfNotEqual(n *IfNode) error {
+	lstr, rstr, err := sh.evalIfArguments(n)
+
+	if err != nil {
+		return err
+	}
+
+	if lstr != rstr {
+		return sh.ExecuteTree(n.Tree())
+	}
+
+	return nil
+}
+
+func (sh *Shell) executeIf(n *IfNode) error {
+	op := n.Op()
+
+	if op == "==" {
+		return sh.executeIfEqual(n)
+	} else if op == "!=" {
+		return sh.executeIfNotEqual(n)
+	}
+
+	return fmt.Errorf("Invalid operation '%s'.", op)
 }
 
 func nashdAutoDiscover() string {

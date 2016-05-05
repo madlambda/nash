@@ -447,6 +447,29 @@ func TestParseIf(t *testing.T) {
 	parserTestTable("test if", `if "test" == "other" {
 	pwd
 }`, expected, t)
+
+	expected = NewTree("test if")
+	ln = NewListNode()
+	ifDecl = NewIfNode(0)
+	ifDecl.SetLvalue(NewArg(4, "", true))
+	ifDecl.SetRvalue(NewArg(10, "other", true))
+	ifDecl.SetOp("!=")
+
+	subBlock = NewListNode()
+	cmd = NewCommandNode(20, "pwd")
+	subBlock.Push(cmd)
+
+	ifTree = NewTree("if block")
+	ifTree.Root = subBlock
+
+	ifDecl.tree = ifTree
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("test if", `if "" != "other" {
+	pwd
+}`, expected, t)
 }
 
 func TestParseIfLvariable(t *testing.T) {
