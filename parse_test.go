@@ -423,3 +423,182 @@ func TestParseImport(t *testing.T) {
 
 	parserTestTable("test import", `import "env.sh"`, expected, t)
 }
+
+func TestParseIf(t *testing.T) {
+	expected := NewTree("test if")
+	ln := NewListNode()
+	ifDecl := NewIfNode(0)
+	ifDecl.SetLvalue(NewArg(4, "test", true))
+	ifDecl.SetRvalue(NewArg(14, "other", true))
+	ifDecl.SetOp("==")
+
+	subBlock := NewListNode()
+	cmd := NewCommandNode(24, "pwd")
+	subBlock.Push(cmd)
+
+	ifTree := NewTree("if block")
+	ifTree.Root = subBlock
+
+	ifDecl.SetIfTree(ifTree)
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("test if", `if "test" == "other" {
+	pwd
+}`, expected, t)
+
+	expected = NewTree("test if")
+	ln = NewListNode()
+	ifDecl = NewIfNode(0)
+	ifDecl.SetLvalue(NewArg(4, "", true))
+	ifDecl.SetRvalue(NewArg(10, "other", true))
+	ifDecl.SetOp("!=")
+
+	subBlock = NewListNode()
+	cmd = NewCommandNode(20, "pwd")
+	subBlock.Push(cmd)
+
+	ifTree = NewTree("if block")
+	ifTree.Root = subBlock
+
+	ifDecl.SetIfTree(ifTree)
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("test if", `if "" != "other" {
+	pwd
+}`, expected, t)
+}
+
+func TestParseIfLvariable(t *testing.T) {
+	expected := NewTree("test if with variable")
+	ln := NewListNode()
+	ifDecl := NewIfNode(0)
+	ifDecl.SetLvalue(NewArg(4, "$test", false))
+	ifDecl.SetRvalue(NewArg(15, "other", true))
+	ifDecl.SetOp("==")
+
+	subBlock := NewListNode()
+	cmd := NewCommandNode(25, "pwd")
+	subBlock.Push(cmd)
+
+	ifTree := NewTree("if block")
+	ifTree.Root = subBlock
+
+	ifDecl.SetIfTree(ifTree)
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("test if", `if "$test" == "other" {
+	pwd
+}`, expected, t)
+}
+
+func TestParseIfElse(t *testing.T) {
+	expected := NewTree("test if else with variable")
+	ln := NewListNode()
+	ifDecl := NewIfNode(0)
+	ifDecl.SetLvalue(NewArg(4, "$test", false))
+	ifDecl.SetRvalue(NewArg(15, "other", true))
+	ifDecl.SetOp("==")
+
+	subBlock := NewListNode()
+	cmd := NewCommandNode(25, "pwd")
+	subBlock.Push(cmd)
+
+	ifTree := NewTree("if block")
+	ifTree.Root = subBlock
+
+	ifDecl.SetIfTree(ifTree)
+
+	elseBlock := NewListNode()
+	exitCmd := NewCommandNode(0, "exit")
+	elseBlock.Push(exitCmd)
+
+	elseTree := NewTree("else block")
+	elseTree.Root = elseBlock
+
+	ifDecl.SetElseTree(elseTree)
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("test if", `if "$test" == "other" {
+	pwd
+} else {
+	exit
+}`, expected, t)
+}
+
+func TestParseIfElseIf(t *testing.T) {
+	expected := NewTree("test if else with variable")
+	ln := NewListNode()
+	ifDecl := NewIfNode(0)
+	ifDecl.SetLvalue(NewArg(4, "$test", false))
+	ifDecl.SetRvalue(NewArg(15, "other", true))
+	ifDecl.SetOp("==")
+
+	subBlock := NewListNode()
+	cmd := NewCommandNode(25, "pwd")
+	subBlock.Push(cmd)
+
+	ifTree := NewTree("if block")
+	ifTree.Root = subBlock
+
+	ifDecl.SetIfTree(ifTree)
+
+	elseIfDecl := NewIfNode(0)
+
+	elseIfDecl.SetLvalue(NewArg(4, "$test", false))
+	elseIfDecl.SetRvalue(NewArg(15, "others", true))
+	elseIfDecl.SetOp("==")
+
+	elseIfBlock := NewListNode()
+	elseifCmd := NewCommandNode(25, "ls")
+	elseIfBlock.Push(elseifCmd)
+
+	elseIfTree := NewTree("if block")
+	elseIfTree.Root = elseIfBlock
+
+	elseIfDecl.SetIfTree(elseIfTree)
+
+	elseBlock := NewListNode()
+	exitCmd := NewCommandNode(0, "exit")
+	elseBlock.Push(exitCmd)
+
+	elseTree := NewTree("else block")
+	elseTree.Root = elseBlock
+
+	elseIfDecl.SetElseTree(elseTree)
+
+	elseBlock2 := NewListNode()
+	elseBlock2.Push(elseIfDecl)
+
+	elseTree2 := NewTree("first else tree")
+	elseTree2.Root = elseBlock2
+	ifDecl.SetElseTree(elseTree2)
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("test if", `if "$test" == "other" {
+	pwd
+} else if "$test" == "others" {
+	ls
+} else {
+	exit
+}`, expected, t)
+}
+
+func TestParseIfInvalid(t *testing.T) {
+	parser := NewParser("if invalid", `if a == b { pwd }`)
+	_, err := parser.Parse()
+
+	if err == nil {
+		t.Error("Must fail. Only quoted strings and variables on if clauses.")
+		return
+	}
+}

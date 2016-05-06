@@ -393,6 +393,119 @@ func (p *Parser) parseRfork() (Node, error) {
 	return n, nil
 }
 
+func (p *Parser) parseIf() (Node, error) {
+	it := p.next()
+
+	n := NewIfNode(it.pos)
+
+	it = p.next()
+
+	if it.typ != itemString && it.typ != itemVariable {
+		return nil, fmt.Errorf("if requires an lvalue of type string or variable. Found %v", it)
+	}
+
+	if it.typ == itemString {
+		n.SetLvalue(NewArg(it.pos, it.val, true))
+	} else {
+		n.SetLvalue(NewArg(it.pos, it.val, false))
+	}
+
+	it = p.next()
+
+	if it.typ != itemComparison {
+		return nil, fmt.Errorf("Expected comparison. but found %v", it)
+	}
+
+	if it.val != "==" && it.val != "!=" {
+		return nil, fmt.Errorf("Invalid if operator '%s'. Valid comparison operators are '==' and '!='", it.val)
+	}
+
+	n.SetOp(it.val)
+
+	it = p.next()
+
+	if it.typ != itemString && it.typ != itemVariable {
+		return nil, fmt.Errorf("if requires an rvalue of type string or variable. Found %v", it)
+	}
+
+	if it.typ == itemString {
+		n.SetRvalue(NewArg(it.pos, it.val, true))
+	} else {
+		n.SetRvalue(NewArg(it.pos, it.val, false))
+	}
+
+	it = p.next()
+
+	if it.typ != itemLeftBlock {
+		return nil, fmt.Errorf("Expected '{' but found %v", it)
+	}
+
+	p.openblocks++
+
+	r, err := p.parseBlock()
+
+	if err != nil {
+		return nil, err
+	}
+
+	ifTree := NewTree("if block")
+	ifTree.Root = r
+	n.SetIfTree(ifTree)
+
+	it = p.peek()
+
+	if it.typ == itemElse {
+		p.next()
+
+		elseBlock, elseIf, err := p.parseElse()
+
+		if err != nil {
+			return nil, err
+		}
+
+		elseTree := NewTree("else tree")
+		elseTree.Root = elseBlock
+
+		n.SetElseIf(elseIf)
+		n.SetElseTree(elseTree)
+	}
+
+	return n, nil
+}
+
+func (p *Parser) parseElse() (*ListNode, bool, error) {
+	it := p.next()
+
+	if it.typ == itemLeftBlock {
+		p.openblocks++
+
+		elseBlock, err := p.parseBlock()
+
+		if err != nil {
+			return nil, false, err
+		}
+
+		return elseBlock, false, nil
+	}
+
+	if it.typ == itemIf {
+		p.backup(it)
+
+		ifNode, err := p.parseIf()
+
+		if err != nil {
+			return nil, false, err
+		}
+
+		block := NewListNode()
+		block.Push(ifNode)
+
+		return block, true, nil
+	}
+
+	return nil, false, fmt.Errorf("Unexpected token: %v", it)
+}
+
 func (p *Parser) parseComment() (Node, error) {
 	it := p.next()
 
@@ -425,6 +538,8 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseCd()
 	case itemComment:
 		return p.parseComment()
+	case itemIf:
+		return p.parseIf()
 	}
 
 	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)

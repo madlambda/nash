@@ -20,18 +20,23 @@ type (
 
 		stdinDone, stdoutDone, stderrDone chan bool
 	}
+
+	errIgnore struct {
+		*nashError
+	}
 )
 
-var (
-	ErrVarNotSet          = NewError("Variable '%s' not set")
-	ErrInvalidFD          = NewError("Invalid file descriptor redirection: fd=%d")
-	ErrMissingFile        = NewError("Missing file in redirection: >[%d] <??>")
-	ErrInvalidSuppressMap = NewError("Suppressing a file descriptor and redirecting to file")
-	ErrInvalidMap         = NewError("Invalid redirect mapping: %d -> %d")
-	ErrInvalidStdin       = NewError("Stdin requires a reader stream in redirect")
-	ErrInvalidStdout      = NewError("Stdout requires a writer stream in redirect")
-	ErrInvalidStderr      = NewError("Stderr requires a writer stream in redirect")
-)
+func newIgnoreError(format string, arg ...interface{}) error {
+	e := &errIgnore{
+		nashError: newError(format, arg...),
+	}
+
+	return e
+}
+
+func (e *errIgnore) IgnoreError() bool {
+	return true
+}
 
 func NewCommand(name string, sh *Shell) (*Command, error) {
 	var (
@@ -52,6 +57,11 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 		cmdPath, err = exec.LookPath(name)
 
 		if err != nil {
+			if ignoreError {
+				err = newIgnoreError("ignoring error: %s", err.Error())
+				return nil, err
+			}
+
 			return nil, err
 		}
 	}
@@ -105,11 +115,11 @@ func (cmd *Command) SetArgs(cargs []Arg) error {
 			} else if sh.env[argval[1:]] != nil {
 				arglist = sh.env[argval[1:]]
 			} else {
-				return ErrVarNotSet.Params(argval)
+				return newError("Variable '%s' not set", argval)
 			}
 
 			if len(arglist) == 0 {
-				return ErrVarNotSet.Params(argval)
+				return newError("Variable '%s' not set", argval)
 			} else if len(arglist) == 1 {
 				args[i+1] = arglist[0]
 			} else if len(arglist) > 1 {
@@ -146,11 +156,11 @@ func (cmd *Command) SetRedirects(redirDecls []*RedirectNode) error {
 
 func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 	if redirDecl.rmap.lfd > 2 || redirDecl.rmap.lfd < redirMapSupress {
-		return ErrInvalidFD.Params(redirDecl.rmap.lfd)
+		return newError("Invalid file descriptor redirection: fd=%d", redirDecl.rmap.lfd)
 	}
 
 	if redirDecl.rmap.rfd > 2 || redirDecl.rmap.rfd < redirMapSupress {
-		return ErrInvalidFD.Params(redirDecl.rmap.rfd)
+		return newError("Invalid file descriptor redirection: fd=%d", redirDecl.rmap.rfd)
 	}
 
 	// Note(i4k): We need to remove the repetitive code in some smarter way
@@ -164,7 +174,7 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 			cmd.fdMap[0] = cmd.fdMap[2]
 		case redirMapNoValue:
 			if redirDecl.location == "" {
-				return ErrMissingFile.Params(redirDecl.rmap.lfd)
+				return newError("Missing file in redirection: >[%d] <??>", redirDecl.rmap.lfd)
 			}
 
 			file, err := os.OpenFile(redirDecl.location, os.O_RDWR|os.O_CREATE, 0644)
@@ -176,7 +186,8 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 			cmd.fdMap[0] = file
 		case redirMapSupress:
 			if redirDecl.location != "" {
-				return ErrInvalidMap.Params(redirDecl.rmap.lfd,
+				return newError("Invalid redirect mapping: %d -> %d",
+					redirDecl.rmap.lfd,
 					redirDecl.location)
 			}
 
@@ -191,13 +202,13 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 	case 1:
 		switch redirDecl.rmap.rfd {
 		case 0:
-			return ErrInvalidMap.Params(1, 0)
+			return newError("Invalid redirect mapping: %d -> %d", 1, 0)
 		case 1: // do nothing
 		case 2:
 			cmd.fdMap[1] = cmd.fdMap[2]
 		case redirMapNoValue:
 			if redirDecl.location == "" {
-				return ErrMissingFile.Params(redirDecl.rmap.lfd)
+				return newError("Missing file in redirection: >[%d] <??>", redirDecl.rmap.lfd)
 			}
 
 			file, err := os.OpenFile(redirDecl.location, os.O_RDWR|os.O_CREATE, 0644)
@@ -219,13 +230,13 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 	case 2:
 		switch redirDecl.rmap.rfd {
 		case 0:
-			return ErrInvalidMap.Params(2, 1)
+			return newError("Invalid redirect mapping: %d -> %d", 2, 1)
 		case 1:
 			cmd.fdMap[2] = cmd.fdMap[1]
 		case 2: // do nothing
 		case redirMapNoValue:
 			if redirDecl.location == "" {
-				return ErrMissingFile.Params(redirDecl.rmap.lfd)
+				return newError("Missing file in redirection: >[%d] <??>", redirDecl.rmap.lfd)
 			}
 
 			file, err := os.OpenFile(redirDecl.location, os.O_RDWR|os.O_CREATE, 0644)
@@ -246,7 +257,7 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 		}
 	case redirMapNoValue:
 		if redirDecl.location == "" {
-			return ErrMissingFile.Params(redirDecl.rmap.lfd)
+			return newError("Missing file in redirection: >[%d] <??>", redirDecl.rmap.lfd)
 		}
 
 		file, err := os.OpenFile(redirDecl.location, os.O_RDWR|os.O_CREATE, 0644)
@@ -265,7 +276,7 @@ func (cmd *Command) setupStdin(value interface{}) error {
 	rc, ok := value.(io.Reader)
 
 	if !ok {
-		return ErrInvalidStdin
+		return newError("Stdin requires a reader stream in redirect")
 	}
 
 	if rc == os.Stdin {
@@ -292,12 +303,12 @@ func (cmd *Command) setupStdout(value interface{}) error {
 	wc, ok := value.(io.Writer)
 
 	if !ok {
-		return ErrInvalidStdout
+		return newError("Stdout requires a writer stream in redirect")
 	}
 
 	switch wc {
 	case os.Stdin:
-		return ErrInvalidMap.Params(1, 0)
+		return newError("Invalid redirect mapping: %d -> %d", 1, 0)
 	case os.Stdout:
 		cmd.Stdout = os.Stdout
 		cmd.stdoutDone <- true
@@ -325,12 +336,12 @@ func (cmd *Command) setupStderr(value interface{}) error {
 	wc, ok := value.(io.Writer)
 
 	if !ok {
-		return ErrInvalidStderr
+		return newError("Stderr requires a writer stream in redirect")
 	}
 
 	switch wc {
 	case os.Stdin:
-		return ErrInvalidMap.Params(2, 1)
+		return newError("Invalid redirect mapping: %d -> %d", 2, 1)
 	case os.Stdout:
 		cmd.Stderr = cmd.Stdout
 		cmd.stderrDone <- true
@@ -376,7 +387,7 @@ func (cmd *Command) setupRedirects() error {
 				return err
 			}
 		default:
-			return ErrInvalidFD.Params(k)
+			return newError("Invalid file descriptor redirection: fd=%d", k)
 		}
 	}
 

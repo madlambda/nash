@@ -78,6 +78,47 @@ func TestExecuteFile(t *testing.T) {
 	}
 }
 
+func TestExecuteCommand(t *testing.T) {
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+
+	err := sh.ExecuteString("command failed", `
+        non-existent-program
+        `)
+
+	if err == nil {
+		t.Error("Must fail")
+		return
+	}
+
+	// test ignore works
+	err = sh.ExecuteString("command failed", `
+        -non-existent-program
+        `)
+
+	if err != nil {
+		t.Error("Dash at beginning must ignore errors: ERROR: %s", err.Error())
+		return
+	}
+
+	var out bytes.Buffer
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("command failed", `
+        echo -n "hello world"
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "hello world" {
+		t.Errorf("Invalid output: '%s'", string(out.Bytes()))
+		return
+	}
+}
+
 func TestExecuteRforkUserNS(t *testing.T) {
 	if !enableUserNS {
 		t.Skip("User namespace not enabled")
@@ -378,6 +419,134 @@ func TestExecuteShowEnv(t *testing.T) {
 
 	if strings.TrimSpace(string(out.Bytes())) != "PATH=/bin" {
 		t.Errorf("Error: '%s' != 'PATH=/bin'", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+}
+
+func TestExecuteIfEqual(t *testing.T) {
+	var out bytes.Buffer
+
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err := sh.ExecuteString("test if equal", `
+        if "" == "" {
+            echo "empty string works"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "empty string works" {
+		t.Errorf("Must be empty. '%s' != 'empty string works'", string(out.Bytes()))
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test if equal 2", `
+        if "i4k" == "_i4k_" {
+            echo "do not print"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "" {
+		t.Errorf("Error: '%s' != ''", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+}
+
+func TestExecuteIfElse(t *testing.T) {
+	var out bytes.Buffer
+
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err := sh.ExecuteString("test if else", `
+        if "" == "" {
+            echo "if still works"
+        } else {
+            echo "nop"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "if still works" {
+		t.Errorf("'%s' != 'if still works'", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test if equal 2", `
+        if "i4k" == "_i4k_" {
+            echo "do not print"
+        } else {
+            echo "print this"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "print this" {
+		t.Errorf("Error: '%s' != 'print this'", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+}
+
+func TestExecuteIfElseIf(t *testing.T) {
+	var out bytes.Buffer
+
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err := sh.ExecuteString("test if else", `
+        if "" == "" {
+            echo "if still works"
+        } else if "bleh" == "bloh" {
+            echo "nop"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "if still works" {
+		t.Errorf("'%s' != 'if still works'", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test if equal 2", `
+        if "i4k" == "_i4k_" {
+            echo "do not print"
+        } else if "a" != "b" {
+            echo "print this"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "print this" {
+		t.Errorf("Error: '%s' != 'print this'", strings.TrimSpace(string(out.Bytes())))
 		return
 	}
 }

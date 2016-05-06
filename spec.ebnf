@@ -24,7 +24,10 @@ rforkDecl   = "rfork" rforkFlags "{" program "}" .
 namespace   = { "c" | "m" | "n" | "i" | "p" | "u" | "s" } .
 rforkFlags  = { namespace } .
 cdDecl      = "cd" [ filename ] .
-ifDecl      = "if" ( identifier | varValue ) comparison ( identifier | varValue ) "{" program "}" .
+ifDecl      = "if" ( identifier | varValue ) comparison
+              ( identifier | varValue ) "{" program "}"
+              [ "else" "{" program "}" ]
+              [ "else" ifDecl ] .
 elseDecl    = "else" "{" program "}" .
 forDecl     = "for" ( identifier | varList ) "{" program "}" .
 setenvDecl  = "setenv" identifier .

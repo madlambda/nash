@@ -61,8 +61,9 @@ const (
 	itemRedirMapLSide
 	itemRedirMapRSide
 
-	itemKeyword // used only to delimit the keywords
-	//	itemIf
+	itemIf // if <condition> { <block> }
+	itemElse
+	itemComparison
 	//	itemFor
 	itemRfork
 	itemRforkFlags
@@ -263,6 +264,12 @@ func lexIdentifier(l *lexer) stateFn {
 	case "setenv":
 		l.emit(itemSetEnv)
 		return lexInsideSetenv
+	case "if":
+		l.emit(itemIf)
+		return lexInsideIf
+	case "else":
+		l.emit(itemElse)
+		return lexInsideElse
 	case "showenv":
 		l.emit(itemShowEnv)
 
@@ -279,7 +286,7 @@ func lexIdentifier(l *lexer) stateFn {
 		}
 
 		l.backup()
-		return lexSpace
+		return lexStart
 	}
 
 	l.emit(itemCommand)
@@ -503,6 +510,120 @@ func lexInsideCd(l *lexer) stateFn {
 	return lexStart
 }
 
+func lexIfLRValue(l *lexer) bool {
+	ignoreSpaces(l)
+
+	r := l.next()
+
+	switch {
+	case r == '"':
+		l.ignore()
+		lexQuote(l, nil)
+		return true
+	case r == '$':
+		for {
+			r = l.next()
+
+			if !isIdentifier(r) {
+				break
+			}
+		}
+
+		l.backup()
+
+		if r == '"' {
+			l.errorf("Invalid quote inside variable name")
+			return false
+		}
+
+		l.emit(itemVariable)
+		return true
+	}
+
+	l.errorf("Unexpected char %q at pos %d. IfDecl expects string or variable", r, l.pos)
+	return false
+}
+
+func lexInsideIf(l *lexer) stateFn {
+	ok := lexIfLRValue(l)
+
+	if !ok {
+		return nil
+	}
+
+	ignoreSpaces(l)
+
+	// get first char of operator. Eg.: '!'
+	if !l.accept("=!") {
+		l.errorf("Unexpected char %q inside if statement", l.peek())
+		l.backup()
+		return nil
+	}
+
+	// get second char. Eg.: '='
+	if !l.accept("=!") {
+		l.errorf("Unexpected char %q inside if statement", l.peek())
+		l.backup()
+		return nil
+	}
+
+	word := l.input[l.start:l.pos]
+
+	if word != "==" && word != "!=" {
+		return l.errorf("Invalid comparison operator '%s'", word)
+	}
+
+	l.emit(itemComparison)
+
+	ok = lexIfLRValue(l)
+
+	if !ok {
+		return nil
+	}
+
+	ignoreSpaces(l)
+
+	r := l.next()
+
+	if r != '{' {
+		return l.errorf("Unexpected %q at pos %d. Expected '{'", r, l.pos)
+	}
+
+	l.emit(itemLeftBlock)
+
+	return lexStart
+}
+
+func lexInsideElse(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	r := l.next()
+
+	if r == '{' {
+		l.emit(itemLeftBlock)
+		return lexStart
+	}
+
+	for {
+		r = l.next()
+
+		if !isIdentifier(r) {
+			break
+		}
+	}
+
+	l.backup()
+
+	word := l.input[l.start:l.pos]
+
+	if word == "if" {
+		l.emit(itemIf)
+		return lexInsideIf
+	}
+
+	return l.errorf("Unexpected word '%s' at pos %d", word, l.pos)
+}
+
 // Rfork flags:
 // c = stands for container (c == upnsmi)
 // u = user namespace
@@ -514,9 +635,7 @@ func lexInsideCd(l *lexer) stateFn {
 func lexInsideRforkArgs(l *lexer) stateFn {
 	// parse the rfork parameters
 
-	if l.accept(" \t") {
-		ignoreSpaces(l)
-	}
+	ignoreSpaces(l)
 
 	if !l.accept(rforkFlags) {
 		return l.errorf("invalid rfork argument: %s", string(l.peek()))
@@ -526,9 +645,7 @@ func lexInsideRforkArgs(l *lexer) stateFn {
 
 	l.emit(itemRforkFlags)
 
-	if l.accept(" \t") {
-		ignoreSpaces(l)
-	}
+	ignoreSpaces(l)
 
 	if l.accept("{") {
 		l.emit(itemLeftBlock)
