@@ -496,3 +496,13 @@ func TestParseIfLvariable(t *testing.T) {
 	pwd
 }`, expected, t)
 }
+
+func TestParseIfInvalid(t *testing.T) {
+	parser := NewParser("if invalid", `if a == b { pwd }`)
+	_, err := parser.Parse()
+
+	if err == nil {
+		t.Error("Must fail. Only quoted strings and variables on if clauses.")
+		return
+	}
+}
