@@ -2,17 +2,19 @@ package nash
 
 import "fmt"
 
-type Error struct {
+type nashError struct {
+	reason string
 	format string
 }
 
-func NewError(format string) Error {
-	return Error{
-		format: format,
-	}
-}
-func (e Error) Error() string { return e.format }
-func (e Error) Params(args ...interface{}) error {
-	e.format = fmt.Sprintf(e.format, args...)
+func newError(format string, arg ...interface{}) *nashError {
+	e := &nashError{}
+	e.SetReason(format, arg...)
 	return e
 }
+
+func (e *nashError) SetReason(format string, arg ...interface{}) {
+	e.reason = fmt.Sprintf(format, arg...)
+}
+
+func (e *nashError) Error() string { return e.reason }

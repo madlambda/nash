@@ -211,6 +211,16 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 	cmd, err := NewCommand(c.name, sh)
 
 	if err != nil {
+		type IgnoreError interface {
+			IgnoreError() bool
+		}
+
+		if errIgnore, ok := err.(IgnoreError); ok && errIgnore.IgnoreError() {
+			fmt.Fprintf(sh.stderr, "ERROR: %s\n", err.Error())
+
+			return nil
+		}
+
 		return err
 	}
 

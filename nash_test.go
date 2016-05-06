@@ -78,6 +78,47 @@ func TestExecuteFile(t *testing.T) {
 	}
 }
 
+func TestExecuteCommand(t *testing.T) {
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+
+	err := sh.ExecuteString("command failed", `
+        non-existent-program
+        `)
+
+	if err == nil {
+		t.Error("Must fail")
+		return
+	}
+
+	// test ignore works
+	err = sh.ExecuteString("command failed", `
+        -non-existent-program
+        `)
+
+	if err != nil {
+		t.Error("Dash at beginning must ignore errors: ERROR: %s", err.Error())
+		return
+	}
+
+	var out bytes.Buffer
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("command failed", `
+        echo -n "hello world"
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "hello world" {
+		t.Errorf("Invalid output: '%s'", string(out.Bytes()))
+		return
+	}
+}
+
 func TestExecuteRforkUserNS(t *testing.T) {
 	if !enableUserNS {
 		t.Skip("User namespace not enabled")
