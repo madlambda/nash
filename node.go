@@ -127,6 +127,14 @@ type (
 		ifTree   *Tree
 		elseTree *Tree
 	}
+
+	FnNode struct {
+		NodeType
+		Pos
+		args []string
+		vars Var
+		tree *Tree
+	}
 )
 
 //go:generate stringer -type=NodeType
@@ -169,6 +177,9 @@ const (
 
 	// NodeComment are nodes for comment
 	NodeComment
+
+	// NodeFn are function nodes
+	NodeFn
 )
 
 // Position returns the position of the node in file
@@ -600,4 +611,51 @@ func (n *IfNode) String() string {
 	}
 
 	return ifStr
+}
+
+func NewFnNode(pos Pos, name string) *FnNode {
+	return &FnNode{
+		NodeType: NodeFn,
+		Pos:      pos,
+		name:     name,
+		args:     make([]string, 0, 16),
+	}
+}
+
+func (n *FnNode) AddArg(arg string) {
+	n.args = append(n.args, arg)
+}
+
+func (n *FnNode) Tree() *Tree {
+	return n.tree
+}
+
+func (n *FnNode) String() string {
+	fnStr := "fn"
+
+	if n.name != "" {
+		fnStr += " " + n.name + "("
+	}
+
+	for i := 0; i < len(n.args); i++ {
+		fnStr += n.args[i]
+
+		if i < (len(n.args) - 1) {
+			fnStr += ", "
+		}
+	}
+
+	fnStr += ") {\n"
+
+	tree := n.Tree()
+
+	stmts := strings.Split(tree.String(), "\n")
+
+	for i := 0; i < len(stmts); i++ {
+		fnStr += "\t" + stmts[i] + "\n"
+	}
+
+	fnStr += "}\n"
+
+	return fnStr
 }

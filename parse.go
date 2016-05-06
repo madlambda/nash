@@ -540,6 +540,8 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseComment()
 	case itemIf:
 		return p.parseIf()
+	case itemFn:
+		return p.parseFn()
 	}
 
 	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)

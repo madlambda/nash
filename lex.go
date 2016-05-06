@@ -51,6 +51,8 @@ const (
 	itemArg
 	itemLeftBlock     // {
 	itemRightBlock    // }
+	itemLeftParen     // (
+	itemRightParen    // )
 	itemString        // "<string>"
 	itemRedirRight    // >
 	itemRedirRBracket // [ eg.: cmd >[1] file.out
@@ -68,6 +70,8 @@ const (
 	itemRfork
 	itemRforkFlags
 	itemCd
+
+	itemFn
 )
 
 const (
@@ -219,6 +223,12 @@ func lexStart(l *lexer) stateFn {
 	case r == '}':
 		l.emit(itemRightBlock)
 		return lexStart
+	case r == '(':
+		l.emit(itemLeftParen)
+		return lexInsideFnInv
+	case r == ')':
+		l.emit(itemRightParen)
+		return lexStart
 	}
 
 	return l.errorf("Unrecognized character in action: %#U", r)
@@ -267,6 +277,9 @@ func lexIdentifier(l *lexer) stateFn {
 	case "if":
 		l.emit(itemIf)
 		return lexInsideIf
+	case "fn":
+		l.emit(itemFn)
+		return lexInsideFn
 	case "else":
 		l.emit(itemElse)
 		return lexInsideElse
@@ -592,6 +605,140 @@ func lexInsideIf(l *lexer) stateFn {
 	l.emit(itemLeftBlock)
 
 	return lexStart
+}
+
+func lexInsideFn(l *lexer) stateFn {
+	var (
+		r       rune
+		argName string
+	)
+
+	ignoreSpaces(l)
+
+	for {
+		r = l.next()
+
+		if isIdentifier(r) {
+			continue
+		}
+
+		break
+	}
+
+	l.backup()
+
+	l.emit(itemVarName)
+
+	r = l.next()
+
+	if r != '(' {
+		return l.errorf("Unexpected symbol %q. Expected '('", r)
+	}
+
+	l.emit(itemLeftParen)
+
+getnextarg:
+	ignoreSpaces(l)
+
+	for {
+		r = l.next()
+
+		if isIdentifier(r) {
+			continue
+		}
+
+		break
+	}
+
+	l.backup()
+
+	argName = l.input[l.start:l.pos]
+
+	if len(argName) > 0 {
+		l.emit(itemVarName)
+
+		r = l.peek()
+
+		if r == ',' {
+			l.next()
+			goto getnextarg
+		} else if r != ')' {
+			return l.errorf("Unexpected symbol %q. Expected ',' or ')'", r)
+		}
+	}
+
+	l.next()
+	l.emit(itemRightParen)
+
+	ignoreSpaces(l)
+
+	r = l.next()
+
+	if r != '{' {
+		return l.errorf("Unexpected symbol %q. Expected '{'", r)
+	}
+
+	l.emit(itemLeftBlock)
+
+	return lexStart
+}
+
+func lexMoreFnArgs(l *lexer) stateFn {
+	r := l.peek()
+
+	if r == ',' {
+		l.next()
+		l.ignore()
+		return lexInsideFnInv
+	}
+
+	if r == ')' {
+		return lexStart
+	}
+
+	return l.errorf("Unexpected symbol %q. Expecting ',' or ')'", r)
+}
+
+func lexInsideFnInv(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	var r rune
+
+	r = l.peek()
+
+	if r == '"' {
+		l.next()
+		l.backup()
+		lexQuote(l, nil)
+
+		return lexMoreFnArgs
+	} else if r == '$' {
+		for {
+			r = l.next()
+
+			if isIdentifier(r) || r == '$' {
+				continue
+			}
+
+			break
+		}
+
+		l.backup()
+
+		word := l.input[l.start:l.pos]
+
+		if len(word) > 0 {
+			l.emit(itemVariable)
+
+			return lexMoreFnArgs
+		}
+	} else if r == ')' {
+		l.next()
+		l.emit(itemRightParen)
+		return lexStart
+	}
+
+	return l.errorf("Unexpected symbol %q. Expected quoted string or variable", r)
 }
 
 func lexInsideElse(l *lexer) stateFn {

@@ -1405,3 +1405,202 @@ func TestLexerIfElseIf(t *testing.T) {
                 exit 1
         }`, expected, t)
 }
+
+func TestLexerFnBasic(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemFn,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test empty fn", `fn build() {}`, expected, t)
+
+	// lambda
+	expected = []item{
+		item{
+			typ: itemFn,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test empty fn", `fn () {}`, expected, t)
+
+	// IIFE
+	expected = []item{
+		item{
+			typ: itemFn,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test empty fn", `fn () {}()`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFn,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVarName,
+			val: "image",
+		},
+		item{
+			typ: itemVarName,
+			val: "debug",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test empty fn with args", `fn build(image, debug) {}`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFn,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVarName,
+			val: "image",
+		},
+		item{
+			typ: itemVarName,
+			val: "debug",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCommand,
+			val: "ls",
+		},
+		item{
+			typ: itemCommand,
+			val: "tar",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test empty fn with args and body", `fn build(image, debug) {
+            ls
+            tar
+        }`, expected, t)
+}

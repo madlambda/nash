@@ -264,6 +264,34 @@ func (sh *Shell) executeSetAssignment(v *SetAssignmentNode) error {
 	return nil
 }
 
+func (sh *Shell) concatElements(elem ElemNode) (string, error) {
+	value := ""
+
+	for j := 0; j < len(elem.concats); j++ {
+		ec := elem.concats[j]
+
+		if len(ec) > 0 && ec[0] == '$' {
+			elemstr, err := sh.evalVariable(elem.concats[j])
+			if err != nil {
+				return "", err
+			}
+
+			if len(elemstr) > 1 {
+				return "", errors.New("Impossible to concat list variable and string")
+			}
+
+			if len(elemstr) == 1 {
+				value = value + elemstr[0]
+			}
+		} else {
+			value = value + ec
+		}
+	}
+
+	return value, nil
+}
+
+// Note(i4k): shit code
 func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 	elems := v.list
 	strelems := make([]string, 0, len(elems))
@@ -272,27 +300,10 @@ func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 		elem := elems[i]
 
 		if len(elem.concats) > 0 {
-			value := ""
+			value, err := sh.concatElements(elem)
 
-			for j := 0; j < len(elem.concats); j++ {
-				ec := elem.concats[j]
-
-				if len(ec) > 0 && ec[0] == '$' {
-					elemstr, err := sh.evalVariable(elem.concats[j])
-					if err != nil {
-						return err
-					}
-
-					if len(elemstr) > 1 {
-						return errors.New("Impossible to concat list variable and string")
-					}
-
-					if len(elemstr) == 1 {
-						value = value + elemstr[0]
-					}
-				} else {
-					value = value + ec
-				}
+			if err != nil {
+				return err
 			}
 
 			strelems = append(strelems, value)

@@ -4,9 +4,9 @@ package nash
 
 import "fmt"
 
-const _itemType_name = "itemErroritemEOFitemImportitemCommentitemSetEnvitemShowEnvitemVarNameitemConcatitemVariableitemListOpenitemListCloseitemListElemitemCommanditemArgitemLeftBlockitemRightBlockitemStringitemRedirRightitemRedirRBracketitemRedirLBracketitemRedirFileitemRedirNetAddritemRedirMapEqualitemRedirMapLSideitemRedirMapRSideitemIfitemElseitemComparisonitemRforkitemRforkFlagsitemCd"
+const _itemType_name = "itemErroritemEOFitemImportitemCommentitemSetEnvitemShowEnvitemVarNameitemConcatitemVariableitemListOpenitemListCloseitemListElemitemCommanditemArgitemLeftBlockitemRightBlockitemLeftParenitemRightParenitemStringitemRedirRightitemRedirRBracketitemRedirLBracketitemRedirFileitemRedirNetAddritemRedirMapEqualitemRedirMapLSideitemRedirMapRSideitemIfitemElseitemComparisonitemRforkitemRforkFlagsitemCditemFn"
 
-var _itemType_index = [...]uint16{0, 9, 16, 26, 37, 47, 58, 69, 79, 91, 103, 116, 128, 139, 146, 159, 173, 183, 197, 214, 231, 244, 260, 277, 294, 311, 317, 325, 339, 348, 362, 368}
+var _itemType_index = [...]uint16{0, 9, 16, 26, 37, 47, 58, 69, 79, 91, 103, 116, 128, 139, 146, 159, 173, 186, 200, 210, 224, 241, 258, 271, 287, 304, 321, 338, 344, 352, 366, 375, 389, 395, 401}
 
 func (i itemType) String() string {
 	i -= 2

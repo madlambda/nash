@@ -81,6 +81,7 @@ func TestExecuteFile(t *testing.T) {
 func TestExecuteCommand(t *testing.T) {
 	sh := NewShell(false)
 	sh.SetNashdPath(nashdPath)
+	sh.SetStderr(ioutil.Discard)
 
 	err := sh.ExecuteString("command failed", `
         non-existent-program
@@ -102,6 +103,7 @@ func TestExecuteCommand(t *testing.T) {
 	}
 
 	var out bytes.Buffer
+	sh.SetStderr(os.Stderr)
 	sh.SetStdout(&out)
 
 	err = sh.ExecuteString("command failed", `
