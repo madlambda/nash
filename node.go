@@ -15,7 +15,6 @@ type (
 	Node interface {
 		Type() NodeType
 		Position() Pos
-		Tree() *Tree
 		String() string
 	}
 
@@ -123,8 +122,10 @@ type (
 		lvalue Arg
 		rvalue Arg
 		op     string
+		elseIf bool
 
-		tree *Tree
+		ifTree   *Tree
+		elseTree *Tree
 	}
 )
 
@@ -194,9 +195,6 @@ func (l *ListNode) Push(n Node) {
 	l.Nodes = append(l.Nodes, n)
 }
 
-// Tree returns the tree for this node
-func (l *ListNode) Tree() *Tree { return nil }
-
 func NewImportNode(pos Pos) *ImportNode {
 	return &ImportNode{
 		NodeType: NodeImport,
@@ -207,8 +205,6 @@ func NewImportNode(pos Pos) *ImportNode {
 func (n *ImportNode) SetPath(arg Arg) {
 	n.path = arg
 }
-
-func (n *ImportNode) Tree() *Tree { return nil }
 
 func (n *ImportNode) String() string {
 	if n.path.quoted {
@@ -226,8 +222,6 @@ func NewSetAssignmentNode(pos Pos, name string) *SetAssignmentNode {
 	}
 }
 
-func (n *SetAssignmentNode) Tree() *Tree { return nil }
-
 func (n *SetAssignmentNode) String() string {
 	return "setenv " + n.varName
 }
@@ -239,8 +233,6 @@ func NewShowEnvNode(pos Pos) *ShowEnvNode {
 	}
 }
 
-func (n *ShowEnvNode) Tree() *Tree { return nil }
-
 func (n *ShowEnvNode) String() string { return "showenv" }
 
 // NewAssignmentNode creates a new assignment
@@ -250,9 +242,6 @@ func NewAssignmentNode(pos Pos) *AssignmentNode {
 		Pos:      pos,
 	}
 }
-
-// Tree returns the tree for this node
-func (n *AssignmentNode) Tree() *Tree { return nil }
 
 // SetVarName sets the name of the variable
 func (n *AssignmentNode) SetVarName(a string) {
@@ -336,9 +325,6 @@ func (n *CommandNode) AddRedirect(redir *RedirectNode) {
 	n.redirs = append(n.redirs, redir)
 }
 
-// Tree returns the child tree of node
-func (n *CommandNode) Tree() *Tree { return nil }
-
 func (n *CommandNode) String() string {
 	content := make([]string, 0, 1024)
 	args := make([]string, 0, len(n.args))
@@ -407,9 +393,6 @@ func (r *RedirectNode) String() string {
 	return result
 }
 
-// Tree returns the tree of the node
-func (r *RedirectNode) Tree() *Tree { return nil }
-
 // NewRforkNode creates a new node for rfork
 func NewRforkNode(pos Pos) *RforkNode {
 	return &RforkNode{
@@ -470,11 +453,6 @@ func (n *CdNode) Dir() string {
 	return n.dir.val
 }
 
-// Tree returns the child tree if any
-func (n *CdNode) Tree() *Tree {
-	return nil
-}
-
 func (n *CdNode) String() string {
 	if n.dir.quoted {
 		return `cd "` + n.dir.val + `"`
@@ -497,9 +475,6 @@ func NewArg(pos Pos, val string, quoted bool) Arg {
 	}
 }
 
-// Tree returns the child tree of node
-func (n Arg) Tree() *Tree { return nil }
-
 func (n Arg) String() string {
 	if n.quoted {
 		return "\"" + n.val + "\""
@@ -516,9 +491,6 @@ func NewCommentNode(pos Pos, val string) *CommentNode {
 		val:      val,
 	}
 }
-
-// Tree returns the child tree of node
-func (n *CommentNode) Tree() *Tree { return nil }
 
 func (n *CommentNode) String() string {
 	return n.val
@@ -553,7 +525,24 @@ func (n *IfNode) SetOp(op string) {
 	n.op = op
 }
 
-func (n *IfNode) Tree() *Tree { return n.tree }
+func (n *IfNode) IsElseIf() bool {
+	return n.elseIf
+}
+
+func (n *IfNode) SetElseIf(b bool) {
+	n.elseIf = b
+}
+
+func (n *IfNode) SetIfTree(t *Tree) {
+	n.ifTree = t
+}
+
+func (n *IfNode) SetElseTree(t *Tree) {
+	n.elseTree = t
+}
+
+func (n *IfNode) IfTree() *Tree   { return n.ifTree }
+func (n *IfNode) ElseTree() *Tree { return n.elseTree }
 
 func (n *IfNode) String() string {
 	var lstr, rstr string
@@ -572,17 +561,42 @@ func (n *IfNode) String() string {
 
 	ifStr := "if " + lstr + " " + n.op + " " + rstr + " {\n"
 
-	tree := n.Tree()
+	ifTree := n.IfTree()
 
-	if tree != nil {
-		block := tree.String()
-		stmts := strings.Split(block, "\n")
+	block := ifTree.String()
+	stmts := strings.Split(block, "\n")
 
-		for i := 0; i < len(stmts); i++ {
-			stmts[i] = "\t" + stmts[i]
+	for i := 0; i < len(stmts); i++ {
+		stmts[i] = "\t" + stmts[i]
+	}
+
+	ifStr += strings.Join(stmts, "\n") + "\n}"
+
+	elseTree := n.ElseTree()
+
+	if elseTree != nil {
+		ifStr += " else "
+
+		elseBlock := elseTree.String()
+		elsestmts := strings.Split(elseBlock, "\n")
+
+		for i := 0; i < len(elsestmts); i++ {
+			if n.IsElseIf() {
+				elsestmts[i] = elsestmts[i]
+			} else {
+				elsestmts[i] = "\t" + elsestmts[i]
+			}
 		}
 
-		ifStr += strings.Join(stmts, "\n") + "\n}"
+		if !n.IsElseIf() {
+			ifStr += "{\n"
+		}
+
+		ifStr += strings.Join(elsestmts, "\n")
+
+		if !n.IsElseIf() {
+			ifStr += "\n}"
+		}
 	}
 
 	return ifStr

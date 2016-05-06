@@ -442,16 +442,68 @@ func (p *Parser) parseIf() (Node, error) {
 
 	p.openblocks++
 
-	n.tree = NewTree("if block")
 	r, err := p.parseBlock()
 
 	if err != nil {
 		return nil, err
 	}
 
-	n.tree.Root = r
+	ifTree := NewTree("if block")
+	ifTree.Root = r
+	n.SetIfTree(ifTree)
+
+	it = p.peek()
+
+	if it.typ == itemElse {
+		p.next()
+
+		elseBlock, elseIf, err := p.parseElse()
+
+		if err != nil {
+			return nil, err
+		}
+
+		elseTree := NewTree("else tree")
+		elseTree.Root = elseBlock
+
+		n.SetElseIf(elseIf)
+		n.SetElseTree(elseTree)
+	}
 
 	return n, nil
+}
+
+func (p *Parser) parseElse() (*ListNode, bool, error) {
+	it := p.next()
+
+	if it.typ == itemLeftBlock {
+		p.openblocks++
+
+		elseBlock, err := p.parseBlock()
+
+		if err != nil {
+			return nil, false, err
+		}
+
+		return elseBlock, false, nil
+	}
+
+	if it.typ == itemIf {
+		p.backup(it)
+
+		ifNode, err := p.parseIf()
+
+		if err != nil {
+			return nil, false, err
+		}
+
+		block := NewListNode()
+		block.Push(ifNode)
+
+		return block, true, nil
+	}
+
+	return nil, false, fmt.Errorf("Unexpected token: %v", it)
 }
 
 func (p *Parser) parseComment() (Node, error) {

@@ -264,8 +264,17 @@ func compareIfNode(expected, value *IfNode) (bool, error) {
 		return false, fmt.Errorf("CompareIfNode (%v, %v) -> Operation differ: %s != %s", expected, value, expected.Op(), value.Op())
 	}
 
-	expectedTree := expected.Tree()
-	valueTree := value.Tree()
+	expectedTree := expected.IfTree()
+	valueTree := value.IfTree()
+
+	ok, err := compare(expectedTree, valueTree)
+
+	if !ok {
+		return ok, err
+	}
+
+	expectedTree = expected.ElseTree()
+	valueTree = expected.ElseTree()
 
 	return compare(expectedTree, valueTree)
 }
@@ -350,7 +359,7 @@ func compareNodes(expected Node, value Node) (bool, error) {
 		return valid, err
 	}
 
-	return compare(expected.Tree(), value.Tree())
+	return true, nil
 }
 
 func compare(expected *Tree, tr *Tree) (bool, error) {

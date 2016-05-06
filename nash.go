@@ -389,7 +389,9 @@ func (sh *Shell) executeIfEqual(n *IfNode) error {
 	}
 
 	if lstr == rstr {
-		return sh.ExecuteTree(n.Tree())
+		return sh.ExecuteTree(n.IfTree())
+	} else if n.ElseTree() != nil {
+		return sh.ExecuteTree(n.ElseTree())
 	}
 
 	return nil
@@ -403,7 +405,9 @@ func (sh *Shell) executeIfNotEqual(n *IfNode) error {
 	}
 
 	if lstr != rstr {
-		return sh.ExecuteTree(n.Tree())
+		return sh.ExecuteTree(n.IfTree())
+	} else if n.ElseTree() != nil {
+		return sh.ExecuteTree(n.ElseTree())
 	}
 
 	return nil

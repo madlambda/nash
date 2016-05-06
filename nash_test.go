@@ -421,3 +421,91 @@ func TestExecuteIfEqual(t *testing.T) {
 		return
 	}
 }
+
+func TestExecuteIfElse(t *testing.T) {
+	var out bytes.Buffer
+
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err := sh.ExecuteString("test if else", `
+        if "" == "" {
+            echo "if still works"
+        } else {
+            echo "nop"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "if still works" {
+		t.Errorf("'%s' != 'if still works'", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test if equal 2", `
+        if "i4k" == "_i4k_" {
+            echo "do not print"
+        } else {
+            echo "print this"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "print this" {
+		t.Errorf("Error: '%s' != 'print this'", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+}
+
+func TestExecuteIfElseIf(t *testing.T) {
+	var out bytes.Buffer
+
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err := sh.ExecuteString("test if else", `
+        if "" == "" {
+            echo "if still works"
+        } else if "bleh" == "bloh" {
+            echo "nop"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "if still works" {
+		t.Errorf("'%s' != 'if still works'", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test if equal 2", `
+        if "i4k" == "_i4k_" {
+            echo "do not print"
+        } else if "a" != "b" {
+            echo "print this"
+        }`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "print this" {
+		t.Errorf("Error: '%s' != 'print this'", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+}
