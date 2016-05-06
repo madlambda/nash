@@ -62,6 +62,7 @@ const (
 	itemRedirMapRSide
 
 	itemIf // if <condition> { <block> }
+	itemElse
 	itemComparison
 	//	itemFor
 	itemRfork
@@ -266,6 +267,9 @@ func lexIdentifier(l *lexer) stateFn {
 	case "if":
 		l.emit(itemIf)
 		return lexInsideIf
+	case "else":
+		l.emit(itemElse)
+		return lexInsideElse
 	case "showenv":
 		l.emit(itemShowEnv)
 
@@ -282,7 +286,7 @@ func lexIdentifier(l *lexer) stateFn {
 		}
 
 		l.backup()
-		return lexSpace
+		return lexStart
 	}
 
 	l.emit(itemCommand)
@@ -587,7 +591,35 @@ func lexInsideIf(l *lexer) stateFn {
 
 	l.emit(itemLeftBlock)
 
-	return lexSpace
+	return lexStart
+}
+
+func lexInsideElse(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	r := l.next()
+
+	if r == '{' {
+		l.emit(itemLeftBlock)
+		return lexStart
+	}
+
+	for {
+		r = l.next()
+
+		if !isIdentifier(r) {
+			break
+		}
+	}
+
+	word := l.input[l.start:l.pos]
+
+	if word == "if" {
+		l.emit(itemIf)
+		return lexInsideIf
+	}
+
+	return l.errorf("Unexpected word '%s' at pos %d", word, l.pos)
 }
 
 // Rfork flags:

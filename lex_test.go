@@ -1238,3 +1238,65 @@ func TestLexerSimpleIf(t *testing.T) {
 		    rm -rf /
 		}`, expected, t) */
 }
+
+func TestLexerIfElse(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemIf,
+			val: "if",
+		},
+		item{
+			typ: itemString,
+			val: "test",
+		},
+		item{
+			typ: itemComparison,
+			val: "==",
+		},
+		item{
+			typ: itemString,
+			val: "other",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCommand,
+			val: "rm",
+		},
+		item{
+			typ: itemArg,
+			val: "-rf",
+		},
+		item{
+			typ: itemArg,
+			val: "/",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemElse,
+			val: "else",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCommand,
+			val: "pwd",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test simple if", `if "test" == "other" { rm -rf / } else { pwd }`, expected, t)
+}
