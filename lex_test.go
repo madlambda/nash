@@ -1300,3 +1300,108 @@ func TestLexerIfElse(t *testing.T) {
 
 	testTable("test simple if", `if "test" == "other" { rm -rf / } else { pwd }`, expected, t)
 }
+
+func TestLexerIfElseIf(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemIf,
+			val: "if",
+		},
+		item{
+			typ: itemString,
+			val: "test",
+		},
+		item{
+			typ: itemComparison,
+			val: "==",
+		},
+		item{
+			typ: itemString,
+			val: "other",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCommand,
+			val: "rm",
+		},
+		item{
+			typ: itemArg,
+			val: "-rf",
+		},
+		item{
+			typ: itemArg,
+			val: "/",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemElse,
+			val: "else",
+		},
+		item{
+			typ: itemIf,
+			val: "if",
+		},
+		item{
+			typ: itemString,
+			val: "test",
+		},
+		item{
+			typ: itemComparison,
+			val: "==",
+		},
+		item{
+			typ: itemVariable,
+			val: "$var",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCommand,
+			val: "pwd",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemElse,
+			val: "else",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCommand,
+			val: "exit",
+		},
+		item{
+			typ: itemArg,
+			val: "1",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test simple if", `
+        if "test" == "other" {
+                rm -rf /
+        } else if "test" == $var {
+                pwd
+        } else {
+                exit 1
+        }`, expected, t)
+}

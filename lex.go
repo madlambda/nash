@@ -612,6 +612,8 @@ func lexInsideElse(l *lexer) stateFn {
 		}
 	}
 
+	l.backup()
+
 	word := l.input[l.start:l.pos]
 
 	if word == "if" {
