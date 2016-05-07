@@ -27,8 +27,8 @@ func parserTestTable(name, content string, expected *Tree, t *testing.T) {
 	}
 
 	// Test if the reverse of tree is the content again... *hard*
-	trcontent := tr.String()
-	content = strings.Trim(content, "\n ")
+	trcontent := strings.TrimSpace(tr.String())
+	content = strings.TrimSpace(content)
 
 	if content != trcontent {
 		t.Errorf(`Failed to reverse the tree.
@@ -590,6 +590,92 @@ func TestParseIfElseIf(t *testing.T) {
 	ls
 } else {
 	exit
+}`, expected, t)
+}
+
+func TestParseFnBasic(t *testing.T) {
+	// root
+	expected := NewTree("fn")
+	ln := NewListNode()
+
+	// fn
+	fn := NewFnDeclNode(0, "build")
+	tree := NewTree("fn body")
+	lnBody := NewListNode()
+	tree.Root = lnBody
+	fn.SetTree(tree)
+
+	// root
+	ln.Push(fn)
+	expected.Root = ln
+
+	parserTestTable("fn", `fn build() {
+}`, expected, t)
+
+	// root
+	expected = NewTree("fn")
+	ln = NewListNode()
+
+	// fn
+	fn = NewFnDeclNode(0, "build")
+	tree = NewTree("fn body")
+	lnBody = NewListNode()
+	cmd := NewCommandNode(14, "ls")
+	lnBody.Push(cmd)
+	tree.Root = lnBody
+	fn.SetTree(tree)
+
+	// root
+	ln.Push(fn)
+	expected.Root = ln
+
+	parserTestTable("fn", `fn build() {
+	ls
+}`, expected, t)
+
+	// root
+	expected = NewTree("fn")
+	ln = NewListNode()
+
+	// fn
+	fn = NewFnDeclNode(0, "build")
+	fn.AddArg("image")
+	tree = NewTree("fn body")
+	lnBody = NewListNode()
+	cmd = NewCommandNode(19, "ls")
+	lnBody.Push(cmd)
+	tree.Root = lnBody
+	fn.SetTree(tree)
+
+	// root
+	ln.Push(fn)
+	expected.Root = ln
+
+	parserTestTable("fn", `fn build(image) {
+	ls
+}`, expected, t)
+
+	// root
+	expected = NewTree("fn")
+	ln = NewListNode()
+
+	// fn
+	fn = NewFnDeclNode(0, "build")
+	fn.AddArg("image")
+	fn.AddArg("debug")
+	tree = NewTree("fn body")
+	lnBody = NewListNode()
+	cmd = NewCommandNode(26, "ls")
+	lnBody.Push(cmd)
+	tree.Root = lnBody
+	fn.SetTree(tree)
+
+	// root
+	ln.Push(fn)
+	expected.Root = ln
+
+	parserTestTable("fn", `fn build(image, debug) {
+	ls
 }`, expected, t)
 }
 

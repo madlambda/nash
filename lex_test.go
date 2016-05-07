@@ -1409,7 +1409,7 @@ func TestLexerIfElseIf(t *testing.T) {
 func TestLexerFnBasic(t *testing.T) {
 	expected := []item{
 		item{
-			typ: itemFn,
+			typ: itemFnDecl,
 			val: "fn",
 		},
 		item{
@@ -1442,7 +1442,7 @@ func TestLexerFnBasic(t *testing.T) {
 	// lambda
 	expected = []item{
 		item{
-			typ: itemFn,
+			typ: itemFnDecl,
 			val: "fn",
 		},
 		item{
@@ -1475,7 +1475,7 @@ func TestLexerFnBasic(t *testing.T) {
 	// IIFE
 	expected = []item{
 		item{
-			typ: itemFn,
+			typ: itemFnDecl,
 			val: "fn",
 		},
 		item{
@@ -1515,7 +1515,7 @@ func TestLexerFnBasic(t *testing.T) {
 
 	expected = []item{
 		item{
-			typ: itemFn,
+			typ: itemFnDecl,
 			val: "fn",
 		},
 		item{
@@ -1555,7 +1555,7 @@ func TestLexerFnBasic(t *testing.T) {
 
 	expected = []item{
 		item{
-			typ: itemFn,
+			typ: itemFnDecl,
 			val: "fn",
 		},
 		item{
@@ -1603,4 +1603,105 @@ func TestLexerFnBasic(t *testing.T) {
             ls
             tar
         }`, expected, t)
+}
+
+func TestLexerFnInvocation(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemFnInv,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test fn invocation", `build()`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnInv,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemString,
+			val: "ubuntu",
+		},
+
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test fn invocation", `build("ubuntu")`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnInv,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemString,
+			val: "ubuntu",
+		},
+		item{
+			typ: itemVariable,
+			val: "$debug",
+		},
+
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test fn invocation", `build("ubuntu", $debug)`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnInv,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVariable,
+			val: "$debug",
+		},
+
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test fn invocation", `build($debug)`, expected, t)
 }

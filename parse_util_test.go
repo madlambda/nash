@@ -234,7 +234,7 @@ func compareRforkNode(expected, value *RforkNode) (bool, error) {
 	return compare(expectedTree, valueTree)
 }
 
-func compareIfNode(expected, value *IfNode) (bool, error) {
+func compareDefault(expected, value Node) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -245,6 +245,48 @@ func compareIfNode(expected, value *IfNode) (bool, error) {
 
 	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
 		return ok, fmt.Errorf(" CompareIfNode (%v, %v) -> %s", expected, value, err.Error())
+	}
+
+	return true, nil
+}
+
+func compareFnDeclNode(expected, value *FnDeclNode) (bool, error) {
+	if ok, err := compareDefault(expected, value); !ok {
+		return ok, err
+	}
+
+	ename := expected.Name()
+	vname := value.Name()
+
+	if ename != vname {
+		return false, fmt.Errorf(" CompareFnDeclNode (%v, %v) -> '%s' != '%s'. name differs.",
+			expected, value, ename, vname)
+	}
+
+	eargs := expected.Args()
+	vargs := value.Args()
+
+	if len(eargs) != len(vargs) {
+		return false, fmt.Errorf(" CompareFnDeclNode (%v, %v) -> '%d' != '%d'. Length differs.",
+			expected, value, ename, vname)
+	}
+
+	for i := 0; i < len(eargs); i++ {
+		earg := eargs[i]
+		varg := vargs[i]
+
+		if earg != varg {
+			return false, fmt.Errorf(" CompareFnDeclNode (%v, %v) -> '%s' != '%s'. arg differs.",
+				expected, value, earg, varg)
+		}
+	}
+
+	return compare(expected.Tree(), value.Tree())
+}
+
+func compareIfNode(expected, value *IfNode) (bool, error) {
+	if ok, err := compareDefault(expected, value); !ok {
+		return ok, err
 	}
 
 	elvalue := expected.Lvalue()
@@ -351,6 +393,10 @@ func compareNodes(expected Node, value Node) (bool, error) {
 		ec := expected.(*IfNode)
 		vc := value.(*IfNode)
 		valid, err = compareIfNode(ec, vc)
+	case *FnDeclNode:
+		ec := expected.(*FnDeclNode)
+		vc := value.(*FnDeclNode)
+		valid, err = compareFnDeclNode(ec, vc)
 	default:
 		return false, fmt.Errorf("Type %v not comparable yet", v)
 	}

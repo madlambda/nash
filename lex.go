@@ -27,6 +27,8 @@ type (
 		pos   int       // current position in the input
 		width int       // width of last rune read
 		items chan item // channel of scanned items
+
+		lastNode itemType
 	}
 )
 
@@ -71,7 +73,8 @@ const (
 	itemRforkFlags
 	itemCd
 
-	itemFn
+	itemFnDecl // fn <name>(<arg>) { <block> }
+	itemFnInv  // <identifier>(<args>)
 )
 
 const (
@@ -278,8 +281,8 @@ func lexIdentifier(l *lexer) stateFn {
 		l.emit(itemIf)
 		return lexInsideIf
 	case "fn":
-		l.emit(itemFn)
-		return lexInsideFn
+		l.emit(itemFnDecl)
+		return lexInsideFnDecl
 	case "else":
 		l.emit(itemElse)
 		return lexInsideElse
@@ -300,6 +303,15 @@ func lexIdentifier(l *lexer) stateFn {
 
 		l.backup()
 		return lexStart
+	}
+
+	r := l.peek()
+
+	if r == '(' {
+		l.emit(itemFnInv)
+		l.next()
+		l.emit(itemLeftParen)
+		return lexInsideFnInv
 	}
 
 	l.emit(itemCommand)
@@ -607,7 +619,7 @@ func lexInsideIf(l *lexer) stateFn {
 	return lexStart
 }
 
-func lexInsideFn(l *lexer) stateFn {
+func lexInsideFnDecl(l *lexer) stateFn {
 	var (
 		r       rune
 		argName string
@@ -708,7 +720,7 @@ func lexInsideFnInv(l *lexer) stateFn {
 
 	if r == '"' {
 		l.next()
-		l.backup()
+		l.ignore()
 		lexQuote(l, nil)
 
 		return lexMoreFnArgs

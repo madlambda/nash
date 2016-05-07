@@ -14,10 +14,12 @@ type (
 	// Env is the environment map of lists
 	Env map[string][]string
 	Var Env
+	Fns map[string]*Shell
 
 	// Shell is the core data structure.
 	Shell struct {
 		debug     bool
+		lambdas   uint
 		log       LogFn
 		nashdPath string
 		dotDir    string
@@ -26,9 +28,13 @@ type (
 		stdout io.Writer
 		stderr io.Writer
 
+		argNames  []string
 		env       Env
 		vars      Var
+		fns       Fns
 		multiline bool
+
+		root *Tree
 	}
 )
 
@@ -46,6 +52,8 @@ func NewShell(debug bool) *Shell {
 		stdin:     os.Stdin,
 		env:       NewEnv(),
 		vars:      make(Var),
+		fns:       make(Fns),
+		argNames:  make([]string, 0, 16),
 	}
 }
 
@@ -121,6 +129,22 @@ func (sh *Shell) SetStderr(err io.Writer) {
 	sh.stderr = err
 }
 
+func (sh *Shell) AddArgName(name string) {
+	sh.argNames = append(sh.argNames, name)
+}
+
+func (sh *Shell) SetTree(t *Tree) {
+	sh.root = t
+}
+
+func (sh *Shell) Execute() error {
+	if sh.root != nil {
+		return sh.ExecuteTree(sh.root)
+	}
+
+	return nil
+}
+
 // ExecuteString executes the commands specified by string content
 func (sh *Shell) ExecuteString(path, content string) error {
 	parser := NewParser(path, content)
@@ -135,7 +159,7 @@ func (sh *Shell) ExecuteString(path, content string) error {
 }
 
 // Execute the nash file at given path
-func (sh *Shell) Execute(path string) error {
+func (sh *Shell) ExecuteFile(path string) error {
 	content, err := ioutil.ReadFile(path)
 
 	if err != nil {
@@ -181,6 +205,10 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 			err = sh.executeCd(node.(*CdNode))
 		case NodeIf:
 			err = sh.executeIf(node.(*IfNode))
+		case NodeFnDecl:
+			err = sh.executeFnDecl(node.(*FnDeclNode))
+		case NodeFnInv:
+			err = sh.executeFnInv(node.(*FnInvNode))
 		default:
 			// should never get here
 			return fmt.Errorf("invalid node: %v.", node.Type())
@@ -195,7 +223,7 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 }
 
 func (sh *Shell) executeImport(node *ImportNode) error {
-	return sh.Execute(node.path.val)
+	return sh.ExecuteFile(node.path.val)
 }
 
 func (sh *Shell) executeShowEnv(node *ShowEnvNode) error {
@@ -430,6 +458,66 @@ func (sh *Shell) executeIfNotEqual(n *IfNode) error {
 	} else if n.ElseTree() != nil {
 		return sh.ExecuteTree(n.ElseTree())
 	}
+
+	return nil
+}
+
+func (sh *Shell) executeFnInv(n *FnInvNode) error {
+	if fn, ok := sh.fns[n.name]; ok {
+		if len(fn.argNames) != len(n.args) {
+			return newError("Wrong number of arguments for function %s. Expected %d but found %d",
+				n.name, len(fn.argNames), len(n.args))
+		}
+
+		for i := 0; i < len(n.args); i++ {
+			arg := n.args[i]
+			argName := fn.argNames[i]
+
+			if len(arg) > 0 && arg[0] == '$' {
+				elemstr, err := sh.evalVariable(arg)
+
+				if err != nil {
+					return err
+				}
+
+				fn.vars[argName] = elemstr
+			} else {
+				fn.vars[argName] = append(make([]string, 0, 1), arg)
+			}
+		}
+
+		return fn.Execute()
+	}
+
+	return newError("no such function '%s'", n.name)
+}
+
+func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
+	fn := NewShell(sh.debug)
+	fn.SetStdout(sh.stdout)
+	fn.SetStderr(sh.stderr)
+	fn.SetStdin(sh.stdin)
+
+	args := n.Args()
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+
+		fn.AddArgName(arg)
+	}
+
+	fn.SetTree(n.Tree())
+
+	fnName := n.Name()
+
+	if fnName == "" {
+		fnName = fmt.Sprintf("lambda %d", strconv.Itoa(int(sh.lambdas)))
+		sh.lambdas++
+	}
+
+	sh.fns[fnName] = fn
+
+	sh.log("Function %s declared", fnName)
 
 	return nil
 }

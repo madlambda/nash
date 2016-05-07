@@ -65,7 +65,7 @@ func TestExecuteFile(t *testing.T) {
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err := sh.Execute(testfile)
+	err := sh.ExecuteFile(testfile)
 
 	if err != nil {
 		t.Error(err)
@@ -549,6 +549,21 @@ func TestExecuteIfElseIf(t *testing.T) {
 
 	if strings.TrimSpace(string(out.Bytes())) != "print this" {
 		t.Errorf("Error: '%s' != 'print this'", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+}
+
+func TestExecuteFnDecl(t *testing.T) {
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+
+	err := sh.ExecuteString("test fnDecl", `
+        fn build(image, debug) {
+                ls
+        }`)
+
+	if err != nil {
+		t.Error(err)
 		return
 	}
 }
