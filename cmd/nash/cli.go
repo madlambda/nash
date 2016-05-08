@@ -32,7 +32,7 @@ func cli(sh *nash.Shell) error {
 
 	historyFile := sh.DotDir() + "/history"
 
-	for envName, _ := range sh.Env() {
+	for envName, _ := range sh.Environ() {
 		completers = append(completers, readline.PcItem(envName))
 	}
 

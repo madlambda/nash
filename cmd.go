@@ -68,10 +68,12 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 
 	sh.log("Executing: %s\n", cmdPath)
 
-	envVars := buildenv(sh.env)
+	envVars := buildenv(sh.Environ())
 
-	for _, ev := range envVars {
-		sh.log("ENV %s", ev)
+	if sh.debug {
+		for _, ev := range envVars {
+			sh.log("ENV %s", ev)
+		}
 	}
 
 	cmd := &Command{
@@ -110,10 +112,10 @@ func (cmd *Command) SetArgs(cargs []Arg) error {
 		if len(argval) > 0 && argval[0] == '$' {
 			var arglist []string
 
-			if sh.vars[argval[1:]] != nil {
-				arglist = sh.vars[argval[1:]]
-			} else if sh.env[argval[1:]] != nil {
-				arglist = sh.env[argval[1:]]
+			if varVal, ok := sh.GetVar(argval[1:]); ok {
+				arglist = varVal
+			} else if envVal, ok := sh.GetEnv(argval[1:]); ok {
+				arglist = envVal
 			} else {
 				return newError("Variable '%s' not set", argval)
 			}

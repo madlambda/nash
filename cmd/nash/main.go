@@ -66,7 +66,7 @@ func main() {
 
 	if d, err := os.Stat(initFile); err == nil {
 		if m := d.Mode(); !m.IsDir() {
-			err = shell.Execute(initFile)
+			err = shell.ExecuteFile(initFile)
 
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to evaluate '%s': %s\n", initFile, err.Error())
@@ -82,7 +82,7 @@ func main() {
 	} else if file == "" {
 		err = cli(shell)
 	} else {
-		err = shell.Execute(file)
+		err = shell.ExecuteFile(file)
 	}
 
 	if err != nil {

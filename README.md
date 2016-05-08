@@ -40,14 +40,14 @@ sysadmin had to fight the global view of the operating
 system. There was only one root mount table, only one view of devices
 and processes, and so on. It was a mess. This approach then proved to
 be much harder to scale because of the services conflicts (port numbers,
-files on disk, resource exhaustion, etc) in the global interface.
+files on disk, resource exhaustion, etc) in the global OS interface.
 The container/namespace idea creates an abstraction to the process in
 a way that it thinks it's the only process running (not counting init),
-it is the root and then, the filesystem of the container only has the files
-required for it (nothing more).
+it is the root (or no) and then, the filesystem of the container only
+has the files required for it (nothing more).
 
-What's missing is a safe and robust shell for natural usage of namespace/container ideas
-for everyone (programmers, sysadmins, etc).
+What's missing is a safe and robust shell for natural usage of
+namespace/container ideas for everyone (programmers, sysadmins, etc).
 
 Nasn is a way for you, that understand the game rules, to make
 reliable deploy scripts using the good parts of the container

@@ -27,6 +27,8 @@ type (
 		pos   int       // current position in the input
 		width int       // width of last rune read
 		items chan item // channel of scanned items
+
+		lastNode itemType
 	}
 )
 
@@ -51,6 +53,8 @@ const (
 	itemArg
 	itemLeftBlock     // {
 	itemRightBlock    // }
+	itemLeftParen     // (
+	itemRightParen    // )
 	itemString        // "<string>"
 	itemRedirRight    // >
 	itemRedirRBracket // [ eg.: cmd >[1] file.out
@@ -68,6 +72,9 @@ const (
 	itemRfork
 	itemRforkFlags
 	itemCd
+
+	itemFnDecl // fn <name>(<arg>) { <block> }
+	itemFnInv  // <identifier>(<args>)
 )
 
 const (
@@ -219,6 +226,12 @@ func lexStart(l *lexer) stateFn {
 	case r == '}':
 		l.emit(itemRightBlock)
 		return lexStart
+	case r == '(':
+		l.emit(itemLeftParen)
+		return lexInsideFnInv
+	case r == ')':
+		l.emit(itemRightParen)
+		return lexStart
 	}
 
 	return l.errorf("Unrecognized character in action: %#U", r)
@@ -251,6 +264,13 @@ func lexIdentifier(l *lexer) stateFn {
 		return lexInsideAssignment
 	}
 
+	if l.peek() == '(' {
+		l.emit(itemFnInv)
+		l.next()
+		l.emit(itemLeftParen)
+		return lexInsideFnInv
+	}
+
 	switch word {
 	case "import":
 		l.emit(itemImport)
@@ -267,6 +287,9 @@ func lexIdentifier(l *lexer) stateFn {
 	case "if":
 		l.emit(itemIf)
 		return lexInsideIf
+	case "fn":
+		l.emit(itemFnDecl)
+		return lexInsideFnDecl
 	case "else":
 		l.emit(itemElse)
 		return lexInsideElse
@@ -594,6 +617,140 @@ func lexInsideIf(l *lexer) stateFn {
 	return lexStart
 }
 
+func lexInsideFnDecl(l *lexer) stateFn {
+	var (
+		r       rune
+		argName string
+	)
+
+	ignoreSpaces(l)
+
+	for {
+		r = l.next()
+
+		if isIdentifier(r) {
+			continue
+		}
+
+		break
+	}
+
+	l.backup()
+
+	l.emit(itemVarName)
+
+	r = l.next()
+
+	if r != '(' {
+		return l.errorf("Unexpected symbol %q. Expected '('", r)
+	}
+
+	l.emit(itemLeftParen)
+
+getnextarg:
+	ignoreSpaces(l)
+
+	for {
+		r = l.next()
+
+		if isIdentifier(r) {
+			continue
+		}
+
+		break
+	}
+
+	l.backup()
+
+	argName = l.input[l.start:l.pos]
+
+	if len(argName) > 0 {
+		l.emit(itemVarName)
+
+		r = l.peek()
+
+		if r == ',' {
+			l.next()
+			goto getnextarg
+		} else if r != ')' {
+			return l.errorf("Unexpected symbol %q. Expected ',' or ')'", r)
+		}
+	}
+
+	l.next()
+	l.emit(itemRightParen)
+
+	ignoreSpaces(l)
+
+	r = l.next()
+
+	if r != '{' {
+		return l.errorf("Unexpected symbol %q. Expected '{'", r)
+	}
+
+	l.emit(itemLeftBlock)
+
+	return lexStart
+}
+
+func lexMoreFnArgs(l *lexer) stateFn {
+	r := l.peek()
+
+	if r == ',' {
+		l.next()
+		l.ignore()
+		return lexInsideFnInv
+	}
+
+	if r == ')' {
+		return lexStart
+	}
+
+	return l.errorf("Unexpected symbol %q. Expecting ',' or ')'", r)
+}
+
+func lexInsideFnInv(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	var r rune
+
+	r = l.peek()
+
+	if r == '"' {
+		l.next()
+		l.ignore()
+		lexQuote(l, nil)
+
+		return lexMoreFnArgs
+	} else if r == '$' {
+		for {
+			r = l.next()
+
+			if isIdentifier(r) || r == '$' {
+				continue
+			}
+
+			break
+		}
+
+		l.backup()
+
+		word := l.input[l.start:l.pos]
+
+		if len(word) > 0 {
+			l.emit(itemVariable)
+
+			return lexMoreFnArgs
+		}
+	} else if r == ')' {
+		l.next()
+		l.emit(itemRightParen)
+		return lexStart
+	}
+
+	return l.errorf("Unexpected symbol %q. Expected quoted string or variable", r)
+}
+
 func lexInsideElse(l *lexer) stateFn {
 	ignoreSpaces(l)
 
@@ -687,19 +844,21 @@ func lexInsideCommand(l *lexer) stateFn {
 	r := l.next()
 
 	switch {
+	case r == eof:
+		return nil
 	case isSpace(r):
 		l.ignore()
 		return lexSpaceArg
 	case isEndOfLine(r):
 		l.ignore()
 		return lexStart
+	case r == '#':
+		return lexComment
 	case r == '"':
 		l.ignore()
 		return func(l *lexer) stateFn {
 			return lexQuote(l, lexInsideCommand)
 		}
-	case r == '{':
-		return l.errorf("Invalid left open brace inside command")
 	case r == '}':
 		l.emit(itemRightBlock)
 		return lexStart
@@ -707,6 +866,12 @@ func lexInsideCommand(l *lexer) stateFn {
 	case r == '>':
 		l.emit(itemRedirRight)
 		return lexInsideRedirect
+	case r == '$':
+		break
+	case isSafeArg(r):
+		break
+	default:
+		return l.errorf("Invalid char %q at pos %d", r, l.pos)
 	}
 
 	return func(l *lexer) stateFn {
@@ -748,7 +913,7 @@ func lexArg(l *lexer, nextFn stateFn) stateFn {
 			return nil
 		}
 
-		if isIdentifier(r) || isSafePath(r) {
+		if isIdentifier(r) || isSafeArg(r) {
 			continue
 		}
 
@@ -971,7 +1136,9 @@ func lexComment(l *lexer) stateFn {
 		}
 
 		if r == eof {
-			return nil
+			l.backup()
+			l.emit(itemComment)
+			break
 		}
 	}
 
@@ -995,7 +1162,13 @@ func isSpace(r rune) bool {
 
 func isSafePath(r rune) bool {
 	isId := isIdentifier(r)
-	return isId || r == '_' || r == '-' || r == '/' || r == '.' || r == ':' || r == '='
+	return isId || r == '_' || r == '-' || r == '/' || r == '.'
+}
+
+func isSafeArg(r rune) bool {
+	isPath := isSafePath(r)
+
+	return isPath || r == '=' || r == ':'
 }
 
 // isIdentifier reports whether r is a valid identifier

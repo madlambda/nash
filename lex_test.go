@@ -251,6 +251,46 @@ func TestLexerSimpleAssignment(t *testing.T) {
 
 	testTable("test underscore", `STALI_SRC=$PWD + "/src"`, expected, t)
 
+	expected = []item{
+		item{
+			typ: itemVarName,
+			val: "PROMPT",
+		},
+		item{
+			typ: itemString,
+			val: "(",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemVariable,
+			val: "$path",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemString,
+			val: ")",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemVariable,
+			val: "$PROMPT",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test concat with parenthesis", `PROMPT="("+$path+")"+$PROMPT`, expected, t)
+
 }
 
 func TestLexerListAssignment(t *testing.T) {
@@ -370,6 +410,56 @@ func TestLexerSimpleCommand(t *testing.T) {
 	}
 
 	testTable("testSimpleCommand", `git clone --depth=1 http://git.sta.li/toolchain`, expected, t)
+}
+
+func TestLexerUnquoteArg(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemArg,
+			val: "hello",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSimpleCommand", `echo hello`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemArg,
+			val: "hello-world",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSimpleCommand", `echo hello-world`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemComment,
+			val: "#hello-world",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSimpleCommand", `echo #hello-world`, expected, t)
 }
 
 func TestLexerPathCommand(t *testing.T) {
@@ -1404,4 +1494,392 @@ func TestLexerIfElseIf(t *testing.T) {
         } else {
                 exit 1
         }`, expected, t)
+}
+
+func TestLexerFnBasic(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test empty fn", `fn build() {}`, expected, t)
+
+	// lambda
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test empty fn", `fn () {}`, expected, t)
+
+	// IIFE
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test empty fn", `fn () {}()`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVarName,
+			val: "image",
+		},
+		item{
+			typ: itemVarName,
+			val: "debug",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test empty fn with args", `fn build(image, debug) {}`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVarName,
+			val: "image",
+		},
+		item{
+			typ: itemVarName,
+			val: "debug",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCommand,
+			val: "ls",
+		},
+		item{
+			typ: itemCommand,
+			val: "tar",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test empty fn with args and body", `fn build(image, debug) {
+            ls
+            tar
+        }`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "cd",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVarName,
+			val: "path",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCd,
+			val: "cd",
+		},
+		item{
+			typ: itemVariable,
+			val: "$path",
+		},
+		item{
+			typ: itemVarName,
+			val: "PROMPT",
+		},
+		item{
+			typ: itemString,
+			val: "(",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemVariable,
+			val: "$path",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemString,
+			val: ")",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemVariable,
+			val: "$PROMPT",
+		},
+		item{
+			typ: itemSetEnv,
+			val: "setenv",
+		},
+		item{
+			typ: itemVarName,
+			val: "PROMPT",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test cd fn with PROMPT update", `fn cd(path) {
+    cd $path
+    PROMPT="(" + $path + ")"+$PROMPT
+    setenv PROMPT
+}`, expected, t)
+}
+
+func TestLexerFnInvocation(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemFnInv,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test fn invocation", `build()`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnInv,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemString,
+			val: "ubuntu",
+		},
+
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test fn invocation", `build("ubuntu")`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnInv,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemString,
+			val: "ubuntu",
+		},
+		item{
+			typ: itemVariable,
+			val: "$debug",
+		},
+
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test fn invocation", `build("ubuntu", $debug)`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnInv,
+			val: "build",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVariable,
+			val: "$debug",
+		},
+
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test fn invocation", `build($debug)`, expected, t)
 }

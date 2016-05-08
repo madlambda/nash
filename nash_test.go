@@ -65,7 +65,7 @@ func TestExecuteFile(t *testing.T) {
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err := sh.Execute(testfile)
+	err := sh.ExecuteFile(testfile)
 
 	if err != nil {
 		t.Error(err)
@@ -81,6 +81,7 @@ func TestExecuteFile(t *testing.T) {
 func TestExecuteCommand(t *testing.T) {
 	sh := NewShell(false)
 	sh.SetNashdPath(nashdPath)
+	sh.SetStderr(ioutil.Discard)
 
 	err := sh.ExecuteString("command failed", `
         non-existent-program
@@ -102,6 +103,7 @@ func TestExecuteCommand(t *testing.T) {
 	}
 
 	var out bytes.Buffer
+	sh.SetStderr(os.Stderr)
 	sh.SetStdout(&out)
 
 	err = sh.ExecuteString("command failed", `
@@ -391,7 +393,7 @@ func TestExecuteShowEnv(t *testing.T) {
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	sh.SetEnv(make(Env)) // zero'ing the env
+	sh.SetEnviron(make(Env)) // zero'ing the env
 
 	err := sh.ExecuteString("test showenv", "showenv")
 
@@ -547,6 +549,21 @@ func TestExecuteIfElseIf(t *testing.T) {
 
 	if strings.TrimSpace(string(out.Bytes())) != "print this" {
 		t.Errorf("Error: '%s' != 'print this'", strings.TrimSpace(string(out.Bytes())))
+		return
+	}
+}
+
+func TestExecuteFnDecl(t *testing.T) {
+	sh := NewShell(false)
+	sh.SetNashdPath(nashdPath)
+
+	err := sh.ExecuteString("test fnDecl", `
+        fn build(image, debug) {
+                ls
+        }`)
+
+	if err != nil {
+		t.Error(err)
 		return
 	}
 }

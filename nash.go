@@ -14,10 +14,13 @@ type (
 	// Env is the environment map of lists
 	Env map[string][]string
 	Var Env
+	Fns map[string]*Shell
 
 	// Shell is the core data structure.
 	Shell struct {
+		name      string
 		debug     bool
+		lambdas   uint
 		log       LogFn
 		nashdPath string
 		dotDir    string
@@ -26,66 +29,145 @@ type (
 		stdout io.Writer
 		stderr io.Writer
 
+		argNames  []string
 		env       Env
 		vars      Var
+		fns       Fns
 		multiline bool
+
+		root   *Tree
+		parent *Shell
 	}
 )
 
 const (
-	logNS = "nash.Shell"
+	logNS     = "nash.Shell"
+	defPrompt = "\033[31mλ>\033[0m "
 )
 
 // NewShell creates a new shell object
 func NewShell(debug bool) *Shell {
+	env, vars := NewEnv()
+
+	if env["PROMPT"] == nil {
+		env["PROMPT"] = append(make([]string, 0, 1), defPrompt)
+		vars["PROMPT"] = append(make([]string, 0, 1), defPrompt)
+	}
+
 	return &Shell{
+		name:      "parent scope",
+		debug:     debug,
 		log:       NewLog(logNS, debug),
 		nashdPath: nashdAutoDiscover(),
 		stdout:    os.Stdout,
 		stderr:    os.Stderr,
 		stdin:     os.Stdin,
-		env:       NewEnv(),
-		vars:      make(Var),
+		env:       env,
+		vars:      vars,
+		fns:       make(Fns),
+		argNames:  make([]string, 0, 16),
 	}
 }
 
 // NewEnv creates a new environment from old one
-func NewEnv() Env {
+func NewEnv() (Env, Var) {
 	env := make(Env)
+	vars := make(Var)
 	processEnv := os.Environ()
 
 	env["*"] = os.Args
+	vars["*"] = os.Args
 
 	for _, penv := range processEnv {
+		var value []string
 		p := strings.Split(penv, "=")
 
 		if len(p) == 1 {
-			env[p[0]] = make([]string, 0, 1)
+			value = make([]string, 0, 1)
 		} else if len(p) > 1 {
-			env[p[0]] = append(make([]string, 0, 256), p[1:]...)
+			value = append(make([]string, 0, 256), p[1:]...)
 		}
+
+		env[p[0]] = value
+		vars[p[0]] = value
 	}
 
-	env["PID"] = append(make([]string, 0, 1), strconv.Itoa(os.Getpid()))
+	pidVal := append(make([]string, 0, 1), strconv.Itoa(os.Getpid()))
 
-	return env
+	env["PID"] = pidVal
+	vars["PID"] = pidVal
+
+	shellVal := append(make([]string, 0, 1), os.Args[0])
+	env["SHELL"] = shellVal
+	vars["SHELL"] = shellVal
+
+	return env, vars
 }
 
-func (sh *Shell) Env() Env {
+func (sh *Shell) SetName(a string) {
+	sh.name = a
+}
+
+func (sh *Shell) SetParent(a *Shell) {
+	sh.parent = a
+}
+
+func (sh *Shell) Environ() Env {
+	if sh.parent != nil {
+		// Note(i4k): stack overflow, refactor this!
+		return sh.parent.Environ()
+	}
+
 	return sh.env
 }
 
-func (sh *Shell) SetEnv(env Env) {
+func (sh *Shell) GetEnv(name string) ([]string, bool) {
+	if sh.parent != nil {
+		return sh.parent.GetEnv(name)
+	}
+
+	value, ok := sh.env[name]
+	return value, ok
+}
+
+func (sh *Shell) SetEnv(name string, value []string) {
+	if sh.parent != nil {
+		sh.parent.SetEnv(name, value)
+		return
+	}
+
+	sh.env[name] = value
+}
+
+func (sh *Shell) SetEnviron(env Env) {
 	sh.env = env
+}
+
+func (sh *Shell) GetVar(name string) ([]string, bool) {
+	if value, ok := sh.vars[name]; ok {
+		return value, ok
+	}
+
+	if sh.parent != nil {
+		return sh.parent.GetVar(name)
+	}
+
+	return nil, false
+}
+
+func (sh *Shell) SetVar(name string, value []string) {
+	sh.vars[name] = value
 }
 
 // Prompt returns the environment prompt or the default one
 func (sh *Shell) Prompt() string {
-	if sh.env["PROMPT"] != nil && len(sh.env["PROMPT"]) > 0 {
-		return sh.env["PROMPT"][0]
+	value, ok := sh.GetEnv("PROMPT")
+
+	if ok {
+		return value[0]
 	}
 
-	return "\033[31mλ>\033[0m "
+	return "<no prompt> "
 }
 
 // SetDebug enable/disable debug in the shell
@@ -121,6 +203,22 @@ func (sh *Shell) SetStderr(err io.Writer) {
 	sh.stderr = err
 }
 
+func (sh *Shell) AddArgName(name string) {
+	sh.argNames = append(sh.argNames, name)
+}
+
+func (sh *Shell) SetTree(t *Tree) {
+	sh.root = t
+}
+
+func (sh *Shell) Execute() error {
+	if sh.root != nil {
+		return sh.ExecuteTree(sh.root)
+	}
+
+	return nil
+}
+
 // ExecuteString executes the commands specified by string content
 func (sh *Shell) ExecuteString(path, content string) error {
 	parser := NewParser(path, content)
@@ -135,7 +233,7 @@ func (sh *Shell) ExecuteString(path, content string) error {
 }
 
 // Execute the nash file at given path
-func (sh *Shell) Execute(path string) error {
+func (sh *Shell) ExecuteFile(path string) error {
 	content, err := ioutil.ReadFile(path)
 
 	if err != nil {
@@ -181,6 +279,10 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 			err = sh.executeCd(node.(*CdNode))
 		case NodeIf:
 			err = sh.executeIf(node.(*IfNode))
+		case NodeFnDecl:
+			err = sh.executeFnDecl(node.(*FnDeclNode))
+		case NodeFnInv:
+			err = sh.executeFnInv(node.(*FnInvNode))
 		default:
 			// should never get here
 			return fmt.Errorf("invalid node: %v.", node.Type())
@@ -195,11 +297,11 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 }
 
 func (sh *Shell) executeImport(node *ImportNode) error {
-	return sh.Execute(node.path.val)
+	return sh.ExecuteFile(node.path.val)
 }
 
 func (sh *Shell) executeShowEnv(node *ShowEnvNode) error {
-	envVars := buildenv(sh.env)
+	envVars := buildenv(sh.Environ())
 	for _, e := range envVars {
 		fmt.Fprintf(sh.stdout, "%s\n", e)
 	}
@@ -240,7 +342,7 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 }
 
 func (sh *Shell) evalVariable(a string) ([]string, error) {
-	if v, ok := sh.vars[a[1:]]; ok {
+	if v, ok := sh.GetVar(a[1:]); ok {
 		return v, nil
 	}
 
@@ -255,16 +357,46 @@ func (sh *Shell) executeSetAssignment(v *SetAssignmentNode) error {
 
 	varName := v.varName
 
-	if varValue, ok = sh.vars[varName]; !ok {
+	if varValue, ok = sh.GetVar(varName); !ok {
 		return fmt.Errorf("Variable '%s' not set", varName)
 	}
 
-	sh.env[varName] = varValue
+	sh.SetEnv(varName, varValue)
 
 	return nil
 }
 
+func (sh *Shell) concatElements(elem ElemNode) (string, error) {
+	value := ""
+
+	for j := 0; j < len(elem.concats); j++ {
+		ec := elem.concats[j]
+
+		if len(ec) > 0 && ec[0] == '$' {
+			elemstr, err := sh.evalVariable(elem.concats[j])
+			if err != nil {
+				return "", err
+			}
+
+			if len(elemstr) > 1 {
+				return "", errors.New("Impossible to concat list variable and string")
+			}
+
+			if len(elemstr) == 1 {
+				value = value + elemstr[0]
+			}
+		} else {
+			value = value + ec
+		}
+	}
+
+	return value, nil
+}
+
+// Note(i4k): shit code
 func (sh *Shell) executeAssignment(v *AssignmentNode) error {
+	var err error
+
 	elems := v.list
 	strelems := make([]string, 0, len(elems))
 
@@ -272,36 +404,26 @@ func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 		elem := elems[i]
 
 		if len(elem.concats) > 0 {
-			value := ""
+			value, err := sh.concatElements(elem)
 
-			for j := 0; j < len(elem.concats); j++ {
-				ec := elem.concats[j]
-
-				if len(ec) > 0 && ec[0] == '$' {
-					elemstr, err := sh.evalVariable(elem.concats[j])
-					if err != nil {
-						return err
-					}
-
-					if len(elemstr) > 1 {
-						return errors.New("Impossible to concat list variable and string")
-					}
-
-					if len(elemstr) == 1 {
-						value = value + elemstr[0]
-					}
-				} else {
-					value = value + ec
-				}
+			if err != nil {
+				return err
 			}
 
 			strelems = append(strelems, value)
 		} else {
-			strelems = append(strelems, elem.elem)
+			if len(elem.elem) > 0 && elem.elem[0] == '$' {
+				strelems, err = sh.evalVariable(elem.elem)
+				if err != nil {
+					return err
+				}
+			} else {
+				strelems = append(strelems, elem.elem)
+			}
 		}
 	}
 
-	sh.vars[v.name] = strelems
+	sh.SetVar(v.name, strelems)
 	return nil
 }
 
@@ -314,7 +436,7 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 	path := cd.Dir()
 
 	if path == "" {
-		if pathlist, ok = sh.env["HOME"]; !ok {
+		if pathlist, ok = sh.GetEnv("HOME"); !ok {
 			return errors.New("Nash don't know where to cd. No variable $HOME or $home set")
 		}
 
@@ -419,6 +541,68 @@ func (sh *Shell) executeIfNotEqual(n *IfNode) error {
 	} else if n.ElseTree() != nil {
 		return sh.ExecuteTree(n.ElseTree())
 	}
+
+	return nil
+}
+
+func (sh *Shell) executeFnInv(n *FnInvNode) error {
+	if fn, ok := sh.fns[n.name]; ok {
+		if len(fn.argNames) != len(n.args) {
+			return newError("Wrong number of arguments for function %s. Expected %d but found %d",
+				n.name, len(fn.argNames), len(n.args))
+		}
+
+		for i := 0; i < len(n.args); i++ {
+			arg := n.args[i]
+			argName := fn.argNames[i]
+
+			if len(arg) > 0 && arg[0] == '$' {
+				elemstr, err := sh.evalVariable(arg)
+
+				if err != nil {
+					return err
+				}
+
+				fn.vars[argName] = elemstr
+			} else {
+				fn.vars[argName] = append(make([]string, 0, 1), arg)
+			}
+		}
+
+		return fn.Execute()
+	}
+
+	return newError("no such function '%s'", n.name)
+}
+
+func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
+	fn := NewShell(sh.debug)
+	fn.SetName(n.Name())
+	fn.SetParent(sh)
+	fn.SetStdout(sh.stdout)
+	fn.SetStderr(sh.stderr)
+	fn.SetStdin(sh.stdin)
+
+	args := n.Args()
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+
+		fn.AddArgName(arg)
+	}
+
+	fn.SetTree(n.Tree())
+
+	fnName := n.Name()
+
+	if fnName == "" {
+		fnName = fmt.Sprintf("lambda %d", strconv.Itoa(int(sh.lambdas)))
+		sh.lambdas++
+	}
+
+	sh.fns[fnName] = fn
+
+	sh.log("Function %s declared", fnName)
 
 	return nil
 }

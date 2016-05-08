@@ -473,6 +473,102 @@ func (p *Parser) parseIf() (Node, error) {
 	return n, nil
 }
 
+func (p *Parser) parseFnArgs() ([]string, error) {
+	args := make([]string, 0, 16)
+
+	for {
+		it := p.next()
+
+		if it.typ == itemRightParen {
+			break
+		} else if it.typ == itemVarName {
+			args = append(args, it.val)
+		} else {
+			return nil, fmt.Errorf("Unexpected token %v. Expected identifier or ')'", it)
+		}
+
+	}
+
+	return args, nil
+}
+
+func (p *Parser) parseFnDecl() (Node, error) {
+	it := p.next()
+
+	n := NewFnDeclNode(it.pos, "")
+
+	it = p.next()
+
+	if it.typ == itemVarName {
+		n.SetName(it.val)
+
+		it = p.next()
+	}
+
+	if it.typ != itemLeftParen {
+		return nil, newError("Unexpected token %v. Expected '('", it)
+	}
+
+	args, err := p.parseFnArgs()
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, arg := range args {
+		n.AddArg(arg)
+	}
+
+	it = p.next()
+
+	if it.typ != itemLeftBlock {
+		return nil, newError("Unexpected token %v. Expected '{'", it)
+	}
+
+	p.openblocks++
+
+	tree := NewTree(fmt.Sprintf("fn %s body", n.Name()))
+
+	r, err := p.parseBlock()
+
+	if err != nil {
+		return nil, err
+	}
+
+	tree.Root = r
+
+	n.SetTree(tree)
+
+	return n, nil
+
+}
+
+func (p *Parser) parseFnInv() (Node, error) {
+	it := p.next()
+
+	n := NewFnInvNode(it.pos, it.val)
+
+	it = p.next()
+
+	if it.typ != itemLeftParen {
+		return nil, newError("Invalid token %v. Expected '('", it)
+	}
+
+	for {
+		it = p.next()
+
+		if it.typ == itemString || it.typ == itemVariable {
+			n.AddArg(it.val)
+		} else if it.typ == itemRightParen {
+			break
+		} else {
+			return nil, newError("Unexpected token %v", it)
+		}
+	}
+
+	return n, nil
+}
+
 func (p *Parser) parseElse() (*ListNode, bool, error) {
 	it := p.next()
 
@@ -540,6 +636,10 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseComment()
 	case itemIf:
 		return p.parseIf()
+	case itemFnDecl:
+		return p.parseFnDecl()
+	case itemFnInv:
+		return p.parseFnInv()
 	}
 
 	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)
@@ -559,7 +659,7 @@ func (p *Parser) parseBlock() (*ListNode, error) {
 		case itemLeftBlock:
 			p.ignore()
 
-			return nil, errors.New("Parser error: Blocks are only allowed inside rfork")
+			return nil, errors.New("Parser error: Unexpected '{'")
 		case itemRightBlock:
 			p.ignore()
 

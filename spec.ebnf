@@ -3,7 +3,7 @@ unicode_char   = /* an arbitrary Unicode code point except newline */ .
 unicode_letter = /* a Unicode code point classified as "Letter" */ .
 unicode_digit  = /* a Unicode code point classified as "Number, decimal digit" */ .
 
-letter         = unicode_letter | "_" .
+letter      = unicode_letter | "_" .
 filename    = { [ "/" ]  { unicode_letter } } .
 ipaddr      = unicode_digit { unicode_digit } "."
               unicode_digit { unicode_digit } "."
@@ -18,7 +18,8 @@ uri         = schema "://" location .
 identifier  = letter { letter | unicode_digit } .
 variable    = "$" identifier .
 builtin     = importDecl | rforkDecl | cdDecl | ifDecl | elseDecl |
-              forDecl | execDecl | setenvDecl | showenvDecl | fnDecl .
+              forDecl | execDecl | setenvDecl | showenvDecl |
+              fnDecl | fnInv .
 importDecl  = "import" ( filename | string_lit ) .
 rforkDecl   = "rfork" rforkFlags "{" program "}" .
 namespace   = { "c" | "m" | "n" | "i" | "p" | "u" | "s" } .
@@ -29,11 +30,14 @@ ifDecl      = "if" ( identifier | varValue ) comparison
               [ "else" "{" program "}" ]
               [ "else" ifDecl ] .
 elseDecl    = "else" "{" program "}" .
-forDecl     = "for" ( identifier | varList ) "{" program "}" .
+forDecl     = "for" ( identifier | list ) "{" program "}" .
 setenvDecl  = "setenv" identifier .
 showenvDecl = "showenv" .
-execDecl    = "exec" (varList | variable) { redirect } .
-fnDecl      = "fn" identifier "(" fnArgs ")" "{" program "}" .
+execDecl    = "exec" (list | variable) { redirect } .
+fnDecl      = "fn" identifier "(" fnArgs ")" "{"
+              program [ "return" ( variable | string_lit | list ) ]
+              "}" .
+fnInv       = identifier "(" fnArgs ")" .
 redirect    = ( ">" ( filename | uri ) |
                ">" "[" unicode_digit "]" ( filename | uri ) |
                ">" "[" unicode_digit "=" unicode_digit "]" |
@@ -41,12 +45,14 @@ redirect    = ( ">" ( filename | uri ) |
 
 comparison  = "==" | "!=" .
 
-string_lit = "\"" { unicode_char | newline } "\"" .
-
-varDecl  = identifier "=" varSpec .
-varSpec  = ( varList | varValue ) .
-varValue = ({ letter | unicode_digit }) | string_lit .
-varList  = "(" { varValue } ")" .
+string_lit   = "\"" { unicode_char | newline } "\"" .
+varDecl      = identifier "=" varSpec .
+varSpec      = ( list | varValue ) .
+varValue     = string_lit | ( stringConcat { stringConcat } ) .
+list         = "(" { varValue } ")" .
+stringConcat = ( string_lit "+" string_lit ) |
+               ( variable "+" string_lit ) |
+               ( string_lit "+" variable ) .
 
 argument  = ( unicode_char { unicode_char } ) | string_lit .
 cmdpart   = [ "-" ] ( cmdname | abscmd ) { argument } { redirect } .
@@ -55,7 +61,7 @@ command   = ( cmdpart | pipe ) .
 cmdname   = identifier .
 abscmd    = filename .
 
-fnArg     = ( string_lit | variable ) .
+fnArg     = identifier .
 fnArgs    = { fnArg [ "," ] } .
 
 comment   = "#" { unicode_char } .

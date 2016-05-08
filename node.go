@@ -127,6 +127,21 @@ type (
 		ifTree   *Tree
 		elseTree *Tree
 	}
+
+	FnDeclNode struct {
+		NodeType
+		Pos
+		name string
+		args []string
+		tree *Tree
+	}
+
+	FnInvNode struct {
+		NodeType
+		Pos
+		name string
+		args []string
+	}
 )
 
 //go:generate stringer -type=NodeType
@@ -169,6 +184,12 @@ const (
 
 	// NodeComment are nodes for comment
 	NodeComment
+
+	// NodeFn are function nodes
+	NodeFnDecl
+
+	// NodeFnInv is a node for function invocation
+	NodeFnInv
 )
 
 // Position returns the position of the node in file
@@ -600,4 +621,102 @@ func (n *IfNode) String() string {
 	}
 
 	return ifStr
+}
+
+func NewFnDeclNode(pos Pos, name string) *FnDeclNode {
+	return &FnDeclNode{
+		NodeType: NodeFnDecl,
+		Pos:      pos,
+		name:     name,
+		args:     make([]string, 0, 16),
+	}
+}
+
+func (n *FnDeclNode) SetName(a string) {
+	n.name = a
+}
+
+func (n *FnDeclNode) Name() string {
+	return n.name
+}
+
+func (n *FnDeclNode) Args() []string {
+	return n.args
+}
+
+func (n *FnDeclNode) AddArg(arg string) {
+	n.args = append(n.args, arg)
+}
+
+func (n *FnDeclNode) Tree() *Tree {
+	return n.tree
+}
+
+func (n *FnDeclNode) SetTree(t *Tree) {
+	n.tree = t
+}
+
+func (n *FnDeclNode) String() string {
+	fnStr := "fn"
+
+	if n.name != "" {
+		fnStr += " " + n.name + "("
+	}
+
+	for i := 0; i < len(n.args); i++ {
+		fnStr += n.args[i]
+
+		if i < (len(n.args) - 1) {
+			fnStr += ", "
+		}
+	}
+
+	fnStr += ") {\n"
+
+	tree := n.Tree()
+
+	stmts := strings.Split(tree.String(), "\n")
+
+	for i := 0; i < len(stmts); i++ {
+		if len(stmts[i]) > 0 {
+			fnStr += "\t" + stmts[i] + "\n"
+		}
+	}
+
+	fnStr += "}\n"
+
+	return fnStr
+}
+
+func NewFnInvNode(pos Pos, name string) *FnInvNode {
+	return &FnInvNode{
+		NodeType: NodeFnInv,
+		Pos:      pos,
+		name:     name,
+		args:     make([]string, 0, 16),
+	}
+}
+
+func (n *FnInvNode) SetName(a string) {
+	n.name = a
+}
+
+func (n *FnInvNode) AddArg(arg string) {
+	n.args = append(n.args, arg)
+}
+
+func (n *FnInvNode) String() string {
+	fnInvStr := n.name + "("
+
+	for i := 0; i < len(n.args); i++ {
+		fnInvStr += n.args[i]
+
+		if i < (len(n.args) - 1) {
+			fnInvStr += ", "
+		}
+	}
+
+	fnInvStr += ")"
+
+	return fnInvStr
 }
