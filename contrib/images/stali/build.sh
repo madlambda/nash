@@ -20,7 +20,7 @@ fn buildStali() {
     download()
 
     mkdir $imagename
-     STALI_SRC = $PWD + "/src"
+    STALI_SRC = $PWD + "/src"
 
     mv src/config.mk src/config.mk.orig
     cp config.mk src/config.mk
