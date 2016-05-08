@@ -9,6 +9,6 @@ deps:
 test: deps build
 	GO15VENDOREXPERIMENT=1 ./hack/check.sh
 
-install: build
-	GO15VENDOREXPERIMENT=1 go install ./cmd/nash
+install:
+	cd cmd/nash && make install
 	@echo "Nash installed on $(GOPATH)/bin/nash"

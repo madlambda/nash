@@ -251,6 +251,46 @@ func TestLexerSimpleAssignment(t *testing.T) {
 
 	testTable("test underscore", `STALI_SRC=$PWD + "/src"`, expected, t)
 
+	expected = []item{
+		item{
+			typ: itemVarName,
+			val: "PROMPT",
+		},
+		item{
+			typ: itemString,
+			val: "(",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemVariable,
+			val: "$path",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemString,
+			val: ")",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemVariable,
+			val: "$PROMPT",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test concat with parenthesis", `PROMPT="("+$path+")"+$PROMPT`, expected, t)
+
 }
 
 func TestLexerListAssignment(t *testing.T) {
@@ -370,6 +410,56 @@ func TestLexerSimpleCommand(t *testing.T) {
 	}
 
 	testTable("testSimpleCommand", `git clone --depth=1 http://git.sta.li/toolchain`, expected, t)
+}
+
+func TestLexerUnquoteArg(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemArg,
+			val: "hello",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSimpleCommand", `echo hello`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemArg,
+			val: "hello-world",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSimpleCommand", `echo hello-world`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemComment,
+			val: "#hello-world",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSimpleCommand", `echo #hello-world`, expected, t)
 }
 
 func TestLexerPathCommand(t *testing.T) {
@@ -1603,6 +1693,94 @@ func TestLexerFnBasic(t *testing.T) {
             ls
             tar
         }`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "cd",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVarName,
+			val: "path",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCd,
+			val: "cd",
+		},
+		item{
+			typ: itemVariable,
+			val: "$path",
+		},
+		item{
+			typ: itemVarName,
+			val: "PROMPT",
+		},
+		item{
+			typ: itemString,
+			val: "(",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemVariable,
+			val: "$path",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemString,
+			val: ")",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemVariable,
+			val: "$PROMPT",
+		},
+		item{
+			typ: itemSetEnv,
+			val: "setenv",
+		},
+		item{
+			typ: itemVarName,
+			val: "PROMPT",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test cd fn with PROMPT update", `fn cd(path) {
+    cd $path
+    PROMPT="(" + $path + ")"+$PROMPT
+    setenv PROMPT
+}`, expected, t)
 }
 
 func TestLexerFnInvocation(t *testing.T) {

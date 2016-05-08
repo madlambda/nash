@@ -264,6 +264,13 @@ func lexIdentifier(l *lexer) stateFn {
 		return lexInsideAssignment
 	}
 
+	if l.peek() == '(' {
+		l.emit(itemFnInv)
+		l.next()
+		l.emit(itemLeftParen)
+		return lexInsideFnInv
+	}
+
 	switch word {
 	case "import":
 		l.emit(itemImport)
@@ -303,15 +310,6 @@ func lexIdentifier(l *lexer) stateFn {
 
 		l.backup()
 		return lexStart
-	}
-
-	r := l.peek()
-
-	if r == '(' {
-		l.emit(itemFnInv)
-		l.next()
-		l.emit(itemLeftParen)
-		return lexInsideFnInv
 	}
 
 	l.emit(itemCommand)
@@ -846,19 +844,21 @@ func lexInsideCommand(l *lexer) stateFn {
 	r := l.next()
 
 	switch {
+	case r == eof:
+		return nil
 	case isSpace(r):
 		l.ignore()
 		return lexSpaceArg
 	case isEndOfLine(r):
 		l.ignore()
 		return lexStart
+	case r == '#':
+		return lexComment
 	case r == '"':
 		l.ignore()
 		return func(l *lexer) stateFn {
 			return lexQuote(l, lexInsideCommand)
 		}
-	case r == '{':
-		return l.errorf("Invalid left open brace inside command")
 	case r == '}':
 		l.emit(itemRightBlock)
 		return lexStart
@@ -866,6 +866,12 @@ func lexInsideCommand(l *lexer) stateFn {
 	case r == '>':
 		l.emit(itemRedirRight)
 		return lexInsideRedirect
+	case r == '$':
+		break
+	case isSafeArg(r):
+		break
+	default:
+		return l.errorf("Invalid char %q at pos %d", r, l.pos)
 	}
 
 	return func(l *lexer) stateFn {
@@ -907,7 +913,7 @@ func lexArg(l *lexer, nextFn stateFn) stateFn {
 			return nil
 		}
 
-		if isIdentifier(r) || isSafePath(r) {
+		if isIdentifier(r) || isSafeArg(r) {
 			continue
 		}
 
@@ -1130,7 +1136,9 @@ func lexComment(l *lexer) stateFn {
 		}
 
 		if r == eof {
-			return nil
+			l.backup()
+			l.emit(itemComment)
+			break
 		}
 	}
 
@@ -1154,7 +1162,13 @@ func isSpace(r rune) bool {
 
 func isSafePath(r rune) bool {
 	isId := isIdentifier(r)
-	return isId || r == '_' || r == '-' || r == '/' || r == '.' || r == ':' || r == '='
+	return isId || r == '_' || r == '-' || r == '/' || r == '.'
+}
+
+func isSafeArg(r rune) bool {
+	isPath := isSafePath(r)
+
+	return isPath || r == '=' || r == ':'
 }
 
 // isIdentifier reports whether r is a valid identifier
