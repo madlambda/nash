@@ -252,23 +252,33 @@ func lexIdentifier(l *lexer) stateFn {
 
 	word := l.input[l.start:l.pos]
 
-	if len(word) == 0 {
-		// sanity check
-		return l.errorf("internal error")
-	}
+	r := l.peek()
 
-	if l.peek() == '=' {
-		l.emit(itemVarName)
-		l.next()
-		l.ignore()
-		return lexInsideAssignment
-	}
-
-	if l.peek() == '(' {
+	if r == '(' {
 		l.emit(itemFnInv)
 		l.next()
 		l.emit(itemLeftParen)
 		return lexInsideFnInv
+	}
+
+	if isSpace(r) || r == '=' {
+		// lookahead by hand, to avoid more complex lexer API
+		for i := l.pos; i < len(l.input); i++ {
+			r, _ := utf8.DecodeRuneInString(l.input[i:])
+
+			if !isSpace(r) {
+				if r == '=' {
+					l.emit(itemVarName)
+
+					ignoreSpaces(l)
+					l.next()
+					l.ignore()
+					return lexInsideAssignment
+				}
+
+				break
+			}
+		}
 	}
 
 	switch word {

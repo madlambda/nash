@@ -43,7 +43,7 @@ func testTable(name, content string, expected []item, t *testing.T) {
 		}
 
 		if expected[i].val != result[i].val {
-			t.Errorf("'%v' != '%v'", expected[i].val, result[i].val)
+			t.Errorf("Parsing '%s':\n\terror: '%v' != '%v'", content, expected[i].val, result[i].val)
 			return
 		}
 	}
@@ -165,6 +165,12 @@ func TestLexerSimpleAssignment(t *testing.T) {
 	}
 
 	testTable("testAssignment", `test="value"`, expected, t)
+	testTable("testAssignment spacy", `test = "value"`, expected, t)
+	testTable("testAssignment spacy", `test          ="value"`, expected, t)
+	testTable("testAssignment spacy", `test=           "value"`, expected, t)
+	testTable("testAssignment spacy", `test	="value"`, expected, t)
+	testTable("testAssignment spacy", `test		="value"`, expected, t)
+	testTable("testAssignment spacy", `test =	"value"`, expected, t)
 
 	expected = []item{
 		item{
