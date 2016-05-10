@@ -6,6 +6,18 @@ import (
 	"reflect"
 )
 
+func newSimpleArg(pos Pos, n string, quoted bool) *Arg {
+	arg := NewArg(pos)
+
+	if quoted {
+		arg.SetQuoted(n)
+	} else {
+		arg.SetUnquoted(n)
+	}
+
+	return arg
+}
+
 func comparePosition(expected Pos, value Pos) (bool, error) {
 	if expected != value {
 		return false, fmt.Errorf("Position mismatch: %d != %d", expected, value)
@@ -33,6 +45,30 @@ func compareArg(expected *Arg, value *Arg) (bool, error) {
 
 	if expected.val != value.val {
 		return false, fmt.Errorf("Argument value differs: '%s' != '%s'", expected.val, value.val)
+	}
+
+	ev := expected
+	vv := value
+
+	if ev.IsQuoted() != vv.IsQuoted() || ev.IsConcat() != vv.IsConcat() ||
+		ev.IsVariable() != vv.IsVariable() {
+		return false, errors.New("Variable differs in type")
+	}
+
+	if len(ev.concat) != len(vv.concat) {
+		return false, fmt.Errorf("Variable list concats length differs (%v, %v). %d != %d", ev, vv, len(ev.concat), len(vv.concat))
+	}
+
+	for j := 0; j < len(ev.concat); j++ {
+		ce := ev.concat[j]
+		cv := vv.concat[j]
+
+		ok, err := compareArg(ce, cv)
+
+		if !ok {
+			return ok, err
+		}
+
 	}
 
 	return true, nil
@@ -193,18 +229,10 @@ func compareAssignmentNode(expected, value *AssignmentNode) (bool, error) {
 		ev := expected.list[i]
 		vv := value.list[i]
 
-		if ev.elem != vv.elem {
-			return false, fmt.Errorf("Variable list differs at index %d. %s != %s", i, ev, vv)
-		}
+		ok, err := compareArg(ev, vv)
 
-		if len(ev.concats) != len(vv.concats) {
-			return false, fmt.Errorf("Variable list concats length differs. %d != %d", len(ev.concats), len(vv.concats))
-		}
-
-		for j := 0; j < len(ev.concats); j++ {
-			if ev.concats[j] != vv.concats[j] {
-				return false, fmt.Errorf("Variable concatenation entry differ. '%s' != '%s'", ev.concats[j], vv.concats[j])
-			}
+		if !ok {
+			return ok, err
 		}
 	}
 
