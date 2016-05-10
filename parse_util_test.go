@@ -83,7 +83,7 @@ func compareCdNode(expected, value *CdNode) (bool, error) {
 		return false, fmt.Errorf("One of the nodecommand are nil")
 	}
 
-	if expected.dir.val != value.dir.val {
+	if expected.dir != nil && value.dir != nil && expected.dir.val != value.dir.val {
 		return false, fmt.Errorf("Expected.dir.val (%v) != value.dir.val (%v)", expected.dir.val, value.dir.val)
 	}
 
@@ -126,7 +126,7 @@ func compareCommandNode(expected *CommandNode, value *CommandNode) (bool, error)
 		ea := eargs[i]
 		va := vargs[i]
 
-		valid, err := compareArg(&ea, &va)
+		valid, err := compareArg(ea, va)
 
 		if !valid {
 			return valid, err
@@ -224,7 +224,7 @@ func compareRforkNode(expected, value *RforkNode) (bool, error) {
 		return ok, fmt.Errorf(" CompareRforkNode (%v, %v) -> %s", expected, value, err.Error())
 	}
 
-	if ok, err := compareArg(&expected.arg, &value.arg); !ok {
+	if ok, err := compareArg(expected.arg, value.arg); !ok {
 		return ok, fmt.Errorf("CompareRforkNode (%v, %v) -> %s", expected, value, err.Error())
 	}
 
@@ -294,11 +294,11 @@ func compareIfNode(expected, value *IfNode) (bool, error) {
 	vlvalue := value.Lvalue()
 	vrvalue := value.Rvalue()
 
-	if ok, err := compareArg(&elvalue, &vlvalue); !ok {
+	if ok, err := compareArg(elvalue, vlvalue); !ok {
 		return ok, fmt.Errorf("CompareIfNode (%v, %v) -> %s", expected, value, err.Error())
 	}
 
-	if ok, err := compareArg(&ervalue, &vrvalue); !ok {
+	if ok, err := compareArg(ervalue, vrvalue); !ok {
 		return ok, fmt.Errorf("CompareIfNode (%v, %v) -> %s", expected, value, err.Error())
 	}
 

@@ -41,7 +41,7 @@ type (
 	ImportNode struct {
 		NodeType
 		Pos
-		path Arg
+		path *Arg
 	}
 
 	SetAssignmentNode struct {
@@ -68,7 +68,7 @@ type (
 		NodeType
 		Pos
 		name   string
-		args   []Arg
+		args   []*Arg
 		redirs []*RedirectNode
 	}
 
@@ -92,7 +92,7 @@ type (
 	RforkNode struct {
 		NodeType
 		Pos
-		arg  Arg
+		arg  *Arg
 		tree *Tree
 	}
 
@@ -100,7 +100,7 @@ type (
 	CdNode struct {
 		NodeType
 		Pos
-		dir Arg
+		dir *Arg
 	}
 
 	// CommentNode is the node for comments
@@ -119,8 +119,8 @@ type (
 	IfNode struct {
 		NodeType
 		Pos
-		lvalue Arg
-		rvalue Arg
+		lvalue *Arg
+		rvalue *Arg
 		op     string
 		elseIf bool
 
@@ -223,7 +223,7 @@ func NewImportNode(pos Pos) *ImportNode {
 	}
 }
 
-func (n *ImportNode) SetPath(arg Arg) {
+func (n *ImportNode) SetPath(arg *Arg) {
 	n.path = arg
 }
 
@@ -327,17 +327,17 @@ func NewCommandNode(pos Pos, name string) *CommandNode {
 		NodeType: NodeCommand,
 		Pos:      pos,
 		name:     name,
-		args:     make([]Arg, 0, 1024),
+		args:     make([]*Arg, 0, 1024),
 	}
 }
 
 // AddArg adds a new argument to the command
-func (n *CommandNode) AddArg(a Arg) {
+func (n *CommandNode) AddArg(a *Arg) {
 	n.args = append(n.args, a)
 }
 
 // SetArgs sets an array of args to command
-func (n *CommandNode) SetArgs(args []Arg) {
+func (n *CommandNode) SetArgs(args []*Arg) {
 	n.args = args
 }
 
@@ -423,7 +423,7 @@ func NewRforkNode(pos Pos) *RforkNode {
 }
 
 // SetFlags sets the rfork flags
-func (n *RforkNode) SetFlags(a Arg) {
+func (n *RforkNode) SetFlags(a *Arg) {
 	n.arg = a
 }
 
@@ -465,30 +465,40 @@ func NewCdNode(pos Pos) *CdNode {
 }
 
 // SetDir sets the cd directory to dir
-func (n *CdNode) SetDir(dir Arg) {
+func (n *CdNode) SetDir(dir *Arg) {
 	n.dir = dir
 }
 
 // Dir returns the directory of cd node
 func (n *CdNode) Dir() string {
-	return n.dir.val
+	if n.dir != nil {
+		return n.dir.val
+	}
+
+	return ""
 }
 
 func (n *CdNode) String() string {
-	if n.dir.quoted {
-		return `cd "` + n.dir.val + `"`
+	val := ""
+
+	if n.dir != nil {
+		val = n.dir.val
 	}
 
-	if len(n.dir.val) > 0 {
-		return "cd " + n.dir.val
+	if n.dir != nil && n.dir.quoted {
+		return `cd "` + val + `"`
+	}
+
+	if len(val) > 0 {
+		return "cd " + val
 	}
 
 	return "cd"
 }
 
 // NewArg creates a new argument
-func NewArg(pos Pos, val string, quoted bool) Arg {
-	return Arg{
+func NewArg(pos Pos, val string, quoted bool) *Arg {
+	return &Arg{
 		NodeType: NodeArg,
 		Pos:      pos,
 		val:      val,
@@ -524,19 +534,19 @@ func NewIfNode(pos Pos) *IfNode {
 	}
 }
 
-func (n *IfNode) Lvalue() Arg {
+func (n *IfNode) Lvalue() *Arg {
 	return n.lvalue
 }
 
-func (n *IfNode) Rvalue() Arg {
+func (n *IfNode) Rvalue() *Arg {
 	return n.rvalue
 }
 
-func (n *IfNode) SetLvalue(arg Arg) {
+func (n *IfNode) SetLvalue(arg *Arg) {
 	n.lvalue = arg
 }
 
-func (n *IfNode) SetRvalue(arg Arg) {
+func (n *IfNode) SetRvalue(arg *Arg) {
 	n.rvalue = arg
 }
 

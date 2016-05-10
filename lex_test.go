@@ -220,7 +220,7 @@ func TestLexerSimpleAssignment(t *testing.T) {
 			val: "echo",
 		},
 		item{
-			typ: itemArg,
+			typ: itemVariable,
 			val: "$other",
 		},
 		item{
@@ -416,6 +416,22 @@ func TestLexerSimpleCommand(t *testing.T) {
 	}
 
 	testTable("testSimpleCommand", `git clone --depth=1 http://git.sta.li/toolchain`, expected, t)
+
+	/*	expected = []item{
+			item{
+				typ: itemCommand,
+				val: "ls",
+			},
+			item{
+				typ: itemVariable,
+				val: "$GOPATH",
+			},
+			item{
+				typ: itemEOF,
+			},
+		}
+
+		testTable("testSimpleCommand", `ls $GOPATH`, expected, t)*/
 }
 
 func TestLexerUnquoteArg(t *testing.T) {
@@ -635,6 +651,7 @@ func TestLexerRforkInvalidArguments(t *testing.T) {
 }
 
 func TestLexerSomethingIdontcareanymore(t *testing.T) {
+	// maybe oneliner rfork isnt a good idea
 	expected := []item{
 		item{
 			typ: itemRfork,

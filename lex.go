@@ -411,7 +411,7 @@ func lexInsideAssignment(l *lexer) stateFn {
 		}
 
 	case r == '$':
-		return lexInsideCommonVariable
+		return lexInsideCommonVariable(l, lexInsideAssignment)
 	}
 
 	return l.errorf("Unexpected variable value '%c'. Expected '\"' for quoted string or '$' for variable.", r)
@@ -453,7 +453,7 @@ nextelem:
 	return lexStart
 }
 
-func lexInsideCommonVariable(l *lexer) stateFn {
+func lexInsideCommonVariable(l *lexer, nextConcatFn stateFn) stateFn {
 	var r rune
 
 	r = l.next()
@@ -488,7 +488,7 @@ func lexInsideCommonVariable(l *lexer) stateFn {
 		l.next()
 		l.emit(itemConcat)
 
-		return lexInsideAssignment
+		return nextConcatFn
 	}
 
 	if !isEndOfLine(r) && r != eof {
@@ -877,7 +877,8 @@ func lexInsideCommand(l *lexer) stateFn {
 		l.emit(itemRedirRight)
 		return lexInsideRedirect
 	case r == '$':
-		break
+		l.backup()
+		return lexInsideCommonVariable(l, lexInsideCommand)
 	case isSafeArg(r):
 		break
 	default:

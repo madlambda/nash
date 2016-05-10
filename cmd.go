@@ -100,7 +100,7 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 	return cmd, nil
 }
 
-func (cmd *Command) SetArgs(cargs []Arg) error {
+func (cmd *Command) SetArgs(cargs []*Arg) error {
 	sh := cmd.sh
 	args := make([]string, len(cargs)+1)
 	args[0] = cmd.name

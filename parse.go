@@ -93,15 +93,15 @@ func (p *Parser) parseCommand() (Node, error) {
 		it = p.next()
 
 		switch it.typ {
-		case itemArg, itemString:
-			var arg Arg
-
-			if it.typ == itemString {
-				arg = NewArg(it.pos, it.val, true)
-			} else {
-				arg = NewArg(it.pos, it.val, false)
-			}
-
+		case itemArg:
+			arg := NewArg(it.pos, it.val, false)
+			n.AddArg(arg)
+		case itemString:
+			arg := NewArg(it.pos, it.val, true)
+			n.AddArg(arg)
+		case itemVariable:
+			arg := NewArg(it.pos, it.val, true)
+			//			arg.SetVariable(true)
 			n.AddArg(arg)
 		case itemRedirRight:
 			redir, err := p.parseRedirection(it)
