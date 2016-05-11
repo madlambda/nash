@@ -433,22 +433,23 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 	var (
 		ok       bool
 		pathlist []string
+		pathStr  string
 	)
 
 	path := cd.Dir()
 
-	if path == "" {
+	if path == nil {
 		if pathlist, ok = sh.GetEnv("HOME"); !ok {
 			return errors.New("Nash don't know where to cd. No variable $HOME or $home set")
 		}
 
 		if len(pathlist) > 0 && pathlist[0] != "" {
-			path = pathlist[0]
+			pathStr = pathlist[0]
 		} else {
 			return fmt.Errorf("Invalid $HOME value: %v", pathlist)
 		}
-	} else if path[0] == '$' {
-		elemstr, err := sh.evalVariable(path)
+	} else if path.IsVariable() {
+		elemstr, err := sh.evalVariable(path.Value())
 
 		if err != nil {
 			return err
@@ -462,10 +463,42 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 			return fmt.Errorf("Variable $path contains a list: %q", elemstr)
 		}
 
-		path = elemstr[0]
+		pathStr = elemstr[0]
+	} else if path.IsQuoted() || path.IsUnquoted() {
+		pathStr = path.Value()
+	} else if path.IsConcat() {
+		for i := 0; i < len(path.concat); i++ {
+			part := path.concat[i]
+
+			if part.IsConcat() {
+				return errors.New("Nested concat is not allowed")
+			}
+
+			if part.IsVariable() {
+				partValues, err := sh.evalVariable(part.Value())
+
+				if err != nil {
+					return err
+				}
+
+				if len(partValues) > 1 {
+					return fmt.Errorf("Concat of list variables is not allowed: %s = %v", part.Value(), partValues)
+				} else if len(partValues) == 0 {
+					return fmt.Errorf("Variable %s not set", part.Value())
+				}
+
+				pathStr += partValues[0]
+			} else {
+				pathStr = pathStr + part.Value()
+			}
+		}
+	} else {
+		return fmt.Errorf("Exec error: Invalid path: %v", path)
 	}
 
-	return os.Chdir(path)
+	fmt.Printf("Executing cd into %s\n", pathStr)
+
+	return os.Chdir(pathStr)
 }
 
 func (sh *Shell) evalIfArguments(n *IfNode) (string, string, error) {

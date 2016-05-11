@@ -57,8 +57,8 @@ func TestParseSimple(t *testing.T) {
 	expected := NewTree("parser simple")
 	ln := NewListNode()
 	cmd := NewCommandNode(0, "echo")
-	hello := NewArg(6)
-	hello.SetQuoted("hello world")
+	hello := NewArg(6, ArgQuoted)
+	hello.SetString("hello world")
 	cmd.AddArg(hello)
 	ln.Push(cmd)
 
@@ -101,8 +101,8 @@ func TestBasicAssignment(t *testing.T) {
 	assign.SetVarName("test")
 
 	elems := make([]*Arg, 1, 1)
-	elems[0] = NewArg(6)
-	elems[0].SetQuoted("hello")
+	elems[0] = NewArg(6, ArgQuoted)
+	elems[0].SetString("hello")
 
 	assign.SetValueList(elems)
 	ln.Push(assign)
@@ -118,14 +118,14 @@ func TestBasicAssignment(t *testing.T) {
 
 	elems = make([]*Arg, 1, 1)
 	concats := make([]*Arg, 2, 2)
-	hello := NewArg(6)
-	hello.SetQuoted("hello")
-	variable := NewArg(15)
-	variable.SetVariable("$var")
+	hello := NewArg(6, ArgQuoted)
+	hello.SetString("hello")
+	variable := NewArg(15, ArgVariable)
+	variable.SetString("$var")
 
 	concats[0] = hello
 	concats[1] = variable
-	arg1 := NewArg(6)
+	arg1 := NewArg(6, ArgConcat)
 	arg1.SetConcat(concats)
 	elems[0] = arg1
 
@@ -167,8 +167,8 @@ func TestParsePathCommand(t *testing.T) {
 	expected := NewTree("parser simple")
 	ln := NewListNode()
 	cmd := NewCommandNode(0, "/bin/echo")
-	arg := NewArg(11)
-	arg.SetQuoted("hello world")
+	arg := NewArg(11, ArgQuoted)
+	arg.SetString("hello world")
 	cmd.AddArg(arg)
 	ln.Push(cmd)
 
@@ -182,8 +182,8 @@ func TestParseWithShebang(t *testing.T) {
 	ln := NewListNode()
 	cmt := NewCommentNode(0, "#!/bin/nash")
 	cmd := NewCommandNode(12, "echo")
-	arg := NewArg(17)
-	arg.SetUnquoted("bleh")
+	arg := NewArg(17, ArgUnquoted)
+	arg.SetString("bleh")
 	cmd.AddArg(arg)
 	ln.Push(cmt)
 	ln.Push(cmd)
@@ -276,12 +276,12 @@ func TestParseCommandWithStringsEqualsNot(t *testing.T) {
 	ln := NewListNode()
 	cmd1 := NewCommandNode(0, "echo")
 	cmd2 := NewCommandNode(11, "echo")
-	hello := NewArg(5)
-	hello.SetUnquoted("hello")
+	hello := NewArg(5, ArgUnquoted)
+	hello.SetString("hello")
 	cmd1.AddArg(hello)
 
-	hello2 := NewArg(17)
-	hello2.SetQuoted("hello")
+	hello2 := NewArg(17, ArgQuoted)
+	hello2.SetString("hello")
 
 	cmd2.AddArg(hello2)
 
@@ -313,8 +313,8 @@ func TestParseCd(t *testing.T) {
 	expected := NewTree("test cd")
 	ln := NewListNode()
 	cd := NewCdNode(0)
-	arg := NewArg(0)
-	arg.SetUnquoted("/tmp")
+	arg := NewArg(0, ArgUnquoted)
+	arg.SetString("/tmp")
 	cd.SetDir(arg)
 	ln.Push(cd)
 	expected.Root = ln
@@ -334,8 +334,8 @@ func TestParseCd(t *testing.T) {
 	ln = NewListNode()
 	assign := NewAssignmentNode(0)
 	assign.SetVarName("HOME")
-	arg = NewArg(6)
-	arg.SetQuoted("/")
+	arg = NewArg(6, ArgQuoted)
+	arg.SetString("/")
 	args := append(make([]*Arg, 0, 1), arg)
 	assign.SetValueList(args)
 	set := NewSetAssignmentNode(9, "HOME")
@@ -359,13 +359,13 @@ pwd`, expected, t)
 	ln = NewListNode()
 	assign = NewAssignmentNode(0)
 	assign.SetVarName("GOPATH")
-	arg = NewArg(8)
-	arg.SetQuoted("/home/i4k/gopath")
+	arg = NewArg(8, ArgQuoted)
+	arg.SetString("/home/i4k/gopath")
 	args = append(make([]*Arg, 0, 1), arg)
 	assign.SetValueList(args)
 	cd = NewCdNode(26)
-	path := NewArg(0)
-	path.SetVariable("$GOPATH")
+	path := NewArg(0, ArgVariable)
+	path.SetString("$GOPATH")
 	cd.SetDir(path)
 
 	ln.Push(assign)
@@ -376,14 +376,43 @@ pwd`, expected, t)
 	parserTestTable("test cd into variable value", `GOPATH="/home/i4k/gopath"
 cd $GOPATH`, expected, t)
 
+	// Test cd into custom variable
+	expected = NewTree("cd into variable value with concat")
+	ln = NewListNode()
+	assign = NewAssignmentNode(0)
+	assign.SetVarName("GOPATH")
+	arg = NewArg(8, ArgQuoted)
+	arg.SetString("/home/i4k/gopath")
+	args = append(make([]*Arg, 0, 1), arg)
+	assign.SetValueList(args)
+	cd = NewCdNode(26)
+	path = NewArg(0, ArgConcat)
+	varg := NewArg(0, ArgVariable)
+	varg.SetString("$GOPATH")
+	src := NewArg(0, ArgQuoted)
+	src.SetString("/src/github.com")
+	concat := make([]*Arg, 0, 2)
+	concat = append(concat, varg)
+	concat = append(concat, src)
+	path.SetConcat(concat)
+	cd.SetDir(path)
+
+	ln.Push(assign)
+	ln.Push(cd)
+
+	expected.Root = ln
+
+	parserTestTable("test cd into variable value", `GOPATH="/home/i4k/gopath"
+cd $GOPATH+"/src/github.com"`, expected, t)
+
 }
 
 func TestParseRfork(t *testing.T) {
 	expected := NewTree("test rfork")
 	ln := NewListNode()
 	cmd1 := NewRforkNode(0)
-	f1 := NewArg(6)
-	f1.SetUnquoted("u")
+	f1 := NewArg(6, ArgUnquoted)
+	f1.SetString("u")
 	cmd1.SetFlags(f1)
 	ln.Push(cmd1)
 	expected.Root = ln
@@ -395,8 +424,8 @@ func TestParseRforkWithBlock(t *testing.T) {
 	expected := NewTree("rfork with block")
 	ln := NewListNode()
 	rfork := NewRforkNode(0)
-	arg := NewArg(6)
-	arg.SetUnquoted("u")
+	arg := NewArg(6, ArgUnquoted)
+	arg.SetString("u")
 	rfork.SetFlags(arg)
 
 	insideFork := NewCommandNode(11, "mount")

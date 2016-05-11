@@ -508,7 +508,19 @@ func lexInsideCd(l *lexer) stateFn {
 	if r == '"' {
 		l.ignore()
 		return func(l *lexer) stateFn {
-			return lexQuote(l, lexStart)
+			lexQuote(l, lexStart)
+			ignoreSpaces(l)
+
+			r = l.peek()
+
+			switch {
+			case r == '+':
+				l.next()
+				l.emit(itemConcat)
+				return lexInsideCd
+			}
+
+			return lexStart
 		}
 	}
 
@@ -529,6 +541,18 @@ func lexInsideCd(l *lexer) stateFn {
 		}
 
 		l.emit(itemVariable)
+
+		ignoreSpaces(l)
+
+		r = l.peek()
+
+		switch {
+		case r == '+':
+			l.next()
+			l.emit(itemConcat)
+			return lexInsideCd
+		}
+
 		return lexStart
 	}
 

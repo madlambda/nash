@@ -779,6 +779,29 @@ func TestLexerBuiltinCd(t *testing.T) {
 
 	testTable("test builtin cd into variable", `cd $GOPATH`, expected, t)
 
+	expected = []item{
+		item{
+			typ: itemCd,
+			val: "cd",
+		},
+		item{
+			typ: itemVariable,
+			val: "$GOPATH",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemString,
+			val: "/src/github.com",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test cd with concat", `cd $GOPATH+"/src/github.com"`, expected, t)
 }
 
 func TestLexerMinusAlone(t *testing.T) {

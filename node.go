@@ -22,6 +22,10 @@ type (
 	// NodeType is the types of grammar
 	NodeType int
 
+	// ArgType is the types of arguments
+	// (quoted string, unquoted, variable and concat)
+	ArgType int
+
 	// ListNode is the block
 	ListNode struct {
 		NodeType
@@ -71,12 +75,9 @@ type (
 		NodeType
 		Pos
 
-		val    string
-		concat []*Arg
-
-		isVar    bool
-		isQuoted bool
-		isConcat bool
+		argType ArgType
+		val     string
+		concat  []*Arg
 	}
 
 	// RedirectNode represents the output redirection part of a command
@@ -186,6 +187,13 @@ const (
 
 	// NodeFnInv is a node for function invocation
 	NodeFnInv
+)
+
+const (
+	ArgQuoted ArgType = iota + 1
+	ArgUnquoted
+	ArgVariable
+	ArgConcat
 )
 
 // Position returns the position of the node in file
@@ -466,67 +474,78 @@ func (n *CdNode) SetDir(dir *Arg) {
 }
 
 // Dir returns the directory of cd node
-func (n *CdNode) Dir() string {
-	if n.dir != nil {
-		return n.dir.val
-	}
-
-	return ""
+func (n *CdNode) Dir() *Arg {
+	return n.dir
 }
 
 func (n *CdNode) String() string {
-	val := ""
+	dir := n.dir
 
-	if n.dir != nil {
-		val = n.dir.val
+	if dir == nil {
+		return "cd"
 	}
 
-	if n.dir != nil && n.dir.IsQuoted() {
-		return `cd "` + val + `"`
+	if dir.IsQuoted() {
+		return `cd "` + dir.val + `"`
 	}
 
-	if len(val) > 0 {
-		return "cd " + val
+	if dir.IsUnquoted() || dir.IsVariable() {
+		return `cd ` + dir.val
 	}
 
-	return "cd"
+	if dir.IsConcat() {
+		ret := "cd "
+		for i := 0; i < len(dir.concat); i++ {
+			a := dir.concat[i]
+
+			ret += a.String()
+
+			if i < (len(dir.concat) - 1) {
+				ret += "+"
+			}
+		}
+
+		return ret
+	}
+
+	panic("internal error")
 }
 
 // NewArg creates a new argument
-func NewArg(pos Pos) *Arg {
+func NewArg(pos Pos, argType ArgType) *Arg {
 	return &Arg{
 		NodeType: NodeArg,
 		Pos:      pos,
+		argType:  argType,
 	}
 }
 
-func (n *Arg) SetVariable(name string) {
-	n.val = name
-	n.isVar = true
+func (n *Arg) SetArgType(t ArgType) {
+	n.argType = t
 }
 
-func (n *Arg) SetUnquoted(name string) {
+func (n *Arg) SetString(name string) {
 	n.val = name
-	n.isQuoted = false
 }
 
-func (n *Arg) SetQuoted(name string) {
-	n.val = name
-	n.isQuoted = true
+func (n *Arg) Value() string {
+	return n.val
 }
 
 func (n *Arg) SetConcat(v []*Arg) {
 	n.concat = v
-	n.isConcat = true
 }
 
 func (n *Arg) SetItem(val item) error {
 	if val.typ == itemArg {
-		n.SetUnquoted(val.val)
+		n.SetArgType(ArgUnquoted)
+		n.SetString(val.val)
 	} else if val.typ == itemString {
-		n.SetQuoted(val.val)
+		n.SetArgType(ArgQuoted)
+		n.SetString(val.val)
 	} else if val.typ == itemVariable {
-		n.SetVariable(val.val)
+		n.SetArgType(ArgVariable)
+		n.SetString(val.val)
 	} else {
 		return fmt.Errorf("Arg doesn't support type %v", val)
 	}
@@ -534,15 +553,15 @@ func (n *Arg) SetItem(val item) error {
 	return nil
 }
 
-func (n *Arg) IsQuoted() bool   { return n.isQuoted }
-func (n *Arg) IsUnquoted() bool { return !n.isQuoted }
-func (n *Arg) IsVariable() bool { return n.isVar }
-func (n *Arg) IsConcat() bool   { return n.isConcat }
+func (n *Arg) IsQuoted() bool   { return n.argType == ArgQuoted }
+func (n *Arg) IsUnquoted() bool { return n.argType == ArgUnquoted }
+func (n *Arg) IsVariable() bool { return n.argType == ArgVariable }
+func (n *Arg) IsConcat() bool   { return n.argType == ArgConcat }
 
 func (n Arg) String() string {
-	if n.isQuoted {
+	if n.IsQuoted() {
 		return "\"" + n.val + "\""
-	} else if n.isConcat {
+	} else if n.IsConcat() {
 		ret := ""
 
 		for i := 0; i < len(n.concat); i++ {

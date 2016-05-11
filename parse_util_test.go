@@ -7,12 +7,14 @@ import (
 )
 
 func newSimpleArg(pos Pos, n string, quoted bool) *Arg {
-	arg := NewArg(pos)
+	arg := NewArg(pos, 0)
 
 	if quoted {
-		arg.SetQuoted(n)
+		arg.SetArgType(ArgQuoted)
+		arg.SetString(n)
 	} else {
-		arg.SetUnquoted(n)
+		arg.SetArgType(ArgUnquoted)
+		arg.SetString(n)
 	}
 
 	return arg
