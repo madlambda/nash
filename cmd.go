@@ -101,35 +101,42 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 }
 
 func (cmd *Command) SetArgs(cargs []*Arg) error {
+	var err error
+
 	sh := cmd.sh
 	args := make([]string, len(cargs)+1)
 	args[0] = cmd.name
 
 	for i := 0; i < len(cargs); i++ {
-		argval := cargs[i].val
+		var argVal string
 
-		// variable substitution
-		if len(argval) > 0 && argval[0] == '$' {
-			var arglist []string
+		carg := cargs[i]
 
-			if varVal, ok := sh.GetVar(argval[1:]); ok {
-				arglist = varVal
-			} else if envVal, ok := sh.GetEnv(argval[1:]); ok {
-				arglist = envVal
-			} else {
-				return newError("Variable '%s' not set", argval)
+		if carg.IsConcat() {
+			argVal, err = sh.executeConcat(carg)
+
+			if err != nil {
+				return err
+			}
+		} else if carg.IsVariable() {
+			arglist, err := sh.evalVariable(carg.Value())
+
+			if err != nil {
+				return err
 			}
 
 			if len(arglist) == 0 {
-				return newError("Variable '%s' not set", argval)
+				return newError("Variable '%s' not set", carg.Value())
 			} else if len(arglist) == 1 {
-				args[i+1] = arglist[0]
+				argVal = arglist[0]
 			} else if len(arglist) > 1 {
-				args[i+1] = strings.Join(arglist, " ")
+				argVal = strings.Join(arglist, " ")
 			}
 		} else {
-			args[i+1] = argval
+			argVal = carg.Value()
 		}
+
+		args[i+1] = argVal
 	}
 
 	cmd.Cmd.Args = args

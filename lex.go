@@ -334,14 +334,14 @@ func lexInsideImport(l *lexer) stateFn {
 	if r == '"' {
 		l.ignore()
 		return func(l *lexer) stateFn {
-			return lexQuote(l, lexStart)
+			return lexQuote(l, lexInsideImport, lexStart)
 		}
 	}
 
 	if isIdentifier(r) || isSafePath(r) {
 		// parse as normal argument
 		return func(l *lexer) stateFn {
-			return lexArg(l, lexStart)
+			return lexArg(l, lexInsideImport, lexStart)
 		}
 	}
 
@@ -388,26 +388,17 @@ func lexInsideAssignment(l *lexer) stateFn {
 		l.ignore()
 
 		return func(l *lexer) stateFn {
-			lexQuote(l, nil)
+			return lexQuote(l, lexInsideAssignment, func(l *lexer) stateFn {
+				ignoreSpaces(l)
 
-			ignoreSpaces(l)
+				r := l.peek()
 
-			r := l.peek()
+				if !isEndOfLine(r) && r != eof {
+					return l.errorf("Invalid assignment. Expected '+' or EOL, but found '%c' at pos '%d'", r, l.pos)
+				}
 
-			switch {
-			case r == '+':
-				l.next()
-				l.emit(itemConcat)
-
-				return lexInsideAssignment
-			}
-
-			if !isEndOfLine(r) && r != eof {
-				return l.errorf("Invalid assignment. Expected '+' or EOL, but found %q at pos '%d'",
-					r, l.pos)
-			}
-
-			return lexStart
+				return lexStart
+			})
 		}
 
 	case r == '$':
@@ -508,7 +499,7 @@ func lexInsideCd(l *lexer) stateFn {
 	if r == '"' {
 		l.ignore()
 		return func(l *lexer) stateFn {
-			lexQuote(l, lexStart)
+			lexQuote(l, lexInsideCd, lexStart)
 			ignoreSpaces(l)
 
 			r = l.peek()
@@ -559,7 +550,7 @@ func lexInsideCd(l *lexer) stateFn {
 	if isIdentifier(r) || isSafePath(r) {
 		// parse as normal argument
 		return func(l *lexer) stateFn {
-			return lexArg(l, lexStart)
+			return lexArg(l, lexInsideCd, lexStart)
 		}
 	}
 
@@ -575,7 +566,7 @@ func lexIfLRValue(l *lexer) bool {
 	switch {
 	case r == '"':
 		l.ignore()
-		lexQuote(l, nil)
+		lexQuote(l, nil, nil)
 		return true
 	case r == '$':
 		for {
@@ -753,7 +744,7 @@ func lexInsideFnInv(l *lexer) stateFn {
 	if r == '"' {
 		l.next()
 		l.ignore()
-		lexQuote(l, nil)
+		lexQuote(l, nil, nil)
 
 		return lexMoreFnArgs
 	} else if r == '$' {
@@ -891,7 +882,7 @@ func lexInsideCommand(l *lexer) stateFn {
 	case r == '"':
 		l.ignore()
 		return func(l *lexer) stateFn {
-			return lexQuote(l, lexInsideCommand)
+			return lexQuote(l, lexInsideCommand, lexInsideCommand)
 		}
 	case r == '}':
 		l.emit(itemRightBlock)
@@ -910,11 +901,11 @@ func lexInsideCommand(l *lexer) stateFn {
 	}
 
 	return func(l *lexer) stateFn {
-		return lexArg(l, lexInsideCommand)
+		return lexArg(l, lexInsideCommand, lexInsideCommand)
 	}
 }
 
-func lexQuote(l *lexer, nextFn stateFn) stateFn {
+func lexQuote(l *lexer, concatFn, nextFn stateFn) stateFn {
 	for {
 		r := l.next()
 
@@ -933,10 +924,26 @@ func lexQuote(l *lexer, nextFn stateFn) stateFn {
 		break
 	}
 
+	ignoreSpaces(l)
+
+	r := l.peek()
+
+	switch {
+	case r == '+':
+		if concatFn == nil {
+			return l.errorf("Concatenation is not allowed at pos %d", l.pos)
+		}
+
+		l.next()
+		l.emit(itemConcat)
+
+		return concatFn
+	}
+
 	return nextFn
 }
 
-func lexArg(l *lexer, nextFn stateFn) stateFn {
+func lexArg(l *lexer, concatFn, nextFn stateFn) stateFn {
 	for {
 		r := l.next()
 
@@ -955,6 +962,18 @@ func lexArg(l *lexer, nextFn stateFn) stateFn {
 		l.backup()
 		l.emit(itemArg)
 		break
+	}
+
+	ignoreSpaces(l)
+
+	r := l.peek()
+
+	switch {
+	case r == '+':
+		l.next()
+		l.emit(itemConcat)
+
+		return concatFn
 	}
 
 	return nextFn

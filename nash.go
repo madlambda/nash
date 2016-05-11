@@ -211,6 +211,38 @@ func (sh *Shell) SetTree(t *Tree) {
 	sh.root = t
 }
 
+func (sh *Shell) executeConcat(path *Arg) (string, error) {
+	var pathStr string
+
+	for i := 0; i < len(path.concat); i++ {
+		part := path.concat[i]
+
+		if part.IsConcat() {
+			return "", errors.New("Nested concat is not allowed")
+		}
+
+		if part.IsVariable() {
+			partValues, err := sh.evalVariable(part.Value())
+
+			if err != nil {
+				return "", err
+			}
+
+			if len(partValues) > 1 {
+				return "", fmt.Errorf("Concat of list variables is not allowed: %s = %v", part.Value(), partValues)
+			} else if len(partValues) == 0 {
+				return "", fmt.Errorf("Variable %s not set", part.Value())
+			}
+
+			pathStr += partValues[0]
+		} else {
+			pathStr += part.Value()
+		}
+	}
+
+	return pathStr, nil
+}
+
 func (sh *Shell) Execute() error {
 	if sh.root != nil {
 		return sh.ExecuteTree(sh.root)
@@ -467,36 +499,16 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 	} else if path.IsQuoted() || path.IsUnquoted() {
 		pathStr = path.Value()
 	} else if path.IsConcat() {
-		for i := 0; i < len(path.concat); i++ {
-			part := path.concat[i]
+		pathConcat, err := sh.executeConcat(path)
 
-			if part.IsConcat() {
-				return errors.New("Nested concat is not allowed")
-			}
-
-			if part.IsVariable() {
-				partValues, err := sh.evalVariable(part.Value())
-
-				if err != nil {
-					return err
-				}
-
-				if len(partValues) > 1 {
-					return fmt.Errorf("Concat of list variables is not allowed: %s = %v", part.Value(), partValues)
-				} else if len(partValues) == 0 {
-					return fmt.Errorf("Variable %s not set", part.Value())
-				}
-
-				pathStr += partValues[0]
-			} else {
-				pathStr = pathStr + part.Value()
-			}
+		if err != nil {
+			return err
 		}
+
+		pathStr += pathConcat
 	} else {
 		return fmt.Errorf("Exec error: Invalid path: %v", path)
 	}
-
-	fmt.Printf("Executing cd into %s\n", pathStr)
 
 	return os.Chdir(pathStr)
 }

@@ -417,21 +417,94 @@ func TestLexerSimpleCommand(t *testing.T) {
 
 	testTable("testSimpleCommand", `git clone --depth=1 http://git.sta.li/toolchain`, expected, t)
 
-	/*	expected = []item{
-			item{
-				typ: itemCommand,
-				val: "ls",
-			},
-			item{
-				typ: itemVariable,
-				val: "$GOPATH",
-			},
-			item{
-				typ: itemEOF,
-			},
-		}
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "ls",
+		},
+		item{
+			typ: itemVariable,
+			val: "$GOPATH",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
 
-		testTable("testSimpleCommand", `ls $GOPATH`, expected, t)*/
+	testTable("testSimpleCommand", `ls $GOPATH`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "ls",
+		},
+		item{
+			typ: itemVariable,
+			val: "$GOPATH",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemString,
+			val: "/src/github.com",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSimpleCommand", `ls $GOPATH+"/src/github.com"`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "ls",
+		},
+		item{
+			typ: itemString,
+			val: "/src/github.com",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemVariable,
+			val: "$GOPATH",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSimpleCommand", `ls "/src/github.com"+$GOPATH`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "ls",
+		},
+		item{
+			typ: itemString,
+			val: "/home/user",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemString,
+			val: "/.gvm/pkgsets/global/src",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testSimpleCommand", `ls "/home/user" + "/.gvm/pkgsets/global/src"`, expected, t)
+
 }
 
 func TestLexerUnquoteArg(t *testing.T) {

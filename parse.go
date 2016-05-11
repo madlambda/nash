@@ -90,22 +90,21 @@ func (p *Parser) parseCommand() (Node, error) {
 	n := NewCommandNode(it.pos, it.val)
 
 	for {
-		it = p.next()
+		it = p.peek()
 
 		switch it.typ {
-		case itemArg:
-			arg := NewArg(it.pos, ArgUnquoted)
-			arg.SetString(it.val)
+		case itemArg, itemString, itemVariable:
+			arg, err := p.getArgument(true)
+
+			if err != nil {
+				return nil, err
+			}
+
 			n.AddArg(arg)
-		case itemString:
-			arg := NewArg(it.pos, ArgQuoted)
-			arg.SetString(it.val)
-			n.AddArg(arg)
-		case itemVariable:
-			arg := NewArg(it.pos, ArgVariable)
-			arg.SetString(it.val)
-			n.AddArg(arg)
+		case itemConcat:
+			return nil, fmt.Errorf("Unexpected '+' at pos %d\n", it.pos)
 		case itemRedirRight:
+			p.next()
 			redir, err := p.parseRedirection(it)
 
 			if err != nil {
@@ -272,13 +271,7 @@ func (p *Parser) parseCd() (Node, error) {
 		return nil, err
 	}
 
-	fmt.Printf("ARG: %s\n", arg)
-	fmt.Printf("IsQuoted() == %v\n", arg.IsQuoted())
-	fmt.Printf("isConcat() == %v\n", arg.IsConcat())
-
 	n.SetDir(arg)
-
-	fmt.Printf("cd == %s\n", n.String())
 
 	return n, nil
 }
