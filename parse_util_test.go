@@ -51,12 +51,12 @@ func compareArg(expected *Arg, value *Arg) (bool, error) {
 	vv := value
 
 	if ev.IsQuoted() != vv.IsQuoted() {
-		return false, fmt.Errorf("Variable differs in IsQuoted: (%v, %v)")
+		return false, fmt.Errorf("Variable differs in IsQuoted: (%v, %v)", ev.IsQuoted(), vv.IsQuoted())
 	}
 
-	if ev.IsQuoted() != vv.IsQuoted() || ev.IsConcat() != vv.IsConcat() ||
+	if ev.IsConcat() != vv.IsConcat() ||
 		ev.IsVariable() != vv.IsVariable() {
-		return false, fmt.Errorf("Variable differs in type")
+		return false, fmt.Errorf("Variable differs in isConcat(%v, %v)", ev.IsConcat(), vv.IsConcat())
 	}
 
 	if len(ev.concat) != len(vv.concat) {
