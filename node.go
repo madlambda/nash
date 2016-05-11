@@ -1,6 +1,7 @@
 package nash
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -31,13 +32,6 @@ type (
 	// Pos is the position of a node in file
 	Pos int
 
-	ElemNode struct {
-		NodeType
-		Pos
-		concats []string
-		elem    string
-	}
-
 	ImportNode struct {
 		NodeType
 		Pos
@@ -60,7 +54,7 @@ type (
 		NodeType
 		Pos
 		name string
-		list []ElemNode
+		list []*Arg
 	}
 
 	// CommandNode is a node for commands
@@ -76,8 +70,13 @@ type (
 	Arg struct {
 		NodeType
 		Pos
+
 		val    string
-		quoted bool
+		concat []*Arg
+
+		isVar    bool
+		isQuoted bool
+		isConcat bool
 	}
 
 	// RedirectNode represents the output redirection part of a command
@@ -165,9 +164,6 @@ const (
 	// NodeArg are nodes for command arguments
 	NodeArg
 
-	// NodeElem represents one element of a list
-	NodeElem
-
 	// NodeString are nodes for argument strings
 	NodeString
 
@@ -228,7 +224,7 @@ func (n *ImportNode) SetPath(arg *Arg) {
 }
 
 func (n *ImportNode) String() string {
-	if n.path.quoted {
+	if n.path.IsQuoted() {
 		return `import "` + n.path.val + `"`
 	} else {
 		return "import " + n.path.val
@@ -270,7 +266,7 @@ func (n *AssignmentNode) SetVarName(a string) {
 }
 
 // SetValueList sets the value of the variable
-func (n *AssignmentNode) SetValueList(alist []ElemNode) {
+func (n *AssignmentNode) SetValueList(alist []*Arg) {
 	n.list = alist
 }
 
@@ -280,24 +276,24 @@ func (n *AssignmentNode) String() string {
 	if len(n.list) == 1 {
 		elem := n.list[0]
 
-		if len(elem.concats) == 0 {
-			if len(elem.elem) > 0 && elem.elem[0] == '$' {
-				return n.name + `=` + elem.elem
+		if !elem.IsConcat() {
+			if elem.IsVariable() {
+				return n.name + `=` + elem.val
 			}
 
-			return n.name + `="` + elem.elem + `"`
+			return n.name + `="` + elem.val + `"`
 		}
 
-		for i := 0; i < len(elem.concats); i++ {
-			e := elem.concats[i]
+		for i := 0; i < len(elem.concat); i++ {
+			e := elem.concat[i]
 
-			if len(e) > 0 && e[0] == '$' {
-				ret += e
+			if e.IsVariable() {
+				ret += e.val
 			} else {
-				ret += `"` + e + `"`
+				ret += `"` + e.val + `"`
 			}
 
-			if i < (len(elem.concats) - 1) {
+			if i < (len(elem.concat) - 1) {
 				ret += " + "
 			}
 		}
@@ -310,7 +306,7 @@ func (n *AssignmentNode) String() string {
 	ret += "("
 
 	for i := 0; i < len(n.list); i++ {
-		ret += n.list[i].elem
+		ret += n.list[i].val
 
 		if i < len(n.list)-1 {
 			ret += " "
@@ -485,7 +481,7 @@ func (n *CdNode) String() string {
 		val = n.dir.val
 	}
 
-	if n.dir != nil && n.dir.quoted {
+	if n.dir != nil && n.dir.IsQuoted() {
 		return `cd "` + val + `"`
 	}
 
@@ -497,18 +493,73 @@ func (n *CdNode) String() string {
 }
 
 // NewArg creates a new argument
-func NewArg(pos Pos, val string, quoted bool) *Arg {
+func NewArg(pos Pos) *Arg {
 	return &Arg{
 		NodeType: NodeArg,
 		Pos:      pos,
-		val:      val,
-		quoted:   quoted,
 	}
 }
 
+func (n *Arg) SetVariable(name string) {
+	n.val = name
+	n.isVar = true
+}
+
+func (n *Arg) SetUnquoted(name string) {
+	n.val = name
+	n.isQuoted = false
+}
+
+func (n *Arg) SetQuoted(name string) {
+	n.val = name
+	n.isQuoted = true
+}
+
+func (n *Arg) SetConcat(v []*Arg) {
+	n.concat = v
+	n.isConcat = true
+}
+
+func (n *Arg) SetItem(val item) error {
+	if val.typ == itemArg {
+		n.SetUnquoted(val.val)
+	} else if val.typ == itemString {
+		n.SetQuoted(val.val)
+	} else if val.typ == itemVariable {
+		n.SetVariable(val.val)
+	} else {
+		return fmt.Errorf("Arg doesn't support type %v", val)
+	}
+
+	return nil
+}
+
+func (n *Arg) IsQuoted() bool   { return n.isQuoted }
+func (n *Arg) IsUnquoted() bool { return !n.isQuoted }
+func (n *Arg) IsVariable() bool { return n.isVar }
+func (n *Arg) IsConcat() bool   { return n.isConcat }
+
 func (n Arg) String() string {
-	if n.quoted {
+	if n.isQuoted {
 		return "\"" + n.val + "\""
+	} else if n.isConcat {
+		ret := ""
+
+		for i := 0; i < len(n.concat); i++ {
+			a := n.concat[i]
+
+			if a.IsQuoted() {
+				ret += `"` + a.val + `"`
+			} else {
+				ret += a.val
+			}
+
+			if i < (len(n.concat) - 1) {
+				ret += "+"
+			}
+		}
+
+		return ret
 	}
 
 	return n.val
@@ -578,13 +629,13 @@ func (n *IfNode) ElseTree() *Tree { return n.elseTree }
 func (n *IfNode) String() string {
 	var lstr, rstr string
 
-	if n.lvalue.quoted {
+	if n.lvalue.IsQuoted() {
 		lstr = `"` + n.lvalue.val + `"`
 	} else {
 		lstr = n.lvalue.val // in case of variable
 	}
 
-	if n.rvalue.quoted {
+	if n.rvalue.IsQuoted() {
 		rstr = `"` + n.rvalue.val + `"`
 	} else {
 		rstr = n.rvalue.val

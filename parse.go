@@ -94,14 +94,16 @@ func (p *Parser) parseCommand() (Node, error) {
 
 		switch it.typ {
 		case itemArg:
-			arg := NewArg(it.pos, it.val, false)
+			arg := NewArg(it.pos)
+			arg.SetUnquoted(it.val)
 			n.AddArg(arg)
 		case itemString:
-			arg := NewArg(it.pos, it.val, true)
+			arg := NewArg(it.pos)
+			arg.SetQuoted(it.val)
 			n.AddArg(arg)
 		case itemVariable:
-			arg := NewArg(it.pos, it.val, true)
-			//			arg.SetVariable(true)
+			arg := NewArg(it.pos)
+			arg.SetVariable(it.val)
 			n.AddArg(arg)
 		case itemRedirRight:
 			redir, err := p.parseRedirection(it)
@@ -228,9 +230,13 @@ func (p *Parser) parseImport() (Node, error) {
 	}
 
 	if it.typ == itemString {
-		n.SetPath(NewArg(it.pos, it.val, true))
+		arg := NewArg(it.pos)
+		arg.SetQuoted(it.val)
+		n.SetPath(arg)
 	} else {
-		n.SetPath(NewArg(it.pos, it.val, false))
+		arg := NewArg(it.pos)
+		arg.SetUnquoted(it.val)
+		n.SetPath(arg)
 	}
 
 	return n, nil
@@ -259,9 +265,13 @@ func (p *Parser) parseCd() (Node, error) {
 	}
 
 	if it.typ == itemString {
-		n.SetDir(NewArg(it.pos, it.val, true))
+		arg := NewArg(it.pos)
+		arg.SetQuoted(it.val)
+		n.SetDir(arg)
 	} else if it.typ == itemArg || it.typ == itemVariable {
-		n.SetDir(NewArg(it.pos, it.val, false))
+		arg := NewArg(it.pos)
+		arg.SetUnquoted(it.val)
+		n.SetDir(arg)
 	}
 
 	return n, nil
@@ -287,6 +297,71 @@ func (p *Parser) parseSet() (Node, error) {
 	return n, nil
 }
 
+func (p *Parser) getArgument(allowArg bool) (*Arg, error) {
+	it := p.next()
+
+	if it.typ != itemString && it.typ != itemVariable && it.typ != itemArg {
+		return nil, fmt.Errorf("Unexpected token %v. Expected itemString, itemVariable or itemArg", it)
+	}
+
+	firstToken := it
+
+	it = p.peek()
+
+	if it.typ == itemConcat {
+		return p.getConcatArg(firstToken)
+	}
+
+	if firstToken.typ == itemArg && !allowArg {
+		return nil, fmt.Errorf("Unquoted string not allowed at pos %d (%s)", it.pos, it.val)
+	}
+
+	arg := NewArg(firstToken.pos)
+
+	if firstToken.typ == itemVariable {
+		arg.SetVariable(firstToken.val)
+	} else if firstToken.typ == itemString {
+		arg.SetQuoted(firstToken.val)
+	} else {
+		arg.SetUnquoted(firstToken.val)
+	}
+
+	return arg, nil
+}
+
+func (p *Parser) getConcatArg(firstToken item) (*Arg, error) {
+	var it item
+	parts := make([]*Arg, 0, 4)
+
+	firstArg := NewArg(firstToken.pos)
+	firstArg.SetItem(firstToken)
+
+	parts = append(parts, firstArg)
+
+hasConcat:
+	it = p.peek()
+
+	if it.typ == itemConcat {
+		p.ignore()
+
+		it = p.next()
+
+		if it.typ == itemString || it.typ == itemVariable || it.typ == itemArg {
+			carg := NewArg(it.pos)
+			carg.SetItem(it)
+			parts = append(parts, carg)
+			goto hasConcat
+		} else {
+			return nil, fmt.Errorf("Unexpected token %v", it)
+		}
+	}
+
+	arg := NewArg(firstToken.pos)
+	arg.SetConcat(parts)
+
+	return arg, nil
+}
+
 func (p *Parser) parseAssignment() (Node, error) {
 	it := p.next()
 
@@ -297,52 +372,27 @@ func (p *Parser) parseAssignment() (Node, error) {
 	n := NewAssignmentNode(it.pos)
 	n.SetVarName(it.val)
 
-	it = p.next()
+	it = p.peek()
 
 	if it.typ == itemVariable || it.typ == itemString {
-		elems := make([]ElemNode, 0, 1)
-		elem := ElemNode{
-			elem:    it.val,
-			concats: make([]string, 0, 16),
+		arg, err := p.getArgument(false)
+
+		if err != nil {
+			return nil, err
 		}
 
-		elems = append(elems, elem)
-
-		n.SetValueList(elems)
-
-		firstConcat := false
-
-	hasConcat:
-		it = p.peek()
-
-		if it.typ == itemConcat {
-			p.ignore()
-
-			if !firstConcat {
-				firstConcat = true
-				elem.concats = append(elem.concats, elem.elem)
-				elem.elem = ""
-			}
-
-			it = p.next()
-
-			if it.typ == itemString || it.typ == itemVariable {
-				elem.concats = append(elem.concats, it.val)
-				elems[0] = elem
-				n.SetValueList(elems)
-				goto hasConcat
-			} else {
-				return nil, fmt.Errorf("Unexpected token %v", it)
-			}
-		}
-
+		n.SetValueList(append(make([]*Arg, 0, 1), arg))
 	} else if it.typ == itemListOpen {
-		values := make([]ElemNode, 0, 128)
+		p.next()
+
+		values := make([]*Arg, 0, 128)
 
 		for it = p.next(); it.typ == itemListElem; it = p.next() {
-			values = append(values, ElemNode{
-				elem: it.val,
-			})
+			arg := NewArg(it.pos)
+
+			// TODO(i4k): Add support for quoted strings in list
+			arg.SetUnquoted(it.val)
+			values = append(values, arg)
 		}
 
 		if it.typ != itemListClose {
@@ -372,7 +422,9 @@ func (p *Parser) parseRfork() (Node, error) {
 		return nil, fmt.Errorf("rfork requires one or more of the following flags: %s", rforkFlags)
 	}
 
-	n.SetFlags(NewArg(it.pos, it.val, false))
+	arg := NewArg(it.pos)
+	arg.SetUnquoted(it.val)
+	n.SetFlags(arg)
 
 	it = p.peek()
 
@@ -405,9 +457,13 @@ func (p *Parser) parseIf() (Node, error) {
 	}
 
 	if it.typ == itemString {
-		n.SetLvalue(NewArg(it.pos, it.val, true))
+		arg := NewArg(it.pos)
+		arg.SetQuoted(it.val)
+		n.SetLvalue(arg)
 	} else {
-		n.SetLvalue(NewArg(it.pos, it.val, false))
+		arg := NewArg(it.pos)
+		arg.SetUnquoted(it.val)
+		n.SetLvalue(arg)
 	}
 
 	it = p.next()
@@ -429,9 +485,13 @@ func (p *Parser) parseIf() (Node, error) {
 	}
 
 	if it.typ == itemString {
-		n.SetRvalue(NewArg(it.pos, it.val, true))
+		arg := NewArg(it.pos)
+		arg.SetQuoted(it.val)
+		n.SetRvalue(arg)
 	} else {
-		n.SetRvalue(NewArg(it.pos, it.val, false))
+		arg := NewArg(it.pos)
+		arg.SetUnquoted(it.val)
+		n.SetRvalue(arg)
 	}
 
 	it = p.next()

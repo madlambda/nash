@@ -366,14 +366,15 @@ func (sh *Shell) executeSetAssignment(v *SetAssignmentNode) error {
 	return nil
 }
 
-func (sh *Shell) concatElements(elem ElemNode) (string, error) {
+func (sh *Shell) concatElements(elem *Arg) (string, error) {
 	value := ""
 
-	for j := 0; j < len(elem.concats); j++ {
-		ec := elem.concats[j]
+	for i := 0; i < len(elem.concat); i++ {
+		ec := elem.concat[i]
 
-		if len(ec) > 0 && ec[0] == '$' {
-			elemstr, err := sh.evalVariable(elem.concats[j])
+		if ec.IsVariable() {
+			elemstr, err := sh.evalVariable(ec.val)
+
 			if err != nil {
 				return "", err
 			}
@@ -386,7 +387,7 @@ func (sh *Shell) concatElements(elem ElemNode) (string, error) {
 				value = value + elemstr[0]
 			}
 		} else {
-			value = value + ec
+			value = value + ec.val
 		}
 	}
 
@@ -403,7 +404,7 @@ func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 	for i := 0; i < len(elems); i++ {
 		elem := elems[i]
 
-		if len(elem.concats) > 0 {
+		if elem.IsConcat() {
 			value, err := sh.concatElements(elem)
 
 			if err != nil {
@@ -412,13 +413,14 @@ func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 
 			strelems = append(strelems, value)
 		} else {
-			if len(elem.elem) > 0 && elem.elem[0] == '$' {
-				strelems, err = sh.evalVariable(elem.elem)
+			if elem.IsVariable() {
+				strelems, err = sh.evalVariable(elem.val)
+
 				if err != nil {
 					return err
 				}
 			} else {
-				strelems = append(strelems, elem.elem)
+				strelems = append(strelems, elem.val)
 			}
 		}
 	}

@@ -224,6 +224,18 @@ func TestExecuteAssignment(t *testing.T) {
 
 		return
 	}
+
+	sh = NewShell(false)
+	sh.SetNashdPath(nashdPath)
+
+	err = sh.ExecuteString("assignment", `
+        name=i4k
+        `)
+
+	if err == nil {
+		t.Error("Must fail")
+		return
+	}
 }
 
 func TestExecuteRedirection(t *testing.T) {

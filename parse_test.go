@@ -57,7 +57,9 @@ func TestParseSimple(t *testing.T) {
 	expected := NewTree("parser simple")
 	ln := NewListNode()
 	cmd := NewCommandNode(0, "echo")
-	cmd.AddArg(NewArg(6, "hello world", true))
+	hello := NewArg(6)
+	hello.SetQuoted("hello world")
+	cmd.AddArg(hello)
 	ln.Push(cmd)
 
 	expected.Root = ln
@@ -97,10 +99,10 @@ func TestBasicAssignment(t *testing.T) {
 	ln := NewListNode()
 	assign := NewAssignmentNode(0)
 	assign.SetVarName("test")
-	elems := make([]ElemNode, 1, 1)
-	elems[0] = ElemNode{
-		elem: "hello",
-	}
+
+	elems := make([]*Arg, 1, 1)
+	elems[0] = NewArg(6)
+	elems[0].SetQuoted("hello")
 
 	assign.SetValueList(elems)
 	ln.Push(assign)
@@ -113,13 +115,19 @@ func TestBasicAssignment(t *testing.T) {
 	ln = NewListNode()
 	assign = NewAssignmentNode(0)
 	assign.SetVarName("test")
-	elems = make([]ElemNode, 1, 1)
-	concats := make([]string, 2, 2)
-	concats[0] = "hello"
-	concats[1] = "$var"
-	elems[0] = ElemNode{
-		concats: concats,
-	}
+
+	elems = make([]*Arg, 1, 1)
+	concats := make([]*Arg, 2, 2)
+	hello := NewArg(6)
+	hello.SetQuoted("hello")
+	variable := NewArg(15)
+	variable.SetVariable("$var")
+
+	concats[0] = hello
+	concats[1] = variable
+	arg1 := NewArg(6)
+	arg1.SetConcat(concats)
+	elems[0] = arg1
 
 	assign.SetValueList(elems)
 	ln.Push(assign)
@@ -159,7 +167,9 @@ func TestParsePathCommand(t *testing.T) {
 	expected := NewTree("parser simple")
 	ln := NewListNode()
 	cmd := NewCommandNode(0, "/bin/echo")
-	cmd.AddArg(NewArg(11, "hello world", true))
+	arg := NewArg(11)
+	arg.SetQuoted("hello world")
+	cmd.AddArg(arg)
 	ln.Push(cmd)
 
 	expected.Root = ln
@@ -172,7 +182,9 @@ func TestParseWithShebang(t *testing.T) {
 	ln := NewListNode()
 	cmt := NewCommentNode(0, "#!/bin/nash")
 	cmd := NewCommandNode(12, "echo")
-	cmd.AddArg(NewArg(17, "bleh", false))
+	arg := NewArg(17)
+	arg.SetUnquoted("bleh")
+	cmd.AddArg(arg)
 	ln.Push(cmt)
 	ln.Push(cmd)
 
@@ -264,8 +276,14 @@ func TestParseCommandWithStringsEqualsNot(t *testing.T) {
 	ln := NewListNode()
 	cmd1 := NewCommandNode(0, "echo")
 	cmd2 := NewCommandNode(11, "echo")
-	cmd1.AddArg(NewArg(5, "hello", false))
-	cmd2.AddArg(NewArg(17, "hello", true))
+	hello := NewArg(5)
+	hello.SetUnquoted("hello")
+	cmd1.AddArg(hello)
+
+	hello2 := NewArg(17)
+	hello2.SetQuoted("hello")
+
+	cmd2.AddArg(hello2)
 
 	ln.Push(cmd1)
 	ln.Push(cmd2)
@@ -295,7 +313,9 @@ func TestParseCd(t *testing.T) {
 	expected := NewTree("test cd")
 	ln := NewListNode()
 	cd := NewCdNode(0)
-	cd.SetDir(NewArg(0, "/tmp", false))
+	arg := NewArg(0)
+	arg.SetUnquoted("/tmp")
+	cd.SetDir(arg)
 	ln.Push(cd)
 	expected.Root = ln
 
@@ -314,9 +334,10 @@ func TestParseCd(t *testing.T) {
 	ln = NewListNode()
 	assign := NewAssignmentNode(0)
 	assign.SetVarName("HOME")
-	assign.SetValueList(append(make([]ElemNode, 0, 1), ElemNode{
-		elem: "/",
-	}))
+	arg = NewArg(6)
+	arg.SetQuoted("/")
+	args := append(make([]*Arg, 0, 1), arg)
+	assign.SetValueList(args)
 	set := NewSetAssignmentNode(9, "HOME")
 	cd = NewCdNode(21)
 	pwd := NewCommandNode(24, "pwd")
@@ -338,11 +359,14 @@ pwd`, expected, t)
 	ln = NewListNode()
 	assign = NewAssignmentNode(0)
 	assign.SetVarName("GOPATH")
-	assign.SetValueList(append(make([]ElemNode, 0, 1), ElemNode{
-		elem: "/home/i4k/gopath",
-	}))
+	arg = NewArg(8)
+	arg.SetQuoted("/home/i4k/gopath")
+	args = append(make([]*Arg, 0, 1), arg)
+	assign.SetValueList(args)
 	cd = NewCdNode(26)
-	cd.SetDir(NewArg(0, "$GOPATH", false))
+	path := NewArg(0)
+	path.SetVariable("$GOPATH")
+	cd.SetDir(path)
 
 	ln.Push(assign)
 	ln.Push(cd)
@@ -358,7 +382,9 @@ func TestParseRfork(t *testing.T) {
 	expected := NewTree("test rfork")
 	ln := NewListNode()
 	cmd1 := NewRforkNode(0)
-	cmd1.SetFlags(NewArg(6, "u", false))
+	f1 := NewArg(6)
+	f1.SetUnquoted("u")
+	cmd1.SetFlags(f1)
 	ln.Push(cmd1)
 	expected.Root = ln
 
@@ -369,13 +395,16 @@ func TestParseRforkWithBlock(t *testing.T) {
 	expected := NewTree("rfork with block")
 	ln := NewListNode()
 	rfork := NewRforkNode(0)
-	rfork.SetFlags(NewArg(6, "u", false))
+	arg := NewArg(6)
+	arg.SetUnquoted("u")
+	rfork.SetFlags(arg)
 
 	insideFork := NewCommandNode(11, "mount")
-	insideFork.AddArg(NewArg(17, "-t", false))
-	insideFork.AddArg(NewArg(20, "proc", false))
-	insideFork.AddArg(NewArg(25, "proc", false))
-	insideFork.AddArg(NewArg(30, "/proc", false))
+	insideFork.AddArg(newSimpleArg(17, "-t", false))
+	insideFork.AddArg(newSimpleArg(20, "proc", false))
+	insideFork.AddArg(newSimpleArg(25, "proc", false))
+	insideFork.AddArg(newSimpleArg(30, "/proc", false))
+
 	bln := NewListNode()
 	bln.Push(insideFork)
 	subtree := NewTree("rfork")
@@ -408,7 +437,7 @@ func TestParseImport(t *testing.T) {
 	expected := NewTree("test import")
 	ln := NewListNode()
 	importStmt := NewImportNode(0)
-	importStmt.SetPath(NewArg(0, "env.sh", false))
+	importStmt.SetPath(newSimpleArg(0, "env.sh", false))
 	ln.Push(importStmt)
 	expected.Root = ln
 
@@ -417,7 +446,7 @@ func TestParseImport(t *testing.T) {
 	expected = NewTree("test import with quotes")
 	ln = NewListNode()
 	importStmt = NewImportNode(0)
-	importStmt.SetPath(NewArg(0, "env.sh", true))
+	importStmt.SetPath(newSimpleArg(0, "env.sh", true))
 	ln.Push(importStmt)
 	expected.Root = ln
 
@@ -428,8 +457,8 @@ func TestParseIf(t *testing.T) {
 	expected := NewTree("test if")
 	ln := NewListNode()
 	ifDecl := NewIfNode(0)
-	ifDecl.SetLvalue(NewArg(4, "test", true))
-	ifDecl.SetRvalue(NewArg(14, "other", true))
+	ifDecl.SetLvalue(newSimpleArg(4, "test", true))
+	ifDecl.SetRvalue(newSimpleArg(14, "other", true))
 	ifDecl.SetOp("==")
 
 	subBlock := NewListNode()
@@ -451,8 +480,8 @@ func TestParseIf(t *testing.T) {
 	expected = NewTree("test if")
 	ln = NewListNode()
 	ifDecl = NewIfNode(0)
-	ifDecl.SetLvalue(NewArg(4, "", true))
-	ifDecl.SetRvalue(NewArg(10, "other", true))
+	ifDecl.SetLvalue(newSimpleArg(4, "", true))
+	ifDecl.SetRvalue(newSimpleArg(10, "other", true))
 	ifDecl.SetOp("!=")
 
 	subBlock = NewListNode()
@@ -476,12 +505,12 @@ func TestParseIfLvariable(t *testing.T) {
 	expected := NewTree("test if with variable")
 	ln := NewListNode()
 	ifDecl := NewIfNode(0)
-	ifDecl.SetLvalue(NewArg(4, "$test", false))
-	ifDecl.SetRvalue(NewArg(15, "other", true))
+	ifDecl.SetLvalue(newSimpleArg(3, "$test", false))
+	ifDecl.SetRvalue(newSimpleArg(13, "other", true))
 	ifDecl.SetOp("==")
 
 	subBlock := NewListNode()
-	cmd := NewCommandNode(25, "pwd")
+	cmd := NewCommandNode(23, "pwd")
 	subBlock.Push(cmd)
 
 	ifTree := NewTree("if block")
@@ -492,7 +521,7 @@ func TestParseIfLvariable(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if "$test" == "other" {
+	parserTestTable("test if", `if $test == "other" {
 	pwd
 }`, expected, t)
 }
@@ -501,12 +530,12 @@ func TestParseIfElse(t *testing.T) {
 	expected := NewTree("test if else with variable")
 	ln := NewListNode()
 	ifDecl := NewIfNode(0)
-	ifDecl.SetLvalue(NewArg(4, "$test", false))
-	ifDecl.SetRvalue(NewArg(15, "other", true))
+	ifDecl.SetLvalue(newSimpleArg(3, "$test", false))
+	ifDecl.SetRvalue(newSimpleArg(13, "other", true))
 	ifDecl.SetOp("==")
 
 	subBlock := NewListNode()
-	cmd := NewCommandNode(25, "pwd")
+	cmd := NewCommandNode(23, "pwd")
 	subBlock.Push(cmd)
 
 	ifTree := NewTree("if block")
@@ -526,7 +555,7 @@ func TestParseIfElse(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if "$test" == "other" {
+	parserTestTable("test if", `if $test == "other" {
 	pwd
 } else {
 	exit
@@ -537,12 +566,12 @@ func TestParseIfElseIf(t *testing.T) {
 	expected := NewTree("test if else with variable")
 	ln := NewListNode()
 	ifDecl := NewIfNode(0)
-	ifDecl.SetLvalue(NewArg(4, "$test", false))
-	ifDecl.SetRvalue(NewArg(15, "other", true))
+	ifDecl.SetLvalue(newSimpleArg(3, "$test", false))
+	ifDecl.SetRvalue(newSimpleArg(13, "other", true))
 	ifDecl.SetOp("==")
 
 	subBlock := NewListNode()
-	cmd := NewCommandNode(25, "pwd")
+	cmd := NewCommandNode(23, "pwd")
 	subBlock.Push(cmd)
 
 	ifTree := NewTree("if block")
@@ -552,8 +581,8 @@ func TestParseIfElseIf(t *testing.T) {
 
 	elseIfDecl := NewIfNode(0)
 
-	elseIfDecl.SetLvalue(NewArg(4, "$test", false))
-	elseIfDecl.SetRvalue(NewArg(15, "others", true))
+	elseIfDecl.SetLvalue(newSimpleArg(4, "$test", false))
+	elseIfDecl.SetRvalue(newSimpleArg(15, "others", true))
 	elseIfDecl.SetOp("==")
 
 	elseIfBlock := NewListNode()
@@ -584,9 +613,9 @@ func TestParseIfElseIf(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if "$test" == "other" {
+	parserTestTable("test if", `if $test == "other" {
 	pwd
-} else if "$test" == "others" {
+} else if $test == "others" {
 	ls
 } else {
 	exit
