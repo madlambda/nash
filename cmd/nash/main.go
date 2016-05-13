@@ -22,12 +22,14 @@ var (
 	debug   bool
 	file    string
 	addr    string
+	noInit  bool
 )
 
 func init() {
 	flag.BoolVar(&version, "version", false, "Show version")
 	flag.BoolVar(&debug, "debug", false, "enable debug")
 	flag.StringVar(&file, "file", "", "script file")
+	flag.BoolVar(&noInit, "noinit", false, "do not load init file")
 
 	if os.Args[0] == "-nashd-" || (len(os.Args) > 1 && os.Args[1] == "-daemon") {
 		flag.Bool("daemon", false, "force enable nashd mode")
@@ -64,7 +66,7 @@ func main() {
 
 	initFile := home + "/.nash/init"
 
-	if d, err := os.Stat(initFile); err == nil {
+	if d, err := os.Stat(initFile); err == nil && !noInit {
 		if m := d.Mode(); !m.IsDir() {
 			err = shell.ExecuteFile(initFile)
 

@@ -365,16 +365,30 @@ hasConcat:
 }
 
 func (p *Parser) parseAssignment() (Node, error) {
-	it := p.next()
+	varIt := p.next()
 
-	if it.typ != itemVarName {
+	if varIt.typ != itemVarName {
 		return nil, fmt.Errorf("Invalid item: %v")
 	}
 
-	n := NewAssignmentNode(it.pos)
-	n.SetVarName(it.val)
+	it := p.next()
 
-	it = p.peek()
+	if it.typ != itemAssign && it.typ != itemAssignCmd {
+		return nil, newError("Unexpected token %v, expected '=' or '<='", it)
+	}
+
+	if it.typ == itemAssign {
+		return p.parseAssignValue(varIt)
+	}
+
+	return p.parseAssignCmdOut(varIt)
+}
+
+func (p *Parser) parseAssignValue(name item) (Node, error) {
+	n := NewAssignmentNode(name.pos)
+	n.SetVarName(name.val)
+
+	it := p.peek()
 
 	if it.typ == itemVariable || it.typ == itemString {
 		arg, err := p.getArgument(false)
@@ -407,6 +421,10 @@ func (p *Parser) parseAssignment() (Node, error) {
 	}
 
 	return n, nil
+}
+
+func (p *Parser) parseAssignCmdOut(name item) (Node, error) {
+	return nil, newError("not implemented")
 }
 
 func (p *Parser) parseRfork() (Node, error) {

@@ -29,11 +29,10 @@ type (
 		stdout io.Writer
 		stderr io.Writer
 
-		argNames  []string
-		env       Env
-		vars      Var
-		fns       Fns
-		multiline bool
+		argNames []string
+		env      Env
+		vars     Var
+		fns      Fns
 
 		root   *Tree
 		parent *Shell

@@ -78,7 +78,7 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 
 	cmd := exec.Cmd{
 		Path: sh.nashdPath,
-		Args: append([]string{"-nashd-"}, "-addr", unixfile),
+		Args: append([]string{"-nashd-"}, "-noinit", "-addr", unixfile),
 	}
 
 	forkFlags, err := getflags(rfork.arg.val)

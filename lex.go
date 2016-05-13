@@ -44,6 +44,8 @@ const (
 	itemSetEnv
 	itemShowEnv
 	itemVarName
+	itemAssign
+	itemAssignCmd
 	itemConcat
 	itemVariable
 	itemListOpen
@@ -272,7 +274,7 @@ func lexIdentifier(l *lexer) stateFn {
 
 					ignoreSpaces(l)
 					l.next()
-					l.ignore()
+					l.emit(itemAssign)
 					return lexInsideAssignment
 				}
 

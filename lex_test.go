@@ -156,6 +156,10 @@ func TestLexerSimpleAssignment(t *testing.T) {
 			val: "test",
 		},
 		item{
+			typ: itemAssign,
+			val: "=",
+		},
+		item{
 			typ: itemString,
 			val: "value",
 		},
@@ -178,12 +182,20 @@ func TestLexerSimpleAssignment(t *testing.T) {
 			val: "test",
 		},
 		item{
+			typ: itemAssign,
+			val: "=",
+		},
+		item{
 			typ: itemString,
 			val: "value",
 		},
 		item{
 			typ: itemVarName,
 			val: "other",
+		},
+		item{
+			typ: itemAssign,
+			val: "=",
 		},
 		item{
 			typ: itemString,
@@ -204,12 +216,20 @@ func TestLexerSimpleAssignment(t *testing.T) {
 			val: "test",
 		},
 		item{
+			typ: itemAssign,
+			val: "=",
+		},
+		item{
 			typ: itemString,
 			val: "value",
 		},
 		item{
 			typ: itemVarName,
 			val: "other",
+		},
+		item{
+			typ: itemAssign,
+			val: "=",
 		},
 		item{
 			typ: itemVariable,
@@ -239,6 +259,10 @@ func TestLexerSimpleAssignment(t *testing.T) {
 			val: "STALI_SRC",
 		},
 		item{
+			typ: itemAssign,
+			val: "=",
+		},
+		item{
 			typ: itemVariable,
 			val: "$PWD",
 		},
@@ -261,6 +285,10 @@ func TestLexerSimpleAssignment(t *testing.T) {
 		item{
 			typ: itemVarName,
 			val: "PROMPT",
+		},
+		item{
+			typ: itemAssign,
+			val: "=",
 		},
 		item{
 			typ: itemString,
@@ -306,6 +334,10 @@ func TestLexerListAssignment(t *testing.T) {
 			val: "test",
 		},
 		item{
+			typ: itemAssign,
+			val: "=",
+		},
+		item{
 			typ: itemListOpen,
 			val: "(",
 		},
@@ -343,6 +375,10 @@ func TestLexerInvalidAssignments(t *testing.T) {
 		item{
 			typ: itemVarName,
 			val: "test",
+		},
+		item{
+			typ: itemAssign,
+			val: "=",
 		},
 		item{
 			typ: itemString,
@@ -803,6 +839,10 @@ func TestLexerBuiltinCd(t *testing.T) {
 		item{
 			typ: itemVarName,
 			val: "HOME",
+		},
+		item{
+			typ: itemAssign,
+			val: "=",
 		},
 		item{
 			typ: itemString,
@@ -1851,6 +1891,10 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "PROMPT",
 		},
 		item{
+			typ: itemAssign,
+			val: "=",
+		},
+		item{
 			typ: itemString,
 			val: "(",
 		},
@@ -2002,3 +2046,25 @@ func TestLexerFnInvocation(t *testing.T) {
 
 	testTable("test fn invocation", `build($debug)`, expected, t)
 }
+
+/*func TestLexerAssignCmdOut(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemVarName,
+			val: "ipaddr",
+		},
+		item{
+			typ: itemAssignCmd,
+			val: "<=",
+		},
+		item{
+			typ: itemCommand,
+			val: "someprogram",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test assignCmdOut", `ipaddr <= someprogram`, expected, t)
+}*/
