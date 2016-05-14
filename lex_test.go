@@ -2047,7 +2047,7 @@ func TestLexerFnInvocation(t *testing.T) {
 	testTable("test fn invocation", `build($debug)`, expected, t)
 }
 
-/*func TestLexerAssignCmdOut(t *testing.T) {
+func TestLexerAssignCmdOut(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemVarName,
@@ -2067,4 +2067,4 @@ func TestLexerFnInvocation(t *testing.T) {
 	}
 
 	testTable("test assignCmdOut", `ipaddr <= someprogram`, expected, t)
-}*/
+}

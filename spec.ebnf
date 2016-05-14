@@ -40,13 +40,15 @@ fnDecl      = "fn" identifier "(" fnArgs ")" "{"
 fnInv       = identifier "(" fnArgs ")" .
 redirect    = ( ">" ( filename | uri ) |
                ">" "[" unicode_digit "]" ( filename | uri ) |
-               ">" "[" unicode_digit "=" unicode_digit "]" |
+               ">" "[" unicode_digit "=" ( unicode_digit | identifier ) "]" |
                ">" "[" unicode_digit "=" "]" ) .
 
 comparison  = "==" | "!=" .
 
 string_lit   = "\"" { unicode_char | newline } "\"" .
-varDecl      = identifier "=" varSpec .
+varDecl      = assignValue | assignCmdOut .
+assignValue  = identifier "=" varSpec .
+assignCmdOut = identifier "<=" command .
 varSpec      = ( list | varValue ) .
 varValue     = string_lit | ( stringConcat { stringConcat } ) .
 list         = "(" { varValue } ")" .

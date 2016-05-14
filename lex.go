@@ -239,7 +239,7 @@ func lexStart(l *lexer) stateFn {
 	return l.errorf("Unrecognized character in action: %#U", r)
 }
 
-func lexIdentifier(l *lexer) stateFn {
+func absorbIdentifier(l *lexer) {
 	for {
 		r := l.next()
 
@@ -251,6 +251,10 @@ func lexIdentifier(l *lexer) stateFn {
 	}
 
 	l.backup() // pos is now ahead of the alphanum
+}
+
+func lexIdentifier(l *lexer) stateFn {
+	absorbIdentifier(l)
 
 	word := l.input[l.start:l.pos]
 
@@ -263,6 +267,7 @@ func lexIdentifier(l *lexer) stateFn {
 		return lexInsideFnInv
 	}
 
+	// name=val
 	if isSpace(r) || r == '=' {
 		// lookahead by hand, to avoid more complex lexer API
 		for i := l.pos; i < len(l.input); i++ {
@@ -276,6 +281,48 @@ func lexIdentifier(l *lexer) stateFn {
 					l.next()
 					l.emit(itemAssign)
 					return lexInsideAssignment
+				}
+
+				break
+			}
+		}
+	}
+
+	// name <= cmd
+	if isSpace(r) || r == '<' {
+		// lookahead by hand, to avoid more complex lexer API
+		for i := l.pos; i < len(l.input); i++ {
+			r, _ := utf8.DecodeRuneInString(l.input[i:])
+
+			if !isSpace(r) {
+				if r == '<' {
+					r, _ := utf8.DecodeRuneInString(l.input[i+1:])
+
+					if r != '=' {
+						return l.errorf("Unexpected token '%v'. Expected '='", r)
+					}
+
+					l.emit(itemVarName)
+
+					ignoreSpaces(l)
+
+					l.next()
+					l.next()
+
+					l.emit(itemAssignCmd)
+
+					ignoreSpaces(l)
+
+					absorbIdentifier(l)
+
+					word := l.input[l.start:l.pos]
+
+					if len(word) == 0 {
+						return l.errorf("Expected identifier")
+					}
+
+					l.emit(itemCommand)
+					return lexInsideCommand
 				}
 
 				break
