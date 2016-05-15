@@ -424,7 +424,17 @@ func (p *Parser) parseAssignValue(name item) (Node, error) {
 }
 
 func (p *Parser) parseAssignCmdOut(name item) (Node, error) {
-	return nil, newError("not implemented")
+	n := NewCmdAssignmentNode(name.pos, name.val)
+
+	cmd, err := p.parseCommand()
+
+	if err != nil {
+		return nil, err
+	}
+
+	n.SetCommand(cmd.(*CommandNode))
+
+	return n, nil
 }
 
 func (p *Parser) parseRfork() (Node, error) {
@@ -639,7 +649,16 @@ func (p *Parser) parseFnInv() (Node, error) {
 		it = p.next()
 
 		if it.typ == itemString || it.typ == itemVariable {
-			n.AddArg(it.val)
+			arg := NewArg(it.pos, 0)
+
+			if it.typ == itemString {
+				arg.SetArgType(ArgQuoted)
+			} else {
+				arg.SetArgType(ArgVariable)
+			}
+
+			arg.SetString(it.val)
+			n.AddArg(arg)
 		} else if it.typ == itemRightParen {
 			break
 		} else {
@@ -683,6 +702,25 @@ func (p *Parser) parseElse() (*ListNode, bool, error) {
 	return nil, false, fmt.Errorf("Unexpected token: %v", it)
 }
 
+func (p *Parser) parseBindFn() (Node, error) {
+	bindIt := p.next()
+
+	nameIt := p.next()
+
+	if nameIt.typ != itemVarName {
+		return nil, newError("Expected identifier, but found '%v'", nameIt)
+	}
+
+	cmdIt := p.next()
+
+	if cmdIt.typ != itemVarName {
+		return nil, newError("Expected identifier, but found '%v'", cmdIt)
+	}
+
+	n := NewBindFnNode(bindIt.pos, nameIt.val, cmdIt.val)
+	return n, nil
+}
+
 func (p *Parser) parseComment() (Node, error) {
 	it := p.next()
 
@@ -699,6 +737,8 @@ func (p *Parser) parseStatement() (Node, error) {
 	switch it.typ {
 	case itemError:
 		return nil, fmt.Errorf("Syntax error: %s", it.val)
+	case itemBuiltin:
+		panic("not implemented")
 	case itemImport:
 		return p.parseImport()
 	case itemShowEnv:
@@ -721,6 +761,8 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseFnDecl()
 	case itemFnInv:
 		return p.parseFnInv()
+	case itemBindFn:
+		return p.parseBindFn()
 	}
 
 	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)

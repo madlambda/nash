@@ -14,4 +14,4 @@ fn cd(path) {
 }
 
 # bind "cd" to call cd function
-bind cd cd
+bindfn cd cd

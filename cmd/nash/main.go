@@ -45,7 +45,12 @@ func main() {
 		os.Exit(0)
 	}
 
-	shell := nash.NewShell(debug)
+	shell, err := nash.NewShell(debug)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+		os.Exit(1)
+	}
 
 	home := os.Getenv("HOME")
 
@@ -76,8 +81,6 @@ func main() {
 			}
 		}
 	}
-
-	var err error
 
 	if addr != "" {
 		startNashd(shell, addr)

@@ -39,6 +39,7 @@ const (
 
 	itemError itemType = iota + 1 // error ocurred
 	itemEOF
+	itemBuiltin
 	itemImport
 	itemComment
 	itemSetEnv
@@ -52,6 +53,7 @@ const (
 	itemListClose
 	itemListElem
 	itemCommand // alphanumeric identifier that's not a keyword
+	itemBindFn  // "bindfn <fn> <cmd>
 	itemArg
 	itemLeftBlock     // {
 	itemRightBlock    // }
@@ -331,6 +333,9 @@ func lexIdentifier(l *lexer) stateFn {
 	}
 
 	switch word {
+	case "builtin":
+		l.emit(itemBuiltin)
+		return lexStart
 	case "import":
 		l.emit(itemImport)
 		return lexInsideImport
@@ -369,6 +374,11 @@ func lexIdentifier(l *lexer) stateFn {
 
 		l.backup()
 		return lexStart
+	case "bindfn":
+		l.emit(itemBindFn)
+
+		return lexInsideBindFn
+
 	}
 
 	l.emit(itemCommand)
@@ -912,6 +922,56 @@ func lexInsideCommandName(l *lexer) stateFn {
 
 	l.emit(itemCommand)
 	return lexInsideCommand
+}
+
+func lexInsideBindFn(l *lexer) stateFn {
+	var r rune
+
+	ignoreSpaces(l)
+
+	for {
+		r = l.next()
+
+		if isIdentifier(r) {
+			continue
+		}
+
+		break
+	}
+
+	l.backup()
+
+	word := l.input[l.start:l.pos]
+
+	if len(word) == 0 {
+		return l.errorf("Unexpected %q, expected identifier.", r)
+	}
+
+	l.emit(itemVarName)
+
+	ignoreSpaces(l)
+
+	for {
+		r = l.next()
+
+		if isIdentifier(r) {
+			continue
+		}
+
+		break
+	}
+
+	l.backup()
+
+	word = l.input[l.start:l.pos]
+
+	if len(word) == 0 {
+		return l.errorf("Unexpected %q, expected identifier.", r)
+	}
+
+	l.emit(itemVarName)
+
+	return lexStart
 }
 
 func lexInsideCommand(l *lexer) stateFn {

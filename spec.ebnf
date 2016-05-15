@@ -19,7 +19,8 @@ identifier  = letter { letter | unicode_digit } .
 variable    = "$" identifier .
 builtin     = importDecl | rforkDecl | cdDecl | ifDecl | elseDecl |
               forDecl | execDecl | setenvDecl | showenvDecl |
-              fnDecl | fnInv .
+              fnDecl | fnInv | bindfn .
+builtinDecl = "builtin" builtin .
 importDecl  = "import" ( filename | string_lit ) .
 rforkDecl   = "rfork" rforkFlags "{" program "}" .
 namespace   = { "c" | "m" | "n" | "i" | "p" | "u" | "s" } .
@@ -38,6 +39,7 @@ fnDecl      = "fn" identifier "(" fnArgs ")" "{"
               program [ "return" ( variable | string_lit | list ) ]
               "}" .
 fnInv       = identifier "(" fnArgs ")" .
+bindfn      = "bindfn" identifier identifier .
 redirect    = ( ">" ( filename | uri ) |
                ">" "[" unicode_digit "]" ( filename | uri ) |
                ">" "[" unicode_digit "=" ( unicode_digit | identifier ) "]" |
@@ -69,4 +71,4 @@ fnArgs    = { fnArg [ "," ] } .
 comment   = "#" { unicode_char } .
 
 program   = { statement } .
-statement = varDecl | command | builtin | comment .
+statement = varDecl | command | builtin | builtinDecl | comment .

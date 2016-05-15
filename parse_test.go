@@ -152,6 +152,20 @@ func TestBasicAssignment(t *testing.T) {
 	}
 }
 
+func TestParseCmdAssignment(t *testing.T) {
+	expected := NewTree("simple cmd assignment")
+	ln := NewListNode()
+	assign := NewCmdAssignmentNode(0, "test")
+
+	cmd := NewCommandNode(8, "ls")
+	assign.SetCommand(cmd)
+
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTestTable("simple assignment", `test <= ls`, expected, t)
+}
+
 func TestParseInvalid(t *testing.T) {
 	parser := NewParser("invalid", ";")
 
@@ -735,6 +749,17 @@ func TestParseFnBasic(t *testing.T) {
 	parserTestTable("fn", `fn build(image, debug) {
 	ls
 }`, expected, t)
+}
+
+func TestParseBindFn(t *testing.T) {
+	expected := NewTree("bindfn")
+	ln := NewListNode()
+
+	bindFn := NewBindFnNode(0, "cd", "cd")
+	ln.Push(bindFn)
+	expected.Root = ln
+
+	parserTestTable("bindfn", `bindfn cd cd`, expected, t)
 }
 
 func TestParseIfInvalid(t *testing.T) {

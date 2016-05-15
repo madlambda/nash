@@ -16,53 +16,38 @@ type (
 		sh    *Shell
 		fdMap FDMap
 
-		ignoreError bool
-
 		stdinDone, stdoutDone, stderrDone chan bool
 	}
 
-	errIgnore struct {
+	errCmdNotFound struct {
 		*nashError
 	}
 )
 
-func newIgnoreError(format string, arg ...interface{}) error {
-	e := &errIgnore{
+func newCmdNotFound(format string, arg ...interface{}) error {
+	e := &errCmdNotFound{
 		nashError: newError(format, arg...),
 	}
 
 	return e
 }
 
-func (e *errIgnore) IgnoreError() bool {
+func (e *errCmdNotFound) NotFound() bool {
 	return true
 }
 
 func NewCommand(name string, sh *Shell) (*Command, error) {
 	var (
-		ignoreError bool
-		err         error
+		err error
 	)
 
 	cmdPath := name
-
-	if len(name) > 1 && name[0] == '-' {
-		ignoreError = true
-		name = name[1:]
-
-		sh.log("Ignoring error\n")
-	}
 
 	if name[0] != '/' {
 		cmdPath, err = exec.LookPath(name)
 
 		if err != nil {
-			if ignoreError {
-				err = newIgnoreError("ignoring error: %s", err.Error())
-				return nil, err
-			}
-
-			return nil, err
+			return nil, newCmdNotFound("Command '%s' not found: %s", name, err.Error())
 		}
 	}
 
@@ -77,9 +62,8 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 	}
 
 	cmd := &Command{
-		name:        name,
-		sh:          sh,
-		ignoreError: ignoreError,
+		name: name,
+		sh:   sh,
 		Cmd: &exec.Cmd{
 			Path:   cmdPath,
 			Stdin:  os.Stdin,
@@ -407,10 +391,6 @@ func (cmd *Command) Execute() error {
 	err := cmd.Start()
 
 	if err != nil {
-		if cmd.ignoreError {
-			return nil
-		}
-
 		return err
 	}
 
@@ -421,10 +401,6 @@ func (cmd *Command) Execute() error {
 	err = cmd.Wait()
 
 	if err != nil {
-		if cmd.ignoreError {
-			return nil
-		}
-
 		return err
 	}
 

@@ -318,6 +318,43 @@ func compareFnDeclNode(expected, value *FnDeclNode) (bool, error) {
 	return compare(expected.Tree(), value.Tree())
 }
 
+func compareBindFnNode(expected, value *BindFnNode) (bool, error) {
+	if ok, err := compareDefault(expected, value); !ok {
+		return ok, err
+	}
+
+	ename := expected.Name()
+	vname := value.Name()
+
+	if ename != vname {
+		return false, fmt.Errorf(" CompareBindFnNode (%v, %v) -> '%s' != '%s'", expected, value, ename, vname)
+	}
+
+	cmdename := expected.CmdName()
+	cmdvname := value.CmdName()
+
+	if cmdename != cmdvname {
+		return false, fmt.Errorf(" CompareBindFnNode (%v, %v) -> '%s' != '%s'", expected, value, cmdename, cmdvname)
+	}
+
+	return true, nil
+}
+
+func compareCmdAssignmentNode(expected, value *CmdAssignmentNode) (bool, error) {
+	if ok, err := compareDefault(expected, value); !ok {
+		return ok, err
+	}
+
+	ename := expected.Name()
+	vname := value.Name()
+
+	if ename != vname {
+		return false, fmt.Errorf(" CompareCmdAssignmentnode (%v, %v) -> '%s' != '%s'", expected, value, ename, vname)
+	}
+
+	return compareCommandNode(expected.Command(), value.Command())
+}
+
 func compareIfNode(expected, value *IfNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
@@ -431,6 +468,14 @@ func compareNodes(expected Node, value Node) (bool, error) {
 		ec := expected.(*FnDeclNode)
 		vc := value.(*FnDeclNode)
 		valid, err = compareFnDeclNode(ec, vc)
+	case *CmdAssignmentNode:
+		ec := expected.(*CmdAssignmentNode)
+		vc := value.(*CmdAssignmentNode)
+		valid, err = compareCmdAssignmentNode(ec, vc)
+	case *BindFnNode:
+		ec := expected.(*BindFnNode)
+		vc := value.(*BindFnNode)
+		valid, err = compareBindFnNode(ec, vc)
 	default:
 		return false, fmt.Errorf("Type %v not comparable yet", v)
 	}

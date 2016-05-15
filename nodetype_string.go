@@ -4,9 +4,9 @@ package nash
 
 import "fmt"
 
-const _NodeType_name = "NodeSetAssignmentNodeShowEnvNodeAssignmentNodeImportNodeCommandNodeArgNodeStringNodeRforkNodeCdNodeRforkFlagsNodeIfNodeCommentNodeFnDeclNodeFnInv"
+const _NodeType_name = "NodeSetAssignmentNodeShowEnvNodeAssignmentNodeCmdAssignmentNodeImportNodeCommandNodeArgNodeStringNodeRforkNodeCdNodeRforkFlagsNodeIfNodeCommentNodeFnDeclNodeFnInvNodeBindFn"
 
-var _NodeType_index = [...]uint8{0, 17, 28, 42, 52, 63, 70, 80, 89, 95, 109, 115, 126, 136, 145}
+var _NodeType_index = [...]uint8{0, 17, 28, 42, 59, 69, 80, 87, 97, 106, 112, 126, 132, 143, 153, 162, 172}
 
 func (i NodeType) String() string {
 	i -= 1

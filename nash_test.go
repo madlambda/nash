@@ -61,11 +61,17 @@ func TestExecuteFile(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err := sh.ExecuteFile(testfile)
+	err = sh.ExecuteFile(testfile)
 
 	if err != nil {
 		t.Error(err)
@@ -79,11 +85,17 @@ func TestExecuteFile(t *testing.T) {
 }
 
 func TestExecuteCommand(t *testing.T) {
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 	sh.SetStderr(ioutil.Discard)
 
-	err := sh.ExecuteString("command failed", `
+	err = sh.ExecuteString("command failed", `
         non-existent-program
         `)
 
@@ -129,11 +141,17 @@ func TestExecuteRforkUserNS(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err := sh.ExecuteString("rfork test", `
+	err = sh.ExecuteString("rfork test", `
         rfork u {
             id -u
         }
@@ -158,11 +176,17 @@ func TestExecuteRforkUserNSNested(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err := sh.ExecuteString("rfork userns nested", `
+	err = sh.ExecuteString("rfork userns nested", `
         rfork u {
             id -u
             rfork u {
@@ -185,11 +209,17 @@ func TestExecuteRforkUserNSNested(t *testing.T) {
 func TestExecuteAssignment(t *testing.T) {
 	var out bytes.Buffer
 
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err := sh.ExecuteString("assignment", `
+	err = sh.ExecuteString("assignment", `
         name="i4k"
         echo $name
         `)
@@ -225,7 +255,13 @@ func TestExecuteAssignment(t *testing.T) {
 		return
 	}
 
-	sh = NewShell(false)
+	sh, err = NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 
 	err = sh.ExecuteString("assignment", `
@@ -238,11 +274,85 @@ func TestExecuteAssignment(t *testing.T) {
 	}
 }
 
-func TestExecuteRedirection(t *testing.T) {
-	sh := NewShell(false)
+func TestExecuteCmdAssignment(t *testing.T) {
+	var out bytes.Buffer
+
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("assignment", `
+        name <= echo i4k
+        echo $name
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "i4k" {
+		t.Error("assignment not work")
+		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), "i4k")
+
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("list assignment", `
+        name <= echo "honda civic"
+        echo $name
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "honda civic" {
+		t.Error("assignment not work")
+		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), "honda civic")
+
+		return
+	}
+
+	sh, err = NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 
-	err := sh.ExecuteString("redirect", `
+	err = sh.ExecuteString("assignment", `
+        name <= ""
+        `)
+
+	if err == nil {
+		t.Error("Must fail")
+		return
+	}
+}
+
+func TestExecuteRedirection(t *testing.T) {
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+
+	err = sh.ExecuteString("redirect", `
         echo -n "hello world" > /tmp/test1.txt
         `)
 
@@ -265,10 +375,16 @@ func TestExecuteRedirection(t *testing.T) {
 }
 
 func TestExecuteRedirectionMap(t *testing.T) {
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 
-	err := sh.ExecuteString("redirect map", `
+	err = sh.ExecuteString("redirect map", `
         echo -n "hello world" > /tmp/test1.txt
         `)
 
@@ -293,11 +409,17 @@ func TestExecuteRedirectionMap(t *testing.T) {
 func TestExecuteCd(t *testing.T) {
 	var out bytes.Buffer
 
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err := sh.ExecuteString("test cd", `
+	err = sh.ExecuteString("test cd", `
         cd /tmp
         pwd
         `)
@@ -372,11 +494,17 @@ func TestExecuteCd(t *testing.T) {
 func TestExecuteImport(t *testing.T) {
 	var out bytes.Buffer
 
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err := ioutil.WriteFile("/tmp/test.sh", []byte(`TESTE="teste"`), 0644)
+	err = ioutil.WriteFile("/tmp/test.sh", []byte(`TESTE="teste"`), 0644)
 
 	if err != nil {
 		t.Error(err)
@@ -401,13 +529,19 @@ func TestExecuteImport(t *testing.T) {
 func TestExecuteShowEnv(t *testing.T) {
 	var out bytes.Buffer
 
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
 	sh.SetEnviron(make(Env)) // zero'ing the env
 
-	err := sh.ExecuteString("test showenv", "showenv")
+	err = sh.ExecuteString("test showenv", "showenv")
 
 	if err != nil {
 		t.Error(err)
@@ -440,11 +574,17 @@ func TestExecuteShowEnv(t *testing.T) {
 func TestExecuteIfEqual(t *testing.T) {
 	var out bytes.Buffer
 
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err := sh.ExecuteString("test if equal", `
+	err = sh.ExecuteString("test if equal", `
         if "" == "" {
             echo "empty string works"
         }`)
@@ -480,11 +620,17 @@ func TestExecuteIfEqual(t *testing.T) {
 func TestExecuteIfElse(t *testing.T) {
 	var out bytes.Buffer
 
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err := sh.ExecuteString("test if else", `
+	err = sh.ExecuteString("test if else", `
         if "" == "" {
             echo "if still works"
         } else {
@@ -524,11 +670,17 @@ func TestExecuteIfElse(t *testing.T) {
 func TestExecuteIfElseIf(t *testing.T) {
 	var out bytes.Buffer
 
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err := sh.ExecuteString("test if else", `
+	err = sh.ExecuteString("test if else", `
         if "" == "" {
             echo "if still works"
         } else if "bleh" == "bloh" {
@@ -566,16 +718,54 @@ func TestExecuteIfElseIf(t *testing.T) {
 }
 
 func TestExecuteFnDecl(t *testing.T) {
-	sh := NewShell(false)
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
 	sh.SetNashdPath(nashdPath)
 
-	err := sh.ExecuteString("test fnDecl", `
+	err = sh.ExecuteString("test fnDecl", `
         fn build(image, debug) {
                 ls
         }`)
 
 	if err != nil {
 		t.Error(err)
+		return
+	}
+}
+
+func TestExecuteBindFn(t *testing.T) {
+	var out bytes.Buffer
+
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("test bindfn", `
+        fn cd(path) {
+                echo "override builtin cd"
+        }
+
+        bindfn cd cd
+        cd`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(out.Bytes())) != "override builtin cd" {
+		t.Errorf("Error: '%s' != 'override builtin cd'", strings.TrimSpace(string(out.Bytes())))
 		return
 	}
 }

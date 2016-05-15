@@ -1,6 +1,7 @@
 package nash
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ type (
 	Env map[string][]string
 	Var Env
 	Fns map[string]*Shell
+	Bns Fns
 
 	// Shell is the core data structure.
 	Shell struct {
@@ -33,11 +35,28 @@ type (
 		env      Env
 		vars     Var
 		fns      Fns
+		binds    Fns
 
 		root   *Tree
 		parent *Shell
 	}
+
+	errIgnore struct {
+		*nashError
+	}
 )
+
+func newIgnoreError(format string, arg ...interface{}) error {
+	e := &errIgnore{
+		nashError: newError(format, arg...),
+	}
+
+	return e
+}
+
+func (e *errIgnore) IgnoreError() bool {
+	return true
+}
 
 const (
 	logNS     = "nash.Shell"
@@ -45,8 +64,12 @@ const (
 )
 
 // NewShell creates a new shell object
-func NewShell(debug bool) *Shell {
-	env, vars := NewEnv()
+func NewShell(debug bool) (*Shell, error) {
+	env, vars, err := NewEnv()
+
+	if err != nil {
+		return nil, err
+	}
 
 	if env["PROMPT"] == nil {
 		env["PROMPT"] = append(make([]string, 0, 1), defPrompt)
@@ -64,18 +87,19 @@ func NewShell(debug bool) *Shell {
 		env:       env,
 		vars:      vars,
 		fns:       make(Fns),
+		binds:     make(Fns),
 		argNames:  make([]string, 0, 16),
-	}
+	}, nil
 }
 
 // NewEnv creates a new environment from old one
-func NewEnv() (Env, Var) {
+func NewEnv() (Env, Var, error) {
 	env := make(Env)
 	vars := make(Var)
 	processEnv := os.Environ()
 
-	env["*"] = os.Args
-	vars["*"] = os.Args
+	env["argv"] = os.Args
+	vars["argv"] = os.Args
 
 	for _, penv := range processEnv {
 		var value []string
@@ -100,7 +124,16 @@ func NewEnv() (Env, Var) {
 	env["SHELL"] = shellVal
 	vars["SHELL"] = shellVal
 
-	return env, vars
+	cwd, err := os.Getwd()
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	env["PWD"] = append(make([]string, 0, 1), cwd)
+	vars["PWD"] = append(make([]string, 0, 1), cwd)
+
+	return env, vars, nil
 }
 
 func (sh *Shell) SetName(a string) {
@@ -152,6 +185,11 @@ func (sh *Shell) GetVar(name string) ([]string, bool) {
 	}
 
 	return nil, false
+}
+
+func (sh *Shell) GetFn(name string) (*Shell, bool) {
+	fn, ok := sh.fns[name]
+	return fn, ok
 }
 
 func (sh *Shell) SetVar(name string, value []string) {
@@ -302,6 +340,8 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 			}
 		case NodeAssignment:
 			err = sh.executeAssignment(node.(*AssignmentNode))
+		case NodeCmdAssignment:
+			err = sh.executeCmdAssignment(node.(*CmdAssignmentNode))
 		case NodeCommand:
 			err = sh.executeCommand(node.(*CommandNode))
 		case NodeRfork:
@@ -314,12 +354,24 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 			err = sh.executeFnDecl(node.(*FnDeclNode))
 		case NodeFnInv:
 			err = sh.executeFnInv(node.(*FnInvNode))
+		case NodeBindFn:
+			err = sh.executeBindFn(node.(*BindFnNode))
 		default:
 			// should never get here
 			return fmt.Errorf("invalid node: %v.", node.Type())
 		}
 
 		if err != nil {
+			type IgnoreError interface {
+				IgnoreError() bool
+			}
+
+			if errIgnore, ok := err.(IgnoreError); ok && errIgnore.IgnoreError() {
+				fmt.Fprintf(sh.stderr, "ERROR: %s\n", err.Error())
+
+				return nil
+			}
+
 			return err
 		}
 	}
@@ -341,17 +393,32 @@ func (sh *Shell) executeShowEnv(node *ShowEnvNode) error {
 }
 
 func (sh *Shell) executeCommand(c *CommandNode) error {
+	var ignoreError bool
+
+	if len(c.name) > 1 && c.name[0] == '-' {
+		ignoreError = true
+		c.name = c.name[1:]
+
+		sh.log("Ignoring error\n")
+	}
+
 	cmd, err := NewCommand(c.name, sh)
 
 	if err != nil {
-		type IgnoreError interface {
-			IgnoreError() bool
+		type NotFound interface {
+			NotFound() bool
 		}
 
-		if errIgnore, ok := err.(IgnoreError); ok && errIgnore.IgnoreError() {
-			fmt.Fprintf(sh.stderr, "ERROR: %s\n", err.Error())
+		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
+			if fn, ok := sh.GetFn(c.Name()); ok {
+				sh.log("Executing bind %s", c.Name())
 
-			return nil
+				return sh.executeFn(fn, c.args)
+			}
+		}
+
+		if ignoreError {
+			return newIgnoreError(err.Error())
 		}
 
 		return err
@@ -360,16 +427,34 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 	err = cmd.SetArgs(c.args)
 
 	if err != nil {
+		if ignoreError {
+			return newIgnoreError(err.Error())
+		}
+
 		return err
 	}
 
 	err = cmd.SetRedirects(c.redirs)
 
 	if err != nil {
+		if ignoreError {
+			return newIgnoreError(err.Error())
+		}
+
 		return err
 	}
 
-	return cmd.Execute()
+	err = cmd.Execute()
+
+	if err != nil {
+		if ignoreError {
+			return newIgnoreError(err.Error())
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 func (sh *Shell) evalVariable(a string) ([]string, error) {
@@ -425,6 +510,26 @@ func (sh *Shell) concatElements(elem *Arg) (string, error) {
 	return value, nil
 }
 
+func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
+	var varOut bytes.Buffer
+
+	bkStdout := sh.stdout
+
+	sh.SetStdout(&varOut)
+	err := sh.executeCommand(v.Command())
+
+	sh.SetStdout(bkStdout)
+
+	if err != nil {
+		return err
+	}
+
+	strelems := append(make([]string, 0, 1), string(varOut.Bytes()))
+
+	sh.SetVar(v.Name(), strelems)
+	return nil
+}
+
 // Note(i4k): shit code
 func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 	var err error
@@ -469,6 +574,19 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 
 	path := cd.Dir()
 
+	if fn, ok := sh.binds["cd"]; ok {
+		args := make([]*Arg, 0, 1)
+
+		if path != nil {
+			args = append(args, path)
+		} else {
+			// empty arg
+			args = append(args, NewArg(0, ArgQuoted))
+		}
+
+		return sh.executeFn(fn, args)
+	}
+
 	if path == nil {
 		if pathlist, ok = sh.GetEnv("HOME"); !ok {
 			return errors.New("Nash don't know where to cd. No variable $HOME or $home set")
@@ -509,7 +627,21 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 		return fmt.Errorf("Exec error: Invalid path: %v", path)
 	}
 
-	return os.Chdir(pathStr)
+	err := os.Chdir(pathStr)
+
+	if err != nil {
+		return err
+	}
+
+	pwd, ok := sh.GetVar("PWD")
+
+	if !ok {
+		return fmt.Errorf("Variable $PWD is not set")
+	}
+
+	sh.SetVar("OLDPWD", pwd)
+	sh.SetVar("PWD", append(make([]string, 0, 1), pathStr))
+	return nil
 }
 
 func (sh *Shell) evalIfArguments(n *IfNode) (string, string, error) {
@@ -591,38 +723,60 @@ func (sh *Shell) executeIfNotEqual(n *IfNode) error {
 	return nil
 }
 
+func (sh *Shell) executeFn(fn *Shell, args []*Arg) error {
+	var err error
+
+	if len(fn.argNames) != len(args) {
+		return newError("Wrong number of arguments for function %s. Expected %d but found %d",
+			fn.name, len(fn.argNames), len(args))
+	}
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		argStr := ""
+		argName := fn.argNames[i]
+
+		if arg.IsConcat() {
+			argStr, err = sh.executeConcat(arg)
+
+			if err != nil {
+				return err
+			}
+		} else {
+			argStr = arg.Value()
+		}
+
+		if len(argStr) > 0 && argStr[0] == '$' {
+			elemstr, err := sh.evalVariable(argStr)
+
+			if err != nil {
+				return err
+			}
+
+			fn.vars[argName] = elemstr
+		} else {
+			fn.vars[argName] = append(make([]string, 0, 1), argStr)
+		}
+	}
+
+	return fn.Execute()
+}
+
 func (sh *Shell) executeFnInv(n *FnInvNode) error {
 	if fn, ok := sh.fns[n.name]; ok {
-		if len(fn.argNames) != len(n.args) {
-			return newError("Wrong number of arguments for function %s. Expected %d but found %d",
-				n.name, len(fn.argNames), len(n.args))
-		}
-
-		for i := 0; i < len(n.args); i++ {
-			arg := n.args[i]
-			argName := fn.argNames[i]
-
-			if len(arg) > 0 && arg[0] == '$' {
-				elemstr, err := sh.evalVariable(arg)
-
-				if err != nil {
-					return err
-				}
-
-				fn.vars[argName] = elemstr
-			} else {
-				fn.vars[argName] = append(make([]string, 0, 1), arg)
-			}
-		}
-
-		return fn.Execute()
+		return sh.executeFn(fn, n.args)
 	}
 
 	return newError("no such function '%s'", n.name)
 }
 
 func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
-	fn := NewShell(sh.debug)
+	fn, err := NewShell(sh.debug)
+
+	if err != nil {
+		return err
+	}
+
 	fn.SetName(n.Name())
 	fn.SetParent(sh)
 	fn.SetStdout(sh.stdout)
@@ -649,6 +803,16 @@ func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
 	sh.fns[fnName] = fn
 
 	sh.log("Function %s declared", fnName)
+
+	return nil
+}
+
+func (sh *Shell) executeBindFn(n *BindFnNode) error {
+	if fn, ok := sh.GetFn(n.Name()); ok {
+		sh.binds[n.CmdName()] = fn
+	} else {
+		return newError("No such function '$s'", n.Name())
+	}
 
 	return nil
 }

@@ -61,6 +61,13 @@ type (
 		list []*Arg
 	}
 
+	CmdAssignmentNode struct {
+		NodeType
+		Pos
+		name string
+		cmd  *CommandNode
+	}
+
 	// CommandNode is a node for commands
 	CommandNode struct {
 		NodeType
@@ -140,7 +147,14 @@ type (
 		NodeType
 		Pos
 		name string
-		args []string
+		args []*Arg
+	}
+
+	BindFnNode struct {
+		NodeType
+		Pos
+		name    string
+		cmdname string
 	}
 )
 
@@ -155,6 +169,9 @@ const (
 
 	// NodeAssignment are nodes for variable assignment
 	NodeAssignment
+
+	// NodeCmdAssignment
+	NodeCmdAssignment
 
 	// NodeImport is the type for "import" builtin keyword
 	NodeImport
@@ -187,6 +204,8 @@ const (
 
 	// NodeFnInv is a node for function invocation
 	NodeFnInv
+
+	NodeBindFn
 )
 
 const (
@@ -325,6 +344,34 @@ func (n *AssignmentNode) String() string {
 	return ret
 }
 
+func NewCmdAssignmentNode(pos Pos, name string) *CmdAssignmentNode {
+	return &CmdAssignmentNode{
+		NodeType: NodeCmdAssignment,
+		Pos:      pos,
+		name:     name,
+	}
+}
+
+func (n *CmdAssignmentNode) Name() string {
+	return n.name
+}
+
+func (n *CmdAssignmentNode) Command() *CommandNode {
+	return n.cmd
+}
+
+func (n *CmdAssignmentNode) SetName(name string) {
+	n.name = name
+}
+
+func (n *CmdAssignmentNode) SetCommand(c *CommandNode) {
+	n.cmd = c
+}
+
+func (n *CmdAssignmentNode) String() string {
+	return n.name + " <= " + n.cmd.String()
+}
+
 // NewCommandNode creates a new node for commands
 func NewCommandNode(pos Pos, name string) *CommandNode {
 	return &CommandNode{
@@ -349,6 +396,8 @@ func (n *CommandNode) SetArgs(args []*Arg) {
 func (n *CommandNode) AddRedirect(redir *RedirectNode) {
 	n.redirs = append(n.redirs, redir)
 }
+
+func (n *CommandNode) Name() string { return n.name }
 
 func (n *CommandNode) String() string {
 	content := make([]string, 0, 1024)
@@ -773,7 +822,7 @@ func NewFnInvNode(pos Pos, name string) *FnInvNode {
 		NodeType: NodeFnInv,
 		Pos:      pos,
 		name:     name,
-		args:     make([]string, 0, 16),
+		args:     make([]*Arg, 0, 16),
 	}
 }
 
@@ -781,7 +830,7 @@ func (n *FnInvNode) SetName(a string) {
 	n.name = a
 }
 
-func (n *FnInvNode) AddArg(arg string) {
+func (n *FnInvNode) AddArg(arg *Arg) {
 	n.args = append(n.args, arg)
 }
 
@@ -789,7 +838,7 @@ func (n *FnInvNode) String() string {
 	fnInvStr := n.name + "("
 
 	for i := 0; i < len(n.args); i++ {
-		fnInvStr += n.args[i]
+		fnInvStr += n.args[i].Value()
 
 		if i < (len(n.args) - 1) {
 			fnInvStr += ", "
@@ -799,4 +848,20 @@ func (n *FnInvNode) String() string {
 	fnInvStr += ")"
 
 	return fnInvStr
+}
+
+func NewBindFnNode(pos Pos, name, cmd string) *BindFnNode {
+	return &BindFnNode{
+		NodeType: NodeBindFn,
+		Pos:      pos,
+		name:     name,
+		cmdname:  name,
+	}
+}
+
+func (n *BindFnNode) Name() string    { return n.name }
+func (n *BindFnNode) CmdName() string { return n.cmdname }
+
+func (n *BindFnNode) String() string {
+	return "bindfn " + n.name + " " + n.cmdname
 }
