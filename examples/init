@@ -3,13 +3,19 @@
 
 # PROMPT is a special variable used by nash command line to
 # setup your prompt.
-PROMPTEND="core@coreos1> "
-PROMPT="(" + $PWD + ")" + $PROMPTEND
+RED   = "\033[31m"
+GREEN = "\033[32m"
+RESET="\033[0m"
+
+PROMPTSYM =  "λ> "
+PROMPT    = $RED + $PROMPTSYM + $RESET
+
+setenv PROMPT
 
 # Defines a cd function that updates PROMPT accordinly with current pwd
 fn cd(path) {
     cd $path
-    PROMPT="(" + $path + ")"+$PROMPTEND
+    PROMPT = $GREEN + "[" + $path + "]" + $RED + $PROMPTSYM + $RESET
     setenv PROMPT
 }
 

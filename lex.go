@@ -112,6 +112,16 @@ func (l *lexer) run() {
 	close(l.items) // No more tokens will be delivered
 }
 
+func (l *lexer) emitVal(t itemType, val string) {
+	l.items <- item{
+		typ: t,
+		val: val,
+		pos: Pos(l.start),
+	}
+
+	l.start = l.pos
+}
+
 func (l *lexer) emit(t itemType) {
 	l.items <- item{
 		typ: t,
@@ -1015,10 +1025,46 @@ func lexInsideCommand(l *lexer) stateFn {
 }
 
 func lexQuote(l *lexer, concatFn, nextFn stateFn) stateFn {
+	var data []rune
+
+	data = make([]rune, 0, 256)
+
 	for {
 		r := l.next()
 
 		if r != '"' && r != eof {
+			if r == '\\' {
+				r = l.next()
+
+				switch r {
+				case '\\':
+					data = append(data, '\\')
+				case 'x', 'u', 'U':
+					return l.errorf("Escape types 'x', 'u' and 'U' aren't implemented yet")
+				case '0', '1', '2', '3', '4', '5', '6', '7':
+					x := r - '0'
+
+					for i := 2; i > 0; i-- {
+						r = l.next()
+
+						if r >= '0' && r <= '7' {
+							x = x*8 + r - '0'
+							continue
+						}
+
+						return l.errorf("non-octal character in escape sequence: %c", r)
+					}
+
+					if x > 255 {
+						return l.errorf("octal escape value > 255: %d", x)
+					}
+
+					data = append(data, x)
+				}
+			} else {
+				data = append(data, r)
+			}
+
 			continue
 		}
 
@@ -1027,7 +1073,7 @@ func lexQuote(l *lexer, concatFn, nextFn stateFn) stateFn {
 		}
 
 		l.backup()
-		l.emit(itemString)
+		l.emitVal(itemString, string(data))
 		l.next()
 		l.ignore()
 		break
