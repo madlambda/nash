@@ -1,7 +1,76 @@
-newline        = /* the Unicode code point U+000A */ .
-unicode_char   = /* an arbitrary Unicode code point except newline */ .
-unicode_letter = /* a Unicode code point classified as "Letter" */ .
-unicode_digit  = /* a Unicode code point classified as "Number, decimal digit" */ .
+/* Nash program */
+program = { statement } .
+
+/* Statement */
+statement = varDecl | command | builtin | comment .
+
+/* Variable declaration */
+varDecl      = assignValue | assignCmdOut .
+assignValue  = identifier "=" varSpec .
+varSpec      = ( list | varValue ) .
+varValue     = string_lit | ( stringConcat { stringConcat } ) .
+assignCmdOut = identifier "<=" command .
+
+/* Command */
+command   = ( cmdpart | pipe ) .
+cmdpart   = [ "-" ] ( cmdname | abscmd ) { argument } { redirect } .
+cmdname   = identifier .
+abscmd    = filename .
+argument  = ( unicode_char { unicode_char } ) | string_lit .
+pipe      = cmdpart "|" cmdpart [ { "|" cmdpart } ] .
+redirect    = ( ">" ( filename | uri ) |
+               ">" "[" unicode_digit "]" ( filename | uri ) |
+               ">" "[" unicode_digit "=" ( unicode_digit | identifier ) "]" |
+               ">" "[" unicode_digit "=" "]" ) .
+
+/* Builtin */
+builtin = importDecl | rforkDecl | cdDecl | ifDecl |
+          forDecl | setenvDecl | showenvDecl |
+          fnDecl | fnInv | bindfn .
+
+/* Import statement */
+importDecl = "import" ( filename | string_lit ) .
+
+/* Rfork scope */
+rforkDecl   = "rfork" rforkFlags "{" program "}" .
+rforkFlags  = { identifier } .
+
+/* Cd <path> */
+cdDecl = "cd" [ filename ] .
+
+/* If-else-if */
+ifDecl = "if" ( identifier | varValue ) comparison
+              ( identifier | varValue ) "{" program "}"
+         [ "else" "{" program "}" ]
+         [ "else" ifDecl ] .
+
+/* For loop */
+forDecl = "for" ( identifier | list ) "{" program "}" .
+
+/* Function declaration */
+fnDecl = "fn" identifier "(" fnArgs ")" "{"
+         program [ "return" ( variable | string_lit | list ) ]
+         "}" .
+fnArgs = { fnArg [ "," ] } .
+fnArg  = identifier .
+
+/* Function invocation */
+fnInv = identifier "(" fnArgs ")" .
+
+/* Function binding */
+bindfn = "bindfn" identifier identifier .
+
+/* Set environment variable */
+setenvDecl = "setenv" identifier .
+
+/* Show environment variables */
+showenvDecl = "showenv" .
+
+/* Comment */
+comment = "#" { unicode_char } .
+
+/* Lists */
+list = "(" { varValue } ")" .
 
 letter      = unicode_letter | "_" .
 filename    = { [ "/" ]  { unicode_letter } } .
@@ -17,58 +86,18 @@ uri         = schema "://" location .
 
 identifier  = letter { letter | unicode_digit } .
 variable    = "$" identifier .
-builtin     = importDecl | rforkDecl | cdDecl | ifDecl | elseDecl |
-              forDecl | execDecl | setenvDecl | showenvDecl |
-              fnDecl | fnInv | bindfn .
-builtinDecl = "builtin" builtin .
-importDecl  = "import" ( filename | string_lit ) .
-rforkDecl   = "rfork" rforkFlags "{" program "}" .
-namespace   = { "c" | "m" | "n" | "i" | "p" | "u" | "s" } .
-rforkFlags  = { namespace } .
-cdDecl      = "cd" [ filename ] .
-ifDecl      = "if" ( identifier | varValue ) comparison
-              ( identifier | varValue ) "{" program "}"
-              [ "else" "{" program "}" ]
-              [ "else" ifDecl ] .
-elseDecl    = "else" "{" program "}" .
-forDecl     = "for" ( identifier | list ) "{" program "}" .
-setenvDecl  = "setenv" identifier .
-showenvDecl = "showenv" .
-execDecl    = "exec" (list | variable) { redirect } .
-fnDecl      = "fn" identifier "(" fnArgs ")" "{"
-              program [ "return" ( variable | string_lit | list ) ]
-              "}" .
-fnInv       = identifier "(" fnArgs ")" .
-bindfn      = "bindfn" identifier identifier .
-redirect    = ( ">" ( filename | uri ) |
-               ">" "[" unicode_digit "]" ( filename | uri ) |
-               ">" "[" unicode_digit "=" ( unicode_digit | identifier ) "]" |
-               ">" "[" unicode_digit "=" "]" ) .
 
 comparison  = "==" | "!=" .
 
 string_lit   = "\"" { unicode_char | newline } "\"" .
-varDecl      = assignValue | assignCmdOut .
-assignValue  = identifier "=" varSpec .
-assignCmdOut = identifier "<=" command .
-varSpec      = ( list | varValue ) .
-varValue     = string_lit | ( stringConcat { stringConcat } ) .
-list         = "(" { varValue } ")" .
+
+
 stringConcat = ( string_lit "+" string_lit ) |
                ( variable "+" string_lit ) |
                ( string_lit "+" variable ) .
 
-argument  = ( unicode_char { unicode_char } ) | string_lit .
-cmdpart   = [ "-" ] ( cmdname | abscmd ) { argument } { redirect } .
-pipe      = cmdpart "|" cmdpart [ { "|" cmdpart } ] .
-command   = ( cmdpart | pipe ) .
-cmdname   = identifier .
-abscmd    = filename .
-
-fnArg     = identifier .
-fnArgs    = { fnArg [ "," ] } .
-
-comment   = "#" { unicode_char } .
-
-program   = { statement } .
-statement = varDecl | command | builtin | builtinDecl | comment .
+/* terminals */
+newline        = /* the Unicode code point U+000A */ .
+unicode_char   = /* an arbitrary Unicode code point except newline */ .
+unicode_letter = /* a Unicode code point classified as "Letter" */ .
+unicode_digit  = /* a Unicode code point classified as "Number, decimal digit" */ .
