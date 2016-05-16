@@ -404,6 +404,7 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 
 	cmds := make([]*Command, len(nodeCommands))
 
+	// Create all commands
 	for i := 0; i < len(nodeCommands); i++ {
 		nodeCmd := nodeCommands[i]
 		cmd, err := NewCommand(nodeCmd.name, sh)
@@ -423,6 +424,8 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 
 	last := len(nodeCommands) - 1
 
+	// Setup the commands. Pointing the stdin of next command to stdout of previous.
+	// Except the last one
 	for i, cmd := range cmds[:last] {
 		nodeCmd := nodeCommands[i]
 
@@ -453,22 +456,7 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 		}
 	}
 
-	if sh.stdin != os.Stdin {
-		cmds[last].Stdin = nil
-		stdin, err := cmds[last].StdinPipe()
-
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			io.Copy(stdin, sh.stdin)
-			cmds[last].stdinDone <- true
-		}()
-	} else {
-		cmds[last].Stdin = sh.stdin
-		cmds[last].stdinDone <- true
-	}
+	cmds[last].stdinDone <- true
 
 	if sh.stdout != os.Stdout {
 		cmds[last].Stdout = nil
@@ -512,13 +500,8 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 		}
 	}
 
-	fmt.Printf("aqui: 1\n")
-
 	for _, cmd := range cmds {
-		fmt.Printf("aqui: 2\n")
 		err := cmd.Wait()
-
-		fmt.Printf("aqui: 3\n")
 
 		if err != nil {
 			return err
