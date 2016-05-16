@@ -62,11 +62,7 @@ func cli(sh *nash.Shell) error {
 		line, err = l.Readline()
 
 		if err == readline.ErrInterrupt {
-			if len(line) == 0 {
-				break
-			} else {
-				continue
-			}
+			continue
 		} else if err == io.EOF {
 			err = nil
 			break

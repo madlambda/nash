@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,8 +26,6 @@ func NewCompleter(sh *nash.Shell, p ...readline.PrefixCompleterInterface) *Compl
 
 func (c *Completer) Do(line []rune, pos int) (newLine [][]rune, offset int) {
 	line = runes.TrimSpaceLeft(line[:pos])
-	goNext := false
-	var lineCompleter readline.PrefixCompleterInterface
 
 	for _, child := range c.prefixCompleter.GetChildren() {
 		childName := child.GetName()
@@ -38,43 +37,70 @@ func (c *Completer) Do(line []rune, pos int) (newLine [][]rune, offset int) {
 					newLine = append(newLine, childName)
 				}
 				offset = len(childName)
-				lineCompleter = child
-				goNext = true
 			}
 		} else {
 			if runes.HasPrefix(childName, line) {
 				newLine = append(newLine, childName[len(line):])
 				offset = len(line)
-				lineCompleter = child
 			}
 		}
 	}
 
 	newLine, offset = c.completePaths(line, newLine, offset)
 
-	if len(newLine) != 1 {
-		return
-	}
+	return
+}
 
-	tmpLine := make([]rune, 0, len(line))
-	for i := offset; i < len(line); i++ {
-		if line[i] == ' ' {
-			continue
+func (c *Completer) completeCurrentPath(line []rune, oldline [][]rune, oldoffset int) (newLine [][]rune, offset int) {
+	filepath.Walk(".", func(dirpath string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
 		}
 
-		tmpLine = append(tmpLine, line[i:]...)
-		return lineCompleter.Do(tmpLine, len(tmpLine))
-	}
+		if dirpath == "." {
+			return nil
+		}
 
-	if goNext {
-		return lineCompleter.Do(nil, 0)
-	}
+		path := []rune("./" + dirpath)
+
+		//		fmt.Printf("PAth=%s\n", string(path))
+
+		if len(line) >= len(path) {
+			if runes.HasPrefix(line, path) {
+				if len(line) == len(path) {
+					newLine = append(newLine, []rune{' '})
+				} else {
+					newLine = append(newLine, path)
+				}
+
+				offset = len(path)
+			}
+		} else {
+			if runes.HasPrefix(path, line) {
+				newLine = append(newLine, path[len(line):])
+				offset = len(line)
+			}
+		}
+
+		if info.IsDir() {
+			return filepath.SkipDir
+		}
+
+		return nil
+	})
+
+	fmt.Printf("Returning: %q\n", newLine)
+
 	return
 }
 
 func (c *Completer) completePaths(line []rune, oldline [][]rune, oldoffset int) (newLine [][]rune, offset int) {
 	newLine = oldline
 	offset = oldoffset
+
+	if runes.HasPrefix(line, []rune("./")) {
+		return c.completeCurrentPath(line, oldline, oldoffset)
+	}
 
 	paths, ok := c.sh.GetEnv("PATH")
 
