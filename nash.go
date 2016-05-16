@@ -419,6 +419,16 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 			return err
 		}
 
+		cmd.SetPassDone(false)
+
+		if i < (len(nodeCommands) - 1) {
+			err = cmd.SetRedirects(nodeCmd.redirs)
+
+			if err != nil {
+				return err
+			}
+		}
+
 		cmds[i] = cmd
 	}
 
@@ -427,17 +437,9 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 	// Setup the commands. Pointing the stdin of next command to stdout of previous.
 	// Except the last one
 	for i, cmd := range cmds[:last] {
-		nodeCmd := nodeCommands[i]
-
-		cmd.SetFDMap(0, sh.stdin)
-		//		cmd.SetFDMap(1, sh.stdout)
-		cmd.SetFDMap(2, sh.stderr)
-
-		err = cmd.SetRedirects(nodeCmd.redirs)
-
-		if err != nil {
-			return err
-		}
+		//cmd.SetFDMap(0, sh.stdin)
+		//cmd.SetFDMap(1, sh.stdout)
+		//cmd.SetFDMap(2, sh.stderr)
 
 		// connect commands
 		if cmds[i+1].Stdin != os.Stdin {
@@ -454,6 +456,10 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 		if cmds[i+1].Stdin, err = cmd.StdoutPipe(); err != nil {
 			return err
 		}
+
+		cmd.stdoutDone <- true
+		cmd.stdinDone <- true
+		cmd.stderrDone <- true
 	}
 
 	cmds[last].stdinDone <- true
@@ -634,12 +640,27 @@ func (sh *Shell) concatElements(elem *Arg) (string, error) {
 }
 
 func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
-	var varOut bytes.Buffer
+	var (
+		varOut bytes.Buffer
+		err    error
+	)
 
 	bkStdout := sh.stdout
 
 	sh.SetStdout(&varOut)
-	err := sh.executeCommand(v.Command())
+
+	assign := v.Command()
+
+	switch assign.Type() {
+	case NodeCommand:
+		err = sh.executeCommand(assign.(*CommandNode))
+	case NodePipe:
+		err = sh.executePipe(assign.(*PipeNode))
+	case NodeFnInv:
+		err = sh.executeFnInv(assign.(*FnInvNode))
+	default:
+		err = newError("Unexpected node in assignment: %s", assign.String())
+	}
 
 	sh.SetStdout(bkStdout)
 

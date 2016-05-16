@@ -65,7 +65,7 @@ type (
 		NodeType
 		Pos
 		name string
-		cmd  *CommandNode
+		cmd  Node
 	}
 
 	// CommandNode is a node for commands
@@ -365,7 +365,7 @@ func (n *CmdAssignmentNode) Name() string {
 	return n.name
 }
 
-func (n *CmdAssignmentNode) Command() *CommandNode {
+func (n *CmdAssignmentNode) Command() Node {
 	return n.cmd
 }
 
@@ -373,7 +373,7 @@ func (n *CmdAssignmentNode) SetName(name string) {
 	n.name = name
 }
 
-func (n *CmdAssignmentNode) SetCommand(c *CommandNode) {
+func (n *CmdAssignmentNode) SetCommand(c Node) {
 	n.cmd = c
 }
 

@@ -382,7 +382,21 @@ func compareCmdAssignmentNode(expected, value *CmdAssignmentNode) (bool, error) 
 		return false, fmt.Errorf(" CompareCmdAssignmentnode (%v, %v) -> '%s' != '%s'", expected, value, ename, vname)
 	}
 
-	return compareCommandNode(expected.Command(), value.Command())
+	ecmd := expected.Command()
+	vcmd := value.Command()
+
+	if ecmd.Type() != vcmd.Type() {
+		return false, fmt.Errorf("Node type differs: %s != %s", ecmd.Type(), vcmd.Type())
+	}
+
+	switch ecmd.Type() {
+	case NodeCommand:
+		return compareCommandNode(ecmd.(*CommandNode), vcmd.(*CommandNode))
+	case NodePipe:
+		return comparePipeNode(ecmd.(*PipeNode), vcmd.(*PipeNode))
+	}
+
+	return false, fmt.Errorf("Unexpected type %s", ecmd.Type())
 }
 
 func compareIfNode(expected, value *IfNode) (bool, error) {

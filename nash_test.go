@@ -796,4 +796,22 @@ func TestExecutePipe(t *testing.T) {
 		t.Errorf("Expected '1' but found '%s'", strOut)
 		return
 	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test pipe 3", `echo hello | wc -l | grep 1`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	strOut = strings.TrimSpace(string(out.Bytes()))
+
+	if strOut != "1" {
+		t.Errorf("Expected '1' but found '%s'", strOut)
+		return
+	}
+
+	out.Reset()
 }

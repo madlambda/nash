@@ -462,7 +462,7 @@ func (p *Parser) parseAssignCmdOut(name item) (Node, error) {
 		return nil, err
 	}
 
-	n.SetCommand(cmd.(*CommandNode))
+	n.SetCommand(cmd)
 
 	return n, nil
 }

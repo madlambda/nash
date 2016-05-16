@@ -17,6 +17,7 @@ type (
 		fdMap FDMap
 
 		stdinDone, stdoutDone, stderrDone chan bool
+		passDone                          bool
 	}
 
 	errCmdNotFound struct {
@@ -75,6 +76,10 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 		stdinDone:  make(chan bool, 1),
 		stdoutDone: make(chan bool, 1),
 		stderrDone: make(chan bool, 1),
+
+		// if set to false, you need to sinchronize by hand
+		// be careful with deadlocks
+		passDone: true,
 	}
 
 	cmd.fdMap[0] = os.Stdin
@@ -82,6 +87,10 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 	cmd.fdMap[2] = os.Stderr
 
 	return cmd, nil
+}
+
+func (cmd *Command) SetPassDone(b bool) {
+	cmd.passDone = b
 }
 
 func (cmd *Command) SetFDMap(id int, value interface{}) {
@@ -278,7 +287,10 @@ func (cmd *Command) setupStdin(value interface{}) error {
 
 	if rc == os.Stdin {
 		cmd.Stdin = rc
-		cmd.stdinDone <- true
+
+		if cmd.passDone {
+			cmd.stdinDone <- true
+		}
 	} else {
 		cmd.Stdin = nil
 		stdin, err := cmd.StdinPipe()
@@ -308,10 +320,15 @@ func (cmd *Command) setupStdout(value interface{}) error {
 		return newError("Invalid redirect mapping: %d -> %d", 1, 0)
 	case os.Stdout:
 		cmd.Stdout = os.Stdout
-		cmd.stdoutDone <- true
+
+		if cmd.passDone {
+			cmd.stdoutDone <- true
+		}
 	case os.Stderr:
 		cmd.Stdout = cmd.Stderr
-		cmd.stdoutDone <- true
+		if cmd.passDone {
+			cmd.stdoutDone <- true
+		}
 	default:
 		cmd.Stdout = nil
 		stdout, err := cmd.StdoutPipe()
@@ -341,10 +358,16 @@ func (cmd *Command) setupStderr(value interface{}) error {
 		return newError("Invalid redirect mapping: %d -> %d", 2, 1)
 	case os.Stdout:
 		cmd.Stderr = cmd.Stdout
-		cmd.stderrDone <- true
+
+		if cmd.passDone {
+			cmd.stderrDone <- true
+		}
 	case os.Stderr:
 		cmd.Stderr = os.Stderr
-		cmd.stderrDone <- true
+
+		if cmd.passDone {
+			cmd.stderrDone <- true
+		}
 	default:
 		cmd.Stderr = nil
 		stderr, err := cmd.StderrPipe()
