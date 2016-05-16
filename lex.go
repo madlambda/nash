@@ -53,6 +53,7 @@ const (
 	itemListClose
 	itemListElem
 	itemCommand // alphanumeric identifier that's not a keyword
+	itemPipe    // ls | wc -l
 	itemBindFn  // "bindfn <fn> <cmd>
 	itemArg
 	itemLeftBlock     // {
@@ -1010,6 +1011,9 @@ func lexInsideCommand(l *lexer) stateFn {
 	case r == '>':
 		l.emit(itemRedirRight)
 		return lexInsideRedirect
+	case r == '|':
+		l.emit(itemPipe)
+		return lexStart
 	case r == '$':
 		l.backup()
 		return lexInsideCommonVariable(l, lexInsideCommand)

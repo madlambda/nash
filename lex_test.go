@@ -543,6 +543,68 @@ func TestLexerSimpleCommand(t *testing.T) {
 
 }
 
+func TestLexerPipe(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "ls",
+		},
+		item{
+			typ: itemPipe,
+			val: "|",
+		},
+		item{
+			typ: itemCommand,
+			val: "wc",
+		},
+		item{
+			typ: itemArg,
+			val: "-l",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testPipe", `ls | wc -l`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "ls",
+		},
+		item{
+			typ: itemArg,
+			val: "-l",
+		},
+		item{
+			typ: itemPipe,
+			val: "|",
+		},
+		item{
+			typ: itemCommand,
+			val: "wc",
+		},
+		item{
+			typ: itemPipe,
+			val: "|",
+		},
+		item{
+			typ: itemCommand,
+			val: "awk",
+		},
+		item{
+			typ: itemString,
+			val: "{print $1}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testPipe", `ls -l | wc | awk "{print $1}"`, expected, t)
+}
+
 func TestLexerUnquoteArg(t *testing.T) {
 	expected := []item{
 		item{
