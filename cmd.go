@@ -1,6 +1,7 @@
 package nash
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -392,9 +393,13 @@ func (cmd *Command) setupRedirects() error {
 }
 
 func (cmd *Command) Wait() error {
+	fmt.Printf("a\n")
 	<-cmd.stdinDone
+	fmt.Printf("b\n")
 	<-cmd.stdoutDone
+	fmt.Printf("c\n")
 	<-cmd.stderrDone
+	fmt.Printf("d\n")
 
 	return cmd.Cmd.Wait()
 }

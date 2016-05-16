@@ -426,6 +426,10 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 	for i, cmd := range cmds[:last] {
 		nodeCmd := nodeCommands[i]
 
+		cmd.SetFDMap(0, sh.stdin)
+		//		cmd.SetFDMap(1, sh.stdout)
+		cmd.SetFDMap(2, sh.stderr)
+
 		err = cmd.SetRedirects(nodeCmd.redirs)
 
 		if err != nil {
@@ -450,6 +454,7 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 	}
 
 	if sh.stdin != os.Stdin {
+		cmds[last].Stdin = nil
 		stdin, err := cmds[last].StdinPipe()
 
 		if err != nil {
