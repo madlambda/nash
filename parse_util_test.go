@@ -136,6 +136,36 @@ func compareCdNode(expected, value *CdNode) (bool, error) {
 	return true, nil
 }
 
+func comparePipeNode(expected, value *PipeNode) (bool, error) {
+	if ok, err := compareDefault(expected, value); !ok {
+		return ok, err
+	}
+
+	ecmds := expected.Commands()
+	vcmds := value.Commands()
+
+	if len(ecmds) != len(vcmds) {
+		return false, fmt.Errorf(" comparePipeNode - length differs: %d != %d", len(ecmds), len(vcmds))
+	}
+
+	for i := 0; i < len(ecmds); i++ {
+		ecmd := ecmds[i]
+		vcmd := vcmds[i]
+
+		ok, err := compareCommandNode(ecmd, vcmd)
+
+		if !ok {
+			return ok, err
+		}
+	}
+
+	if expected.String() != value.String() {
+		return false, fmt.Errorf("String differs: '%s' != '%s'", expected.String(), value.String())
+	}
+
+	return true, nil
+}
+
 func compareCommandNode(expected *CommandNode, value *CommandNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
@@ -452,6 +482,10 @@ func compareNodes(expected Node, value Node) (bool, error) {
 		ec := expected.(*CommandNode)
 		vc := value.(*CommandNode)
 		valid, err = compareCommandNode(ec, vc)
+	case *PipeNode:
+		ec := expected.(*PipeNode)
+		vc := value.(*PipeNode)
+		valid, err = comparePipeNode(ec, vc)
 	case *CommentNode:
 		ec := expected.(*CommentNode)
 		vc := value.(*CommentNode)

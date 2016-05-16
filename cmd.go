@@ -77,11 +77,15 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 		stderrDone: make(chan bool, 1),
 	}
 
-	cmd.fdMap[0] = sh.stdin
-	cmd.fdMap[1] = sh.stdout
-	cmd.fdMap[2] = sh.stderr
+	cmd.fdMap[0] = os.Stdin
+	cmd.fdMap[1] = os.Stdout
+	cmd.fdMap[2] = os.Stderr
 
 	return cmd, nil
+}
+
+func (cmd *Command) SetFDMap(id int, value interface{}) {
+	cmd.fdMap[id] = value
 }
 
 func (cmd *Command) SetArgs(cargs []*Arg) error {
@@ -387,6 +391,14 @@ func (cmd *Command) setupRedirects() error {
 	return nil
 }
 
+func (cmd *Command) Wait() error {
+	<-cmd.stdinDone
+	<-cmd.stdoutDone
+	<-cmd.stderrDone
+
+	return cmd.Cmd.Wait()
+}
+
 func (cmd *Command) Execute() error {
 	err := cmd.Start()
 
@@ -394,15 +406,5 @@ func (cmd *Command) Execute() error {
 		return err
 	}
 
-	<-cmd.stdinDone
-	<-cmd.stdoutDone
-	<-cmd.stderrDone
-
-	err = cmd.Wait()
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return cmd.Wait()
 }

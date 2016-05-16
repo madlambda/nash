@@ -77,6 +77,12 @@ type (
 		redirs []*RedirectNode
 	}
 
+	PipeNode struct {
+		NodeType
+		Pos
+		cmds []*CommandNode
+	}
+
 	// Arg is a command argument
 	Arg struct {
 		NodeType
@@ -178,6 +184,9 @@ const (
 
 	// NodeCommand are command statements
 	NodeCommand
+
+	// NodePipe is the node type for pipes
+	NodePipe
 
 	// NodeArg are nodes for command arguments
 	NodeArg
@@ -417,6 +426,36 @@ func (n *CommandNode) String() string {
 	content = append(content, redirs...)
 
 	return strings.Join(content, " ")
+}
+
+func NewPipeNode(pos Pos) *PipeNode {
+	return &PipeNode{
+		NodeType: NodePipe,
+		Pos:      pos,
+		cmds:     make([]*CommandNode, 0, 16),
+	}
+}
+
+func (n *PipeNode) AddCmd(c *CommandNode) {
+	n.cmds = append(n.cmds, c)
+}
+
+func (n *PipeNode) Commands() []*CommandNode {
+	return n.cmds
+}
+
+func (n *PipeNode) String() string {
+	ret := ""
+
+	for i := 0; i < len(n.cmds); i++ {
+		ret += n.cmds[i].String()
+
+		if i < (len(n.cmds) - 1) {
+			ret += " | "
+		}
+	}
+
+	return ret
 }
 
 // NewRedirectNode creates a new redirection node for commands

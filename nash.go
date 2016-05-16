@@ -344,6 +344,8 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 			err = sh.executeCmdAssignment(node.(*CmdAssignmentNode))
 		case NodeCommand:
 			err = sh.executeCommand(node.(*CommandNode))
+		case NodePipe:
+			err = sh.executePipe(node.(*PipeNode))
 		case NodeRfork:
 			err = sh.executeRfork(node.(*RforkNode))
 		case NodeCd:
@@ -392,6 +394,135 @@ func (sh *Shell) executeShowEnv(node *ShowEnvNode) error {
 	return nil
 }
 
+func (sh *Shell) executePipe(pipe *PipeNode) error {
+	var err error
+	nodeCommands := pipe.Commands()
+
+	if len(nodeCommands) <= 1 {
+		return newError("Pipe requires at least two commands.")
+	}
+
+	cmds := make([]*Command, len(nodeCommands))
+
+	for i := 0; i < len(nodeCommands); i++ {
+		nodeCmd := nodeCommands[i]
+		cmd, err := NewCommand(nodeCmd.name, sh)
+
+		if err != nil {
+			return err
+		}
+
+		err = cmd.SetArgs(nodeCmd.args)
+
+		if err != nil {
+			return err
+		}
+
+		cmds[i] = cmd
+	}
+
+	last := len(nodeCommands) - 1
+
+	for i, cmd := range cmds[:last] {
+		nodeCmd := nodeCommands[i]
+
+		err = cmd.SetRedirects(nodeCmd.redirs)
+
+		if err != nil {
+			return err
+		}
+
+		// connect commands
+		if cmds[i+1].Stdin != os.Stdin {
+			return newError("Stdin redirected")
+		}
+
+		if cmd.Stdout != os.Stdout {
+			return newError("Stdout redirected")
+		}
+
+		cmds[i+1].Stdin = nil
+		cmd.Stdout = nil
+
+		if cmds[i+1].Stdin, err = cmd.StdoutPipe(); err != nil {
+			return err
+		}
+	}
+
+	if sh.stdin != os.Stdin {
+		stdin, err := cmds[last].StdinPipe()
+
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			io.Copy(stdin, sh.stdin)
+			cmds[last].stdinDone <- true
+		}()
+	} else {
+		cmds[last].Stdin = sh.stdin
+		cmds[last].stdinDone <- true
+	}
+
+	if sh.stdout != os.Stdout {
+		cmds[last].Stdout = nil
+		stdout, err := cmds[last].StdoutPipe()
+
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			io.Copy(sh.stdout, stdout)
+			cmds[last].stdoutDone <- true
+		}()
+	} else {
+		cmds[last].Stdout = sh.stdout
+		cmds[last].stdoutDone <- true
+	}
+
+	if sh.stderr != os.Stderr {
+		cmds[last].Stderr = nil
+		stderr, err := cmds[last].StderrPipe()
+
+		if err != nil {
+			return err
+		}
+
+		go func() {
+			io.Copy(sh.stderr, stderr)
+			cmds[last].stderrDone <- true
+		}()
+	} else {
+		cmds[last].Stderr = sh.stderr
+		cmds[last].stderrDone <- true
+	}
+
+	for _, cmd := range cmds {
+		err := cmd.Start()
+
+		if err != nil {
+			return err
+		}
+	}
+
+	fmt.Printf("aqui: 1\n")
+
+	for _, cmd := range cmds {
+		fmt.Printf("aqui: 2\n")
+		err := cmd.Wait()
+
+		fmt.Printf("aqui: 3\n")
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (sh *Shell) executeCommand(c *CommandNode) error {
 	var ignoreError bool
 
@@ -433,6 +564,10 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 
 		return err
 	}
+
+	cmd.SetFDMap(0, sh.stdin)
+	cmd.SetFDMap(1, sh.stdout)
+	cmd.SetFDMap(2, sh.stderr)
 
 	err = cmd.SetRedirects(c.redirs)
 

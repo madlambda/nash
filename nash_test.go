@@ -769,3 +769,31 @@ func TestExecuteBindFn(t *testing.T) {
 		return
 	}
 }
+
+func TestExecutePipe(t *testing.T) {
+	var out bytes.Buffer
+
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("test pipe", `echo hello | wc -l`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	strOut := strings.TrimSpace(string(out.Bytes()))
+
+	if strOut != "1" {
+		t.Errorf("Expected '1' but found '%s'", strOut)
+		return
+	}
+}

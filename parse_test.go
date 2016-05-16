@@ -83,6 +83,31 @@ func TestParseReverseGetSame(t *testing.T) {
 	}
 }
 
+func TestParsePipe(t *testing.T) {
+	expected := NewTree("parser pipe")
+	ln := NewListNode()
+	first := NewCommandNode(0, "echo")
+	hello := NewArg(6, ArgQuoted)
+	hello.SetString("hello world")
+	first.AddArg(hello)
+
+	second := NewCommandNode(21, "awk")
+	secondArg := NewArg(26, ArgQuoted)
+	secondArg.SetString("{print $1}")
+
+	second.AddArg(secondArg)
+
+	pipe := NewPipeNode(19)
+	pipe.AddCmd(first)
+	pipe.AddCmd(second)
+
+	ln.Push(pipe)
+
+	expected.Root = ln
+
+	parserTestTable("parser pipe", `echo "hello world" | awk "{print $1}"`, expected, t)
+}
+
 func TestBasicSetAssignment(t *testing.T) {
 	expected := NewTree("simple set assignment")
 	ln := NewListNode()
