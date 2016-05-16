@@ -14,6 +14,8 @@ type (
 		l          *lexer
 		tok        *item // token saved for lookahead
 		openblocks int
+
+		insidePipe bool
 	}
 )
 
@@ -79,6 +81,26 @@ func (p *Parser) peek() item {
 	return i
 }
 
+func (p *Parser) parsePipe(first *CommandNode) (Node, error) {
+	it := p.next()
+
+	n := NewPipeNode(it.pos)
+
+	n.AddCmd(first)
+
+	for it = p.peek(); it.typ == itemCommand; it = p.peek() {
+		cmd, err := p.parseCommand()
+
+		if err != nil {
+			return nil, err
+		}
+
+		n.AddCmd(cmd.(*CommandNode))
+	}
+
+	return n, nil
+}
+
 func (p *Parser) parseCommand() (Node, error) {
 	it := p.next()
 
@@ -112,6 +134,14 @@ func (p *Parser) parseCommand() (Node, error) {
 			}
 
 			n.AddRedirect(redir)
+		case itemPipe:
+			if p.insidePipe {
+				p.next()
+				return n, nil
+			}
+
+			p.insidePipe = true
+			return p.parsePipe(n)
 		case itemEOF:
 			return n, nil
 		case itemError:
@@ -432,7 +462,7 @@ func (p *Parser) parseAssignCmdOut(name item) (Node, error) {
 		return nil, err
 	}
 
-	n.SetCommand(cmd.(*CommandNode))
+	n.SetCommand(cmd)
 
 	return n, nil
 }

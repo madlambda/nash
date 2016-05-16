@@ -17,6 +17,7 @@ type (
 		fdMap FDMap
 
 		stdinDone, stdoutDone, stderrDone chan bool
+		passDone                          bool
 	}
 
 	errCmdNotFound struct {
@@ -75,13 +76,25 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 		stdinDone:  make(chan bool, 1),
 		stdoutDone: make(chan bool, 1),
 		stderrDone: make(chan bool, 1),
+
+		// if set to false, you need to sinchronize by hand
+		// be careful with deadlocks
+		passDone: true,
 	}
 
-	cmd.fdMap[0] = sh.stdin
-	cmd.fdMap[1] = sh.stdout
-	cmd.fdMap[2] = sh.stderr
+	cmd.fdMap[0] = os.Stdin
+	cmd.fdMap[1] = os.Stdout
+	cmd.fdMap[2] = os.Stderr
 
 	return cmd, nil
+}
+
+func (cmd *Command) SetPassDone(b bool) {
+	cmd.passDone = b
+}
+
+func (cmd *Command) SetFDMap(id int, value interface{}) {
+	cmd.fdMap[id] = value
 }
 
 func (cmd *Command) SetArgs(cargs []*Arg) error {
@@ -274,7 +287,10 @@ func (cmd *Command) setupStdin(value interface{}) error {
 
 	if rc == os.Stdin {
 		cmd.Stdin = rc
-		cmd.stdinDone <- true
+
+		if cmd.passDone {
+			cmd.stdinDone <- true
+		}
 	} else {
 		cmd.Stdin = nil
 		stdin, err := cmd.StdinPipe()
@@ -304,10 +320,15 @@ func (cmd *Command) setupStdout(value interface{}) error {
 		return newError("Invalid redirect mapping: %d -> %d", 1, 0)
 	case os.Stdout:
 		cmd.Stdout = os.Stdout
-		cmd.stdoutDone <- true
+
+		if cmd.passDone {
+			cmd.stdoutDone <- true
+		}
 	case os.Stderr:
 		cmd.Stdout = cmd.Stderr
-		cmd.stdoutDone <- true
+		if cmd.passDone {
+			cmd.stdoutDone <- true
+		}
 	default:
 		cmd.Stdout = nil
 		stdout, err := cmd.StdoutPipe()
@@ -337,10 +358,16 @@ func (cmd *Command) setupStderr(value interface{}) error {
 		return newError("Invalid redirect mapping: %d -> %d", 2, 1)
 	case os.Stdout:
 		cmd.Stderr = cmd.Stdout
-		cmd.stderrDone <- true
+
+		if cmd.passDone {
+			cmd.stderrDone <- true
+		}
 	case os.Stderr:
 		cmd.Stderr = os.Stderr
-		cmd.stderrDone <- true
+
+		if cmd.passDone {
+			cmd.stderrDone <- true
+		}
 	default:
 		cmd.Stderr = nil
 		stderr, err := cmd.StderrPipe()
@@ -387,6 +414,14 @@ func (cmd *Command) setupRedirects() error {
 	return nil
 }
 
+func (cmd *Command) Wait() error {
+	<-cmd.stdinDone
+	<-cmd.stdoutDone
+	<-cmd.stderrDone
+
+	return cmd.Cmd.Wait()
+}
+
 func (cmd *Command) Execute() error {
 	err := cmd.Start()
 
@@ -394,15 +429,5 @@ func (cmd *Command) Execute() error {
 		return err
 	}
 
-	<-cmd.stdinDone
-	<-cmd.stdoutDone
-	<-cmd.stderrDone
-
-	err = cmd.Wait()
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return cmd.Wait()
 }
