@@ -17,49 +17,6 @@ harmful was left behind, but some needed features are still missing.
 Nash is inspired by Plan 9 `rc` shell, but with very different syntax
 and purpose.
 
-# Concept
-
-Nowadays everyone agrees that a good deploy requires containers, but
-why this kind of tools (docker, rkt, etc) and libraries (lxc,
-libcontainer, etc) are so bloated and magical?
-
-In the past, the UNIX sysadmin had the complete understanding of the
-operating system and the software being deployed. All of the operating
-system packages/libraries going to production and the required network
-configurations in every machine was maintained by several (sometimes
-un-mantainable) scripts. Today we know that this approach have lots of
-problems and the container approach is a better alternative. But in the
-other end, we're paying a high cost for the lose of control. The
-container-technologies in the market are very unsafe and few people are
-worrying about. No one knows for hundred percent sure, how the things
-really works because after every release it's done differently. On my
-view it's getting worse and worse...
-
-Before Linux namespace, BSD Jails, Solaris Zones, and so on, the
-sysadmin had to fight the global view of the operating
-system. There was only one root mount table, only one view of devices
-and processes, and so on. It was a mess. This approach then proved to
-be much harder to scale because of the services conflicts (port numbers,
-files on disk, resource exhaustion, etc) in the global OS interface.
-The container/namespace idea creates an abstraction to the process in
-a way that it thinks it's the only process running (not counting init),
-it is the root (or no) and then, the filesystem of the container only
-has the files required for it (nothing more).
-
-What's missing is a safe and robust shell for natural usage of
-namespace/container ideas for everyone (programmers, sysadmins, etc).
-
-Nasn is a way for you, that understand the game rules, to make
-reliable deploy scripts using the good parts of the container
-technologies. If you are a programmer, you can use a good language to
-automate the devops instead of relying on lots of different
-technologies (docker, rkt, k8s, mesos, terraform, and so on). And you
-can create libraries for code-reuse.
-
-It's only a simple shell plus a keyword called `rfork`. Rfork try
-to mimic what Plan9 `rfork` does for namespaces, but with linux
-limitations in mind.
-
 # Show time!
 
 Go ahead:
@@ -71,7 +28,110 @@ nash
 λ> echo "hello world"
 hello world
 ```
+Pipes works like borne shell and derivations:
 
+```sh
+λ> cat spec.ebnf | wc -l 
+108
+```
+Output redirection works like Plan9 rc:
+```sh
+λ> ./daemon >[1] log.out >[2] log.err
+λ> ./daemon-logall >[2=1]
+λ> ./daemon-quiet >[1=]
+```
+
+To assign command output to a variable exists the '<=' operator. See the example
+below:
+```sh
+fullpath <= realpath $path | tr -d "\n"
+echo $fullpath
+```
+
+To avoid problems with spaces in variables being passed as multiple arguments to commands, 
+nash pass the contents of each variable as a single argument to the command. It works like
+enclosing every variable with quotes before executing the command. Then the following example
+do the right thing:
+```sh
+fullname = "John Nash"
+./ci-register --name $fullname --option somevalue
+```
+On bash you need to enclose the `$fullname` variable in quotes to avoid problems.
+
+Nash syntax does not support shell expansion from strings. There's no way to
+do things like the following in nash:
+```bash
+echo "The date is: $(date +%D)"
+```
+Instead you need to assign each command output to a proper variable and then concat
+it with another string when needed. In nash, the example above must be something
+like that:
+```sh
+today <= date "+%D"
+echo "The date is: " + $today
+```
+The concat operator (+) could be used between variables and literal strings.
+
+Functions can be declared with "fn" keyword:
+```sh
+fn cd(path) {
+    fullpath <= realpath $path | tr -d "\n"
+    cd $path
+    PROMPT="[" + $fullpath + "]> "
+    setenv PROMPT
+}
+```
+
+And can be invoked as a normal function invocation:
+```sh
+λ> cd("/etc")
+[/etc]> 
+```
+Functions are commonly used for nash libraries, but when needed it can be bind'ed
+to some command name. Using the `cd` function below, we can override the builtin `cd`
+with that command with `bindfn` statement.
+```sh
+# bindfn syntax is:
+# bindfn <function-name> <cmd-name>
+bindfn cd cd
+```
+The only control statements available are `if`, `else` and `for`. But `for` isn't implemented yet,
+because it was not required on my personal projects yet.
+In the same way, nash doesn't support shell expansion at `if` condition.
+For check if a directory exists you must use:
+```sh
+-test -d $rootfsDir
+
+if $status != "0" {
+        echo "RootFS does not exists."
+        exit $status
+}
+```
+Nash stops executing the script at first error found and, in the majority of times, it is what
+you want (specially for deploys). But Commands have an explicitly
+way to bypass such restriction by prepending a dash '-' to the command statement.
+For example:
+
+```sh
+fn cleanup()
+        -rm -rf $buildDir
+        -rm -rf $tmpDir
+}
+```
+
+The dash '-' works only for operating system commands, other kind of errors are impossible to bypass.
+For example, trying to evaluate an unbound variable aborts the program with error.
+
+```sh
+λ> echo $PATH
+/bin:/sbin:/usr/bin:/usr/local/bin:/home/user/.local/bin:/home/user/bin:/home/user/.gvm/pkgsets/go1.5.3/global/bin:/home/user/projects/3rdparty/plan9port/bin:/home/user/.gvm/gos/go1.5.3/bin
+λ> echo $bleh
+ERROR: Variable '$bleh' not set
+```
+
+# Container features
+
+Below are some facilities for namespace management inside nash.
 Make sure you have USER namespaces enabled in your kernel:
 
 ```sh
@@ -156,26 +216,6 @@ rfork <flags> {
 }
 ```
 
-Nash stops executing the script at first error found. Commands have an explicitly
-way to bypass such restriction by prepending a dash '-' to the command statement.
-For example:
-
-```sh
-λ> rm file-not-exists
-rm: cannot remove ‘file-not-exists’: No such file or directory
-ERROR: exit status 1
-λ> -rm file-not-exists
-rm: cannot remove ‘file-not-exists’: No such file or directory
-λ>
-```
-The dash '-' works only for OS commands, other kind of errors are impossible to bypass.
-
-```sh
-λ> echo $PATH
-/bin:/sbin:/usr/bin:/usr/local/bin:/home/user/.local/bin:/home/user/bin:/home/user/.gvm/pkgsets/go1.5.3/global/bin:/home/user/projects/3rdparty/plan9port/bin:/home/user/.gvm/gos/go1.5.3/bin
-λ> echo $bleh
-ERROR: Variable '$bleh' not set
-```
 # OK, but how scripts should look like?
 
 Take a look in the script below:
@@ -279,6 +319,50 @@ commands from the parent shell via unix socket. It allows the parent namespace
 (the script that creates the namespace) to issue commands inside the child
 namespace. In the current implementation the unix socket communication is not
 secure yet.
+
+# Concept
+
+Nowadays everyone agrees that a good deploy requires containers, but
+why this kind of tools (docker, rkt, etc) and libraries (lxc,
+libcontainer, etc) are so bloated and magical?
+
+In the past, the UNIX sysadmin had the complete understanding of the
+operating system and the software being deployed. All of the operating
+system packages/libraries going to production and the required network
+configurations in every machine was maintained by several (sometimes
+un-mantainable) scripts. Today we know that this approach have lots of
+problems and the container approach is a better alternative. But in the
+other end, we're paying a high cost for the lose of control. The
+container-technologies in the market are very unsafe and few people are
+worrying about. No one knows for hundred percent sure, how the things
+really works because after every release it's done differently. On my
+view it's getting worse and worse...
+
+Before Linux namespace, BSD Jails, Solaris Zones, and so on, the
+sysadmin had to fight the global view of the operating
+system. There was only one root mount table, only one view of devices
+and processes, and so on. It was a mess. This approach then proved to
+be much harder to scale because of the services conflicts (port numbers,
+files on disk, resource exhaustion, etc) in the global OS interface.
+The container/namespace idea creates an abstraction to the process in
+a way that it thinks it's the only process running (not counting init),
+it is the root (or no) and then, the filesystem of the container only
+has the files required for it (nothing more).
+
+What's missing is a safe and robust shell for natural usage of
+namespace/container ideas for everyone (programmers, sysadmins, etc).
+
+Nasn is a way for you, that understand the game rules, to make
+reliable deploy scripts using the good parts of the container
+technologies. If you are a programmer, you can use a good language to
+automate the devops instead of relying on lots of different
+technologies (docker, rkt, k8s, mesos, terraform, and so on). And you
+can create libraries for code-reuse.
+
+It's only a simple shell plus a keyword called `rfork`. Rfork try
+to mimic what Plan9 `rfork` does for namespaces, but with linux
+limitations in mind.
+
 
 # Motivation
 
