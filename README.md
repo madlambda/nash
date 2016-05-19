@@ -91,16 +91,19 @@ Functions are commonly used for nash libraries, but when needed it can be bind'e
 to some command name. Using the `cd` function below, we can override the builtin `cd`
 with that command with `bindfn` statement.
 ```sh
-# bindfn syntax is:
-# bindfn <function-name> <cmd-name>
-bindfn cd cd
+λ> # bindfn syntax is:
+λ> # bindfn <function-name> <cmd-name>
+λ> bindfn cd cd
+λ> cd /var/log
+[/var/log]> 
 ```
 The only control statements available are `if`, `else` and `for`. But `for` isn't implemented yet,
 because it was not required on my personal projects yet.
 In the same way, nash doesn't support shell expansion at `if` condition.
 For check if a directory exists you must use:
 ```sh
--test -d $rootfsDir
+-test -d $rootfsDir    # if you forget '-', the script will be aborted here 
+                       # if path not exists
 
 if $status != "0" {
         echo "RootFS does not exists."
