@@ -225,60 +225,81 @@ Take a look in the script below:
 
 ```sh
 #!/usr/bin/env nash
-#
-# Execute `my-service` inside a busybox container
+# Library for build Linux Stali rootfs and execute a container in the image
+# For more info about stali, see: http://sta.li/
+# Requires: build-essential mawk
 
-image="https://busybox.net/downloads/binaries/latest/busybox-x86_64"
+imageName    = "stali-x86_64"
+imageDir     = "/home/" + $USER + "/.nash/images/stali"
+toolchainDir = $imageDir + "/toolchain"
+srcDir       = $imageDir + "/src"
+rootfsDir    = $imageDir + "/rootfs-x86_64"
 
--rm -rf rootfs
+echo "Build stali rootfs"
+echo "Requires: build-essential mawk"
 
-echo "Executing container"
+fn cleanup() {
+    -rm -rf $toolchainDir
+    -rm -rf $srcDir
+    -rm -rf $rootfsDir
+}
 
-# Forking the container with all namespaces except network
-rfork upmis {
-    mount -t proc proc /proc
-    mkdir -p rootfs
-    mount -t tmpfs -o size=1G tmpfs rootfs
+fn download() {
+    git clone --depth=1 http://git.sta.li/toolchain
+    git clone --depth=1 http://git.sta.li/src
+}
 
-    cd rootfs
+fn stali_fsbuild(service) {
+    cp -a $service /tmp/
 
-    wget $image -O busybox
-    chmod +x busybox
+    -mkdir -p $imageDir
 
-    mkdir bin
+    cd $imageDir
 
-    ./busybox --install ./bin
+    cleanup()
+    download()
+    
+    mkdir $rootfsDir
+    STALI_SRC = $PWD + "/src"
 
-    mkdir -p proc
-    mkdir -p dev
-    mount -t proc proc proc
-    mount -t tmpfs tmpfs dev
+    cd src
 
-    cp ../my-service .
-    chroot . /my-service
+    sed -i.bak "s#^DESTDIR=#DESTDIR=" + $rootfsDir + "#g" config.mk
+    make
+    make install
+
+    cd ..
+
+    serviceName <= basename $service | tr -d "\n"
+    cp -a "/tmp/"+$serviceName $rootfsDir
+
+    tar cvf $imagename+".tar" $rootfsDir
+    bzip2 $imageName+".tar"
+
+    echo "Stali image generated: " + $imageName + ".tar.bz2"
+}
+
+# Run the $exec filename inside a container with $image rootfs
+fn stali_run(image, exec) {
+    targetDir = "/tmp/stali-rootfs"
+    -mkdir $targetDir
+    tar xvf $image -C $targetDir
+
+    # Create a container with User, pid, mount, ipc and uts namespaces
+    rfork upmis {
+        # mount the process filesystem inside PID namespace
+        mount -t proc proc /proc
+        cp /etc/resolv.conf $targetDir+"/etc/resolv.conf"
+        cp /etc/hosts $targetDir+"/etc/hosts"
+
+        chroot $targetDir $exec
+    }
 }
 ```
+Invoke the functions `stali_fsbuild` for build the image and `stali_run` to execute 
+the container image. Or bindfn the functions for some command.
 
-Execute with:
-
-```sh
-
-./nash -file example.sh
---2016-04-15 17:54:02--  https://busybox.net/downloads/binaries/latest/busybox-x86_64
-Resolving busybox.net (busybox.net)... 140.211.167.224
-Connecting to busybox.net (busybox.net)|140.211.167.224|:443... connected.
-HTTP request sent, awaiting response... 200 OK
-Length: 973200 (950K)
-Saving to: ‘busybox’
-
-busybox                 100%[===============================>] 950.39K  21.1KB/s    in 43s
-
-2016-04-15 17:54:46 (22.1 KB/s) - ‘busybox’ saved [973200/973200]
-
-```
-
-Change the last line of chroot to invoke /bin/sh if you want a shell
-inside the busybox.
+Pass "/bin/sh" to `stali_run` if you want a shell inside Stali.
 
 I know, I know, lots of questions in how to handle the hard parts of
 deploy. My answer is: Coming soon.
