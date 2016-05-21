@@ -2153,3 +2153,60 @@ func TestBindFn(t *testing.T) {
 	testTable("test bindfn", `bindfn cd cd`, expected, t)
 
 }
+
+func TestIssue19CommandAssignment(t *testing.T) {
+	line := `version = "4.5.6"
+canonName <= echo -n $version | sed "s/\\.//g"`
+
+	expected := []item{
+		item{
+			typ: itemVarName,
+			val: "version",
+		},
+		item{
+			typ: itemAssign,
+			val: "=",
+		},
+		item{
+			typ: itemString,
+			val: "4.5.6",
+		},
+		item{
+			typ: itemVarName,
+			val: "canonName",
+		},
+		item{
+			typ: itemAssignCmd,
+			val: "<=",
+		},
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemArg,
+			val: "-n",
+		},
+		item{
+			typ: itemVariable,
+			val: "$version",
+		},
+		item{
+			typ: itemPipe,
+			val: "|",
+		},
+		item{
+			typ: itemCommand,
+			val: "sed",
+		},
+		item{
+			typ: itemString,
+			val: "s/\\.//g",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test issue 19", line, expected, t)
+}
