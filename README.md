@@ -34,12 +34,21 @@ Pipes works like borne shell and derivations:
 λ> cat spec.ebnf | wc -l 
 108
 ```
-Output redirection works like Plan9 rc:
+Output redirection works like Plan9 rc, but not only for filenames. It supports output redirection to tcp, udp and unix network protocols.
 ```sh
-λ> ./daemon >[1] log.out >[2] log.err
+# stdout to log.out, stderr to log.err
+λ> ./daemon >[1] log.out >[2] log.err 
+# stderr pointing to stdout
 λ> ./daemon-logall >[2=1]
+# stdout to /dev/null
 λ> ./daemon-quiet >[1=]
+# stdout and stderr to tcp address
+λ> ./daemon >[1] "udp://syslog:6666" >[2=1]
+# stdout to unix file
+λ> ./daemon >[1] "unix:///tmp/syslog.sock"
 ```
+
+But wi
 
 To assign command output to a variable exists the '<=' operator. See the example
 below:
