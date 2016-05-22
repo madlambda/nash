@@ -1004,7 +1004,7 @@ func TestLexerRedirectSimple(t *testing.T) {
 			val: ">",
 		},
 		item{
-			typ: itemRedirFile,
+			typ: itemArg,
 			val: "file.out",
 		},
 		item{
@@ -1024,7 +1024,7 @@ func TestLexerRedirectSimple(t *testing.T) {
 			val: ">",
 		},
 		item{
-			typ: itemRedirNetAddr,
+			typ: itemString,
 			val: "tcp://localhost:8888",
 		},
 		item{
@@ -1044,7 +1044,7 @@ func TestLexerRedirectSimple(t *testing.T) {
 			val: ">",
 		},
 		item{
-			typ: itemRedirNetAddr,
+			typ: itemString,
 			val: "udp://localhost:8888",
 		},
 		item{
@@ -1064,7 +1064,7 @@ func TestLexerRedirectSimple(t *testing.T) {
 			val: ">",
 		},
 		item{
-			typ: itemRedirNetAddr,
+			typ: itemString,
 			val: "unix:///tmp/sock.txt",
 		},
 		item{
@@ -1177,7 +1177,7 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "]",
 		},
 		item{
-			typ: itemRedirFile,
+			typ: itemArg,
 			val: "file.out",
 		},
 		item{
@@ -1218,7 +1218,7 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "]",
 		},
 		item{
-			typ: itemRedirFile,
+			typ: itemArg,
 			val: "file.out",
 		},
 		item{
@@ -1250,7 +1250,7 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "]",
 		},
 		item{
-			typ: itemRedirFile,
+			typ: itemArg,
 			val: "/var/log/service.log",
 		},
 		item{
@@ -1284,7 +1284,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "]",
 		},
 		item{
-			typ: itemRedirFile,
+			typ: itemArg,
 			val: "file.out",
 		},
 		item{
@@ -1304,7 +1304,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "]",
 		},
 		item{
-			typ: itemRedirFile,
+			typ: itemArg,
 			val: "file.err",
 		},
 		item{
@@ -1360,7 +1360,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "]",
 		},
 		item{
-			typ: itemRedirFile,
+			typ: itemArg,
 			val: "/var/log/service.log",
 		},
 		item{
@@ -2209,4 +2209,26 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 	}
 
 	testTable("test issue 19", line, expected, t)
+}
+
+func TestLexerIssue21RedirectionWithVariables(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "cmd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemVariable,
+			val: "$outFname",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test redirection variable", `cmd > $outFname`, expected, t)
 }

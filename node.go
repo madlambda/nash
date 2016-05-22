@@ -98,7 +98,7 @@ type (
 		NodeType
 		Pos
 		rmap     RedirMap
-		location string
+		location *Arg
 	}
 
 	// RforkNode is a builtin node for rfork
@@ -465,7 +465,7 @@ func NewRedirectNode(pos Pos) *RedirectNode {
 			lfd: -1,
 			rfd: -1,
 		},
-		location: "",
+		location: nil,
 	}
 }
 
@@ -476,7 +476,7 @@ func (r *RedirectNode) SetMap(lfd int, rfd int) {
 }
 
 // SetLocation of the output
-func (r *RedirectNode) SetLocation(s string) {
+func (r *RedirectNode) SetLocation(s *Arg) {
 	r.location = s
 }
 
@@ -484,8 +484,8 @@ func (r *RedirectNode) String() string {
 	var result string
 
 	if r.rmap.lfd == r.rmap.rfd {
-		if r.location != "" {
-			return "> " + r.location
+		if r.location != nil {
+			return "> " + r.location.String()
 		}
 
 		return ""
@@ -499,8 +499,8 @@ func (r *RedirectNode) String() string {
 		result = ">[" + strconv.Itoa(r.rmap.lfd) + "=]"
 	}
 
-	if r.location != "" {
-		result = result + " " + r.location
+	if r.location != nil {
+		result = result + " " + r.location.String()
 	}
 
 	return result

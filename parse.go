@@ -165,8 +165,7 @@ func (p *Parser) parseRedirection(it item) (*RedirectNode, error) {
 
 	it = p.peek()
 
-	if it.typ != itemRedirLBracket && it.typ != itemRedirFile &&
-		it.typ != itemRedirNetAddr {
+	if it.typ != itemRedirLBracket && it.typ != itemString && it.typ != itemArg && it.typ != itemVariable {
 		return nil, fmt.Errorf("Unexpected token: %v", it)
 	}
 
@@ -228,7 +227,7 @@ func (p *Parser) parseRedirection(it item) (*RedirectNode, error) {
 		it = p.peek()
 	}
 
-	if it.typ != itemRedirFile && it.typ != itemRedirNetAddr {
+	if it.typ != itemString && it.typ != itemArg && it.typ != itemVariable {
 		if rval != redirMapNoValue || lval != redirMapNoValue {
 			return redir, nil
 		}
@@ -236,9 +235,14 @@ func (p *Parser) parseRedirection(it item) (*RedirectNode, error) {
 		return nil, fmt.Errorf("Unexpected token '%v'", it)
 	}
 
-	redir.SetLocation(it.val)
+	arg, err := p.getArgument(true)
 
-	p.next()
+	if err != nil {
+		return nil, err
+	}
+
+	redir.SetLocation(arg)
+
 
 	return redir, nil
 }

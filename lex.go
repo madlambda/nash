@@ -1168,7 +1168,7 @@ func lexInsideRedirect(l *lexer) stateFn {
 			}
 		}
 
-		l.emit(itemRedirFile)
+		l.emit(itemArg)
 	} else if r == '"' {
 		l.ignore()
 
@@ -1188,18 +1188,13 @@ func lexInsideRedirect(l *lexer) stateFn {
 			break
 		}
 
-		word := l.input[l.start:l.pos]
-
-		if (len(word) > 6 && word[0:6] == "tcp://") ||
-			(len(word) > 6 && word[0:6] == "udp://") ||
-			(len(word) > 7 && word[0:7] == "unix://") {
-			l.emit(itemRedirNetAddr)
-		} else {
-			l.emit(itemRedirFile)
-		}
+		l.emit(itemString)
 
 		l.next() // get last '"' again
 		l.ignore()
+	} else if r == '$' {
+		l.backup()
+		return lexInsideCommonVariable(l, lexStart, lexInsideRedirect)
 	} else {
 		return l.errorf("Unexpected redirect identifier: %s", l.input[l.start:l.pos])
 	}

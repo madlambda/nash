@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"net"
+
 )
 
 type (
@@ -160,6 +162,41 @@ func (cmd *Command) SetRedirects(redirDecls []*RedirectNode) error {
 	return nil
 }
 
+func (cmd *Command) openRedirectLocation(location *Arg) (io.WriteCloser, error) {
+	var protocol string
+	
+	if len(location.val) > 6 {
+		if location.val[0:6] == "tcp://" {
+			protocol = "tcp"
+		} else if location.val[0:6] == "udp://" {
+			protocol = "udp"
+		} else if len(location.val) > 7 && location.val[0:7] == "unix://" {
+			protocol = "unix"
+		}
+	}
+
+	if protocol == "" {
+		return os.OpenFile(location.val, os.O_RDWR|os.O_CREATE, 0644)
+	}
+
+	switch protocol {
+	case "tcp", "udp":
+		netParts := strings.Split(location.val[6:], ":")
+
+		if len(netParts) != 2 {
+			return nil, newError("Invalid tcp/udp address: %s", location.val)
+		}
+
+		url := netParts[0] + ":" + netParts[1]		
+		
+		return net.Dial(protocol, url)
+	case "unix":
+		return net.Dial(protocol, location.val[7:])
+	}
+
+	return nil, newError("Unexpected redirection value: %s", location.val)		
+}
+
 func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 	if redirDecl.rmap.lfd > 2 || redirDecl.rmap.lfd < redirMapSupress {
 		return newError("Invalid file descriptor redirection: fd=%d", redirDecl.rmap.lfd)
@@ -179,11 +216,11 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 		case 2:
 			cmd.fdMap[0] = cmd.fdMap[2]
 		case redirMapNoValue:
-			if redirDecl.location == "" {
+			if redirDecl.location == nil {
 				return newError("Missing file in redirection: >[%d] <??>", redirDecl.rmap.lfd)
 			}
 
-			file, err := os.OpenFile(redirDecl.location, os.O_RDWR|os.O_CREATE, 0644)
+			file, err := cmd.openRedirectLocation(redirDecl.location)
 
 			if err != nil {
 				return err
@@ -191,10 +228,10 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 
 			cmd.fdMap[0] = file
 		case redirMapSupress:
-			if redirDecl.location != "" {
+			if redirDecl.location != nil {
 				return newError("Invalid redirect mapping: %d -> %d",
 					redirDecl.rmap.lfd,
-					redirDecl.location)
+					redirDecl.rmap.rfd)
 			}
 
 			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
@@ -213,11 +250,11 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 		case 2:
 			cmd.fdMap[1] = cmd.fdMap[2]
 		case redirMapNoValue:
-			if redirDecl.location == "" {
+			if redirDecl.location == nil {
 				return newError("Missing file in redirection: >[%d] <??>", redirDecl.rmap.lfd)
 			}
 
-			file, err := os.OpenFile(redirDecl.location, os.O_RDWR|os.O_CREATE, 0644)
+			file, err := cmd.openRedirectLocation(redirDecl.location)
 
 			if err != nil {
 				return err
@@ -241,11 +278,11 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 			cmd.fdMap[2] = cmd.fdMap[1]
 		case 2: // do nothing
 		case redirMapNoValue:
-			if redirDecl.location == "" {
+			if redirDecl.location == nil {
 				return newError("Missing file in redirection: >[%d] <??>", redirDecl.rmap.lfd)
 			}
 
-			file, err := os.OpenFile(redirDecl.location, os.O_RDWR|os.O_CREATE, 0644)
+			file, err := cmd.openRedirectLocation(redirDecl.location)
 
 			if err != nil {
 				return err
@@ -262,11 +299,11 @@ func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
 			cmd.fdMap[2] = file
 		}
 	case redirMapNoValue:
-		if redirDecl.location == "" {
+		if redirDecl.location == nil {
 			return newError("Missing file in redirection: >[%d] <??>", redirDecl.rmap.lfd)
 		}
 
-		file, err := os.OpenFile(redirDecl.location, os.O_RDWR|os.O_CREATE, 0644)
+		file, err := cmd.openRedirectLocation(redirDecl.location)
 
 		if err != nil {
 			return err

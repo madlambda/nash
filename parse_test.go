@@ -282,7 +282,9 @@ func TestParseRedirectWithLocation(t *testing.T) {
 	cmd := NewCommandNode(0, "cmd")
 	redir := NewRedirectNode(0)
 	redir.SetMap(2, redirMapNoValue)
-	redir.SetLocation("/var/log/service.log")
+	out := NewArg(0, ArgUnquoted)
+	out.SetString("/var/log/service.log")
+	redir.SetLocation(out)
 	cmd.AddRedirect(redir)
 	ln.Push(cmd)
 
@@ -785,6 +787,22 @@ func TestParseBindFn(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("bindfn", `bindfn cd cd`, expected, t)
+}
+
+func TestParseRedirectionVariable(t *testing.T) {
+	expected := NewTree("redirection var")
+	ln := NewListNode()
+
+	cmd := NewCommandNode(0, "cmd")
+	redir := NewRedirectNode(0)
+	redirArg := NewArg(0, ArgVariable)
+	redirArg.SetString("$outFname")
+	redir.SetLocation(redirArg)
+	cmd.AddRedirect(redir)
+	ln.Push(cmd)
+	expected.Root = ln
+
+	parserTestTable("redir var", `cmd > $outFname`, expected, t)
 }
 
 func TestParseIfInvalid(t *testing.T) {

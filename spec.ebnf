@@ -18,8 +18,8 @@ cmdname   = identifier .
 abscmd    = filename .
 argument  = ( unicode_char { unicode_char } ) | string_lit .
 pipe      = cmdpart "|" cmdpart [ { "|" cmdpart } ] .
-redirect    = ( ">" ( filename | uri ) |
-               ">" "[" unicode_digit "]" ( filename | uri ) |
+redirect    = ( ">" ( filename | uri | variable ) |
+               ">" "[" unicode_digit "]" ( filename | uri | variable ) |
                ">" "[" unicode_digit "=" ( unicode_digit | identifier ) "]" |
                ">" "[" unicode_digit "=" "]" ) .
 
