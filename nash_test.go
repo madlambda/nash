@@ -169,6 +169,33 @@ func TestExecuteRforkUserNS(t *testing.T) {
 	}
 }
 
+func TestExecuteRforkEnvVars(t *testing.T) {
+	if !enableUserNS {
+		t.Skip("User namespace not enabled")
+		return
+	}
+
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+
+	err = sh.ExecuteString("test env", `abra = "cadabra"
+setenv abra
+rfork up {
+	echo $abra
+}`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}
+
 func TestExecuteRforkUserNSNested(t *testing.T) {
 	if !enableUserNS {
 		t.Skip("User namespace not enabled")
