@@ -340,6 +340,17 @@ func compareFnDeclNode(expected, value *FnDeclNode) (bool, error) {
 	return compare(expected.Tree(), value.Tree())
 }
 
+func compareDumpNode(expected, value *DumpNode) (bool, error) {
+	if ok, err := compareDefault(expected, value); !ok {
+		return ok, err
+	}
+
+	efname := expected.Filename()
+	vfname := value.Filename()
+
+	return compareArg(efname, vfname)
+}
+
 func compareBindFnNode(expected, value *BindFnNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
@@ -516,6 +527,11 @@ func compareNodes(expected Node, value Node) (bool, error) {
 		ec := expected.(*BindFnNode)
 		vc := value.(*BindFnNode)
 		valid, err = compareBindFnNode(ec, vc)
+
+	case *DumpNode:
+		ec := expected.(*DumpNode)
+		vc := value.(*DumpNode)
+		valid, err = compareDumpNode(ec, vc)
 	default:
 		return false, fmt.Errorf("Type %v not comparable yet", v)
 	}

@@ -755,6 +755,27 @@ func (p *Parser) parseBindFn() (Node, error) {
 	return n, nil
 }
 
+func (p *Parser) parseDump() (Node, error) {
+	dumpIt := p.next()
+
+	dump := NewDumpNode(dumpIt.pos)
+
+	fnameIt := p.peek()
+
+	if fnameIt.typ != itemString && fnameIt.typ != itemVariable && fnameIt.typ != itemArg {
+		return dump, nil
+	}
+
+	p.next()
+
+	arg := NewArg(fnameIt.pos, 0)
+	arg.SetItem(fnameIt)
+
+	dump.SetFilename(arg)
+
+	return dump, nil
+}
+
 func (p *Parser) parseComment() (Node, error) {
 	it := p.next()
 
@@ -797,6 +818,8 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseFnInv()
 	case itemBindFn:
 		return p.parseBindFn()
+	case itemDump:
+		return p.parseDump()
 	}
 
 	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)

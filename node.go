@@ -162,6 +162,12 @@ type (
 		name    string
 		cmdname string
 	}
+
+	DumpNode struct {
+		NodeType
+		Pos
+		filename *Arg
+	}
 )
 
 //go:generate stringer -type=NodeType
@@ -215,6 +221,8 @@ const (
 	NodeFnInv
 
 	NodeBindFn
+
+	NodeDump
 )
 
 //go:generate stringer -type=ArgType
@@ -905,4 +913,27 @@ func (n *BindFnNode) CmdName() string { return n.cmdname }
 
 func (n *BindFnNode) String() string {
 	return "bindfn " + n.name + " " + n.cmdname
+}
+
+func NewDumpNode(pos Pos) *DumpNode {
+	return &DumpNode{
+		NodeType: NodeDump,
+		Pos:      pos,
+	}
+}
+
+func (n *DumpNode) Filename() *Arg {
+	return n.filename
+}
+
+func (n *DumpNode) SetFilename(a *Arg) {
+	n.filename = a
+}
+
+func (n *DumpNode) String() string {
+	if n.filename != nil {
+		return "dump " + n.filename.String()
+	}
+
+	return "dump"
 }

@@ -358,6 +358,8 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 			err = sh.executeFnInv(node.(*FnInvNode))
 		case NodeBindFn:
 			err = sh.executeBindFn(node.(*BindFnNode))
+		case NodeDump:
+			err = sh.executeDump(node.(*DumpNode))
 		default:
 			// should never get here
 			return fmt.Errorf("invalid node: %v.", node.Type())
@@ -537,7 +539,7 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 		sh.log("Command fails: %s", err.Error())
 
 		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
-			if fn, ok := sh.GetFn(c.Name()); ok {
+			if fn, ok := sh.binds[c.Name()]; ok {
 				sh.log("Executing bind %s", c.Name())
 
 				return sh.executeFn(fn, c.args)
@@ -951,6 +953,70 @@ func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
 	sh.log("Function %s declared", fnName)
 
 	return nil
+}
+
+func (sh *Shell) dumpVar(file *os.File) {
+	for _, v := range sh.vars {
+		printVar(v, fname)
+	}
+}
+
+func (sh *Shell) dumpEnv(file *os.File) {
+	for _, e := range sh.env {
+		printEnv(e, fname)
+	}
+}
+
+func (sh *Shell) dumpFns(file *os.File) {
+	for _, f := range sh.fns {
+		fmt.Fprintf("%s\n\n", f.Node().String())
+	}
+}
+
+func (sh *Shell) executeDump(n *DumpNode) error {
+	var (
+		err   error
+		fname string
+		file  *os.File
+	)
+
+	fnameArg := n.Filename()
+
+	if fnameArg == nil {
+		file = os.Stdout
+		goto execDump
+	} else if fnameArg.IsVariable() {
+		variableList, err := sh.evalVariable(fnameArg.Value())
+
+		if err != nil {
+			return err
+		}
+
+		if len(variableList) == 0 || len(variableList) > 1 {
+			return newError("Invalid variable used in dump")
+		}
+
+		fname = variableList[0]
+	} else if fnameArg.IsConcat() {
+		fname, err = sh.executeConcat(fnameArg)
+
+		if err != nil {
+			return err
+		}
+	} else {
+		fname := fnameArg.Value()
+	}
+
+	out, err = os.OpenFile(fname, O_CREATE|O_RDWR, 0644)
+
+	if err != nil {
+		return err
+	}
+
+execDump:
+	sh.dumpVar(file)
+	sh.dumpEnv(file)
+	sh.dumpFns(file)
 }
 
 func (sh *Shell) executeBindFn(n *BindFnNode) error {
