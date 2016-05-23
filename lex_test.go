@@ -2211,6 +2211,44 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 	testTable("test issue 19", line, expected, t)
 }
 
+func TestLexerRedirectionNetwork(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemString,
+			val: "hello world",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "1",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemString,
+			val: "tcp://localhost:6667",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test redirection network", `echo "hello world" >[1] "tcp://localhost:6667"`, expected, t)
+}
+
 func TestLexerIssue21RedirectionWithVariables(t *testing.T) {
 	expected := []item{
 		item{

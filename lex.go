@@ -1129,17 +1129,9 @@ func lexArg(l *lexer, concatFn, nextFn stateFn) stateFn {
 }
 
 func lexInsideRedirect(l *lexer) stateFn {
-	var r rune
+	ignoreSpaces(l)
 
-	for {
-		r = l.next()
-
-		if !isSpace(r) {
-			break
-		}
-
-		l.ignore()
-	}
+	r := l.next()
 
 	switch {
 	case r == '[':
@@ -1147,20 +1139,7 @@ func lexInsideRedirect(l *lexer) stateFn {
 		return lexInsideRedirMapLeftSide
 	case r == ']':
 		return l.errorf("Unexpected ']' at pos %d", l.pos)
-	}
-
-	if isSafePath(r) {
-		for {
-			r = l.next()
-
-			if !isSafePath(r) {
-				l.backup()
-				break
-			}
-		}
-
-		l.emit(itemArg)
-	} else if r == '"' {
+	case r == '"':
 		l.ignore()
 
 		for {
@@ -1183,10 +1162,21 @@ func lexInsideRedirect(l *lexer) stateFn {
 
 		l.next() // get last '"' again
 		l.ignore()
-	} else if r == '$' {
+	case r == '$':
 		l.backup()
 		return lexInsideCommonVariable(l, lexStart, lexInsideRedirect)
-	} else {
+	case isSafePath(r):
+		for {
+			r = l.next()
+
+			if !isSafePath(r) {
+				l.backup()
+				break
+			}
+		}
+
+		l.emit(itemArg)
+	default:
 		return l.errorf("Unexpected redirect identifier: %s", l.input[l.start:l.pos])
 	}
 
@@ -1229,18 +1219,17 @@ func lexInsideRedirMapLeftSide(l *lexer) stateFn {
 
 				ignoreSpaces(l)
 
-				r = l.next()
+				r = l.peek()
 
 				if isSafePath(r) || r == '"' {
 					return lexInsideRedirect
 				}
 
 				if r == '>' {
+					l.next()
 					l.emit(itemRedirRight)
 					return lexInsideRedirect
 				}
-
-				l.backup()
 
 				return lexStart
 			}
@@ -1276,18 +1265,17 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 
 					ignoreSpaces(l)
 
-					r = l.next()
+					r = l.peek()
 
 					if isSafePath(r) || r == '"' {
 						return lexInsideRedirect
 					}
 
 					if r == '>' {
+						l.next()
 						l.emit(itemRedirRight)
 						return lexInsideRedirect
 					}
-
-					l.backup()
 
 					return lexStart
 				}
@@ -1301,18 +1289,18 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 
 			ignoreSpaces(l)
 
-			r = l.next()
+			r = l.peek()
 
 			if isSafePath(r) || r == '"' {
 				return lexInsideRedirect
 			}
 
 			if r == '>' {
+				l.next()
 				l.emit(itemRedirRight)
 				return lexInsideRedirect
 			}
 
-			l.backup()
 			break
 		}
 

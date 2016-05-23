@@ -2,11 +2,10 @@ package nash
 
 import (
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
-	"net"
-
 )
 
 type (
@@ -164,7 +163,7 @@ func (cmd *Command) SetRedirects(redirDecls []*RedirectNode) error {
 
 func (cmd *Command) openRedirectLocation(location *Arg) (io.WriteCloser, error) {
 	var protocol string
-	
+
 	if len(location.val) > 6 {
 		if location.val[0:6] == "tcp://" {
 			protocol = "tcp"
@@ -187,14 +186,14 @@ func (cmd *Command) openRedirectLocation(location *Arg) (io.WriteCloser, error) 
 			return nil, newError("Invalid tcp/udp address: %s", location.val)
 		}
 
-		url := netParts[0] + ":" + netParts[1]		
-		
+		url := netParts[0] + ":" + netParts[1]
+
 		return net.Dial(protocol, url)
 	case "unix":
 		return net.Dial(protocol, location.val[7:])
 	}
 
-	return nil, newError("Unexpected redirection value: %s", location.val)		
+	return nil, newError("Unexpected redirection value: %s", location.val)
 }
 
 func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {
@@ -459,12 +458,22 @@ func (cmd *Command) Wait() error {
 	return cmd.Cmd.Wait()
 }
 
+func (cmd *Command) closeNetDescriptors() {
+	for _, fd := range cmd.fdMap {
+		if fdc, ok := fd.(*net.TCPConn); ok {
+			fdc.Close()
+		}
+	}
+}
+
 func (cmd *Command) Execute() error {
 	err := cmd.Start()
 
 	if err != nil {
 		return err
 	}
+
+	defer cmd.closeNetDescriptors()
 
 	return cmd.Wait()
 }

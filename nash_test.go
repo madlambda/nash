@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
@@ -814,4 +815,63 @@ func TestExecutePipe(t *testing.T) {
 	}
 
 	out.Reset()
+}
+
+func TestExecuteNetRedirection(t *testing.T) {
+	message := "hello world"
+
+	done := make(chan bool)
+
+	go func() {
+		sh, err := NewShell(false)
+
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		sh.SetNashdPath(nashdPath)
+
+		<-done
+
+		err = sh.ExecuteString("test net redirection", `echo -n "`+message+`" >[1] "tcp://localhost:6666"`)
+
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}()
+
+	l, err := net.Listen("tcp", ":6666")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer l.Close()
+
+	for {
+		done <- true
+		conn, err := l.Accept()
+		if err != nil {
+			return
+		}
+
+		defer conn.Close()
+
+		buf, err := ioutil.ReadAll(conn)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		fmt.Println(string(buf[:]))
+
+		if msg := string(buf[:]); msg != message {
+			t.Fatalf("Unexpected message:\nGot:\t\t%s\nExpected:\t%s\n", msg, message)
+		}
+
+		return // Done
+	}
+
 }
