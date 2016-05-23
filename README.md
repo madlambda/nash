@@ -31,13 +31,13 @@ hello world
 Pipes works like borne shell and derivations:
 
 ```sh
-λ> cat spec.ebnf | wc -l 
+λ> cat spec.ebnf | wc -l
 108
 ```
 Output redirection works like Plan9 rc, but not only for filenames. It supports output redirection to tcp, udp and unix network protocols.
 ```sh
 # stdout to log.out, stderr to log.err
-λ> ./daemon >[1] log.out >[2] log.err 
+λ> ./daemon >[1] log.out >[2] log.err
 # stderr pointing to stdout
 λ> ./daemon-logall >[2=1]
 # stdout to /dev/null
@@ -48,8 +48,6 @@ Output redirection works like Plan9 rc, but not only for filenames. It supports 
 λ> ./daemon >[1] "unix:///tmp/syslog.sock"
 ```
 
-But wi
-
 To assign command output to a variable exists the '<=' operator. See the example
 below:
 ```sh
@@ -57,7 +55,7 @@ fullpath <= realpath $path | tr -d "\n"
 echo $fullpath
 ```
 
-To avoid problems with spaces in variables being passed as multiple arguments to commands, 
+To avoid problems with spaces in variables being passed as multiple arguments to commands,
 nash pass the contents of each variable as a single argument to the command. It works like
 enclosing every variable with quotes before executing the command. Then the following example
 do the right thing:
@@ -94,7 +92,7 @@ fn cd(path) {
 And can be invoked as a normal function invocation:
 ```sh
 λ> cd("/etc")
-[/etc]> 
+[/etc]>
 ```
 Functions are commonly used for nash libraries, but when needed it can be bind'ed
 to some command name. Using the `cd` function below, we can override the builtin `cd`
@@ -104,14 +102,14 @@ with that command with `bindfn` statement.
 λ> # bindfn <function-name> <cmd-name>
 λ> bindfn cd cd
 λ> cd /var/log
-[/var/log]> 
+[/var/log]>
 ```
 The only control statements available are `if`, `else` and `for`. But `for` isn't implemented yet,
 because it was not required on my personal projects yet.
 In the same way, nash doesn't support shell expansion at `if` condition.
 For check if a directory exists you must use:
 ```sh
--test -d $rootfsDir    # if you forget '-', the script will be aborted here 
+-test -d $rootfsDir    # if you forget '-', the script will be aborted here
                        # if path not exists
 
 if $status != "0" {
@@ -267,7 +265,7 @@ fn stali_fsbuild(service) {
 
     cleanup()
     download()
-    
+
     mkdir $rootfsDir
     STALI_SRC = $PWD + "/src"
 
@@ -305,7 +303,7 @@ fn stali_run(image, exec) {
     }
 }
 ```
-Invoke the functions `stali_fsbuild` for build the image and `stali_run` to execute 
+Invoke the functions `stali_fsbuild` for build the image and `stali_run` to execute
 the container image. Or bindfn the functions for some command.
 
 Pass "/bin/sh" to `stali_run` if you want a shell inside Stali.
