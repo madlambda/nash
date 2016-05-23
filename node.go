@@ -217,6 +217,8 @@ const (
 	NodeBindFn
 )
 
+//go:generate stringer -type=ArgType
+
 const (
 	ArgQuoted ArgType = iota + 1
 	ArgUnquoted

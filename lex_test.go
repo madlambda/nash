@@ -2232,3 +2232,115 @@ func TestLexerIssue21RedirectionWithVariables(t *testing.T) {
 
 	testTable("test redirection variable", `cmd > $outFname`, expected, t)
 }
+
+func TestLexerIssue22ConcatenationCd(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "gocd",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVarName,
+			val: "path",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemIf,
+			val: "if",
+		},
+		item{
+			typ: itemVariable,
+			val: "$path",
+		},
+		item{
+			typ: itemComparison,
+			val: "==",
+		},
+		item{
+			typ: itemString,
+			val: "",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCd,
+			val: "cd",
+		},
+		item{
+			typ: itemVariable,
+			val: "$GOPATH",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemElse,
+			val: "else",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCd,
+			val: "cd",
+		},
+		item{
+			typ: itemVariable,
+			val: "$GOPATH",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemString,
+			val: "/src/",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemVariable,
+			val: "$path",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test issue 22", `fn gocd(path) {
+    if $path == "" {
+        cd $GOPATH
+    } else {
+        cd $GOPATH + "/src/" + $path
+    }
+}`, expected, t)
+}

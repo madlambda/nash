@@ -243,7 +243,6 @@ func (p *Parser) parseRedirection(it item) (*RedirectNode, error) {
 
 	redir.SetLocation(arg)
 
-
 	return redir, nil
 }
 
@@ -524,11 +523,12 @@ func (p *Parser) parseIf() (Node, error) {
 		arg := NewArg(it.pos, ArgQuoted)
 		arg.SetString(it.val)
 		n.SetLvalue(arg)
-	} else {
-		// TODO: maybe buggy
-		arg := NewArg(it.pos, ArgUnquoted)
+	} else if it.typ == itemVariable {
+		arg := NewArg(it.pos, ArgVariable)
 		arg.SetString(it.val)
 		n.SetLvalue(arg)
+	} else {
+		return nil, newError("Unexpected token %v, expected itemString or itemVariable", it)
 	}
 
 	it = p.next()

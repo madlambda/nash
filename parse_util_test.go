@@ -6,17 +6,9 @@ import (
 	"reflect"
 )
 
-func newSimpleArg(pos Pos, n string, quoted bool) *Arg {
-	arg := NewArg(pos, 0)
-
-	if quoted {
-		arg.SetArgType(ArgQuoted)
-		arg.SetString(n)
-	} else {
-		arg.SetArgType(ArgUnquoted)
-		arg.SetString(n)
-	}
-
+func newSimpleArg(pos Pos, n string, typ ArgType) *Arg {
+	arg := NewArg(pos, typ)
+	arg.SetString(n)
 	return arg
 }
 
@@ -58,7 +50,7 @@ func compareArg(expected *Arg, value *Arg) (bool, error) {
 
 	if ev.IsConcat() != vv.IsConcat() ||
 		ev.IsVariable() != vv.IsVariable() {
-		return false, fmt.Errorf("Variable differs in isConcat(%v, %v)", ev.IsConcat(), vv.IsConcat())
+		return false, fmt.Errorf("Variable differs in isConcat(%v, %v) || isVariable(%v, %v)\nExpected Node(%s) = %v\nParsed node(%s): %v", ev.IsConcat(), vv.IsConcat(), ev.IsVariable(), vv.IsVariable(), ev.argType, ev, vv.argType, vv)
 	}
 
 	if len(ev.concat) != len(vv.concat) {
@@ -386,7 +378,7 @@ func compareCmdAssignmentNode(expected, value *CmdAssignmentNode) (bool, error) 
 	vcmd := value.Command()
 
 	if ecmd.Type() != vcmd.Type() {
-		return false, fmt.Errorf("Node type differs: %s != %s", ecmd.Type(), vcmd.Type())
+		return false, fmt.Errorf("Node type differs: %v != %v", ecmd.Type(), vcmd.Type())
 	}
 
 	switch ecmd.Type() {
@@ -458,7 +450,7 @@ func compareNodes(expected Node, value Node) (bool, error) {
 	vtype := value.Type()
 
 	if etype != vtype {
-		return false, fmt.Errorf("Node type differs: %d != %d", etype, vtype)
+		return false, fmt.Errorf("Node type differs: %v != %v", etype, vtype)
 	}
 
 	eitype := reflect.TypeOf(expected)

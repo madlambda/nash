@@ -249,7 +249,7 @@ func lexStart(l *lexer) stateFn {
 		return lexStart
 	}
 
-	return l.errorf("Unrecognized character in action: %#U", r)
+	return l.errorf("Unrecognized character in action: %#U at pos %d", r, l.pos)
 }
 
 func absorbIdentifier(l *lexer) {
@@ -552,11 +552,7 @@ func lexInsideCommonVariable(l *lexer, nextFn stateFn, nextConcatFn stateFn) sta
 		return nextConcatFn
 	}
 
-	if !isEndOfLine(r) && r != eof {
-		return nextFn
-	}
-
-	return lexStart
+	return nextFn
 }
 
 func lexInsideCd(l *lexer) stateFn {
@@ -568,19 +564,7 @@ func lexInsideCd(l *lexer) stateFn {
 	if r == '"' {
 		l.ignore()
 		return func(l *lexer) stateFn {
-			lexQuote(l, lexInsideCd, lexStart)
-			ignoreSpaces(l)
-
-			r = l.peek()
-
-			switch {
-			case r == '+':
-				l.next()
-				l.emit(itemConcat)
-				return lexInsideCd
-			}
-
-			return lexStart
+			return lexQuote(l, lexInsideCd, lexInsideCd)
 		}
 	}
 
@@ -611,6 +595,10 @@ func lexInsideCd(l *lexer) stateFn {
 			l.next()
 			l.emit(itemConcat)
 			return lexInsideCd
+		}
+
+		if !isEndOfLine(r) && r != eof {
+			return l.errorf("Expected end of line, but found %c at pos %d", r, l.pos)
 		}
 
 		return lexStart
@@ -985,14 +973,13 @@ func lexInsideBindFn(l *lexer) stateFn {
 }
 
 func lexInsideCommand(l *lexer) stateFn {
+	ignoreSpaces(l)
+
 	r := l.next()
 
 	switch {
 	case r == eof:
 		return nil
-	case isSpace(r):
-		l.ignore()
-		return lexSpaceArg
 	case isEndOfLine(r):
 		l.ignore()
 		return lexStart
@@ -1040,6 +1027,10 @@ func lexQuote(l *lexer, concatFn, nextFn stateFn) stateFn {
 				r = l.next()
 
 				switch r {
+				case '\n':
+					data = append(data, '\n')
+				case '\t':
+					data = append(data, '\t')
 				case '\\':
 					data = append(data, '\\')
 				case 'x', 'u', 'U':
