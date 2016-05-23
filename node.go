@@ -896,7 +896,7 @@ func NewBindFnNode(pos Pos, name, cmd string) *BindFnNode {
 		NodeType: NodeBindFn,
 		Pos:      pos,
 		name:     name,
-		cmdname:  name,
+		cmdname:  cmd,
 	}
 }
 

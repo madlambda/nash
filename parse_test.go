@@ -782,11 +782,11 @@ func TestParseBindFn(t *testing.T) {
 	expected := NewTree("bindfn")
 	ln := NewListNode()
 
-	bindFn := NewBindFnNode(0, "cd", "cd")
+	bindFn := NewBindFnNode(0, "cd", "cd2")
 	ln.Push(bindFn)
 	expected.Root = ln
 
-	parserTestTable("bindfn", `bindfn cd cd`, expected, t)
+	parserTestTable("bindfn", `bindfn cd cd2`, expected, t)
 }
 
 func TestParseRedirectionVariable(t *testing.T) {

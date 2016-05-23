@@ -2143,14 +2143,14 @@ func TestBindFn(t *testing.T) {
 		},
 		item{
 			typ: itemVarName,
-			val: "cd",
+			val: "cd2",
 		},
 		item{
 			typ: itemEOF,
 		},
 	}
 
-	testTable("test bindfn", `bindfn cd cd`, expected, t)
+	testTable("test bindfn", `bindfn cd cd2`, expected, t)
 
 }
 

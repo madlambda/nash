@@ -534,6 +534,8 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 			NotFound() bool
 		}
 
+		sh.log("Command fails: %s", err.Error())
+
 		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
 			if fn, ok := sh.GetFn(c.Name()); ok {
 				sh.log("Executing bind %s", c.Name())
