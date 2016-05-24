@@ -13,6 +13,16 @@ import (
 	"github.com/chzyer/readline"
 )
 
+type (
+	Interrupted interface {
+		Interrupted() bool
+	}
+
+	Ignored interface {
+		Ignore() bool
+	}
+)
+
 var completers = []readline.PrefixCompleterInterface{
 	readline.PcItem("mode",
 		readline.PcItem("vi"),
@@ -106,6 +116,11 @@ func cli(sh *nash.Shell) error {
 		tr, err := parser.Parse()
 
 		if err != nil {
+			if interrupted, ok := err.(Interrupted); ok && interrupted.Interrupted() {
+				l.SetPrompt(sh.Prompt())
+				continue
+			}
+
 			if err.Error() == "Open '{' not closed" {
 				l.SetPrompt(">>> ")
 				continue

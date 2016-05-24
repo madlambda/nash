@@ -7,8 +7,11 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 )
 
 type (
@@ -27,6 +30,8 @@ type (
 		nashdPath string
 		dotDir    string
 
+		interrupted bool
+
 		stdin  io.Reader
 		stdout io.Writer
 		stderr io.Writer
@@ -39,14 +44,22 @@ type (
 
 		root   *Tree
 		parent *Shell
+
+		repr string // string representation
+
+		*sync.Mutex
 	}
 
 	errIgnore struct {
 		*nashError
 	}
+
+	errInterrupted struct {
+		*nashError
+	}
 )
 
-func newIgnoreError(format string, arg ...interface{}) error {
+func newErrIgnore(format string, arg ...interface{}) error {
 	e := &errIgnore{
 		nashError: newError(format, arg...),
 	}
@@ -54,9 +67,15 @@ func newIgnoreError(format string, arg ...interface{}) error {
 	return e
 }
 
-func (e *errIgnore) IgnoreError() bool {
-	return true
+func (e *errIgnore) IgnoreError() bool { return true }
+
+func newErrInterrupted(format string, arg ...interface{}) error {
+	return &errInterrupted{
+		nashError: newError(format, arg...),
+	}
 }
+
+func (e *errInterrupted) Interrupted() bool { return true }
 
 const (
 	logNS     = "nash.Shell"
@@ -76,7 +95,7 @@ func NewShell(debug bool) (*Shell, error) {
 		vars["PROMPT"] = append(make([]string, 0, 1), defPrompt)
 	}
 
-	return &Shell{
+	sh := &Shell{
 		name:      "parent scope",
 		debug:     debug,
 		log:       NewLog(logNS, debug),
@@ -89,7 +108,12 @@ func NewShell(debug bool) (*Shell, error) {
 		fns:       make(Fns),
 		binds:     make(Fns),
 		argNames:  make([]string, 0, 16),
-	}, nil
+		Mutex:     &sync.Mutex{},
+	}
+
+	sh.setupSignals()
+
+	return sh, nil
 }
 
 // NewEnv creates a new environment from old one
@@ -248,6 +272,41 @@ func (sh *Shell) SetTree(t *Tree) {
 	sh.root = t
 }
 
+func (sh *Shell) Tree() *Tree { return sh.root }
+
+func (sh *Shell) SetRepr(a string) {
+	sh.repr = a
+}
+
+func (sh *Shell) String() string {
+	if sh.repr != "" {
+		return sh.repr
+	}
+
+	var out bytes.Buffer
+
+	sh.dump(&out)
+
+	return string(out.Bytes())
+}
+
+func (sh *Shell) setupSignals() {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT)
+
+	go func() {
+		for {
+			<-sigs
+
+			sh.Lock()
+			sh.interrupted = !sh.interrupted
+			sh.Unlock()
+
+			//			fmt.Println("^C")
+		}
+	}()
+}
+
 func (sh *Shell) executeConcat(path *Arg) (string, error) {
 	var pathStr string
 
@@ -358,6 +417,8 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 			err = sh.executeFnInv(node.(*FnInvNode))
 		case NodeBindFn:
 			err = sh.executeBindFn(node.(*BindFnNode))
+		case NodeDump:
+			err = sh.executeDump(node.(*DumpNode))
 		default:
 			// should never get here
 			return fmt.Errorf("invalid node: %v.", node.Type())
@@ -520,6 +581,10 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 func (sh *Shell) executeCommand(c *CommandNode) error {
 	var ignoreError bool
 
+	sh.Lock()
+	sh.interrupted = false
+	sh.Unlock()
+
 	if len(c.name) > 1 && c.name[0] == '-' {
 		ignoreError = true
 		c.name = c.name[1:]
@@ -537,28 +602,20 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 		sh.log("Command fails: %s", err.Error())
 
 		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
-			if fn, ok := sh.GetFn(c.Name()); ok {
+			if fn, ok := sh.binds[c.Name()]; ok {
 				sh.log("Executing bind %s", c.Name())
 
 				return sh.executeFn(fn, c.args)
 			}
 		}
 
-		if ignoreError {
-			return newIgnoreError(err.Error())
-		}
-
-		return err
+		goto cmdError
 	}
 
 	err = cmd.SetArgs(c.args)
 
 	if err != nil {
-		if ignoreError {
-			return newIgnoreError(err.Error())
-		}
-
-		return err
+		goto cmdError
 	}
 
 	cmd.SetFDMap(0, sh.stdin)
@@ -568,24 +625,39 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 	err = cmd.SetRedirects(c.redirs)
 
 	if err != nil {
-		if ignoreError {
-			return newIgnoreError(err.Error())
-		}
-
-		return err
+		goto cmdError
 	}
 
-	err = cmd.Execute()
+	defer cmd.CloseNetDescriptors()
+
+	err = cmd.Start()
 
 	if err != nil {
-		if ignoreError {
-			return newIgnoreError(err.Error())
-		}
+		goto cmdError
+	}
 
-		return err
+	err = cmd.Wait()
+
+	if err != nil {
+		goto cmdError
 	}
 
 	return nil
+
+cmdError:
+	if ignoreError {
+		return newErrIgnore(err.Error())
+	}
+
+	sh.Lock()
+	defer sh.Unlock()
+
+	if sh.interrupted {
+		sh.interrupted = !sh.interrupted
+		return newErrInterrupted(err.Error())
+	}
+
+	return err
 }
 
 func (sh *Shell) evalVariable(a string) ([]string, error) {
@@ -928,6 +1000,7 @@ func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
 	fn.SetStdout(sh.stdout)
 	fn.SetStderr(sh.stderr)
 	fn.SetStdin(sh.stdin)
+	fn.SetRepr(n.String())
 
 	args := n.Args()
 
@@ -949,6 +1022,76 @@ func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
 	sh.fns[fnName] = fn
 
 	sh.log("Function %s declared", fnName)
+
+	return nil
+}
+
+func (sh *Shell) dumpVar(file io.Writer) {
+	for n, v := range sh.vars {
+		printVar(file, n, v)
+	}
+}
+
+func (sh *Shell) dumpEnv(file io.Writer) {
+	for n, _ := range sh.env {
+		printEnv(file, n)
+	}
+}
+
+func (sh *Shell) dumpFns(file io.Writer) {
+	for _, f := range sh.fns {
+		fmt.Fprintf(file, "%s\n\n", f.String())
+	}
+}
+
+func (sh *Shell) dump(out io.Writer) {
+	sh.dumpVar(out)
+	sh.dumpEnv(out)
+	sh.dumpFns(out)
+}
+
+func (sh *Shell) executeDump(n *DumpNode) error {
+	var (
+		err   error
+		fname string
+		file  *os.File
+	)
+
+	fnameArg := n.Filename()
+
+	if fnameArg == nil {
+		file = os.Stdout
+		goto execDump
+	} else if fnameArg.IsVariable() {
+		variableList, err := sh.evalVariable(fnameArg.Value())
+
+		if err != nil {
+			return err
+		}
+
+		if len(variableList) == 0 || len(variableList) > 1 {
+			return newError("Invalid variable used in dump")
+		}
+
+		fname = variableList[0]
+	} else if fnameArg.IsConcat() {
+		fname, err = sh.executeConcat(fnameArg)
+
+		if err != nil {
+			return err
+		}
+	} else {
+		fname = fnameArg.Value()
+	}
+
+	file, err = os.OpenFile(fname, os.O_CREATE|os.O_RDWR, 0644)
+
+	if err != nil {
+		return err
+	}
+
+execDump:
+	sh.dump(file)
 
 	return nil
 }

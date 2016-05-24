@@ -2382,3 +2382,33 @@ func TestLexerIssue22ConcatenationCd(t *testing.T) {
     }
 }`, expected, t)
 }
+
+func TestLexerDump(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemDump,
+			val: "dump",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test dump", `dump`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemDump,
+			val: "dump",
+		},
+		item{
+			typ: itemArg,
+			val: "out",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test dump", `dump out`, expected, t)
+}

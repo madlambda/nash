@@ -26,7 +26,7 @@ redirect    = ( ">" ( filename | uri | variable ) |
 /* Builtin */
 builtin = importDecl | rforkDecl | cdDecl | ifDecl |
           forDecl | setenvDecl | showenvDecl |
-          fnDecl | fnInv | bindfn .
+          fnDecl | fnInv | bindfn | dump .
 
 /* Import statement */
 importDecl = "import" ( filename | string_lit ) .
@@ -59,6 +59,9 @@ fnInv = identifier "(" fnArgs ")" .
 
 /* Function binding */
 bindfn = "bindfn" identifier identifier .
+
+/* dump shell state */
+dump = "dump" [ filename ] .
 
 /* Set environment variable */
 setenvDecl = "setenv" identifier .

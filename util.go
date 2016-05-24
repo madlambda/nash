@@ -1,6 +1,8 @@
 package nash
 
 import (
+	"fmt"
+	"io"
 	"math/rand"
 	"strings"
 	"time"
@@ -35,4 +37,23 @@ func buildenv(e Env) []string {
 	}
 
 	return env
+}
+
+func printVar(out io.Writer, name string, val []string) {
+	if len(val) == 0 {
+		return
+	}
+
+	if len(val) == 1 {
+		fmt.Fprintf(out, "%s = \"%s\"\n", name, val[0])
+		return
+	}
+
+	fmt.Fprintf(out, "%s = ", name)
+	listStr := strings.Join(val, ", ")
+	fmt.Fprintf(out, "(\"%s\")\n", listStr)
+}
+
+func printEnv(out io.Writer, name string) {
+	fmt.Fprintf(out, "setenv %s\n", name)
 }

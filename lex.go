@@ -55,6 +55,7 @@ const (
 	itemCommand // alphanumeric identifier that's not a keyword
 	itemPipe    // ls | wc -l
 	itemBindFn  // "bindfn <fn> <cmd>
+	itemDump    // "dump" [ file ]
 	itemArg
 	itemLeftBlock     // {
 	itemRightBlock    // }
@@ -389,11 +390,36 @@ func lexIdentifier(l *lexer) stateFn {
 		l.emit(itemBindFn)
 
 		return lexInsideBindFn
-
+	case "dump":
+		l.emit(itemDump)
+		return lexInsideDump
 	}
 
 	l.emit(itemCommand)
 	return lexInsideCommand
+}
+
+func lexInsideDump(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	r := l.next()
+
+	if r == '"' {
+		l.ignore()
+		return func(l *lexer) stateFn {
+			return lexQuote(l, lexInsideDump, lexStart)
+		}
+	}
+
+	if isIdentifier(r) || isSafePath(r) {
+		// parse as normal argument
+		return func(l *lexer) stateFn {
+			return lexArg(l, lexInsideDump, lexStart)
+		}
+	}
+
+	l.backup()
+	return lexStart
 }
 
 func lexInsideImport(l *lexer) stateFn {

@@ -877,6 +877,20 @@ func TestParseIssue22(t *testing.T) {
 
 }
 
+func TestParseDump(t *testing.T) {
+	expected := NewTree("dump")
+	ln := NewListNode()
+
+	dump := NewDumpNode(0)
+	arg := NewArg(5, ArgUnquoted)
+	arg.SetString("./init")
+	dump.SetFilename(arg)
+	ln.Push(dump)
+	expected.Root = ln
+
+	parserTestTable("dump", `dump ./init`, expected, t)
+}
+
 func TestParseIfInvalid(t *testing.T) {
 	parser := NewParser("if invalid", `if a == b { pwd }`)
 	_, err := parser.Parse()

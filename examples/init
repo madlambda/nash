@@ -21,3 +21,7 @@ fn cd(path) {
 
 # bind "cd" to call cd function
 bindfn cd cd
+
+fn gocd(path) {
+    cd $GOPATH + "/src/" + $path
+}
