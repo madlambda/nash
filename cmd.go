@@ -458,22 +458,10 @@ func (cmd *Command) Wait() error {
 	return cmd.Cmd.Wait()
 }
 
-func (cmd *Command) closeNetDescriptors() {
+func (cmd *Command) CloseNetDescriptors() {
 	for _, fd := range cmd.fdMap {
 		if fdc, ok := fd.(*net.TCPConn); ok {
 			fdc.Close()
 		}
 	}
-}
-
-func (cmd *Command) Execute() error {
-	err := cmd.Start()
-
-	if err != nil {
-		return err
-	}
-
-	defer cmd.closeNetDescriptors()
-
-	return cmd.Wait()
 }
