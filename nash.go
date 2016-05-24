@@ -111,7 +111,7 @@ func NewShell(debug bool) (*Shell, error) {
 		Mutex:     &sync.Mutex{},
 	}
 
-	sh.setupSignals()
+	sh.setup()
 
 	return sh, nil
 }
@@ -290,6 +290,13 @@ func (sh *Shell) String() string {
 	return string(out.Bytes())
 }
 
+func (sh *Shell) setup() {
+	sh.env["NASHPATH"] = append(make([]string, 0, 1), sh.dotDir)
+	sh.vars["NASHPATH"] = append(make([]string, 0, 1), sh.dotDir)
+
+	sh.setupSignals()
+}
+
 func (sh *Shell) setupSignals() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT)
@@ -443,7 +450,25 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 }
 
 func (sh *Shell) executeImport(node *ImportNode) error {
-	return sh.ExecuteFile(node.path.val)
+	fname := node.Filename()
+
+	tries := []string{
+		fname,
+		sh.dotDir + "/src/" + fname,
+	}
+
+	for _, path := range tries {
+		_, err := os.Stat(path)
+
+		if err != nil {
+			continue
+		}
+
+		return sh.ExecuteFile(path)
+	}
+
+	return newError("Failed to import path '%s'. The locations below have been tried:\n \"%s\"",
+		strings.Join(tries, `", "`))
 }
 
 func (sh *Shell) executeShowEnv(node *ShowEnvNode) error {
