@@ -52,24 +52,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	home := os.Getenv("HOME")
+	nashpath := os.Getenv("NASHPATH")
 
-	if home == "" {
-		user := os.Getenv("USER")
+	if nashpath == "" {
+		home := os.Getenv("HOME")
 
-		if user != "" {
-			home = "/home/" + user
-		} else {
-			home = "/tmp"
+		if home == "" {
+			user := os.Getenv("USER")
+
+			if user != "" {
+				home = "/home/" + user
+			} else {
+				fmt.Fprintf(os.Stderr, "Environment variable NASHPATH or $USER must be set")
+				os.Exit(1)
+			}
 		}
+
+		nashpath = home + "/.nash"
 	}
 
-	nashDir := home + "/.nash"
-	shell.SetDotDir(nashDir)
+	shell.SetDotDir(nashpath)
 
-	os.Mkdir(nashDir, 0755)
+	os.Mkdir(nashpath, 0755)
 
-	initFile := home + "/.nash/init"
+	initFile := nashpath + "/init"
 
 	if d, err := os.Stat(initFile); err == nil && !noInit {
 		if m := d.Mode(); !m.IsDir() {
