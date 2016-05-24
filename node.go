@@ -269,6 +269,9 @@ func (n *ImportNode) SetPath(arg *Arg) {
 	n.path = arg
 }
 
+func (n *ImportNode) Path() *Arg       { return n.path }
+func (n *ImportNode) Filename() string { return n.path.val }
+
 func (n *ImportNode) String() string {
 	if n.path.IsQuoted() {
 		return `import "` + n.path.val + `"`
