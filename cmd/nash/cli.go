@@ -137,6 +137,11 @@ func cli(sh *nash.Shell) error {
 		err = sh.ExecuteTree(tr)
 
 		if err != nil {
+			if errIgnored, ok := err.(Ignored); ok && errIgnored.Ignore() {
+				l.SetPrompt(sh.Prompt())
+				continue
+			}
+
 			fmt.Printf("ERROR: %s\n", err.Error())
 		}
 
