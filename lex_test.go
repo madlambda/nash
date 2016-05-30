@@ -2413,7 +2413,7 @@ func TestLexerDump(t *testing.T) {
 	testTable("test dump", `dump out`, expected, t)
 }
 
-func TestLexerReturn(t *testing.T) {
+/*func TestLexerReturn(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemReturn,
@@ -2425,4 +2425,4 @@ func TestLexerReturn(t *testing.T) {
 	}
 
 	testTableFail("test return", "return", expected, t)
-}
+}*/
