@@ -21,6 +21,10 @@ type (
 	Ignored interface {
 		Ignore() bool
 	}
+
+	BlockNotFinished interface {
+		Unfinished() bool
+	}
 )
 
 var completers = []readline.PrefixCompleterInterface{
@@ -121,7 +125,7 @@ func cli(sh *nash.Shell) error {
 				continue
 			}
 
-			if err.Error() == "Open '{' not closed" {
+			if errBlock, ok := err.(BlockNotFinished); ok && errBlock.Unfinished() {
 				l.SetPrompt(">>> ")
 				continue
 			}

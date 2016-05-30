@@ -445,7 +445,7 @@ func (p *Parser) parseAssignValue(name item) (Node, error) {
 		}
 
 		if it.typ != itemListClose {
-			return nil, fmt.Errorf("list variable assignment wrong. Expected ')' but found '%v'", it)
+			return nil, newUnfinishedListError()
 		}
 
 		n.SetValueList(values)
@@ -862,7 +862,7 @@ func (p *Parser) parseBlock() (*ListNode, error) {
 
 finish:
 	if p.openblocks != 0 {
-		return nil, fmt.Errorf("Open '{' not closed")
+		return nil, newUnfinishedBlockError()
 	}
 
 	return ln, nil
