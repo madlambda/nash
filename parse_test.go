@@ -930,6 +930,17 @@ func TestParseDump(t *testing.T) {
 	parserTestTable("dump", `dump ./init`, expected, t, true)
 }
 
+func TestParseReturn(t *testing.T) {
+	expected := NewTree("return")
+	ln := NewListNode()
+
+	ret := NewReturnNode(0)
+	ln.Push(ret)
+	expected.Root = ln
+
+	parserTestTable("return", `return`, expected, t, true)
+}
+
 func TestParseIfInvalid(t *testing.T) {
 	parser := NewParser("if invalid", `if a == b { pwd }`)
 	_, err := parser.Parse()

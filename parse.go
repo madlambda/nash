@@ -457,14 +457,30 @@ func (p *Parser) parseAssignValue(name item) (Node, error) {
 func (p *Parser) parseAssignCmdOut(name item) (Node, error) {
 	n := NewCmdAssignmentNode(name.pos, name.val)
 
-	cmd, err := p.parseCommand()
+	it := p.peek()
+
+	if it.typ != itemCommand && it.typ != itemFnInv {
+		return nil, newError("Invalid token %v. Expected command or function invocation", it)
+	}
+
+	if it.typ == itemCommand {
+		cmd, err := p.parseCommand()
+
+		if err != nil {
+			return nil, err
+		}
+
+		n.SetCommand(cmd)
+		return n, nil
+	}
+
+	fn, err := p.parseFnInv()
 
 	if err != nil {
 		return nil, err
 	}
 
-	n.SetCommand(cmd)
-
+	n.SetCommand(fn)
 	return n, nil
 }
 
@@ -774,6 +790,48 @@ func (p *Parser) parseDump() (Node, error) {
 	return dump, nil
 }
 
+func (p *Parser) parseReturn() (Node, error) {
+	retIt := p.next()
+
+	ret := NewReturnNode(retIt.pos)
+
+	valueIt := p.peek()
+
+	if valueIt.typ != itemString && valueIt.typ != itemVariable && valueIt.typ != itemListOpen {
+		return ret, nil
+	}
+
+	p.next()
+
+	if valueIt.typ == itemListOpen {
+		values := make([]*Arg, 0, 128)
+
+		for valueIt = p.next(); valueIt.typ == itemArg || valueIt.typ == itemString || valueIt.typ == itemVariable; valueIt = p.next() {
+			arg := NewArg(valueIt.pos, 0)
+			arg.SetItem(valueIt)
+			values = append(values, arg)
+		}
+
+		if valueIt.typ != itemListClose {
+			return nil, newUnfinishedListError()
+		}
+
+		fmt.Printf("PARSED VALUES = %v\n", values)
+
+		ret.SetReturn(values)
+		return ret, nil
+	}
+
+	values := make([]*Arg, 1)
+
+	arg := NewArg(valueIt.pos, 0)
+	arg.SetItem(valueIt)
+	values[0] = arg
+
+	ret.SetReturn(values)
+	return ret, nil
+}
+
 func (p *Parser) parseComment() (Node, error) {
 	it := p.next()
 
@@ -818,6 +876,8 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseBindFn()
 	case itemDump:
 		return p.parseDump()
+	case itemReturn:
+		return p.parseReturn()
 	}
 
 	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)
