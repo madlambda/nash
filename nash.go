@@ -67,7 +67,7 @@ func newErrIgnore(format string, arg ...interface{}) error {
 	return e
 }
 
-func (e *errIgnore) Ignore() bool { return true }
+func (e *errIgnore) IgnoreError() bool { return true }
 
 func newErrInterrupted(format string, arg ...interface{}) error {
 	return &errInterrupted{
@@ -212,15 +212,8 @@ func (sh *Shell) GetVar(name string) ([]string, bool) {
 }
 
 func (sh *Shell) GetFn(name string) (*Shell, bool) {
-	if fn, ok := sh.fns[name]; ok {
-		return fn, ok
-	}
-
-	if sh.parent != nil {
-		return sh.parent.GetFn(name)
-	}
-
-	return nil, false
+	fn, ok := sh.fns[name]
+	return fn, ok
 }
 
 func (sh *Shell) SetVar(name string, value []string) {
@@ -439,6 +432,16 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 		}
 
 		if err != nil {
+			type IgnoreError interface {
+				IgnoreError() bool
+			}
+
+			if errIgnore, ok := err.(IgnoreError); ok && errIgnore.IgnoreError() {
+				fmt.Fprintf(sh.stderr, "ERROR: %s\n", err.Error())
+
+				return nil
+			}
+
 			return err
 		}
 	}
@@ -452,10 +455,6 @@ func (sh *Shell) executeImport(node *ImportNode) error {
 	tries := []string{
 		fname,
 		sh.dotDir + "/src/" + fname,
-	}
-
-	if len(fname) > 2 && fname[0] == '.' && fname[1] == '/' {
-		return sh.ExecuteFile(fname)
 	}
 
 	for _, path := range tries {
@@ -1007,7 +1006,7 @@ func (sh *Shell) executeFn(fn *Shell, args []*Arg) error {
 }
 
 func (sh *Shell) executeFnInv(n *FnInvNode) error {
-	if fn, ok := sh.GetFn(n.name); ok {
+	if fn, ok := sh.fns[n.name]; ok {
 		return sh.executeFn(fn, n.args)
 	}
 

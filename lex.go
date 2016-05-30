@@ -729,10 +729,6 @@ func lexInsideIf(l *lexer) stateFn {
 	return lexStart
 }
 
-func lexInsideReturn(l *lexer) stateFn {
-	return l.errorf("not implemented")
-}
-
 func lexInsideFnDecl(l *lexer) stateFn {
 	var (
 		r       rune
