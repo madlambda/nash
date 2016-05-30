@@ -342,19 +342,19 @@ func TestLexerListAssignment(t *testing.T) {
 			val: "(",
 		},
 		item{
-			typ: itemListElem,
+			typ: itemArg,
 			val: "plan9",
 		},
 		item{
-			typ: itemListElem,
+			typ: itemArg,
 			val: "from",
 		},
 		item{
-			typ: itemListElem,
+			typ: itemArg,
 			val: "bell",
 		},
 		item{
-			typ: itemListElem,
+			typ: itemArg,
 			val: "labs",
 		},
 		item{
@@ -374,6 +374,101 @@ func TestLexerListAssignment(t *testing.T) {
 	bell
 	labs
 )`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemAssign,
+			val: "=",
+		},
+		item{
+			typ: itemListOpen,
+			val: "(",
+		},
+		item{
+			typ: itemString,
+			val: "plan9",
+		},
+		item{
+			typ: itemArg,
+			val: "from",
+		},
+		item{
+			typ: itemString,
+			val: "bell",
+		},
+		item{
+			typ: itemArg,
+			val: "labs",
+		},
+		item{
+			typ: itemListClose,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testListAssignment mixed args", `test=( "plan9" from "bell" labs )`, expected, t)
+	testTable("testListAssignment mixed args", `test=("plan9" from "bell" labs)`, expected, t)
+	testTable("testListAssignment mixed args", `test = (
+        "plan9"
+        from
+        "bell"
+        labs
+)`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemAssign,
+			val: "=",
+		},
+		item{
+			typ: itemListOpen,
+			val: "(",
+		},
+		item{
+			typ: itemVariable,
+			val: "$plan9",
+		},
+		item{
+			typ: itemArg,
+			val: "from",
+		},
+		item{
+			typ: itemVariable,
+			val: "$bell",
+		},
+		item{
+			typ: itemArg,
+			val: "labs",
+		},
+		item{
+			typ: itemListClose,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testListAssignment mixed args", `test=( $plan9 from $bell labs )`, expected, t)
+	testTable("testListAssignment mixed args", `test=($plan9 from $bell labs)`, expected, t)
+	testTable("testListAssignment mixed args", `test = (
+        $plan9
+        from
+        $bell
+        labs
+)`, expected, t)
+
 }
 
 func TestLexerInvalidAssignments(t *testing.T) {

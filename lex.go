@@ -478,6 +478,9 @@ func lexInsideAssignment(l *lexer) stateFn {
 
 	switch {
 	case r == '(':
+		l.next()
+		l.emit(itemListOpen)
+
 		return lexInsideListVariable
 	case r == '"':
 		l.next()
@@ -505,45 +508,30 @@ func lexInsideAssignment(l *lexer) stateFn {
 }
 
 func lexInsideListVariable(l *lexer) stateFn {
-	r := l.next()
-
-	if r != '(' {
-		return l.errorf("Invalid list, expected '(' but found '%c'", r)
-	}
-
-	l.emit(itemListOpen)
-
-nextelem:
 	ignoreSpaces(l)
 
-	for {
-		r = l.peek()
+	r := l.peek()
 
-		if !isIdentifier(r) {
-			break
-		}
-
+	switch {
+	case isEndOfLine(r):
 		l.next()
-	}
-
-	if l.start < l.pos {
-		l.emit(itemListElem)
-	}
-
-	r = l.next()
-
-	if isEndOfLine(r) {
 		l.ignore()
-		goto nextelem
-	} else if isSpace(r) {
+		return lexInsideListVariable
+	case isSafeArg(r):
+		return lexArg(l, lexInsideListVariable, lexInsideListVariable)
+	case r == '"':
+		l.next()
 		l.ignore()
-		goto nextelem
-	} else if r != ')' {
-		return l.errorf("Expected end of list ')' but found '%c'", r)
+		return lexQuote(l, lexInsideListVariable, lexInsideListVariable)
+	case r == '$':
+		return lexInsideCommonVariable(l, lexInsideListVariable, lexInsideListVariable)
+	case r == ')':
+		l.next()
+		l.emit(itemListClose)
+		return lexStart
 	}
 
-	l.emit(itemListClose)
-	return lexStart
+	return l.errorf("Unexpected '%r'. Expected elements or ')'", r)
 }
 
 func lexInsideCommonVariable(l *lexer, nextFn stateFn, nextConcatFn stateFn) stateFn {

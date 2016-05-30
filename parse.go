@@ -436,11 +436,9 @@ func (p *Parser) parseAssignValue(name item) (Node, error) {
 
 		values := make([]*Arg, 0, 128)
 
-		for it = p.next(); it.typ == itemListElem; it = p.next() {
-			arg := NewArg(it.pos, ArgUnquoted)
-
-			// TODO(i4k): Add support for quoted strings in list
-			arg.SetString(it.val)
+		for it = p.next(); it.typ == itemArg || it.typ == itemString || it.typ == itemVariable; it = p.next() {
+			arg := NewArg(it.pos, 0)
+			arg.SetItem(it)
 			values = append(values, arg)
 		}
 
