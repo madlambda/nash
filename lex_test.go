@@ -368,6 +368,12 @@ func TestLexerListAssignment(t *testing.T) {
 
 	testTable("testListAssignment", "test=( plan9 from bell labs )", expected, t)
 	testTable("testListAssignment no space", "test=(plan9 from bell labs)", expected, t)
+	testTable("testListAssignment multiline", `test = (
+	plan9
+	from
+	bell
+	labs
+)`, expected, t)
 }
 
 func TestLexerInvalidAssignments(t *testing.T) {

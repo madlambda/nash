@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func parserTestTable(name, content string, expected *Tree, t *testing.T) {
+func parserTestTable(name, content string, expected *Tree, t *testing.T, enableReverse bool) {
 	parser := NewParser(name, content)
 	tr, err := parser.Parse()
 
@@ -23,6 +23,10 @@ func parserTestTable(name, content string, expected *Tree, t *testing.T) {
 	if ok, err := compare(expected, tr); !ok {
 		fmt.Printf("Expected: %s\n\nResult: %s\n", expected.String(), tr.String())
 		t.Error(err)
+		return
+	}
+
+	if !enableReverse {
 		return
 	}
 
@@ -50,7 +54,7 @@ func TestParseShowEnv(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parse showenv", `showenv`, expected, t)
+	parserTestTable("parse showenv", `showenv`, expected, t, true)
 }
 
 func TestParseSimple(t *testing.T) {
@@ -64,7 +68,7 @@ func TestParseSimple(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser simple", `echo "hello world"`, expected, t)
+	parserTestTable("parser simple", `echo "hello world"`, expected, t, true)
 }
 
 func TestParseReverseGetSame(t *testing.T) {
@@ -105,7 +109,7 @@ func TestParsePipe(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser pipe", `echo "hello world" | awk "{print $1}"`, expected, t)
+	parserTestTable("parser pipe", `echo "hello world" | awk "{print $1}"`, expected, t, true)
 }
 
 func TestBasicSetAssignment(t *testing.T) {
@@ -116,7 +120,7 @@ func TestBasicSetAssignment(t *testing.T) {
 	ln.Push(set)
 	expected.Root = ln
 
-	parserTestTable("simple set assignment", `setenv test`, expected, t)
+	parserTestTable("simple set assignment", `setenv test`, expected, t, true)
 }
 
 func TestBasicAssignment(t *testing.T) {
@@ -133,7 +137,7 @@ func TestBasicAssignment(t *testing.T) {
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("simple assignment", `test="hello"`, expected, t)
+	parserTestTable("simple assignment", `test="hello"`, expected, t, true)
 
 	// test concatenation of strings and variables
 
@@ -158,7 +162,7 @@ func TestBasicAssignment(t *testing.T) {
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("test", `test="hello" + $var`, expected, t)
+	parserTestTable("test", `test="hello" + $var`, expected, t, true)
 
 	// invalid, requires quote
 	// test=hello
@@ -177,6 +181,41 @@ func TestBasicAssignment(t *testing.T) {
 	}
 }
 
+func TestParseListAssignment(t *testing.T) {
+	expected := NewTree("list assignment")
+	ln := NewListNode()
+	assign := NewAssignmentNode(0)
+
+	plan9 := NewArg(10, ArgUnquoted)
+	plan9.SetString("plan9")
+	from := NewArg(17, ArgUnquoted)
+	from.SetString("from")
+	bell := NewArg(23, ArgUnquoted)
+	bell.SetString("bell")
+	labs := NewArg(29, ArgUnquoted)
+	labs.SetString("labs")
+
+	values := make([]*Arg, 4)
+	values[0] = plan9
+	values[1] = from
+	values[2] = bell
+	values[3] = labs
+
+	assign.SetVarName("test")
+	assign.SetValueList(values)
+
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTestTable("list assignment", `test = (
+	plan9
+	from
+	bell
+	labs
+)`, expected, t, false)
+
+}
+
 func TestParseCmdAssignment(t *testing.T) {
 	expected := NewTree("simple cmd assignment")
 	ln := NewListNode()
@@ -188,7 +227,7 @@ func TestParseCmdAssignment(t *testing.T) {
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("simple assignment", `test <= ls`, expected, t)
+	parserTestTable("simple assignment", `test <= ls`, expected, t, true)
 }
 
 func TestParseInvalid(t *testing.T) {
@@ -213,7 +252,7 @@ func TestParsePathCommand(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser simple", `/bin/echo "hello world"`, expected, t)
+	parserTestTable("parser simple", `/bin/echo "hello world"`, expected, t, true)
 }
 
 func TestParseWithShebang(t *testing.T) {
@@ -231,7 +270,7 @@ func TestParseWithShebang(t *testing.T) {
 
 	parserTestTable("parser shebang", `#!/bin/nash
 echo bleh
-`, expected, t)
+`, expected, t, true)
 }
 
 func TestParseEmptyFile(t *testing.T) {
@@ -239,7 +278,7 @@ func TestParseEmptyFile(t *testing.T) {
 	ln := NewListNode()
 	expected.Root = ln
 
-	parserTestTable("empty file", "", expected, t)
+	parserTestTable("empty file", "", expected, t, true)
 }
 
 func TestParseSingleCommand(t *testing.T) {
@@ -247,7 +286,7 @@ func TestParseSingleCommand(t *testing.T) {
 	expected.Root = NewListNode()
 	expected.Root.Push(NewCommandNode(0, "bleh"))
 
-	parserTestTable("single command", `bleh`, expected, t)
+	parserTestTable("single command", `bleh`, expected, t, true)
 }
 
 func TestParseRedirectSimple(t *testing.T) {
@@ -261,7 +300,7 @@ func TestParseRedirectSimple(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("simple redirect", `cmd >[2=]`, expected, t)
+	parserTestTable("simple redirect", `cmd >[2=]`, expected, t, true)
 
 	expected = NewTree("redirect2")
 	ln = NewListNode()
@@ -273,7 +312,7 @@ func TestParseRedirectSimple(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("simple redirect", `cmd >[2=1]`, expected, t)
+	parserTestTable("simple redirect", `cmd >[2=1]`, expected, t, true)
 }
 
 func TestParseRedirectWithLocation(t *testing.T) {
@@ -290,7 +329,7 @@ func TestParseRedirectWithLocation(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("simple redirect", `cmd >[2] /var/log/service.log`, expected, t)
+	parserTestTable("simple redirect", `cmd >[2] /var/log/service.log`, expected, t, true)
 }
 
 func TestParseRedirectMultiples(t *testing.T) {
@@ -309,7 +348,7 @@ func TestParseRedirectMultiples(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("multiple redirects", `cmd >[1=2] >[2=]`, expected, t)
+	parserTestTable("multiple redirects", `cmd >[1=2] >[2=]`, expected, t, true)
 }
 
 func TestParseCommandWithStringsEqualsNot(t *testing.T) {
@@ -332,7 +371,7 @@ func TestParseCommandWithStringsEqualsNot(t *testing.T) {
 
 	parserTestTable("strings works as expected", `echo hello
 echo "hello"
-`, expected, t)
+`, expected, t, true)
 }
 
 func TestParseStringNotFinished(t *testing.T) {
@@ -360,7 +399,7 @@ func TestParseCd(t *testing.T) {
 	ln.Push(cd)
 	expected.Root = ln
 
-	parserTestTable("test cd", "cd /tmp", expected, t)
+	parserTestTable("test cd", "cd /tmp", expected, t, true)
 
 	// test cd into home
 	expected = NewTree("test cd into home")
@@ -369,7 +408,7 @@ func TestParseCd(t *testing.T) {
 	ln.Push(cd)
 	expected.Root = ln
 
-	parserTestTable("test cd into home", "cd", expected, t)
+	parserTestTable("test cd into home", "cd", expected, t, true)
 
 	expected = NewTree("cd into HOME by setenv")
 	ln = NewListNode()
@@ -393,7 +432,7 @@ func TestParseCd(t *testing.T) {
 	parserTestTable("test cd into HOME by setenv", `HOME="/"
 setenv HOME
 cd
-pwd`, expected, t)
+pwd`, expected, t, true)
 
 	// Test cd into custom variable
 	expected = NewTree("cd into variable value")
@@ -415,7 +454,7 @@ pwd`, expected, t)
 	expected.Root = ln
 
 	parserTestTable("test cd into variable value", `GOPATH="/home/i4k/gopath"
-cd $GOPATH`, expected, t)
+cd $GOPATH`, expected, t, true)
 
 	// Test cd into custom variable
 	expected = NewTree("cd into variable value with concat")
@@ -444,7 +483,7 @@ cd $GOPATH`, expected, t)
 	expected.Root = ln
 
 	parserTestTable("test cd into variable value", `GOPATH="/home/i4k/gopath"
-cd $GOPATH+"/src/github.com"`, expected, t)
+cd $GOPATH+"/src/github.com"`, expected, t, true)
 
 }
 
@@ -458,7 +497,7 @@ func TestParseRfork(t *testing.T) {
 	ln.Push(cmd1)
 	expected.Root = ln
 
-	parserTestTable("test rfork", "rfork u", expected, t)
+	parserTestTable("test rfork", "rfork u", expected, t, true)
 }
 
 func TestParseRforkWithBlock(t *testing.T) {
@@ -488,7 +527,7 @@ func TestParseRforkWithBlock(t *testing.T) {
 	parserTestTable("rfork with block", `rfork u {
 	mount -t proc proc /proc
 }
-`, expected, t)
+`, expected, t, true)
 
 }
 
@@ -511,7 +550,7 @@ func TestParseImport(t *testing.T) {
 	ln.Push(importStmt)
 	expected.Root = ln
 
-	parserTestTable("test import", "import env.sh", expected, t)
+	parserTestTable("test import", "import env.sh", expected, t, true)
 
 	expected = NewTree("test import with quotes")
 	ln = NewListNode()
@@ -520,7 +559,7 @@ func TestParseImport(t *testing.T) {
 	ln.Push(importStmt)
 	expected.Root = ln
 
-	parserTestTable("test import", `import "env.sh"`, expected, t)
+	parserTestTable("test import", `import "env.sh"`, expected, t, true)
 }
 
 func TestParseIf(t *testing.T) {
@@ -545,7 +584,7 @@ func TestParseIf(t *testing.T) {
 
 	parserTestTable("test if", `if "test" == "other" {
 	pwd
-}`, expected, t)
+}`, expected, t, true)
 
 	expected = NewTree("test if")
 	ln = NewListNode()
@@ -568,7 +607,7 @@ func TestParseIf(t *testing.T) {
 
 	parserTestTable("test if", `if "" != "other" {
 	pwd
-}`, expected, t)
+}`, expected, t, true)
 }
 
 func TestParseIfLvariable(t *testing.T) {
@@ -593,7 +632,7 @@ func TestParseIfLvariable(t *testing.T) {
 
 	parserTestTable("test if", `if $test == "other" {
 	pwd
-}`, expected, t)
+}`, expected, t, true)
 }
 
 func TestParseIfElse(t *testing.T) {
@@ -629,7 +668,7 @@ func TestParseIfElse(t *testing.T) {
 	pwd
 } else {
 	exit
-}`, expected, t)
+}`, expected, t, true)
 }
 
 func TestParseIfElseIf(t *testing.T) {
@@ -689,7 +728,7 @@ func TestParseIfElseIf(t *testing.T) {
 	ls
 } else {
 	exit
-}`, expected, t)
+}`, expected, t, true)
 }
 
 func TestParseFnBasic(t *testing.T) {
@@ -709,7 +748,7 @@ func TestParseFnBasic(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("fn", `fn build() {
-}`, expected, t)
+}`, expected, t, true)
 
 	// root
 	expected = NewTree("fn")
@@ -730,7 +769,7 @@ func TestParseFnBasic(t *testing.T) {
 
 	parserTestTable("fn", `fn build() {
 	ls
-}`, expected, t)
+}`, expected, t, true)
 
 	// root
 	expected = NewTree("fn")
@@ -752,7 +791,7 @@ func TestParseFnBasic(t *testing.T) {
 
 	parserTestTable("fn", `fn build(image) {
 	ls
-}`, expected, t)
+}`, expected, t, true)
 
 	// root
 	expected = NewTree("fn")
@@ -775,7 +814,7 @@ func TestParseFnBasic(t *testing.T) {
 
 	parserTestTable("fn", `fn build(image, debug) {
 	ls
-}`, expected, t)
+}`, expected, t, true)
 }
 
 func TestParseBindFn(t *testing.T) {
@@ -786,7 +825,7 @@ func TestParseBindFn(t *testing.T) {
 	ln.Push(bindFn)
 	expected.Root = ln
 
-	parserTestTable("bindfn", `bindfn cd cd2`, expected, t)
+	parserTestTable("bindfn", `bindfn cd cd2`, expected, t, true)
 }
 
 func TestParseRedirectionVariable(t *testing.T) {
@@ -802,7 +841,7 @@ func TestParseRedirectionVariable(t *testing.T) {
 	ln.Push(cmd)
 	expected.Root = ln
 
-	parserTestTable("redir var", `cmd > $outFname`, expected, t)
+	parserTestTable("redir var", `cmd > $outFname`, expected, t, true)
 }
 
 func TestParseIssue22(t *testing.T) {
@@ -873,7 +912,7 @@ func TestParseIssue22(t *testing.T) {
 	} else {
 		cd $GOPATH+"/src/"+$path
 	}
-}`, expected, t)
+}`, expected, t, true)
 
 }
 
@@ -888,7 +927,7 @@ func TestParseDump(t *testing.T) {
 	ln.Push(dump)
 	expected.Root = ln
 
-	parserTestTable("dump", `dump ./init`, expected, t)
+	parserTestTable("dump", `dump ./init`, expected, t, true)
 }
 
 func TestParseIfInvalid(t *testing.T) {

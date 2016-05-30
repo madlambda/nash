@@ -512,7 +512,10 @@ func lexInsideListVariable(l *lexer) stateFn {
 	}
 
 	l.emit(itemListOpen)
+
 nextelem:
+	ignoreSpaces(l)
+
 	for {
 		r = l.peek()
 
@@ -529,7 +532,10 @@ nextelem:
 
 	r = l.next()
 
-	if isSpace(r) {
+	if isEndOfLine(r) {
+		l.ignore()
+		goto nextelem
+	} else if isSpace(r) {
 		l.ignore()
 		goto nextelem
 	} else if r != ')' {
