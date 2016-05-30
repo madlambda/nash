@@ -81,7 +81,6 @@ const (
 
 	itemFnDecl // fn <name>(<arg>) { <block> }
 	itemFnInv  // <identifier>(<args>)
-	itemReturn
 )
 
 const (
@@ -367,9 +366,6 @@ func lexIdentifier(l *lexer) stateFn {
 	case "fn":
 		l.emit(itemFnDecl)
 		return lexInsideFnDecl
-	case "return":
-		l.emit(itemReturn)
-		return lexInsideReturn
 	case "else":
 		l.emit(itemElse)
 		return lexInsideElse
