@@ -704,6 +704,110 @@ func TestLexerPipe(t *testing.T) {
 	}
 
 	testTable("testPipe", `ls -l | wc | awk "{print $1}"`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "go",
+		},
+		item{
+			typ: itemArg,
+			val: "tool",
+		},
+		item{
+			typ: itemArg,
+			val: "vet",
+		},
+		item{
+			typ: itemArg,
+			val: "-h",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemRedirLBracket,
+			val: "[",
+		},
+		item{
+			typ: itemRedirMapLSide,
+			val: "2",
+		},
+		item{
+			typ: itemRedirMapEqual,
+			val: "=",
+		},
+		item{
+			typ: itemRedirMapRSide,
+			val: "1",
+		},
+		item{
+			typ: itemRedirRBracket,
+			val: "]",
+		},
+		item{
+			typ: itemPipe,
+			val: "|",
+		},
+		item{
+			typ: itemCommand,
+			val: "grep",
+		},
+		item{
+			typ: itemArg,
+			val: "log",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testPipe with redirection", `go tool vet -h >[2=1] | grep log`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemCommand,
+			val: "go",
+		},
+		item{
+			typ: itemArg,
+			val: "tool",
+		},
+		item{
+			typ: itemArg,
+			val: "vet",
+		},
+		item{
+			typ: itemArg,
+			val: "-h",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemArg,
+			val: "out.log",
+		},
+		item{
+			typ: itemPipe,
+			val: "|",
+		},
+		item{
+			typ: itemCommand,
+			val: "grep",
+		},
+		item{
+			typ: itemArg,
+			val: "log",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("testPipe with redirection", `go tool vet -h > out.log | grep log`, expected, t)
 }
 
 func TestLexerUnquoteArg(t *testing.T) {
@@ -800,7 +904,6 @@ func TestLexerQuotedStringNotFinished(t *testing.T) {
 		},
 		item{
 			typ: itemEOF,
-			val: "hello world",
 		},
 	}
 
@@ -2348,6 +2451,36 @@ func TestLexerRedirectionNetwork(t *testing.T) {
 	}
 
 	testTable("test redirection network", `echo "hello world" >[1] "tcp://localhost:6667"`, expected, t)
+}
+
+func TestRedirectionIssue34(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemCommand,
+			val: "cat",
+		},
+		item{
+			typ: itemArg,
+			val: "/etc/passwd",
+		},
+		item{
+			typ: itemRedirRight,
+			val: ">",
+		},
+		item{
+			typ: itemArg,
+			val: "/dev/null",
+		},
+		item{
+			typ: itemError,
+			val: "Expected end of line or redirection, but found 'e'",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test issue #34", `cat /etc/passwd > /dev/null echo "hello world"`, expected, t)
 }
 
 func TestLexerIssue21RedirectionWithVariables(t *testing.T) {

@@ -45,7 +45,7 @@ ifDecl = "if" ( identifier | varValue ) comparison
          [ "else" ifDecl ] .
 
 /* For loop */
-forDecl = "for" ( identifier | list ) "{" program "}" .
+forDecl = "for" [ identifier "in" list ] "{" program "}" .
 
 /* Function declaration */
 fnDecl = "fn" identifier "(" fnArgs ")" "{"
