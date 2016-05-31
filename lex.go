@@ -99,10 +99,10 @@ func (i item) String() string {
 	}
 
 	if len(i.val) > 10 {
-		return fmt.Sprintf("(%s) - pos: %d, val: %.10q...", i.typ, i.pos, i.val)
+		return fmt.Sprintf("(%v) - pos: %d, val: %.10q...", i.typ, i.pos, i.val)
 	}
 
-	return fmt.Sprintf("(%s) - pos: %d, val: %q", i.typ, i.pos, i.val)
+	return fmt.Sprintf("(%v) - pos: %d, val: %q", i.typ, i.pos, i.val)
 }
 
 // run lexes the input by executing state functions until the state is nil
@@ -192,6 +192,9 @@ func (l *lexer) errorf(format string, args ...interface{}) stateFn {
 		val: fmt.Sprintf(format, args...),
 		pos: Pos(l.start),
 	}
+
+	l.start = len(l.input)
+	l.pos = l.start
 
 	return nil // finish the state machine
 }
@@ -544,7 +547,7 @@ func lexInsideListVariable(l *lexer) stateFn {
 		return lexStart
 	}
 
-	return l.errorf("Unexpected '%r'. Expected elements or ')'", r)
+	return l.errorf("Unexpected '%q'. Expected elements or ')'", r)
 }
 
 func lexInsideCommonVariable(l *lexer, nextFn stateFn, nextConcatFn stateFn) stateFn {
@@ -1237,21 +1240,25 @@ func lexInsideRedirect(l *lexer) stateFn {
 
 	// verify if have more redirects
 
-	for {
-		r = l.next()
+	ignoreSpaces(l)
 
-		if !isSpace(r) {
-			break
-		}
-
-		l.ignore()
-	}
+	r = l.next()
 
 	if r == '>' {
 		l.emit(itemRedirRight)
 		return lexInsideRedirect
 	}
 
+	if r == '|' {
+		l.emit(itemPipe)
+		return lexStart
+	}
+
+	if !isEndOfLine(r) && r != eof {
+		return l.errorf("Expected end of line or redirection, but found '%c'", r)
+	}
+
+	l.backup()
 	return lexStart
 }
 
@@ -1284,6 +1291,11 @@ func lexInsideRedirMapLeftSide(l *lexer) stateFn {
 					l.next()
 					l.emit(itemRedirRight)
 					return lexInsideRedirect
+				}
+
+				if r == '|' {
+					l.next()
+					l.emit(itemPipe)
 				}
 
 				return lexStart
@@ -1354,6 +1366,11 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 				l.next()
 				l.emit(itemRedirRight)
 				return lexInsideRedirect
+			}
+
+			if r == '|' {
+				l.next()
+				l.emit(itemPipe)
 			}
 
 			break

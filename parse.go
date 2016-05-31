@@ -111,6 +111,7 @@ func (p *Parser) parseCommand() (Node, error) {
 
 	n := NewCommandNode(it.pos, it.val)
 
+cmdLoop:
 	for {
 		it = p.peek()
 
@@ -147,12 +148,12 @@ func (p *Parser) parseCommand() (Node, error) {
 		case itemError:
 			return nil, fmt.Errorf("Syntax error: %s", it.val)
 		default:
-			p.backup(it)
-			return n, nil
+			break cmdLoop
 		}
 	}
 
-	return nil, errors.New("unreachable")
+	p.backup(it)
+	return n, nil
 }
 
 func (p *Parser) parseRedirection(it item) (*RedirectNode, error) {
@@ -401,7 +402,7 @@ func (p *Parser) parseAssignment() (Node, error) {
 	varIt := p.next()
 
 	if varIt.typ != itemVarName {
-		return nil, fmt.Errorf("Invalid item: %v")
+		return nil, fmt.Errorf("Invalid item: %v", varIt)
 	}
 
 	it := p.next()
