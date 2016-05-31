@@ -57,12 +57,6 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 
 	envVars := buildenv(sh.Environ())
 
-	if sh.debug {
-		for _, ev := range envVars {
-			sh.log("ENV %s", ev)
-		}
-	}
-
 	cmd := &Command{
 		name: name,
 		sh:   sh,

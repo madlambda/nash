@@ -132,6 +132,29 @@ func TestExecuteCommand(t *testing.T) {
 		t.Errorf("Invalid output: '%s'", string(out.Bytes()))
 		return
 	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("cmd with concat", `echo -n "hello " + "world"`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "hello world" {
+		t.Errorf("Error: '%s' != '%s'", string(out.Bytes()), "hello world")
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("cmd with concat", `echo -n $notexits`)
+
+	if err == nil {
+		t.Errorf("Must fail")
+		return
+	}
 }
 
 func TestExecuteRforkUserNS(t *testing.T) {
@@ -844,7 +867,7 @@ func TestExecutePipe(t *testing.T) {
 	out.Reset()
 }
 
-func TestExecuteNetRedirection(t *testing.T) {
+func TestExecuteTCPRedirection(t *testing.T) {
 	message := "hello world"
 
 	done := make(chan bool)
@@ -901,6 +924,147 @@ func TestExecuteNetRedirection(t *testing.T) {
 		return // Done
 	}
 
+}
+
+func TestExecuteUnixRedirection(t *testing.T) {
+	message := "hello world"
+
+	sockDir, err := ioutil.TempDir("/tmp", "nash-tests")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sockFile := sockDir + "/listen.sock"
+
+	defer func() {
+		os.Remove(sockFile)
+		os.RemoveAll(sockDir)
+	}()
+
+	done := make(chan bool)
+	writeDone := make(chan bool)
+
+	go func() {
+		defer func() {
+			writeDone <- true
+		}()
+
+		sh, err := NewShell(false)
+
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		sh.SetNashdPath(nashdPath)
+
+		<-done
+
+		err = sh.ExecuteString("test net redirection", `echo -n "`+message+`" >[1] "unix://`+sockFile+`"`)
+
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}()
+
+	l, err := net.Listen("unix", sockFile)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	defer l.Close()
+
+	go func() {
+		conn, err := l.Accept()
+		if err != nil {
+			return
+		}
+
+		defer conn.Close()
+
+		buf, err := ioutil.ReadAll(conn)
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		fmt.Println(string(buf[:]))
+
+		if msg := string(buf[:]); msg != message {
+			t.Fatalf("Unexpected message:\nGot:\t\t%s\nExpected:\t%s\n", msg, message)
+		}
+
+		return // Done
+	}()
+
+	done <- true
+	<-writeDone
+}
+
+func TestExecuteUDPRedirection(t *testing.T) {
+	message := "hello world"
+
+	done := make(chan bool)
+	writeDone := make(chan bool)
+
+	go func() {
+		defer func() {
+			writeDone <- true
+		}()
+
+		sh, err := NewShell(false)
+
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		sh.SetNashdPath(nashdPath)
+
+		<-done
+
+		err = sh.ExecuteString("test net redirection", `echo -n "`+message+`" >[1] "udp://localhost:6667"`)
+
+		if err != nil {
+			t.Error(err)
+			return
+		}
+	}()
+
+	l, err := net.ListenPacket("udp", "localhost:6667")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	go func() {
+		defer l.Close()
+
+		buf := make([]byte, 0, 1024)
+
+		_, _, err := l.ReadFrom(buf)
+
+		if err != nil {
+			t.Error(err)
+			return
+		}
+
+		fmt.Println(string(buf[:]))
+
+		if msg := string(buf[:]); msg != message {
+			t.Fatalf("Unexpected message:\nGot:\t\t%s\nExpected:\t%s\n", msg, message)
+		}
+
+		return // Done
+	}()
+
+	done <- true
+	<-writeDone
 }
 
 func TestExecuteReturn(t *testing.T) {
