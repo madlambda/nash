@@ -902,3 +902,29 @@ func TestExecuteNetRedirection(t *testing.T) {
 	}
 
 }
+
+func TestExecuteReturn(t *testing.T) {
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+
+	err = sh.ExecuteString("test return fail", "return")
+
+	if err == nil {
+		t.Errorf("Must fail. Return is only valid inside function")
+		return
+	}
+
+	err = sh.ExecuteString("test return", `fn test() { return }
+test()`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+}

@@ -340,6 +340,30 @@ func compareFnDeclNode(expected, value *FnDeclNode) (bool, error) {
 	return compare(expected.Tree(), value.Tree())
 }
 
+func compareReturnNode(expected, value *ReturnNode) (bool, error) {
+	if ok, err := compareDefault(expected, value); !ok {
+		return ok, err
+	}
+
+	erets := expected.Return()
+	vrets := value.Return()
+
+	if len(erets) != len(vrets) {
+		return false, fmt.Errorf("compareReturnNode(%v, %v) -> Length differs (%d) != (%d)", expected, value, len(erets), len(vrets))
+	}
+
+	for i := 0; i < len(erets); i++ {
+		eret := erets[i]
+		vret := vrets[i]
+
+		if ok, err := compareArg(eret, vret); !ok {
+			return ok, err
+		}
+	}
+
+	return true, nil
+}
+
 func compareDumpNode(expected, value *DumpNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
@@ -532,6 +556,10 @@ func compareNodes(expected Node, value Node) (bool, error) {
 		ec := expected.(*DumpNode)
 		vc := value.(*DumpNode)
 		valid, err = compareDumpNode(ec, vc)
+	case *ReturnNode:
+		ec := expected.(*ReturnNode)
+		vc := value.(*ReturnNode)
+		valid, err = compareReturnNode(ec, vc)
 	default:
 		return false, fmt.Errorf("Type %v not comparable yet", v)
 	}

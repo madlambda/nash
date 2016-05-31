@@ -156,6 +156,12 @@ type (
 		args []*Arg
 	}
 
+	ReturnNode struct {
+		NodeType
+		Pos
+		arg []*Arg
+	}
+
 	BindFnNode struct {
 		NodeType
 		Pos
@@ -216,6 +222,9 @@ const (
 
 	// NodeFn are function nodes
 	NodeFnDecl
+
+	// NodeReturn is the node for "return" statements
+	NodeReturn
 
 	// NodeFnInv is a node for function invocation
 	NodeFnInv
@@ -939,4 +948,35 @@ func (n *DumpNode) String() string {
 	}
 
 	return "dump"
+}
+
+func NewReturnNode(pos Pos) *ReturnNode {
+	return &ReturnNode{
+		Pos:      pos,
+		NodeType: NodeReturn,
+	}
+}
+
+func (n *ReturnNode) SetReturn(a []*Arg) {
+	n.arg = a
+}
+
+func (n *ReturnNode) Return() []*Arg { return n.arg }
+
+func (n *ReturnNode) String() string {
+	if n.arg != nil {
+		if len(n.arg) > 1 || len(n.arg) == 0 {
+			values := make([]string, 0, len(n.arg))
+
+			for _, a := range n.arg {
+				values = append(values, a.String())
+			}
+
+			return "return (" + strings.Join(values, " ") + ")"
+		}
+
+		return "return " + n.arg[0].String()
+	}
+
+	return "return"
 }

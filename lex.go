@@ -56,6 +56,7 @@ const (
 	itemPipe    // ls | wc -l
 	itemBindFn  // "bindfn <fn> <cmd>
 	itemDump    // "dump" [ file ]
+	itemReturn
 	itemArg
 	itemLeftBlock     // {
 	itemRightBlock    // }
@@ -335,6 +336,15 @@ func lexIdentifier(l *lexer) stateFn {
 						return l.errorf("Expected identifier")
 					}
 
+					r = l.peek()
+
+					if r == '(' {
+						l.emit(itemFnInv)
+						l.next()
+						l.emit(itemLeftParen)
+						return lexInsideFnInv
+					}
+
 					l.emit(itemCommand)
 					return lexInsideCommand
 				}
@@ -393,6 +403,9 @@ func lexIdentifier(l *lexer) stateFn {
 	case "dump":
 		l.emit(itemDump)
 		return lexInsideDump
+	case "return":
+		l.emit(itemReturn)
+		return lexInsideReturn
 	}
 
 	l.emit(itemCommand)
@@ -791,6 +804,28 @@ getnextarg:
 	}
 
 	l.emit(itemLeftBlock)
+
+	return lexStart
+}
+
+func lexInsideReturn(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	r := l.peek()
+
+	switch {
+	case r == '(':
+		l.next()
+		l.emit(itemListOpen)
+		return lexInsideListVariable
+	case r == '"':
+		l.next()
+		l.ignore()
+
+		return lexQuote(l, lexInsideReturn, lexStart)
+	case r == '$':
+		return lexInsideCommonVariable(l, lexInsideReturn, lexStart)
+	}
 
 	return lexStart
 }

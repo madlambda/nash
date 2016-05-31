@@ -21,6 +21,8 @@ type (
 	Fns map[string]*Shell
 	Bns Fns
 
+	objType uint
+
 	// Shell is the core data structure.
 	Shell struct {
 		name      string
@@ -29,6 +31,7 @@ type (
 		log       LogFn
 		nashdPath string
 		dotDir    string
+		isFn      bool
 
 		interrupted bool
 
@@ -97,6 +100,7 @@ func NewShell(debug bool) (*Shell, error) {
 
 	sh := &Shell{
 		name:      "parent scope",
+		isFn:      false,
 		debug:     debug,
 		log:       NewLog(logNS, debug),
 		nashdPath: nashdAutoDiscover(),
@@ -220,6 +224,10 @@ func (sh *Shell) SetVar(name string, value []string) {
 	sh.vars[name] = value
 }
 
+func (sh *Shell) IsFn() bool { return sh.isFn }
+
+func (sh *Shell) SetIsFn(b bool) { sh.isFn = b }
+
 // Prompt returns the environment prompt or the default one
 func (sh *Shell) Prompt() string {
 	value, ok := sh.GetEnv("PROMPT")
@@ -308,8 +316,6 @@ func (sh *Shell) setupSignals() {
 			sh.Lock()
 			sh.interrupted = !sh.interrupted
 			sh.Unlock()
-
-			//			fmt.Println("^C")
 		}
 	}()
 }
@@ -346,12 +352,12 @@ func (sh *Shell) executeConcat(path *Arg) (string, error) {
 	return pathStr, nil
 }
 
-func (sh *Shell) Execute() error {
+func (sh *Shell) Execute() ([]string, error) {
 	if sh.root != nil {
 		return sh.ExecuteTree(sh.root)
 	}
 
-	return nil
+	return nil, nil
 }
 
 // ExecuteString executes the commands specified by string content
@@ -364,7 +370,8 @@ func (sh *Shell) ExecuteString(path, content string) error {
 		return err
 	}
 
-	return sh.ExecuteTree(tr)
+	_, err = sh.ExecuteTree(tr)
+	return err
 }
 
 // Execute the nash file at given path
@@ -379,11 +386,11 @@ func (sh *Shell) ExecuteFile(path string) error {
 }
 
 // ExecuteTree evaluates the given tree
-func (sh *Shell) ExecuteTree(tr *Tree) error {
+func (sh *Shell) ExecuteTree(tr *Tree) ([]string, error) {
 	var err error
 
 	if tr == nil || tr.Root == nil {
-		return errors.New("nothing parsed")
+		return nil, errors.New("nothing parsed")
 	}
 
 	root := tr.Root
@@ -402,7 +409,7 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 			err := sh.executeSetAssignment(node.(*SetAssignmentNode))
 
 			if err != nil {
-				return err
+				return nil, err
 			}
 		case NodeAssignment:
 			err = sh.executeAssignment(node.(*AssignmentNode))
@@ -421,14 +428,21 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 		case NodeFnDecl:
 			err = sh.executeFnDecl(node.(*FnDeclNode))
 		case NodeFnInv:
-			err = sh.executeFnInv(node.(*FnInvNode))
+			// invocation ignoring output
+			_, err = sh.executeFnInv(node.(*FnInvNode))
 		case NodeBindFn:
 			err = sh.executeBindFn(node.(*BindFnNode))
 		case NodeDump:
 			err = sh.executeDump(node.(*DumpNode))
+		case NodeReturn:
+			if sh.IsFn() {
+				return sh.executeReturn(node.(*ReturnNode))
+			} else {
+				err = newError("Unexpected return outside of function declaration.")
+			}
 		default:
 			// should never get here
-			return fmt.Errorf("invalid node: %v.", node.Type())
+			return nil, newError("invalid node: %v.", node.Type())
 		}
 
 		if err != nil {
@@ -439,14 +453,48 @@ func (sh *Shell) ExecuteTree(tr *Tree) error {
 			if errIgnore, ok := err.(IgnoreError); ok && errIgnore.IgnoreError() {
 				fmt.Fprintf(sh.stderr, "ERROR: %s\n", err.Error())
 
-				return nil
+				return nil, nil
 			}
 
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return nil, nil
+}
+
+func (sh *Shell) executeReturn(n *ReturnNode) ([]string, error) {
+	if n.arg == nil {
+		return nil, nil
+	}
+
+	returnValue := make([]string, 0, 64)
+
+	for _, arg := range n.arg {
+		if arg.IsVariable() {
+			values, err := sh.evalVariable(arg.Value())
+
+			if err != nil {
+				return nil, err
+			}
+
+			returnValue = append(returnValue, values...)
+
+		} else if arg.IsConcat() {
+			tmp, err := sh.executeConcat(arg)
+
+			if err != nil {
+				return nil, err
+			}
+
+			returnValue = append(returnValue, tmp)
+		} else {
+			returnValue = append(returnValue, arg.Value())
+		}
+	}
+
+	return returnValue, nil
+
 }
 
 func (sh *Shell) executeImport(node *ImportNode) error {
@@ -630,7 +678,8 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 			if fn, ok := sh.binds[c.Name()]; ok {
 				sh.log("Executing bind %s", c.Name())
 
-				return sh.executeFn(fn, c.args)
+				_, err = sh.executeFn(fn, c.args)
+				return err
 			}
 		}
 
@@ -748,6 +797,8 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 
 	sh.SetStdout(&varOut)
 
+	defer sh.SetStdout(bkStdout)
+
 	assign := v.Command()
 
 	switch assign.Type() {
@@ -756,12 +807,17 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 	case NodePipe:
 		err = sh.executePipe(assign.(*PipeNode))
 	case NodeFnInv:
-		err = sh.executeFnInv(assign.(*FnInvNode))
+		fnValues, err := sh.executeFnInv(assign.(*FnInvNode))
+
+		if err != nil {
+			return err
+		}
+
+		sh.SetVar(v.Name(), fnValues)
+		return nil
 	default:
 		err = newError("Unexpected node in assignment: %s", assign.String())
 	}
-
-	sh.SetStdout(bkStdout)
 
 	if err != nil {
 		return err
@@ -773,7 +829,6 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 	return nil
 }
 
-// Note(i4k): shit code
 func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 	var err error
 
@@ -827,7 +882,8 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 			args = append(args, NewArg(0, ArgQuoted))
 		}
 
-		return sh.executeFn(fn, args)
+		_, err := sh.executeFn(fn, args)
+		return err
 	}
 
 	if path == nil {
@@ -942,9 +998,11 @@ func (sh *Shell) executeIfEqual(n *IfNode) error {
 	}
 
 	if lstr == rstr {
-		return sh.ExecuteTree(n.IfTree())
+		_, err = sh.ExecuteTree(n.IfTree())
+		return err
 	} else if n.ElseTree() != nil {
-		return sh.ExecuteTree(n.ElseTree())
+		_, err = sh.ExecuteTree(n.ElseTree())
+		return err
 	}
 
 	return nil
@@ -958,19 +1016,21 @@ func (sh *Shell) executeIfNotEqual(n *IfNode) error {
 	}
 
 	if lstr != rstr {
-		return sh.ExecuteTree(n.IfTree())
+		_, err = sh.ExecuteTree(n.IfTree())
+		return err
 	} else if n.ElseTree() != nil {
-		return sh.ExecuteTree(n.ElseTree())
+		_, err = sh.ExecuteTree(n.ElseTree())
+		return err
 	}
 
 	return nil
 }
 
-func (sh *Shell) executeFn(fn *Shell, args []*Arg) error {
+func (sh *Shell) executeFn(fn *Shell, args []*Arg) ([]string, error) {
 	var err error
 
 	if len(fn.argNames) != len(args) {
-		return newError("Wrong number of arguments for function %s. Expected %d but found %d",
+		return nil, newError("Wrong number of arguments for function %s. Expected %d but found %d",
 			fn.name, len(fn.argNames), len(args))
 	}
 
@@ -983,7 +1043,7 @@ func (sh *Shell) executeFn(fn *Shell, args []*Arg) error {
 			argStr, err = sh.executeConcat(arg)
 
 			if err != nil {
-				return err
+				return nil, err
 			}
 		} else {
 			argStr = arg.Value()
@@ -993,7 +1053,7 @@ func (sh *Shell) executeFn(fn *Shell, args []*Arg) error {
 			elemstr, err := sh.evalVariable(argStr)
 
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			fn.vars[argName] = elemstr
@@ -1005,12 +1065,12 @@ func (sh *Shell) executeFn(fn *Shell, args []*Arg) error {
 	return fn.Execute()
 }
 
-func (sh *Shell) executeFnInv(n *FnInvNode) error {
+func (sh *Shell) executeFnInv(n *FnInvNode) ([]string, error) {
 	if fn, ok := sh.fns[n.name]; ok {
 		return sh.executeFn(fn, n.args)
 	}
 
-	return newError("no such function '%s'", n.name)
+	return nil, newError("no such function '%s'", n.name)
 }
 
 func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
@@ -1026,6 +1086,7 @@ func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
 	fn.SetStderr(sh.stderr)
 	fn.SetStdin(sh.stdin)
 	fn.SetRepr(n.String())
+	fn.SetIsFn(true)
 
 	args := n.Args()
 

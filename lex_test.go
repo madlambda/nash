@@ -2514,7 +2514,7 @@ func TestLexerDump(t *testing.T) {
 	testTable("test dump", `dump out`, expected, t)
 }
 
-/*func TestLexerReturn(t *testing.T) {
+func TestLexerReturn(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemReturn,
@@ -2525,5 +2525,241 @@ func TestLexerDump(t *testing.T) {
 		},
 	}
 
-	testTableFail("test return", "return", expected, t)
-}*/
+	testTable("test return", "return", expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemReturn,
+			val: "return",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test return", "fn test() { return }", expected, t)
+	testTable("test return", `fn test() {
+ return
+}`, expected, t)
+	testTable("test return", `fn test() {
+	return
+}`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemReturn,
+			val: "return",
+		},
+		item{
+			typ: itemString,
+			val: "some value",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test return", `fn test() { return "some value"}`, expected, t)
+	testTable("test return", `fn test() {
+	return "some value"
+}`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemVarName,
+			val: "value",
+		},
+		item{
+			typ: itemAssign,
+			val: "=",
+		},
+		item{
+			typ: itemString,
+			val: "some value",
+		},
+		item{
+			typ: itemReturn,
+			val: "return",
+		},
+		item{
+			typ: itemVariable,
+			val: "$value",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test return", `fn test() {
+	value = "some value"
+	return $value
+}`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemReturn,
+			val: "return",
+		},
+		item{
+			typ: itemListOpen,
+			val: "(",
+		},
+		item{
+			typ: itemString,
+			val: "test",
+		},
+		item{
+			typ: itemString,
+			val: "test2",
+		},
+		item{
+			typ: itemListClose,
+			val: ")",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test return", `fn test() {
+	return ("test" "test2")
+}`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemReturn,
+			val: "return",
+		},
+		item{
+			typ: itemVariable,
+			val: "$PWD",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test return", `fn test() {
+	return $PWD
+}`, expected, t)
+}

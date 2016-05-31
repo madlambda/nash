@@ -138,7 +138,7 @@ func cli(sh *nash.Shell) error {
 
 		content.Reset()
 
-		err = sh.ExecuteTree(tr)
+		_, err = sh.ExecuteTree(tr)
 
 		if err != nil {
 			fmt.Printf("ERROR: %s\n", err.Error())
