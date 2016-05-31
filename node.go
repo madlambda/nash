@@ -966,7 +966,13 @@ func (n *ReturnNode) Return() []*Arg { return n.arg }
 func (n *ReturnNode) String() string {
 	if n.arg != nil {
 		if len(n.arg) > 1 || len(n.arg) == 0 {
-			return "not implemented"
+			values := make([]string, 0, len(n.arg))
+
+			for _, a := range n.arg {
+				values = append(values, a.String())
+			}
+
+			return "return (" + strings.Join(values, " ") + ")"
 		}
 
 		return "return " + n.arg[0].String()

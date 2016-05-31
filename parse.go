@@ -816,8 +816,6 @@ func (p *Parser) parseReturn() (Node, error) {
 			return nil, newUnfinishedListError()
 		}
 
-		fmt.Printf("PARSED VALUES = %v\n", values)
-
 		ret.SetReturn(values)
 		return ret, nil
 	}

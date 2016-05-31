@@ -49,10 +49,13 @@ forDecl = "for" ( identifier | list ) "{" program "}" .
 
 /* Function declaration */
 fnDecl = "fn" identifier "(" fnArgs ")" "{"
-         program [ "return" ( variable | string_lit | list ) ]
+         program [ returnDecl ]
          "}" .
 fnArgs = { fnArg [ "," ] } .
 fnArg  = identifier .
+
+/* return declaration */
+returnDecl = "return" [ ( variable | string_lit | list ) ] .
 
 /* Function invocation */
 fnInv = identifier "(" fnArgs ")" .

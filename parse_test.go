@@ -939,6 +939,57 @@ func TestParseReturn(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("return", `return`, expected, t, true)
+
+	expected = NewTree("return list")
+	ln = NewListNode()
+
+	ret = NewReturnNode(0)
+	listvalues := make([]*Arg, 2)
+	arg1 := NewArg(9, ArgQuoted)
+	arg1.SetString("val1")
+	arg2 := NewArg(16, ArgQuoted)
+	arg2.SetString("val2")
+	listvalues[0] = arg1
+	listvalues[1] = arg2
+
+	ret.SetReturn(listvalues)
+
+	ln.Push(ret)
+	expected.Root = ln
+
+	parserTestTable("return", `return ("val1" "val2")`, expected, t, true)
+
+	expected = NewTree("return variable")
+	ln = NewListNode()
+
+	ret = NewReturnNode(0)
+	listvalues = make([]*Arg, 1)
+	arg1 = NewArg(7, ArgVariable)
+	arg1.SetString("$var")
+	listvalues[0] = arg1
+
+	ret.SetReturn(listvalues)
+
+	ln.Push(ret)
+	expected.Root = ln
+
+	parserTestTable("return", `return $var`, expected, t, true)
+
+	expected = NewTree("return string")
+	ln = NewListNode()
+
+	ret = NewReturnNode(0)
+	listvalues = make([]*Arg, 1)
+	arg1 = NewArg(8, ArgQuoted)
+	arg1.SetString("value")
+	listvalues[0] = arg1
+
+	ret.SetReturn(listvalues)
+
+	ln.Push(ret)
+	expected.Root = ln
+
+	parserTestTable("return", `return "value"`, expected, t, true)
 }
 
 func TestParseIfInvalid(t *testing.T) {

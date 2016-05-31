@@ -316,8 +316,6 @@ func (sh *Shell) setupSignals() {
 			sh.Lock()
 			sh.interrupted = !sh.interrupted
 			sh.Unlock()
-
-			//			fmt.Println("^C")
 		}
 	}()
 }
@@ -473,8 +471,6 @@ func (sh *Shell) executeReturn(n *ReturnNode) ([]string, error) {
 	returnValue := make([]string, 0, 64)
 
 	for _, arg := range n.arg {
-		fmt.Printf("return value: %v\n", arg)
-
 		if arg.IsVariable() {
 			values, err := sh.evalVariable(arg.Value())
 
@@ -801,6 +797,8 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 
 	sh.SetStdout(&varOut)
 
+	defer sh.SetStdout(bkStdout)
+
 	assign := v.Command()
 
 	switch assign.Type() {
@@ -810,8 +808,6 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 		err = sh.executePipe(assign.(*PipeNode))
 	case NodeFnInv:
 		fnValues, err := sh.executeFnInv(assign.(*FnInvNode))
-
-		fmt.Printf("FNVALUES: %v, err = %v\n", fnValues, err)
 
 		if err != nil {
 			return err
@@ -823,8 +819,6 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 		err = newError("Unexpected node in assignment: %s", assign.String())
 	}
 
-	sh.SetStdout(bkStdout)
-
 	if err != nil {
 		return err
 	}
@@ -835,7 +829,6 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 	return nil
 }
 
-// Note(i4k): shit code
 func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 	var err error
 

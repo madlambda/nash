@@ -2720,4 +2720,46 @@ func TestLexerReturn(t *testing.T) {
 	testTable("test return", `fn test() {
 	return ("test" "test2")
 }`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "test",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemReturn,
+			val: "return",
+		},
+		item{
+			typ: itemVariable,
+			val: "$PWD",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test return", `fn test() {
+	return $PWD
+}`, expected, t)
 }
