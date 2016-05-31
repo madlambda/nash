@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 var (
@@ -1108,7 +1109,14 @@ func TestExecuteUDPRedirection(t *testing.T) {
 		}
 	}()
 
-	l, err := net.ListenPacket("udp", "localhost:6667")
+	serverAddr, err := net.ResolveUDPAddr("udp", ":6667")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	l, err := net.ListenUDP("udp", serverAddr)
 
 	if err != nil {
 		t.Fatal(err)
@@ -1117,23 +1125,23 @@ func TestExecuteUDPRedirection(t *testing.T) {
 	go func() {
 		defer l.Close()
 
-		buf := make([]byte, 0, 1024)
+		buf := make([]byte, 1024)
 
-		_, _, err := l.ReadFrom(buf)
+		nb, _, err := l.ReadFromUDP(buf)
 
 		if err != nil {
 			t.Error(err)
 			return
 		}
 
-		fmt.Println(string(buf[:]))
+		received := string(buf[:nb])
 
-		if msg := string(buf[:]); msg != message {
-			t.Fatalf("Unexpected message:\nGot:\t\t%s\nExpected:\t%s\n", msg, message)
+		if received != message {
+			t.Errorf("Unexpected message:\nGot:\t\t'%s'\nExpected:\t'%s'\n", received, message)
 		}
-
-		return // Done
 	}()
+
+	time.Sleep(time.Second * 1)
 
 	done <- true
 	<-writeDone
@@ -1163,4 +1171,8 @@ test()`)
 		t.Error(err)
 		return
 	}
+}
+
+func TestExecuteExecuteConcat(t *testing.T) {
+
 }
