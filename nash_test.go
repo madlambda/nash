@@ -789,6 +789,78 @@ func TestExecuteFnDecl(t *testing.T) {
 	}
 }
 
+func TestExecuteFnInv(t *testing.T) {
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("test fn inv", `
+fn getints() {
+        return ("1" "2" "3" "4" "5" "6" "7" "8" "9" "0")
+}
+
+integers <= getints()
+echo -n $integers
+`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "1 2 3 4 5 6 7 8 9 0" {
+		t.Errorf("'%s' != '%s'", string(out.Bytes()), "1 2 3 4 5 6 7 8 9 0")
+		return
+	}
+
+	out.Reset()
+
+	// Test fn scope
+	err = sh.ExecuteString("test fn inv", `
+OUTSIDE = "some value"
+
+fn getOUTSIDE() {
+        return $OUTSIDE
+}
+
+val <= getOUTSIDE()
+echo -n $val
+`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "some value" {
+		t.Errorf("'%s' != '%s'", string(out.Bytes()), "some value")
+		return
+	}
+
+	err = sh.ExecuteString("test fn inv", `
+fn notset() {
+        INSIDE = "camshaft"
+}
+
+notset()
+echo -n $INSIDE
+`)
+
+	if err == nil {
+		t.Error("Must fail")
+		return
+	}
+}
+
 func TestExecuteBindFn(t *testing.T) {
 	var out bytes.Buffer
 
