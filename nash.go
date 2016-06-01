@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strconv"
 	"strings"
@@ -70,7 +71,7 @@ func newErrIgnore(format string, arg ...interface{}) error {
 	return e
 }
 
-func (e *errIgnore) IgnoreError() bool { return true }
+func (e *errIgnore) Ignore() bool { return true }
 
 func newErrInterrupted(format string, arg ...interface{}) error {
 	return &errInterrupted{
@@ -447,13 +448,11 @@ func (sh *Shell) ExecuteTree(tr *Tree) ([]string, error) {
 
 		if err != nil {
 			type IgnoreError interface {
-				IgnoreError() bool
+				Ignore() bool
 			}
 
-			if errIgnore, ok := err.(IgnoreError); ok && errIgnore.IgnoreError() {
-				fmt.Fprintf(sh.stderr, "ERROR: %s\n", err.Error())
-
-				return nil, nil
+			if errIgnore, ok := err.(IgnoreError); ok && errIgnore.Ignore() {
+				continue
 			}
 
 			return nil, err
@@ -652,20 +651,27 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 }
 
 func (sh *Shell) executeCommand(c *CommandNode) error {
-	var ignoreError bool
+	var (
+		ignoreError bool
+		status      = 127
+	)
 
 	sh.Lock()
 	sh.interrupted = false
 	sh.Unlock()
 
-	if len(c.name) > 1 && c.name[0] == '-' {
+	cmdName := c.Name()
+
+	sh.log("Executing: %s\n", c.Name())
+
+	if len(cmdName) > 1 && cmdName[0] == '-' {
 		ignoreError = true
-		c.name = c.name[1:]
+		cmdName = cmdName[1:]
 
 		sh.log("Ignoring error\n")
 	}
 
-	cmd, err := NewCommand(c.name, sh)
+	cmd, err := NewCommand(cmdName, sh)
 
 	if err != nil {
 		type NotFound interface {
@@ -675,11 +681,16 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 		sh.log("Command fails: %s", err.Error())
 
 		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
-			if fn, ok := sh.binds[c.Name()]; ok {
-				sh.log("Executing bind %s", c.Name())
+			if fn, ok := sh.binds[cmdName]; ok {
+				sh.log("Executing bind %s", cmdName)
 
 				_, err = sh.executeFn(fn, c.args)
-				return err
+
+				if err != nil {
+					goto cmdError
+				}
+
+				return nil
 			}
 		}
 
@@ -716,9 +727,21 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 		goto cmdError
 	}
 
+	sh.SetVar("status", append(make([]string, 0, 1), "0"))
+
 	return nil
 
 cmdError:
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		if statusObj, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+			status = statusObj.ExitStatus()
+		}
+	}
+
+	statusVal := append(make([]string, 0, 1), strconv.Itoa(status))
+
+	sh.SetVar("status", statusVal)
+
 	if ignoreError {
 		return newErrIgnore(err.Error())
 	}
