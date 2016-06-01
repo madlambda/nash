@@ -8,20 +8,34 @@ GREEN = "\033[32m"
 RESET = "\033[0m"
 
 PROMPTSYM =  "λ> "
-PROMPT    = $RED + $PROMPTSYM + $RESET
+DEFPROMPT = $RED + $PROMPTSYM + $RESET
+
+PROMPT = $DEFPROMPT
 
 setenv PROMPT
 
-# Defines a cd function that updates PROMPT accordinly with current pwd
+# cd overrides built-in cd
+# Add the current branch before prompt (if current directory is a git repo)
 fn cd(path) {
-    cd $path
-    PROMPT = $GREEN + "[" + $path + "]" + $RED + $PROMPTSYM + $RESET
-    setenv PROMPT
+        cd $path
+
+        -test -d ./.git
+
+        if $status != "0" {
+                PROMPT = $DEFPROMPT
+        } else {
+                branch <= git rev-parse --abbrev-ref HEAD | xargs echo -n
+                PROMPT = "(" + $GREEN + $branch + $RESET + ")" + $DEFPROMPT
+        }
+
+        setenv PROMPT
 }
 
-# bind "cd" to call cd function
 bindfn cd cd
 
+# syntax sugar to cd into go project
 fn gocd(path) {
     cd $GOPATH + "/src/" + $path
 }
+
+bindfn gocd gocd
