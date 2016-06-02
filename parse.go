@@ -108,11 +108,6 @@ func (p *Parser) parsePipe(first *CommandNode) (Node, error) {
 func (p *Parser) parseCommand() (Node, error) {
 	it := p.next()
 
-	// paranoia check
-	if it.typ != itemCommand {
-		return nil, fmt.Errorf("Invalid command: %v", it)
-	}
-
 	n := NewCommandNode(it.pos, it.val)
 
 cmdLoop:
@@ -257,10 +252,6 @@ func (p *Parser) parseRedirection(it item) (*RedirectNode, error) {
 func (p *Parser) parseImport() (Node, error) {
 	it := p.next()
 
-	if it.typ != itemImport {
-		return nil, fmt.Errorf("Invalid item: %v", it)
-	}
-
 	n := NewImportNode(it.pos)
 
 	it = p.next()
@@ -293,10 +284,6 @@ func (p *Parser) parseShowEnv() (Node, error) {
 func (p *Parser) parseCd() (Node, error) {
 	it := p.next()
 
-	if it.typ != itemCd {
-		return nil, fmt.Errorf("Invalid item: %v", it)
-	}
-
 	n := NewCdNode(it.pos)
 
 	it = p.peek()
@@ -319,10 +306,6 @@ func (p *Parser) parseCd() (Node, error) {
 
 func (p *Parser) parseSet() (Node, error) {
 	it := p.next()
-
-	if it.typ != itemSetEnv {
-		return nil, fmt.Errorf("Failed sanity check. Unexpected %v", it)
-	}
 
 	pos := it.pos
 
@@ -408,10 +391,6 @@ hasConcat:
 func (p *Parser) parseAssignment() (Node, error) {
 	varIt := p.next()
 
-	if varIt.typ != itemVarName {
-		return nil, fmt.Errorf("Invalid item: %v", varIt)
-	}
-
 	it := p.next()
 
 	if it.typ != itemAssign && it.typ != itemAssignCmd {
@@ -494,10 +473,6 @@ func (p *Parser) parseAssignCmdOut(name item) (Node, error) {
 
 func (p *Parser) parseRfork() (Node, error) {
 	it := p.next()
-
-	if it.typ != itemRfork {
-		return nil, fmt.Errorf("Invalid command: %v", it)
-	}
 
 	n := NewRforkNode(it.pos)
 
@@ -838,10 +813,6 @@ func (p *Parser) parseReturn() (Node, error) {
 
 func (p *Parser) parseComment() (Node, error) {
 	it := p.next()
-
-	if it.typ != itemComment {
-		return nil, fmt.Errorf("Invalid comment: %v", it)
-	}
 
 	return NewCommentNode(it.pos, it.val), nil
 }
