@@ -517,7 +517,7 @@ func lexInsideAssignment(l *lexer) stateFn {
 		}
 
 	case r == '$':
-		return lexInsideCommonVariable(l, lexStart, lexInsideAssignment)
+		return lexInsideCommonVariable(l, lexInsideAssignment, lexStart)
 	}
 
 	return l.errorf("Unexpected variable value '%c'. Expected '\"' for quoted string or '$' for variable.", r)
@@ -550,7 +550,7 @@ func lexInsideListVariable(l *lexer) stateFn {
 	return l.errorf("Unexpected '%q'. Expected elements or ')'", r)
 }
 
-func lexInsideCommonVariable(l *lexer, nextFn stateFn, nextConcatFn stateFn) stateFn {
+func lexInsideCommonVariable(l *lexer, nextConcatFn stateFn, nextFn stateFn) stateFn {
 	var r rune
 
 	r = l.next()
@@ -861,29 +861,10 @@ func lexInsideFnInv(l *lexer) stateFn {
 	if r == '"' {
 		l.next()
 		l.ignore()
-		lexQuote(l, nil, nil)
-
-		return lexMoreFnArgs
+		return lexQuote(l, lexInsideFnInv, lexMoreFnArgs)
 	} else if r == '$' {
-		for {
-			r = l.next()
+		return lexInsideCommonVariable(l, lexInsideFnInv, lexMoreFnArgs)
 
-			if isIdentifier(r) || r == '$' {
-				continue
-			}
-
-			break
-		}
-
-		l.backup()
-
-		word := l.input[l.start:l.pos]
-
-		if len(word) > 0 {
-			l.emit(itemVariable)
-
-			return lexMoreFnArgs
-		}
 	} else if r == ')' {
 		l.next()
 		l.emit(itemRightParen)
@@ -1224,7 +1205,7 @@ func lexInsideRedirect(l *lexer) stateFn {
 		l.ignore()
 	case r == '$':
 		l.backup()
-		return lexInsideCommonVariable(l, lexStart, lexInsideRedirect)
+		return lexInsideCommonVariable(l, lexInsideRedirect, lexStart)
 	case isSafePath(r):
 		for {
 			r = l.next()
