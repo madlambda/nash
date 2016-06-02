@@ -1253,7 +1253,7 @@ func (sh *Shell) executeBindFn(n *BindFnNode) error {
 	if fn, ok := sh.GetFn(n.Name()); ok {
 		sh.binds[n.CmdName()] = fn
 	} else {
-		return newError("No such function '$s'", n.Name())
+		return newError("No such function '%s'", n.Name())
 	}
 
 	return nil
