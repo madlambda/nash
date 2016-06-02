@@ -418,9 +418,10 @@ func lexIdentifier(l *lexer) stateFn {
 func lexInsideDump(l *lexer) stateFn {
 	ignoreSpaces(l)
 
-	r := l.next()
+	r := l.peek()
 
 	if r == '"' {
+		l.next()
 		l.ignore()
 		return func(l *lexer) stateFn {
 			return lexQuote(l, lexInsideDump, lexStart)
@@ -428,13 +429,17 @@ func lexInsideDump(l *lexer) stateFn {
 	}
 
 	if isIdentifier(r) || isSafePath(r) {
+		l.next()
 		// parse as normal argument
 		return func(l *lexer) stateFn {
 			return lexArg(l, lexInsideDump, lexStart)
 		}
 	}
 
-	l.backup()
+	if r == '$' {
+		return lexInsideCommonVariable(l, lexInsideDump, lexStart)
+	}
+
 	return lexStart
 }
 

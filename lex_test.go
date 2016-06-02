@@ -2424,6 +2424,22 @@ func TestLexerDump(t *testing.T) {
 	}
 
 	testTable("test dump", `dump out`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemDump,
+			val: "dump",
+		},
+		item{
+			typ: itemVariable,
+			val: "$out",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test dump", `dump $out`, expected, t)
 }
 
 func TestLexerReturn(t *testing.T) {

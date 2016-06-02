@@ -1305,3 +1305,70 @@ func TestExecuteDump(t *testing.T) {
 		return
 	}
 }
+
+func TestExecuteDumpVariable(t *testing.T) {
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+	sh.Reset()
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	tempDir, err := ioutil.TempDir("/tmp", "nash-test")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	dumpFile := tempDir + "/dump.test"
+
+	defer func() {
+		os.Remove(dumpFile)
+		os.RemoveAll(tempDir)
+	}()
+
+	err = sh.ExecuteString("", `dumpFile = "`+dumpFile+`"`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	out.Reset()
+
+	//	sh.SetStdout(os.Stdout)
+
+	err = sh.ExecuteString("", `dump $dumpFile`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "" {
+		t.Error("Must be empty")
+		return
+	}
+
+	content, err := ioutil.ReadFile(dumpFile)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected := `dumpFile = "` + dumpFile + `"`
+
+	if strings.TrimSpace(string(content)) != expected {
+		t.Errorf("Must be equal. '%s' != '%s'", strings.TrimSpace(string(content)), expected)
+		return
+	}
+}
