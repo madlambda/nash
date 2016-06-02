@@ -227,8 +227,17 @@ func (sh *Shell) GetVar(name string) ([]string, bool) {
 }
 
 func (sh *Shell) GetFn(name string) (*Shell, bool) {
-	fn, ok := sh.fns[name]
-	return fn, ok
+	sh.log("Looking for function '%s' on shell '%s'\n", name, sh.name)
+
+	if fn, ok := sh.fns[name]; ok {
+		return fn, ok
+	}
+
+	if sh.parent != nil {
+		return sh.parent.GetFn(name)
+	}
+
+	return nil, false
 }
 
 func (sh *Shell) SetVar(name string, value []string) {
@@ -1123,7 +1132,7 @@ func (sh *Shell) executeFn(fn *Shell, args []*Arg) ([]string, error) {
 }
 
 func (sh *Shell) executeFnInv(n *FnInvNode) ([]string, error) {
-	if fn, ok := sh.fns[n.name]; ok {
+	if fn, ok := sh.GetFn(n.Name()); ok {
 		return sh.executeFn(fn, n.args)
 	}
 
@@ -1165,7 +1174,7 @@ func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
 
 	sh.fns[fnName] = fn
 
-	sh.log("Function %s declared", fnName)
+	sh.log("Function %s declared on '%s'", fnName, sh.name)
 
 	return nil
 }

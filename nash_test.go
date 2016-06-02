@@ -862,6 +862,46 @@ echo -n $INSIDE
 	}
 }
 
+func TestExecuteFnInvOthers(t *testing.T) {
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("test fn inv", `
+fn _getints() {
+        return ("1" "2" "3" "4" "5" "6" "7" "8" "9" "0")
+}
+
+fn getints() {
+        values <= _getints()
+
+        return $values
+}
+
+integers <= getints()
+echo -n $integers
+`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "1 2 3 4 5 6 7 8 9 0" {
+		t.Errorf("'%s' != '%s'", string(out.Bytes()), "1 2 3 4 5 6 7 8 9 0")
+		return
+	}
+}
+
 func TestExecuteBindFn(t *testing.T) {
 	var out bytes.Buffer
 
@@ -1231,6 +1271,11 @@ func TestExecuteDump(t *testing.T) {
 	}
 
 	dumpFile := tempDir + "/dump.test"
+
+	defer func() {
+		os.Remove(dumpFile)
+		os.RemoveAll(tempDir)
+	}()
 
 	out.Reset()
 
