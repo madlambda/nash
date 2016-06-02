@@ -306,6 +306,26 @@ func compareDefault(expected, value Node) (bool, error) {
 	return true, nil
 }
 
+func compareFnInvNode(expected, value *FnInvNode) (bool, error) {
+	if ok, err := compareDefault(expected, value); !ok {
+		return ok, err
+	}
+
+	ename := expected.Name()
+	vname := value.Name()
+
+	if ename != vname {
+		return false, fmt.Errorf(" CompareFnInvNode(%v, %v) -> Name differs: '%s' != '%s'",
+			expected, value, ename, vname)
+	}
+
+	if expected.String() != value.String() {
+		return false, fmt.Errorf("Reverse failed: '%s' != '%s'", expected.String(), value.String())
+	}
+
+	return true, nil
+}
+
 func compareFnDeclNode(expected, value *FnDeclNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
@@ -543,6 +563,10 @@ func compareNodes(expected Node, value Node) (bool, error) {
 		ec := expected.(*FnDeclNode)
 		vc := value.(*FnDeclNode)
 		valid, err = compareFnDeclNode(ec, vc)
+	case *FnInvNode:
+		ec := expected.(*FnInvNode)
+		vc := value.(*FnInvNode)
+		valid, err = compareFnInvNode(ec, vc)
 	case *CmdAssignmentNode:
 		ec := expected.(*CmdAssignmentNode)
 		vc := value.(*CmdAssignmentNode)
