@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,13 +27,14 @@ type (
 
 	// Shell is the core data structure.
 	Shell struct {
-		name      string
-		debug     bool
-		lambdas   uint
-		log       LogFn
-		nashdPath string
-		dotDir    string
-		isFn      bool
+		name        string
+		debug       bool
+		lambdas     uint
+		log         LogFn
+		nashdPath   string
+		dotDir      string
+		isFn        bool
+		currentFile string // current file being executed or imported
 
 		interrupted bool
 
@@ -252,6 +254,9 @@ func (sh *Shell) SetNashdPath(path string) {
 
 func (sh *Shell) SetDotDir(path string) {
 	sh.dotDir = path
+
+	sh.env["NASHPATH"] = append(make([]string, 0, 1), sh.dotDir)
+	sh.vars["NASHPATH"] = append(make([]string, 0, 1), sh.dotDir)
 }
 
 func (sh *Shell) DotDir() string {
@@ -300,9 +305,6 @@ func (sh *Shell) String() string {
 }
 
 func (sh *Shell) setup() {
-	sh.env["NASHPATH"] = append(make([]string, 0, 1), sh.dotDir)
-	sh.vars["NASHPATH"] = append(make([]string, 0, 1), sh.dotDir)
-
 	sh.setupSignals()
 }
 
@@ -377,11 +379,19 @@ func (sh *Shell) ExecuteString(path, content string) error {
 
 // Execute the nash file at given path
 func (sh *Shell) ExecuteFile(path string) error {
+	bkCurFile := sh.currentFile
+
 	content, err := ioutil.ReadFile(path)
 
 	if err != nil {
 		return err
 	}
+
+	sh.currentFile = path
+
+	defer func() {
+		sh.currentFile = bkCurFile
+	}()
 
 	return sh.ExecuteString(path, string(content))
 }
@@ -397,7 +407,7 @@ func (sh *Shell) ExecuteTree(tr *Tree) ([]string, error) {
 	root := tr.Root
 
 	for _, node := range root.Nodes {
-		sh.log("Executing: %v\n", node)
+		sh.log("Executing node: %v\n", node)
 
 		switch node.Type() {
 		case NodeImport:
@@ -499,22 +509,38 @@ func (sh *Shell) executeReturn(n *ReturnNode) ([]string, error) {
 func (sh *Shell) executeImport(node *ImportNode) error {
 	fname := node.Filename()
 
-	tries := []string{
-		fname,
-		sh.dotDir + "/src/" + fname,
+	sh.log("Importing '%s'", fname)
+
+	if len(fname) > 0 && fname[0] == '/' {
+		return sh.ExecuteFile(fname)
 	}
 
+	tries := make([]string, 0, 4)
+	tries = append(tries, fname)
+
+	if sh.currentFile != "" {
+		tries = append(tries, path.Dir(sh.currentFile)+"/"+fname)
+	}
+
+	tries = append(tries, sh.dotDir+"/"+fname)
+	tries = append(tries, sh.dotDir+"/lib/"+fname)
+
+	sh.log("Trying %q\n", tries)
+
 	for _, path := range tries {
-		_, err := os.Stat(path)
+		d, err := os.Stat(path)
 
 		if err != nil {
 			continue
 		}
 
-		return sh.ExecuteFile(path)
+		if m := d.Mode(); !m.IsDir() {
+			return sh.ExecuteFile(path)
+		}
 	}
 
 	return newError("Failed to import path '%s'. The locations below have been tried:\n \"%s\"",
+		fname,
 		strings.Join(tries, `", "`))
 }
 
@@ -1110,6 +1136,7 @@ func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
 	fn.SetStdin(sh.stdin)
 	fn.SetRepr(n.String())
 	fn.SetIsFn(true)
+	fn.SetDotDir(sh.dotDir)
 
 	args := n.Args()
 

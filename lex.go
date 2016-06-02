@@ -834,6 +834,8 @@ func lexInsideReturn(l *lexer) stateFn {
 }
 
 func lexMoreFnArgs(l *lexer) stateFn {
+	ignoreSpaces(l)
+
 	r := l.peek()
 
 	if r == ',' {

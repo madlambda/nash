@@ -79,7 +79,7 @@ func main() {
 
 	if d, err := os.Stat(initFile); err == nil && !noInit {
 		if m := d.Mode(); !m.IsDir() {
-			err = shell.ExecuteFile(initFile)
+			err = shell.ExecuteString("init", `import "`+initFile+`"`)
 
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Failed to evaluate '%s': %s\n", initFile, err.Error())
