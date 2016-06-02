@@ -1173,6 +1173,90 @@ test()`)
 	}
 }
 
-func TestExecuteExecuteConcat(t *testing.T) {
+func TestExecuteDump(t *testing.T) {
+	sh, err := NewShell(false)
 
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+	sh.Reset()
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("", "dump")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "" {
+		t.Errorf("Must be empty. Shell was reset'ed, but returns '%s'", string(out.Bytes()))
+		return
+	}
+
+	err = sh.ExecuteString("", `TEST = "some value"`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("", "dump")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected := `TEST = "some value"`
+
+	if strings.TrimSpace(string(out.Bytes())) != expected {
+		t.Errorf("'%s' != '%s'", string(out.Bytes()), expected)
+		return
+	}
+
+	tempDir, err := ioutil.TempDir("/tmp", "nash-test")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	dumpFile := tempDir + "/dump.test"
+
+	out.Reset()
+
+	//	sh.SetStdout(os.Stdout)
+
+	err = sh.ExecuteString("", "dump "+dumpFile)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "" {
+		t.Error("Must be empty")
+		return
+	}
+
+	content, err := ioutil.ReadFile(dumpFile)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if strings.TrimSpace(string(content)) != expected {
+		t.Error("Must be equal. '%s' != '%s'", strings.TrimSpace(string(content)), expected)
+		return
+	}
 }

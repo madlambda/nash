@@ -88,41 +88,6 @@ const (
 	defPrompt = "\033[31mλ>\033[0m "
 )
 
-// NewShell creates a new shell object
-func NewShell(debug bool) (*Shell, error) {
-	env, vars, err := NewEnv()
-
-	if err != nil {
-		return nil, err
-	}
-
-	if env["PROMPT"] == nil {
-		env["PROMPT"] = append(make([]string, 0, 1), defPrompt)
-		vars["PROMPT"] = append(make([]string, 0, 1), defPrompt)
-	}
-
-	sh := &Shell{
-		name:      "parent scope",
-		isFn:      false,
-		debug:     debug,
-		log:       NewLog(logNS, debug),
-		nashdPath: nashdAutoDiscover(),
-		stdout:    os.Stdout,
-		stderr:    os.Stderr,
-		stdin:     os.Stdin,
-		env:       env,
-		vars:      vars,
-		fns:       make(Fns),
-		binds:     make(Fns),
-		argNames:  make([]string, 0, 16),
-		Mutex:     &sync.Mutex{},
-	}
-
-	sh.setup()
-
-	return sh, nil
-}
-
 // NewEnv creates a new environment from old one
 func NewEnv() (Env, Var, error) {
 	env := make(Env)
@@ -165,6 +130,49 @@ func NewEnv() (Env, Var, error) {
 	vars["PWD"] = append(make([]string, 0, 1), cwd)
 
 	return env, vars, nil
+}
+
+// NewShell creates a new shell object
+func NewShell(debug bool) (*Shell, error) {
+	env, vars, err := NewEnv()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if env["PROMPT"] == nil {
+		env["PROMPT"] = append(make([]string, 0, 1), defPrompt)
+		vars["PROMPT"] = append(make([]string, 0, 1), defPrompt)
+	}
+
+	sh := &Shell{
+		name:      "parent scope",
+		isFn:      false,
+		debug:     debug,
+		log:       NewLog(logNS, debug),
+		nashdPath: nashdAutoDiscover(),
+		stdout:    os.Stdout,
+		stderr:    os.Stderr,
+		stdin:     os.Stdin,
+		env:       env,
+		vars:      vars,
+		fns:       make(Fns),
+		binds:     make(Fns),
+		argNames:  make([]string, 0, 16),
+		Mutex:     &sync.Mutex{},
+	}
+
+	sh.setup()
+
+	return sh, nil
+}
+
+// Reset internal state
+func (sh *Shell) Reset() {
+	sh.fns = make(Fns)
+	sh.vars = make(Var)
+	sh.env = make(Env)
+	sh.binds = make(Fns)
 }
 
 func (sh *Shell) SetName(a string) {
@@ -1190,13 +1198,13 @@ func (sh *Shell) executeDump(n *DumpNode) error {
 	var (
 		err   error
 		fname string
-		file  *os.File
+		file  io.Writer
 	)
 
 	fnameArg := n.Filename()
 
 	if fnameArg == nil {
-		file = os.Stdout
+		file = sh.stdout
 		goto execDump
 	} else if fnameArg.IsVariable() {
 		variableList, err := sh.evalVariable(fnameArg.Value())
