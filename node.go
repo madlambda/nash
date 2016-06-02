@@ -891,6 +891,10 @@ func (n *FnInvNode) SetName(a string) {
 	n.name = a
 }
 
+func (n *FnInvNode) Name() string {
+	return n.name
+}
+
 func (n *FnInvNode) AddArg(arg *Arg) {
 	n.args = append(n.args, arg)
 }
@@ -899,7 +903,7 @@ func (n *FnInvNode) String() string {
 	fnInvStr := n.name + "("
 
 	for i := 0; i < len(n.args); i++ {
-		fnInvStr += n.args[i].Value()
+		fnInvStr += n.args[i].String()
 
 		if i < (len(n.args) - 1) {
 			fnInvStr += ", "

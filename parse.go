@@ -695,20 +695,18 @@ func (p *Parser) parseFnInv() (Node, error) {
 	}
 
 	for {
-		it = p.next()
+		it = p.peek()
 
 		if it.typ == itemString || it.typ == itemVariable {
-			arg := NewArg(it.pos, 0)
+			arg, err := p.getArgument(false)
 
-			if it.typ == itemString {
-				arg.SetArgType(ArgQuoted)
-			} else {
-				arg.SetArgType(ArgVariable)
+			if err != nil {
+				return nil, err
 			}
 
-			arg.SetString(it.val)
 			n.AddArg(arg)
 		} else if it.typ == itemRightParen {
+			p.next()
 			break
 		} else {
 			return nil, newError("Unexpected token %v", it)
