@@ -264,3 +264,110 @@ func TestLexerIssue38(t *testing.T) {
 
 	testTable("test issue38", `cd($GOPATH + "/src/" + $path)`, expected, t)
 }
+
+func TestLexerIssue43(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "gpull",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemVarName,
+			val: "branch",
+		},
+		item{
+			typ: itemAssignCmd,
+			val: "<=",
+		},
+		item{
+			typ: itemCommand,
+			val: "git",
+		},
+		item{
+			typ: itemArg,
+			val: "rev-parse",
+		},
+		item{
+			typ: itemArg,
+			val: "--abbrev-ref",
+		},
+		item{
+			typ: itemArg,
+			val: "HEAD",
+		},
+		item{
+			typ: itemPipe,
+			val: "|",
+		},
+		item{
+			typ: itemCommand,
+			val: "xargs",
+		},
+		item{
+			typ: itemArg,
+			val: "echo",
+		},
+		item{
+			typ: itemArg,
+			val: "-n",
+		},
+		item{
+			typ: itemCommand,
+			val: "git",
+		},
+		item{
+			typ: itemArg,
+			val: "pull",
+		},
+		item{
+			typ: itemArg,
+			val: "origin",
+		},
+		item{
+			typ: itemVariable,
+			val: "$branch",
+		},
+		item{
+			typ: itemFnInv,
+			val: "refreshPrompt",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test issue #41", `fn gpull() {
+        branch <= git rev-parse --abbrev-ref HEAD | xargs echo -n
+
+        git pull origin $branch
+        refreshPrompt()
+}`, expected, t)
+}

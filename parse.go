@@ -96,6 +96,10 @@ func (p *Parser) parsePipe(first *CommandNode) (Node, error) {
 		}
 
 		n.AddCmd(cmd.(*CommandNode))
+
+		if !p.insidePipe {
+			break
+		}
 	}
 
 	return n, nil
@@ -152,7 +156,10 @@ cmdLoop:
 		}
 	}
 
-	p.backup(it)
+	if p.insidePipe {
+		p.insidePipe = false
+	}
+
 	return n, nil
 }
 
