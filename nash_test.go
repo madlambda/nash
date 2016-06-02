@@ -1372,3 +1372,34 @@ func TestExecuteDumpVariable(t *testing.T) {
 		return
 	}
 }
+
+func TestExecuteConcat(t *testing.T) {
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+	sh.Reset()
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("", `a = "A"
+b = "B"
+c = $a + $b + "C"
+echo -n $c`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "ABC" {
+		t.Errorf("Must be equal. '%s' != '%s'", string(out.Bytes()), "ABC")
+		return
+	}
+}
