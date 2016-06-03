@@ -1745,13 +1745,6 @@ func TestLexerSimpleIf(t *testing.T) {
         if "test" != $test {
             rm -rf /
         }`, expected, t)
-
-	/*	testTableFail("test simple if", `
-
-		if "test" != $test
-		{
-		    rm -rf /
-		}`, expected, t) */
 }
 
 func TestLexerIfElse(t *testing.T) {
@@ -2690,4 +2683,59 @@ func TestLexerReturn(t *testing.T) {
 	testTable("test return", `fn test() {
 	return $PWD
 }`, expected, t)
+}
+
+func TestLexerFor(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemFor,
+			val: "for",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test inf loop", `for {}`, expected, t)
+
+	expected = []item{
+		item{
+			typ: itemFor,
+			val: "for",
+		},
+		item{
+			typ: itemVarName,
+			val: "f",
+		},
+		item{
+			typ: itemForIn,
+			val: "in",
+		},
+		item{
+			typ: itemVariable,
+			val: "$files",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test inf loop", `for f in $files {}`, expected, t)
+
 }

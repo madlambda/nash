@@ -75,7 +75,8 @@ const (
 	itemIf // if <condition> { <block> }
 	itemElse
 	itemComparison
-	//	itemFor
+	itemFor
+	itemForIn
 	itemRfork
 	itemRforkFlags
 	itemCd
@@ -409,6 +410,9 @@ func lexIdentifier(l *lexer) stateFn {
 	case "return":
 		l.emit(itemReturn)
 		return lexInsideReturn
+	case "for":
+		l.emit(itemFor)
+		return lexInsideFor
 	}
 
 	l.emit(itemCommand)
@@ -738,6 +742,67 @@ func lexInsideIf(l *lexer) stateFn {
 	l.emit(itemLeftBlock)
 
 	return lexStart
+}
+
+func lexForEnd(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	r := l.next()
+
+	if r != '{' {
+		return l.errorf("Unexpected %q. Expected '{'", r)
+	}
+
+	l.emit(itemLeftBlock)
+	return lexStart
+}
+
+func lexInsideForIn(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	r := l.next()
+
+	switch {
+	case r == '$':
+		l.backup()
+		return lexInsideCommonVariable(l, lexInsideForIn, lexForEnd)
+	}
+
+	return l.errorf("Unexpected %q on for in clause", r)
+}
+
+func lexInsideFor(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	for {
+		r := l.peek()
+
+		if !isIdentifier(r) {
+			break
+		}
+
+		l.next()
+	}
+
+	word := l.input[l.start:l.pos]
+
+	if len(word) > 0 {
+		l.emit(itemVarName)
+
+		ignoreSpaces(l)
+
+		ri := l.next()
+		rn := l.next()
+
+		if ri != 'i' && rn != 'n' {
+			return l.errorf("Unexpected %q. Expected 'in'", ri)
+		}
+
+		l.emit(itemForIn)
+		return lexInsideForIn
+	}
+
+	return lexForEnd
 }
 
 func lexInsideFnDecl(l *lexer) stateFn {
