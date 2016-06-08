@@ -192,19 +192,19 @@ const (
 	// NodeShowEnv is the type for "showenv" builtin keyword
 	NodeShowEnv
 
-	// NodeAssignment are nodes for variable assignment
+	// NodeAssignment is the type for simple variable assignment
 	NodeAssignment
 
-	// NodeCmdAssignment
+	// NodeCmdAssignment is the type for command or function assignment
 	NodeCmdAssignment
 
 	// NodeImport is the type for "import" builtin keyword
 	NodeImport
 
-	// NodeCommand are command statements
+	// NodeCommand is the type for command execution
 	NodeCommand
 
-	// NodePipe is the node type for pipes
+	// NodePipe is the type for pipeline execution
 	NodePipe
 
 	// NodeArg are nodes for command arguments
@@ -213,32 +213,38 @@ const (
 	// NodeString are nodes for argument strings
 	NodeString
 
-	// NodeRfork are nodes for rfork command
+	// NodeRfork is the type for rfork statement
 	NodeRfork
 
-	// NodeCd are nodes of builtin cd
+	// NodeCd is the type for builtin cd
 	NodeCd
 
-	// NodeRforkFlags are nodes rfork flags
+	// NodeRforkFlags are nodes for rfork flags
 	NodeRforkFlags
 
+	// NodeIf is the type for if statements
 	NodeIf
 
 	// NodeComment are nodes for comment
 	NodeComment
 
-	// NodeFn are function nodes
+	// NodeFnDecl is the type for function declaration
 	NodeFnDecl
 
-	// NodeReturn is the node for "return" statements
+	// NodeReturn is the type for return statement
 	NodeReturn
 
-	// NodeFnInv is a node for function invocation
+	// NodeFnInv is the type for function invocation
 	NodeFnInv
 
+	// NodeBindFn is the type for bindfn statements
 	NodeBindFn
 
+	// NodeDump is the type for dump statements
 	NodeDump
+
+	// NodeFor is the type for "for" statements
+	NodeFor
 )
 
 //go:generate stringer -type=ArgType
@@ -274,6 +280,7 @@ func (l *ListNode) Push(n Node) {
 	l.Nodes = append(l.Nodes, n)
 }
 
+// NewImportNode creates a new ImportNode object
 func NewImportNode(pos Pos) *ImportNode {
 	return &ImportNode{
 		NodeType: NodeImport,
@@ -281,13 +288,18 @@ func NewImportNode(pos Pos) *ImportNode {
 	}
 }
 
+// SetPath of import statement
 func (n *ImportNode) SetPath(arg *Arg) {
 	n.path = arg
 }
 
-func (n *ImportNode) Path() *Arg       { return n.path }
+// Path returns the path of import
+func (n *ImportNode) Path() *Arg { return n.path }
+
+// Filename returns the path of import as an expanded string
 func (n *ImportNode) Filename() string { return n.path.val }
 
+// String returns the string representation of the import
 func (n *ImportNode) String() string {
 	if n.path.IsQuoted() {
 		return `import "` + n.path.val + `"`
@@ -296,6 +308,7 @@ func (n *ImportNode) String() string {
 	}
 }
 
+// NewSetAssignmentNode creates a new assignment node
 func NewSetAssignmentNode(pos Pos, name string) *SetAssignmentNode {
 	return &SetAssignmentNode{
 		NodeType: NodeSetAssignment,
@@ -304,10 +317,12 @@ func NewSetAssignmentNode(pos Pos, name string) *SetAssignmentNode {
 	}
 }
 
+// String returns the string representation of assignment
 func (n *SetAssignmentNode) String() string {
 	return "setenv " + n.varName
 }
 
+// NewShowEnvNode creates a new showenv node
 func NewShowEnvNode(pos Pos) *ShowEnvNode {
 	return &ShowEnvNode{
 		NodeType: NodeShowEnv,
@@ -315,6 +330,7 @@ func NewShowEnvNode(pos Pos) *ShowEnvNode {
 	}
 }
 
+// String returns the string representation of showenv statement
 func (n *ShowEnvNode) String() string { return "showenv" }
 
 // NewAssignmentNode creates a new assignment
@@ -335,6 +351,7 @@ func (n *AssignmentNode) SetValueList(alist []*Arg) {
 	n.list = alist
 }
 
+// String returns the string representation of assignment statement
 func (n *AssignmentNode) String() string {
 	ret := n.name + "="
 
@@ -382,6 +399,7 @@ func (n *AssignmentNode) String() string {
 	return ret
 }
 
+// NewCmdAssignmentNode creates a new command assignment
 func NewCmdAssignmentNode(pos Pos, name string) *CmdAssignmentNode {
 	return &CmdAssignmentNode{
 		NodeType: NodeCmdAssignment,
@@ -390,22 +408,27 @@ func NewCmdAssignmentNode(pos Pos, name string) *CmdAssignmentNode {
 	}
 }
 
+// Name returns the identifier (l-value)
 func (n *CmdAssignmentNode) Name() string {
 	return n.name
 }
 
+// Command returns the command (or r-value). Command could be a CommandNode or FnNode
 func (n *CmdAssignmentNode) Command() Node {
 	return n.cmd
 }
 
+// SetName set the assignment identifier (l-value)
 func (n *CmdAssignmentNode) SetName(name string) {
 	n.name = name
 }
 
+// SetCommand set the command part (NodeCommand or NodeFnDecl)
 func (n *CmdAssignmentNode) SetCommand(c Node) {
 	n.cmd = c
 }
 
+// String returns the string representation of command assignment statement
 func (n *CmdAssignmentNode) String() string {
 	return n.name + " <= " + n.cmd.String()
 }
@@ -435,8 +458,10 @@ func (n *CommandNode) AddRedirect(redir *RedirectNode) {
 	n.redirs = append(n.redirs, redir)
 }
 
+// Name returns the program name
 func (n *CommandNode) Name() string { return n.name }
 
+// String returns the string representation of command statement
 func (n *CommandNode) String() string {
 	content := make([]string, 0, 1024)
 	args := make([]string, 0, len(n.args))
@@ -457,6 +482,7 @@ func (n *CommandNode) String() string {
 	return strings.Join(content, " ")
 }
 
+// NewPipeNode creates a new command pipeline
 func NewPipeNode(pos Pos) *PipeNode {
 	return &PipeNode{
 		NodeType: NodePipe,
@@ -465,14 +491,17 @@ func NewPipeNode(pos Pos) *PipeNode {
 	}
 }
 
+// AddCmd add another command to end of the pipeline
 func (n *PipeNode) AddCmd(c *CommandNode) {
 	n.cmds = append(n.cmds, c)
 }
 
+// Commands returns the list of pipeline commands
 func (n *PipeNode) Commands() []*CommandNode {
 	return n.cmds
 }
 
+// String returns the string representation of pipeline statement
 func (n *PipeNode) String() string {
 	ret := ""
 
@@ -509,6 +538,7 @@ func (r *RedirectNode) SetLocation(s *Arg) {
 	r.location = s
 }
 
+// String returns the string representation of redirect
 func (r *RedirectNode) String() string {
 	var result string
 
@@ -558,6 +588,7 @@ func (n *RforkNode) Tree() *Tree {
 	return n.tree
 }
 
+// String returns the string representation of rfork statement
 func (n *RforkNode) String() string {
 	rforkstr := "rfork " + n.arg.val
 	tree := n.Tree()
@@ -595,6 +626,7 @@ func (n *CdNode) Dir() *Arg {
 	return n.dir
 }
 
+// String returns the string representation of cd node
 func (n *CdNode) String() string {
 	dir := n.dir
 
@@ -637,22 +669,27 @@ func NewArg(pos Pos, argType ArgType) *Arg {
 	}
 }
 
+// SetArgType set the type of argument (ArgQuoted, ArgUnquoted, ArgVariable)
 func (n *Arg) SetArgType(t ArgType) {
 	n.argType = t
 }
 
+// SetString set the argument string value
 func (n *Arg) SetString(name string) {
 	n.val = name
 }
 
+// Value returns the argument string value
 func (n *Arg) Value() string {
 	return n.val
 }
 
+// SetConcat set the concatenation parts
 func (n *Arg) SetConcat(v []*Arg) {
 	n.concat = v
 }
 
+// SetItem is a helper to set an argument based on the lexer itemType
 func (n *Arg) SetItem(val item) error {
 	if val.typ == itemArg {
 		n.SetArgType(ArgUnquoted)
@@ -670,11 +707,19 @@ func (n *Arg) SetItem(val item) error {
 	return nil
 }
 
-func (n *Arg) IsQuoted() bool   { return n.argType == ArgQuoted }
-func (n *Arg) IsUnquoted() bool { return n.argType == ArgUnquoted }
-func (n *Arg) IsVariable() bool { return n.argType == ArgVariable }
-func (n *Arg) IsConcat() bool   { return n.argType == ArgConcat }
+// IsQuoted returns true if arg is a quoted string
+func (n *Arg) IsQuoted() bool { return n.argType == ArgQuoted }
 
+// IsUnquoted returns true if argument is an unquoted string
+func (n *Arg) IsUnquoted() bool { return n.argType == ArgUnquoted }
+
+// IsVariable returns true if argument is a variable
+func (n *Arg) IsVariable() bool { return n.argType == ArgVariable }
+
+// IsConcat returns true if argument is a concatenation
+func (n *Arg) IsConcat() bool { return n.argType == ArgConcat }
+
+// String returns the string representation of argument
 func (n Arg) String() string {
 	if n.IsQuoted() {
 		return "\"" + n.val + "\""
@@ -710,10 +755,12 @@ func NewCommentNode(pos Pos, val string) *CommentNode {
 	}
 }
 
+// String returns the string representation of comment
 func (n *CommentNode) String() string {
 	return n.val
 }
 
+// NewIfNode creates a new if block statement
 func NewIfNode(pos Pos) *IfNode {
 	return &IfNode{
 		NodeType: NodeIf,
@@ -721,47 +768,61 @@ func NewIfNode(pos Pos) *IfNode {
 	}
 }
 
+// Lvalue returns the lefthand part of condition
 func (n *IfNode) Lvalue() *Arg {
 	return n.lvalue
 }
 
+// Rvalue returns the righthand side of condition
 func (n *IfNode) Rvalue() *Arg {
 	return n.rvalue
 }
 
+// SetLvalue set the lefthand side of condition
 func (n *IfNode) SetLvalue(arg *Arg) {
 	n.lvalue = arg
 }
 
+// SetRvalue set the righthand side of condition
 func (n *IfNode) SetRvalue(arg *Arg) {
 	n.rvalue = arg
 }
 
+// Op returns the condition operation
 func (n *IfNode) Op() string { return n.op }
 
+// SetOp set the condition operation
 func (n *IfNode) SetOp(op string) {
 	n.op = op
 }
 
+// IsElseIf tells if the if is an else-if statement
 func (n *IfNode) IsElseIf() bool {
 	return n.elseIf
 }
 
+// SetElseif sets the else-if part
 func (n *IfNode) SetElseIf(b bool) {
 	n.elseIf = b
 }
 
+// SetIfTree sets the block of statements of the if block
 func (n *IfNode) SetIfTree(t *Tree) {
 	n.ifTree = t
 }
 
+// SetElseTree sets the block of statements of the else block
 func (n *IfNode) SetElseTree(t *Tree) {
 	n.elseTree = t
 }
 
-func (n *IfNode) IfTree() *Tree   { return n.ifTree }
+// IfTree returns the if block
+func (n *IfNode) IfTree() *Tree { return n.ifTree }
+
+// ElseTree returns the else block
 func (n *IfNode) ElseTree() *Tree { return n.elseTree }
 
+// String returns the string representation of if statement
 func (n *IfNode) String() string {
 	var lstr, rstr string
 
@@ -820,6 +881,7 @@ func (n *IfNode) String() string {
 	return ifStr
 }
 
+// NewFnDeclNode creates a new function declaration
 func NewFnDeclNode(pos Pos, name string) *FnDeclNode {
 	return &FnDeclNode{
 		NodeType: NodeFnDecl,
@@ -829,30 +891,37 @@ func NewFnDeclNode(pos Pos, name string) *FnDeclNode {
 	}
 }
 
+// SetName set the function name
 func (n *FnDeclNode) SetName(a string) {
 	n.name = a
 }
 
+// Name return the function name
 func (n *FnDeclNode) Name() string {
 	return n.name
 }
 
+// Args returns function arguments
 func (n *FnDeclNode) Args() []string {
 	return n.args
 }
 
+// AddArg add a new argument to end of argument list
 func (n *FnDeclNode) AddArg(arg string) {
 	n.args = append(n.args, arg)
 }
 
+// Tree return the function block
 func (n *FnDeclNode) Tree() *Tree {
 	return n.tree
 }
 
+// SetTree set the function tree
 func (n *FnDeclNode) SetTree(t *Tree) {
 	n.tree = t
 }
 
+// String returns the string representation of function declaration
 func (n *FnDeclNode) String() string {
 	fnStr := "fn"
 
@@ -885,6 +954,7 @@ func (n *FnDeclNode) String() string {
 	return fnStr
 }
 
+// NewFnInvNode creates a new function invocation
 func NewFnInvNode(pos Pos, name string) *FnInvNode {
 	return &FnInvNode{
 		NodeType: NodeFnInv,
@@ -894,18 +964,22 @@ func NewFnInvNode(pos Pos, name string) *FnInvNode {
 	}
 }
 
+// SetName set the function name
 func (n *FnInvNode) SetName(a string) {
 	n.name = a
 }
 
+// Name return the function name
 func (n *FnInvNode) Name() string {
 	return n.name
 }
 
+// AddArg add another argument to end of argument list
 func (n *FnInvNode) AddArg(arg *Arg) {
 	n.args = append(n.args, arg)
 }
 
+// String returns the string representation of function invocation
 func (n *FnInvNode) String() string {
 	fnInvStr := n.name + "("
 
@@ -922,6 +996,7 @@ func (n *FnInvNode) String() string {
 	return fnInvStr
 }
 
+// NewBindFnNode creates a new bindfn statement
 func NewBindFnNode(pos Pos, name, cmd string) *BindFnNode {
 	return &BindFnNode{
 		NodeType: NodeBindFn,
@@ -931,13 +1006,18 @@ func NewBindFnNode(pos Pos, name, cmd string) *BindFnNode {
 	}
 }
 
-func (n *BindFnNode) Name() string    { return n.name }
+// Name return the function name
+func (n *BindFnNode) Name() string { return n.name }
+
+// CmdName return the command name
 func (n *BindFnNode) CmdName() string { return n.cmdname }
 
+// String returns the string representation of bindfn
 func (n *BindFnNode) String() string {
 	return "bindfn " + n.name + " " + n.cmdname
 }
 
+// NewDumpNode creates a new dump statement
 func NewDumpNode(pos Pos) *DumpNode {
 	return &DumpNode{
 		NodeType: NodeDump,
@@ -945,14 +1025,17 @@ func NewDumpNode(pos Pos) *DumpNode {
 	}
 }
 
+// Filename return the dump filename argument
 func (n *DumpNode) Filename() *Arg {
 	return n.filename
 }
 
+// SetFilename set the dump filename
 func (n *DumpNode) SetFilename(a *Arg) {
 	n.filename = a
 }
 
+// String returns the string representation of dump node
 func (n *DumpNode) String() string {
 	if n.filename != nil {
 		return "dump " + n.filename.String()
@@ -961,6 +1044,7 @@ func (n *DumpNode) String() string {
 	return "dump"
 }
 
+// NewReturnNode create a return statement
 func NewReturnNode(pos Pos) *ReturnNode {
 	return &ReturnNode{
 		Pos:      pos,
@@ -968,12 +1052,15 @@ func NewReturnNode(pos Pos) *ReturnNode {
 	}
 }
 
+// SetReturn set the arguments to return
 func (n *ReturnNode) SetReturn(a []*Arg) {
 	n.arg = a
 }
 
+// Return returns the argument being returned
 func (n *ReturnNode) Return() []*Arg { return n.arg }
 
+// String returns the string representation of return statement
 func (n *ReturnNode) String() string {
 	if n.arg != nil {
 		if len(n.arg) > 1 || len(n.arg) == 0 {
