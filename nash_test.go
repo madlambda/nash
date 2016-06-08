@@ -1403,3 +1403,79 @@ echo -n $c`)
 		return
 	}
 }
+
+func TestExecuteFor(t *testing.T) {
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("simple loop", `files = (/etc/passwd /etc/shells)
+for f in $files {
+        echo $f
+        echo "loop"
+}`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected := `/etc/passwd
+loop
+/etc/shells
+loop`
+	value := strings.TrimSpace(string(out.Bytes()))
+
+	if value != expected {
+		t.Errorf("String differs: '%s' != '%s'", expected, value)
+		return
+	}
+
+}
+
+func TestExecuteInfiniteLoop(t *testing.T) {
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+
+	go func() {
+		fmt.Printf("Waiting 2 second to abort infinite loop")
+		time.Sleep(2 * time.Second)
+
+		sh.Lock()
+		sh.interrupted = true
+		sh.Unlock()
+	}()
+
+	err = sh.ExecuteString("simple loop", `for {
+        echo "infinite loop"
+}`)
+
+	if err == nil {
+		t.Errorf("Must fail with interrupted error")
+		return
+	}
+
+	type interrupted interface {
+		Interrupted() bool
+	}
+
+	if errInterrupted, ok := err.(interrupted); !ok || !errInterrupted.Interrupted() {
+		t.Errorf("Loop not interrupted properly")
+		return
+	}
+}

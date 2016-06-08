@@ -180,6 +180,7 @@ type (
 		Pos
 		identifier string
 		inVar      string
+		tree       *Tree
 	}
 )
 
@@ -1077,4 +1078,53 @@ func (n *ReturnNode) String() string {
 	}
 
 	return "return"
+}
+
+// NewForNode create a new for statement
+func NewForNode(pos Pos) *ForNode {
+	return &ForNode{
+		NodeType: NodeFor,
+		Pos:      pos,
+	}
+}
+
+// SetIdentifier set the for indentifier
+func (n *ForNode) SetIdentifier(a string) {
+	n.identifier = a
+}
+
+// Identifier return the identifier part
+func (n *ForNode) Identifier() string { return n.identifier }
+
+// InVar return the "in" variable
+func (n *ForNode) InVar() string { return n.inVar }
+
+// SetInVar set "in" variable
+func (n *ForNode) SetInVar(a string) { n.inVar = a }
+
+// SetTree set the for block of statements
+func (n *ForNode) SetTree(a *Tree) {
+	n.tree = a
+}
+
+// Tree return the for block
+func (n *ForNode) Tree() *Tree { return n.tree }
+
+// String returns the string representation of for statement
+func (n *ForNode) String() string {
+	ret := "for"
+
+	if n.identifier != "" {
+		ret += " " + n.identifier + " in " + n.inVar
+	}
+
+	ret += " {\n"
+
+	if n.tree != nil {
+		ret += n.tree.String() + "\n"
+	}
+
+	ret += "}"
+
+	return ret
 }

@@ -1,7 +1,6 @@
 package nash
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 )
@@ -360,6 +359,28 @@ func compareFnDeclNode(expected, value *FnDeclNode) (bool, error) {
 	return compare(expected.Tree(), value.Tree())
 }
 
+func compareForNode(expected, value *ForNode) (bool, error) {
+	if ok, err := compareDefault(expected, value); !ok {
+		return ok, err
+	}
+
+	eid := expected.Identifier()
+	vid := value.Identifier()
+
+	if eid != vid {
+		return false, fmt.Errorf("for identifier differs. '%s' != '%s'", eid, vid)
+	}
+
+	evar := expected.InVar()
+	vvar := value.InVar()
+
+	if evar != vvar {
+		return false, fmt.Errorf("for in variable differ. '%s' != '%s'", evar, vvar)
+	}
+
+	return compare(expected.Tree(), value.Tree())
+}
+
 func compareReturnNode(expected, value *ReturnNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
@@ -584,6 +605,10 @@ func compareNodes(expected Node, value Node) (bool, error) {
 		ec := expected.(*ReturnNode)
 		vc := value.(*ReturnNode)
 		valid, err = compareReturnNode(ec, vc)
+	case *ForNode:
+		ec := expected.(*ForNode)
+		vc := value.(*ForNode)
+		valid, err = compareForNode(ec, vc)
 	default:
 		return false, fmt.Errorf("Type %v not comparable yet", v)
 	}
@@ -601,7 +626,7 @@ func compare(expected *Tree, tr *Tree) (bool, error) {
 	}
 
 	if (expected == nil) != (tr == nil) {
-		return false, errors.New("only one of the expected and tr are nil")
+		return false, fmt.Errorf("only one of the expected and tree are nil (%v, %v)", expected, tr)
 	}
 
 	en := expected.Name
