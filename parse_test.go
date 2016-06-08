@@ -1001,3 +1001,28 @@ func TestParseIfInvalid(t *testing.T) {
 		return
 	}
 }
+
+func TestParseFor(t *testing.T) {
+	expected := NewTree("for")
+
+	forStmt := NewForNode(0)
+	forTree := NewTree("for block")
+	forBlock := NewListNode()
+	forTree.Root = forBlock
+	forStmt.SetTree(forTree)
+
+	ln := NewListNode()
+	ln.Push(forStmt)
+	expected.Root = ln
+
+	parserTestTable("for", `for {
+
+}`, expected, t, true)
+
+	forStmt.SetIdentifier("f")
+	forStmt.SetInVar("$files")
+
+	parserTestTable("for", `for f in $files {
+
+}`, expected, t, true)
+}

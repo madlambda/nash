@@ -811,6 +811,59 @@ func (p *Parser) parseReturn() (Node, error) {
 	return ret, nil
 }
 
+func (p *Parser) parseFor() (Node, error) {
+	it := p.next()
+
+	forStmt := NewForNode(it.pos)
+
+	it = p.peek()
+
+	if it.typ != itemVarName {
+		goto forBlockParse
+	}
+
+	p.next()
+
+	forStmt.SetIdentifier(it.val)
+
+	it = p.next()
+
+	if it.typ != itemForIn {
+		return nil, newError("Expected 'in' but found %q", it)
+	}
+
+	it = p.next()
+
+	if it.typ != itemVariable {
+		return nil, newError("Expected variable but found %q", it)
+	}
+
+	forStmt.SetInVar(it.val)
+
+forBlockParse:
+	it = p.peek()
+
+	if it.typ != itemLeftBlock {
+		return nil, newError("Expected '{' but found %q", it)
+	}
+
+	p.ignore() // ignore lookaheaded symbol
+	p.openblocks++
+
+	tree := NewTree("for block")
+
+	r, err := p.parseBlock()
+
+	if err != nil {
+		return nil, err
+	}
+
+	tree.Root = r
+	forStmt.SetTree(tree)
+
+	return forStmt, nil
+}
+
 func (p *Parser) parseComment() (Node, error) {
 	it := p.next()
 
@@ -853,6 +906,8 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseDump()
 	case itemReturn:
 		return p.parseReturn()
+	case itemFor:
+		return p.parseFor()
 	}
 
 	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)
