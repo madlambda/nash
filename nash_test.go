@@ -394,6 +394,100 @@ func TestExecuteCmdAssignment(t *testing.T) {
 	}
 }
 
+func TestExecuteCmdAssignmentIFS(t *testing.T) {
+	var out bytes.Buffer
+
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("assignment", `IFS = (" ")
+range <= echo 1 2 3 4 5 6 7 8 9 10
+
+for i in $range {
+    echo "i = " + $i
+}`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected := `i = 1
+i = 2
+i = 3
+i = 4
+i = 5
+i = 6
+i = 7
+i = 8
+i = 9
+i = 10`
+
+	if strings.TrimSpace(string(out.Bytes())) != expected {
+		t.Error("assignment not work")
+		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), expected)
+
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("assignment", `IFS = (";")
+range <= echo "1;2;3;4;5;6;7;8;9;10"
+
+for i in $range {
+    echo "i = " + $i
+}`)
+
+	if strings.TrimSpace(string(out.Bytes())) != expected {
+		t.Error("assignment not work")
+		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), expected)
+
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("assignment", `IFS = (" " ";")
+range <= echo "1;2;3;4;5;6;7;8;9;10"
+
+for i in $range {
+    echo "i = " + $i
+}`)
+
+	if strings.TrimSpace(string(out.Bytes())) != expected {
+		t.Error("assignment not work")
+		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), expected)
+
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("assignment", `IFS = (" " "-")
+range <= echo "1;2;3;4;5;6;7;8;9;10"
+
+for i in $range {
+    echo "i = " + $i
+}`)
+
+	expected = "i = 1;2;3;4;5;6;7;8;9;10"
+
+	if strings.TrimSpace(string(out.Bytes())) != expected {
+		t.Error("assignment not work")
+		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), expected)
+		return
+	}
+
+}
+
 func TestExecuteRedirection(t *testing.T) {
 	sh, err := NewShell(false)
 

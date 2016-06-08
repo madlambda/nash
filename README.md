@@ -55,8 +55,21 @@ Output redirection works like Plan9 rc, but not only for filenames. It supports 
 To assign command output to a variable exists the '<=' operator. See the example
 below:
 ```sh
-fullpath <= realpath $path | tr -d "\n"
+fullpath <= realpath $path | xargs -n echo
 echo $fullpath
+```
+
+If you want the command output splited into an array, use the IFS
+special variable to store the delimiter (like bash, but use a list
+instead of a string).
+
+```sh
+IFS = ("\n")
+files <= find .
+
+for f in $files {
+        echo "File: " + $f
+}
 ```
 
 To avoid problems with spaces in variables being passed as multiple arguments to commands,
@@ -86,7 +99,7 @@ The concat operator (+) could be used between variables and literal strings.
 Functions can be declared with "fn" keyword:
 ```sh
 fn cd(path) {
-    fullpath <= realpath $path | tr -d "\n"
+    fullpath <= realpath $path | xargs echo -n
     cd $path
     PROMPT="[" + $fullpath + "]> "
     setenv PROMPT
@@ -280,7 +293,7 @@ fn stali_fsbuild(service) {
 
     cd ..
 
-    serviceName <= basename $service | tr -d "\n"
+    serviceName <= basename $service | xargs echo -n
     cp -a "/tmp/"+$serviceName $rootfsDir
 
     tar cvf $imagename+".tar" $rootfsDir

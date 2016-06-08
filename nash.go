@@ -891,7 +891,23 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 		return err
 	}
 
-	strelems := append(make([]string, 0, 1), string(varOut.Bytes()))
+	var strelems []string
+
+	outStr := string(varOut.Bytes())
+
+	if ifs, ok := sh.GetVar("IFS"); ok && len(ifs) > 0 {
+		strelems = strings.FieldsFunc(outStr, func(r rune) bool {
+			for _, delim := range ifs {
+				if len(delim) > 0 && rune(delim[0]) == r {
+					return true
+				}
+			}
+
+			return false
+		})
+	} else {
+		strelems = append(make([]string, 0, 1), outStr)
+	}
 
 	sh.SetVar(v.Name(), strelems)
 	return nil

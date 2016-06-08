@@ -1138,9 +1138,9 @@ func lexQuote(l *lexer, concatFn, nextFn stateFn) stateFn {
 				r = l.next()
 
 				switch r {
-				case '\n':
+				case 'n':
 					data = append(data, '\n')
-				case '\t':
+				case 't':
 					data = append(data, '\t')
 				case '\\':
 					data = append(data, '\\')
