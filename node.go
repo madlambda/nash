@@ -174,6 +174,13 @@ type (
 		Pos
 		filename *Arg
 	}
+
+	ForNode struct {
+		NodeType
+		Pos
+		identifier string
+		inVar      string
+	}
 )
 
 //go:generate stringer -type=NodeType
