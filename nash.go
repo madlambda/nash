@@ -10,10 +10,12 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 type (
@@ -331,8 +333,6 @@ func (sh *Shell) setupSignals() {
 
 	go func() {
 		for {
-			<-sigs
-
 			sh.Lock()
 			sh.interrupted = !sh.interrupted
 			sh.Unlock()
@@ -458,6 +458,8 @@ func (sh *Shell) ExecuteTree(tr *Tree) ([]string, error) {
 		case NodeFnInv:
 			// invocation ignoring output
 			_, err = sh.executeFnInv(node.(*FnInvNode))
+		case NodeFor:
+			err = sh.executeFor(node.(*ForNode))
 		case NodeBindFn:
 			err = sh.executeBindFn(node.(*BindFnNode))
 		case NodeDump:
@@ -1137,6 +1139,68 @@ func (sh *Shell) executeFnInv(n *FnInvNode) ([]string, error) {
 	}
 
 	return nil, newError("no such function '%s'", n.name)
+}
+
+func (sh *Shell) executeInfLoop(tr *Tree) error {
+	for {
+		runtime.Gosched()
+
+		time.Sleep(time.Millisecond * 100)
+
+		_, err := sh.ExecuteTree(tr)
+
+		sh.Lock()
+
+		if sh.interrupted {
+			sh.interrupted = !sh.interrupted
+
+			sh.Unlock()
+
+			if err != nil {
+				return newErrInterrupted(err.Error())
+			}
+
+			return newErrInterrupted("loop interrupted")
+		}
+
+		sh.Unlock()
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (sh *Shell) executeFor(n *ForNode) error {
+	if n.InVar() == "" {
+		return sh.executeInfLoop(n.Tree())
+	}
+
+	id := n.Identifier()
+	inVar := n.InVar()
+
+	if len(inVar) < 2 {
+		return newError("Invalid variable '%s'", inVar)
+	}
+
+	varList, err := sh.evalVariable(inVar)
+
+	if err != nil {
+		return err
+	}
+
+	for _, val := range varList {
+		sh.SetVar(id, append(make([]string, 0, 1), val))
+		_, err = sh.ExecuteTree(n.Tree())
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (sh *Shell) executeFnDecl(n *FnDeclNode) error {

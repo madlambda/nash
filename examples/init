@@ -1,5 +1,7 @@
 #!/usr/bin/env nash
 # Simple init script for you base your own
+# For a more complete and organized .nash see:
+# https://github.com/tiago4orion/dotnash
 
 # PROMPT is a special variable used by nash command line to
 # setup your prompt.
