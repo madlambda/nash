@@ -21,6 +21,8 @@ and purpose.
 
 [![asciicast](https://asciinema.org/a/6a1lqcllwctoaej6gzsxcuqo6.png)](https://asciinema.org/a/6a1lqcllwctoaej6gzsxcuqo6)
 
+For nash profile customizations (e.g: prompt, aliases, etc) see: https://github.com/tiago4orion/dotnash
+
 Go ahead:
 
 ```sh
@@ -106,8 +108,7 @@ with that command with `bindfn` statement.
 λ> cd /var/log
 [/var/log]>
 ```
-The only control statements available are `if`, `else` and `for`. But `for` isn't implemented yet,
-because it was not required on my personal projects yet.
+The only control statements available are `if`, `else` and `for`. 
 In the same way, nash doesn't support shell expansion at `if` condition.
 For check if a directory exists you must use:
 ```sh
