@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
+	"io/ioutil"
 	"strings"
 
 	"github.com/NeowayLabs/nash"
@@ -27,131 +25,165 @@ func NewCompleter(sh *nash.Shell, p ...readline.PrefixCompleterInterface) *Compl
 func (c *Completer) Do(line []rune, pos int) (newLine [][]rune, offset int) {
 	line = runes.TrimSpaceLeft(line[:pos])
 
-	for _, child := range c.prefixCompleter.GetChildren() {
-		childName := child.GetName()
-		if len(line) >= len(childName) {
-			if runes.HasPrefix(line, childName) {
-				if len(line) == len(childName) {
-					newLine = append(newLine, []rune{' '})
-				} else {
-					newLine = append(newLine, childName)
-				}
-				offset = len(childName)
-			}
-		} else {
-			if runes.HasPrefix(childName, line) {
-				newLine = append(newLine, childName[len(line):])
-				offset = len(line)
-			}
-		}
+	if len(line) > 1 && (line[0] == '/' || line[0] == '.') {
+		return completeFile(line, pos)
 	}
 
-	newLine, offset = c.completePaths(line, newLine, offset)
-
-	return
-}
-
-func (c *Completer) completeCurrentPath(line []rune, oldline [][]rune, oldoffset int) (newLine [][]rune, offset int) {
-	filepath.Walk(".", func(dirpath string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
-		}
-
-		if dirpath == "." {
-			return nil
-		}
-
-		path := []rune("./" + dirpath)
-
-		//		fmt.Printf("PAth=%s\n", string(path))
-
-		if len(line) >= len(path) {
-			if runes.HasPrefix(line, path) {
-				if len(line) == len(path) {
-					newLine = append(newLine, []rune{' '})
-				} else {
-					newLine = append(newLine, path)
-				}
-
-				offset = len(path)
-			}
-		} else {
-			if runes.HasPrefix(path, line) {
-				newLine = append(newLine, path[len(line):])
-				offset = len(line)
-			}
-		}
-
-		if info.IsDir() {
-			return filepath.SkipDir
-		}
-
-		return nil
-	})
-
-	fmt.Printf("Returning: %q\n", newLine)
-
-	return
-}
-
-func (c *Completer) completePaths(line []rune, oldline [][]rune, oldoffset int) (newLine [][]rune, offset int) {
-	newLine = oldline
-	offset = oldoffset
-
-	if runes.HasPrefix(line, []rune("./")) {
-		return c.completeCurrentPath(line, oldline, oldoffset)
-	}
-
-	paths, ok := c.sh.GetEnv("PATH")
+	pathVar, ok := c.sh.GetEnv("PATH")
 
 	if !ok {
 		return
 	}
 
-	for _, pathval := range paths {
-		for _, base := range strings.Split(pathval, ":") {
-			filepath.Walk(base, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return nil
-				}
+	path := make([]string, 0, 256)
 
-				if info.IsDir() && path != base {
-					return filepath.SkipDir
-				}
-
-				tmp := []rune(strings.Replace(path, base, "", 1))
-
-				if len(tmp) == 0 {
-					// Path == base, continue walking
-					return nil
-				}
-
-				// skip remaining / in the beginning
-				if tmp[0] == '/' {
-					tmp = tmp[1:]
-				}
-
-				if len(line) >= len(tmp) {
-					if runes.HasPrefix(line, tmp) {
-						if len(line) == len(tmp) {
-							newLine = append(newLine, []rune{' '})
-						} else {
-							newLine = append(newLine, tmp)
-						}
-
-						offset = len(tmp)
-					}
-				} else {
-					if runes.HasPrefix(tmp, line) {
-						newLine = append(newLine, tmp[len(line):])
-						offset = len(line)
-					}
-				}
-
-				return nil
-			})
+	for _, pathVal := range pathVar {
+		pathparts := strings.Split(pathVal, ":")
+		if len(pathparts) == 1 {
+			path = append(path, pathparts[0])
+		} else {
+			for _, p := range pathparts {
+				path = append(path, p)
+			}
 		}
 	}
 
-	return
+	return completeInPathList(path, line, pos)
+}
+
+func completeInPath(path string, line []rune, offset int) ([][]rune, int) {
+	newLine := make([][]rune, 0, 256)
+
+	if len(line) == 0 {
+		return newLine, offset
+	}
+
+	files, err := ioutil.ReadDir(path)
+
+	if err != nil {
+		return newLine, offset
+	}
+
+	for _, file := range files {
+		fname := file.Name()
+
+		if len(string(line)) <= len(fname) && strings.HasPrefix(fname, string(line)) {
+			if len(string(line)) == len(fname) {
+				newLine = append(newLine, []rune{' '})
+				offset = len(fname)
+				break
+			} else {
+				newLine = append(newLine, []rune(fname[len(string(line)):]))
+			}
+		}
+	}
+
+	return newLine, offset
+}
+
+func completeInPathList(pathList []string, line []rune, offset int) ([][]rune, int) {
+	var newOffset int
+
+	newLine := make([][]rune, 0, 256)
+
+	for _, path := range pathList {
+		tmpNewLine, tmpOffset := completeInPath(path, line, offset)
+
+		if len(tmpNewLine) > 0 {
+			newLine = append(newLine, tmpNewLine...)
+			newOffset = tmpOffset
+		}
+	}
+
+	return newLine, newOffset
+}
+
+func completeCurrentPath(line []rune, offset int) ([][]rune, int) {
+	lineStr := string(line[2:])
+	dirParts := strings.Split(lineStr, "/")
+	directory := "./" + strings.Join(dirParts[0:len(dirParts)-1], "/")
+
+	newLine := make([][]rune, 0, 256)
+
+	files, err := ioutil.ReadDir(directory)
+
+	if err != nil {
+		return newLine, offset
+	}
+
+	for _, file := range files {
+		var cmpStr string
+
+		fname := file.Name()
+
+		if directory[len(directory)-1] == '/' {
+			cmpStr = directory + fname
+		} else {
+			cmpStr = directory + "/" + fname
+		}
+
+		if len(cmpStr) >= len(string(line)) &&
+			strings.HasPrefix(cmpStr, string(line)) {
+
+			if len(cmpStr) == len(string(line)) {
+				newLine = append(newLine, []rune{' '})
+
+				offset = len(cmpStr)
+			} else {
+				newLine = append(newLine, []rune(cmpStr[len(string(line)):]))
+			}
+		}
+	}
+
+	return newLine, offset
+}
+
+func completeAbsolutePath(line []rune, offset int) ([][]rune, int) {
+	lineStr := string(line[1:]) // ignore first '/'
+	dirParts := strings.Split(lineStr, "/")
+	directory := "/" + strings.Join(dirParts[0:len(dirParts)-1], "/")
+
+	files, err := ioutil.ReadDir(directory)
+
+	newLine := make([][]rune, 0, 256)
+
+	if err != nil {
+		return newLine, offset
+	}
+
+	for _, file := range files {
+		fname := file.Name()
+		cmpStr := directory + "/" + fname
+
+		if len(cmpStr) >= len(string(line)) && strings.HasPrefix(cmpStr, string(line)) {
+			if len(cmpStr) == len(string(line)) {
+				newLine = append(newLine, []rune{' '})
+
+				offset = len(cmpStr)
+			} else {
+				newLine = append(newLine, []rune(cmpStr[len(string(line)):]))
+			}
+		}
+	}
+
+	return newLine, offset
+}
+
+func completeFile(line []rune, offset int) ([][]rune, int) {
+	llen := len(line)
+
+	if llen > 1 {
+		if line[0] != '/' {
+			if llen >= 2 && line[0] == '.' && line[1] == '/' {
+				return completeCurrentPath(line, offset)
+			}
+
+			return [][]rune{}, offset
+		}
+
+		return completeAbsolutePath(line, offset)
+
+	} else {
+		return completeFile([]rune{'/'}, 1)
+	}
 }

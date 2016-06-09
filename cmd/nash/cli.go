@@ -27,17 +27,7 @@ type (
 	}
 )
 
-var completers = []readline.PrefixCompleterInterface{
-	readline.PcItem("mode",
-		readline.PcItem("vi"),
-		readline.PcItem("emacs"),
-	),
-	readline.PcItem("rfork",
-		readline.PcItem("c"),
-		readline.PcItem("upmnis"),
-		readline.PcItem("upmis"),
-	),
-}
+var completers = []readline.PrefixCompleterInterface{}
 
 func cli(sh *nash.Shell) error {
 	var (
