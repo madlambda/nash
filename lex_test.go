@@ -2328,7 +2328,7 @@ func TestLexerAssignCmdOut(t *testing.T) {
 	testTable("test assignCmdOut", `ipaddr <= someprogram`, expected, t)
 }
 
-func TestBindFn(t *testing.T) {
+func TestLexerBindFn(t *testing.T) {
 	expected := []item{
 		item{
 			typ: itemBindFn,
