@@ -2036,6 +2036,180 @@ func TestLexerIfAdvancedConditions(t *testing.T) {
 	testTable("test advanced conditions", `if ("test" == "other" && $value != "bleh") {
 
 }`, expected, t)
+
+	// multiple blocks
+	expected = []item{
+		item{
+			typ: itemIf,
+			val: "if",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemString,
+			val: "test",
+		},
+		item{
+			typ: itemComparison,
+			val: "==",
+		},
+		item{
+			typ: itemString,
+			val: "other",
+		},
+		item{
+			typ: itemLogicalAND,
+			val: "&&",
+		},
+		item{
+			typ: itemVariable,
+			val: "$value",
+		},
+		item{
+			typ: itemComparison,
+			val: "!=",
+		},
+		item{
+			typ: itemString,
+			val: "bleh",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLogicalOR,
+			val: "||",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemString,
+			val: "test",
+		},
+		item{
+			typ: itemComparison,
+			val: "==",
+		},
+		item{
+			typ: itemString,
+			val: "other",
+		},
+		item{
+			typ: itemLogicalAND,
+			val: "&&",
+		},
+		item{
+			typ: itemVariable,
+			val: "$value",
+		},
+		item{
+			typ: itemComparison,
+			val: "!=",
+		},
+		item{
+			typ: itemString,
+			val: "bleh",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test advanced conditions", `if ("test" == "other" && $value != "bleh") || ("test" == "other" && $value != "bleh") {
+
+}`, expected, t)
+
+	// ( cond ) && othercond
+	expected = []item{
+		item{
+			typ: itemIf,
+			val: "if",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemString,
+			val: "test",
+		},
+		item{
+			typ: itemComparison,
+			val: "==",
+		},
+		item{
+			typ: itemString,
+			val: "other",
+		},
+		item{
+			typ: itemLogicalAND,
+			val: "&&",
+		},
+		item{
+			typ: itemVariable,
+			val: "$value",
+		},
+		item{
+			typ: itemComparison,
+			val: "!=",
+		},
+		item{
+			typ: itemString,
+			val: "bleh",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLogicalAND,
+			val: "&&",
+		},
+		item{
+			typ: itemString,
+			val: "test",
+		},
+		item{
+			typ: itemComparison,
+			val: "==",
+		},
+		item{
+			typ: itemString,
+			val: "other",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test advanced conditions", `if ("test" == "other" && $value != "bleh") && "test" == "other" {
+
+}`, expected, t)
 }
 
 func TestLexerIfElseIf(t *testing.T) {
