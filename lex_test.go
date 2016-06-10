@@ -1809,6 +1809,59 @@ func TestLexerIfElse(t *testing.T) {
 	testTable("test simple if", `if "test" == "other" { rm -rf / } else { pwd }`, expected, t)
 }
 
+func TestLexerIfAdvancedConditions(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemIf,
+			val: "if",
+		},
+		item{
+			typ: itemString,
+			val: "test",
+		},
+		item{
+			typ: itemComparison,
+			val: "==",
+		},
+		item{
+			typ: itemString,
+			val: "other",
+		},
+		item{
+			typ: itemLogicalOR,
+			val: "||",
+		},
+		item{
+			typ: itemVariable,
+			val: "$value",
+		},
+		item{
+			typ: itemComparison,
+			val: "!=",
+		},
+		item{
+			typ: itemString,
+			val: "bleh",
+		},
+
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test advanced conditions", `if "test" == "other" || $value != "bleh" {
+
+}`, expected, t)
+}
+
 func TestLexerIfElseIf(t *testing.T) {
 	expected := []item{
 		item{
