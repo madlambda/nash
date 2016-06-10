@@ -1022,8 +1022,13 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 		return fmt.Errorf("Variable $PWD is not set")
 	}
 
+	cpwd := append(make([]string, 0, 1), pathStr)
+
 	sh.SetVar("OLDPWD", pwd)
-	sh.SetVar("PWD", append(make([]string, 0, 1), pathStr))
+	sh.SetVar("PWD", cpwd)
+	sh.SetEnv("OLDPWD", pwd)
+	sh.SetEnv("PWD", cpwd)
+
 	return nil
 }
 
