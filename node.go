@@ -129,12 +129,20 @@ type (
 		rfd int
 	}
 
+	ClauseNode struct {
+		NodeType
+		Pos
+		lvalue, rvalue *Arg
+		op             string
+
+		nextLogical string
+		nextClause  *ClauseNode
+	}
+
 	IfNode struct {
 		NodeType
 		Pos
-		lvalue *Arg
-		rvalue *Arg
-		op     string
+		clause *ClauseNode
 		elseIf bool
 
 		ifTree   *Tree
@@ -225,6 +233,9 @@ const (
 
 	// NodeIf is the type for if statements
 	NodeIf
+
+	// NodeClause is the type for condition clauses
+	NodeClause
 
 	// NodeComment are nodes for comment
 	NodeComment
@@ -761,6 +772,41 @@ func (n *CommentNode) String() string {
 	return n.val
 }
 
+func NewClauseNode(pos Pos) *ClauseNode {
+	return &ClauseNode{
+		NodeType: NodeClause,
+		Pos:      pos,
+	}
+}
+
+// Lvalue returns the lefthand part of condition
+func (n *ClauseNode) Lvalue() *Arg {
+	return n.lvalue
+}
+
+// Rvalue returns the righthand side of condition
+func (n *ClauseNode) Rvalue() *Arg {
+	return n.rvalue
+}
+
+// SetLvalue set the lefthand side of condition
+func (n *ClauseNode) SetLvalue(arg *Arg) {
+	n.lvalue = arg
+}
+
+// SetRvalue set the righthand side of condition
+func (n *ClauseNode) SetRvalue(arg *Arg) {
+	n.rvalue = arg
+}
+
+// Op returns the condition operation
+func (n *ClauseNode) Op() string { return n.op }
+
+// SetOp set the condition operation
+func (n *ClauseNode) SetOp(op string) {
+	n.op = op
+}
+
 // NewIfNode creates a new if block statement
 func NewIfNode(pos Pos) *IfNode {
 	return &IfNode{
@@ -769,32 +815,12 @@ func NewIfNode(pos Pos) *IfNode {
 	}
 }
 
-// Lvalue returns the lefthand part of condition
-func (n *IfNode) Lvalue() *Arg {
-	return n.lvalue
+func (n *IfNode) SetClause(clause *ClauseNode) {
+	n.clause = clause
 }
 
-// Rvalue returns the righthand side of condition
-func (n *IfNode) Rvalue() *Arg {
-	return n.rvalue
-}
-
-// SetLvalue set the lefthand side of condition
-func (n *IfNode) SetLvalue(arg *Arg) {
-	n.lvalue = arg
-}
-
-// SetRvalue set the righthand side of condition
-func (n *IfNode) SetRvalue(arg *Arg) {
-	n.rvalue = arg
-}
-
-// Op returns the condition operation
-func (n *IfNode) Op() string { return n.op }
-
-// SetOp set the condition operation
-func (n *IfNode) SetOp(op string) {
-	n.op = op
+func (n *IfNode) Clause() *ClauseNode {
+	return n.clause
 }
 
 // IsElseIf tells if the if is an else-if statement
@@ -825,21 +851,7 @@ func (n *IfNode) ElseTree() *Tree { return n.elseTree }
 
 // String returns the string representation of if statement
 func (n *IfNode) String() string {
-	var lstr, rstr string
-
-	if n.lvalue.IsQuoted() {
-		lstr = `"` + n.lvalue.val + `"`
-	} else {
-		lstr = n.lvalue.val // in case of variable
-	}
-
-	if n.rvalue.IsQuoted() {
-		rstr = `"` + n.rvalue.val + `"`
-	} else {
-		rstr = n.rvalue.val
-	}
-
-	ifStr := "if " + lstr + " " + n.op + " " + rstr + " {\n"
+	ifStr := "if " + n.clause.String() + " {\n"
 
 	ifTree := n.IfTree()
 
