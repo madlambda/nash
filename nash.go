@@ -750,6 +750,10 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 			if fn, ok := sh.binds[cmdName]; ok {
 				sh.log("Executing bind %s", cmdName)
 
+				for i := 0 + len(c.args); i < len(fn.argNames); i++ {
+					c.args = append(c.args, NewArg(0, ArgQuoted))
+				}
+
 				_, err = sh.executeFn(fn, c.args)
 
 				if err != nil {
