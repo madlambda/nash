@@ -334,11 +334,18 @@ func (sh *Shell) setupSignals() {
 	go func() {
 		for {
 			<-sigs
+
 			sh.Lock()
 			sh.interrupted = !sh.interrupted
 			sh.Unlock()
 		}
 	}()
+}
+
+func (sh *Shell) TriggerCTRLC() {
+	sh.Lock()
+	sh.interrupted = true
+	sh.Unlock()
 }
 
 func (sh *Shell) executeConcat(path *Arg) (string, error) {
@@ -483,6 +490,14 @@ func (sh *Shell) ExecuteTree(tr *Tree) ([]string, error) {
 
 			if errIgnore, ok := err.(IgnoreError); ok && errIgnore.Ignore() {
 				continue
+			}
+
+			type InterruptedError interface {
+				Interrupted() bool
+			}
+
+			if errInterrupted, ok := err.(InterruptedError); ok && errInterrupted.Interrupted() {
+				return nil, err
 			}
 
 			return nil, err
@@ -703,7 +718,12 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 	)
 
 	sh.Lock()
-	sh.interrupted = false
+	if sh.interrupted {
+		sh.interrupted = false
+		sh.Unlock()
+		return newErrInterrupted("command interrupted")
+	}
+
 	sh.Unlock()
 
 	cmdName := c.Name()
@@ -788,16 +808,16 @@ cmdError:
 
 	sh.SetVar("status", statusVal)
 
-	if ignoreError {
-		return newErrIgnore(err.Error())
-	}
-
 	sh.Lock()
 	defer sh.Unlock()
 
 	if sh.interrupted {
 		sh.interrupted = !sh.interrupted
 		return newErrInterrupted(err.Error())
+	}
+
+	if ignoreError {
+		return newErrIgnore(err.Error())
 	}
 
 	return err
@@ -1166,12 +1186,19 @@ func (sh *Shell) executeFnInv(n *FnInvNode) ([]string, error) {
 func (sh *Shell) executeInfLoop(tr *Tree) error {
 	for {
 		runtime.Gosched()
-
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 250)
 
 		_, err := sh.ExecuteTree(tr)
 
 		sh.Lock()
+
+		type interruptedError interface {
+			Interrupted() bool
+		}
+
+		if errInterrupted, ok := err.(interruptedError); ok && errInterrupted.Interrupted() {
+			return err
+		}
 
 		if sh.interrupted {
 			sh.interrupted = !sh.interrupted

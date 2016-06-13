@@ -1550,9 +1550,7 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 		fmt.Printf("Waiting 2 second to abort infinite loop")
 		time.Sleep(2 * time.Second)
 
-		sh.Lock()
-		sh.interrupted = true
-		sh.Unlock()
+		sh.TriggerCTRLC()
 	}()
 
 	err = sh.ExecuteString("simple loop", `for {
