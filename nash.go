@@ -333,6 +333,7 @@ func (sh *Shell) setupSignals() {
 
 	go func() {
 		for {
+			<-sigs
 			sh.Lock()
 			sh.interrupted = !sh.interrupted
 			sh.Unlock()
