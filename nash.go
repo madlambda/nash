@@ -750,6 +750,14 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 			if fn, ok := sh.binds[cmdName]; ok {
 				sh.log("Executing bind %s", cmdName)
 
+				if len(c.args) > len(fn.argNames) {
+					err = newError("Too much arguments for"+
+						" function '%s'. It expects %d args",
+						fn.name,
+						len(fn.argNames))
+					goto cmdError
+				}
+
 				for i := 0 + len(c.args); i < len(fn.argNames); i++ {
 					c.args = append(c.args, NewArg(0, ArgQuoted))
 				}
