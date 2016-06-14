@@ -1146,11 +1146,27 @@ func (sh *Shell) executeFn(fn *Shell, args []*Arg) (*Obj, error) {
 }
 
 func (sh *Shell) executeFnInv(n *FnInvNode) (*Obj, error) {
+	fnName := n.Name()
+
+	if len(fnName) > 0 && fnName[0] == '$' {
+		obj, err := sh.evalVariable(fnName)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if obj.Type() != FnType {
+			return nil, newError("Variable '%s' isnt a function.", fnName)
+		}
+
+		return sh.executeFn(obj.Fn(), n.args)
+	}
+
 	if fn, ok := sh.GetFn(n.Name()); ok {
 		return sh.executeFn(fn, n.args)
 	}
 
-	return nil, newError("no such function '%s'", n.name)
+	return nil, newError("no such function '%s'", fnName)
 }
 
 func (sh *Shell) executeInfLoop(tr *Tree) error {
@@ -1282,6 +1298,7 @@ func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
 
 	sh.fns[fnName] = fn
 
+	sh.Setvar(fnName, NewFnObj(fn))
 	sh.log("Function %s declared on '%s'", fnName, sh.name)
 
 	return nil

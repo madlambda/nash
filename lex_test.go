@@ -2739,3 +2739,139 @@ func TestLexerFor(t *testing.T) {
 	testTable("test inf loop", `for f in $files {}`, expected, t)
 
 }
+
+func TestLexerFnAsFirstClass(t *testing.T) {
+	expected := []item{
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "printer",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVarName,
+			val: "val",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemCommand,
+			val: "echo",
+		},
+		item{
+			typ: itemArg,
+			val: "-n",
+		},
+		item{
+			typ: itemVariable,
+			val: "$val",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemFnDecl,
+			val: "fn",
+		},
+		item{
+			typ: itemVarName,
+			val: "success",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVarName,
+			val: "print",
+		},
+		item{
+			typ: itemVarName,
+			val: "val",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemLeftBlock,
+			val: "{",
+		},
+		item{
+			typ: itemFnInv,
+			val: "$print",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemString,
+			val: "[SUCCESS] ",
+		},
+		item{
+			typ: itemConcat,
+			val: "+",
+		},
+		item{
+			typ: itemVariable,
+			val: "$val",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemRightBlock,
+			val: "}",
+		},
+		item{
+			typ: itemFnInv,
+			val: "success",
+		},
+		item{
+			typ: itemLeftParen,
+			val: "(",
+		},
+		item{
+			typ: itemVariable,
+			val: "$printer",
+		},
+		item{
+			typ: itemString,
+			val: "Command executed!",
+		},
+		item{
+			typ: itemRightParen,
+			val: ")",
+		},
+		item{
+			typ: itemEOF,
+		},
+	}
+
+	testTable("test fn as first class", `
+        fn printer(val) {
+                echo -n $val
+        }
+
+        fn success(print, val) {
+                $print("[SUCCESS] " + $val)
+        }
+
+        success($printer, "Command executed!")
+        `, expected, t)
+}
