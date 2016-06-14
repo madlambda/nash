@@ -24,6 +24,11 @@ func init() {
 		panic("Please, run tests from inside GOPATH")
 	}
 
+	path := os.Getenv("PATH")
+	path = "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:" + path
+
+	os.Setenv("PATH", path)
+
 	testDir = gopath + "/src/github.com/NeowayLabs/nash/" + "testfiles"
 	nashdPath = gopath + "/src/github.com/NeowayLabs/nash/cmd/nash/nash"
 
@@ -55,7 +60,6 @@ func init() {
 	default:
 		enableUserNS = false
 	}
-
 }
 
 func TestExecuteFile(t *testing.T) {
