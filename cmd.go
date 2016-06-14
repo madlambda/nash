@@ -49,7 +49,10 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 		cmdPath, err = exec.LookPath(name)
 
 		if err != nil {
-			return nil, newCmdNotFound("Command '%s' not found: %s", name, err.Error())
+			return nil, newCmdNotFound("Command '%s' not found on PATH=%s: %s",
+				name,
+				os.Getenv("PATH"),
+				err.Error())
 		}
 	}
 

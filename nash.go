@@ -25,8 +25,6 @@ type (
 	Fns map[string]*Shell
 	Bns Fns
 
-	objType uint
-
 	// Shell is the core data structure.
 	Shell struct {
 		name        string
