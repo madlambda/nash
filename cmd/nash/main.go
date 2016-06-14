@@ -18,12 +18,13 @@ var (
 	// version is set at build time
 	VersionString = "No version provided"
 
-	version bool
-	debug   bool
-	file    string
-	command string
-	addr    string
-	noInit  bool
+	version     bool
+	debug       bool
+	file        string
+	command     string
+	addr        string
+	noInit      bool
+	interactive bool
 )
 
 func init() {
@@ -32,6 +33,7 @@ func init() {
 	flag.StringVar(&file, "file", "", "script file")
 	flag.BoolVar(&noInit, "noinit", false, "do not load init file")
 	flag.StringVar(&command, "c", "", "command to execute")
+	flag.BoolVar(&interactive, "i", false, "Interactive mode (default if no args)")
 
 	if os.Args[0] == "-nashd-" || (len(os.Args) > 1 && os.Args[1] == "-daemon") {
 		flag.Bool("daemon", false, "force enable nashd mode")
@@ -92,14 +94,36 @@ func main() {
 
 	if addr != "" {
 		startNashd(shell, addr)
-	} else if command != "" {
-		err = shell.ExecuteString("<argument -c>", command)
-	} else if file != "" {
-		err = shell.ExecuteFile(file)
-	} else {
-		err = cli(shell)
+
+		return
 	}
 
+	if file != "" {
+		err = shell.ExecuteFile(file)
+
+		if err != nil {
+			goto Error
+		}
+	}
+
+	if command != "" {
+		err = shell.ExecuteString("<argument -c>", command)
+
+		if err != nil {
+			goto Error
+		}
+	}
+
+	if (file == "" && command == "") || interactive {
+		err = cli(shell)
+
+		if err != nil {
+			goto Error
+		}
+
+		return
+	}
+Error:
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		os.Exit(1)
