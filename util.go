@@ -26,32 +26,28 @@ func buildenv(e Env) []string {
 	env := make([]string, 0, len(e))
 
 	for k, v := range e {
-		vlen := len(v)
-		if vlen == 0 {
-			env = append(env, k+"=")
-		} else if len(v) == 1 {
-			env = append(env, k+"="+v[0])
-		} else {
-			env = append(env, k+"=("+strings.Join(v, " ")+")")
+		if v == nil {
+			continue
+		}
+
+		if v.Type() == StringType {
+			env = append(env, k+"="+v.Str())
+		} else if v.Type() == ListType {
+			env = append(env, k+"=("+strings.Join(v.List(), " ")+")")
 		}
 	}
 
 	return env
 }
 
-func printVar(out io.Writer, name string, val []string) {
-	if len(val) == 0 {
-		return
+func printVar(out io.Writer, name string, val *Obj) {
+	if val.Type() == StringType {
+		fmt.Fprintf(out, "%s = \"%s\"\n", name, val.Str())
+	} else if val.Type() == ListType {
+		fmt.Fprintf(out, "%s = ", name)
+		listStr := strings.Join(val.List(), ", ")
+		fmt.Fprintf(out, "(\"%s\")\n", listStr)
 	}
-
-	if len(val) == 1 {
-		fmt.Fprintf(out, "%s = \"%s\"\n", name, val[0])
-		return
-	}
-
-	fmt.Fprintf(out, "%s = ", name)
-	listStr := strings.Join(val, ", ")
-	fmt.Fprintf(out, "(\"%s\")\n", listStr)
 }
 
 func printEnv(out io.Writer, name string) {

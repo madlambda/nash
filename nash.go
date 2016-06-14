@@ -20,7 +20,7 @@ import (
 
 type (
 	// Env is the environment map of lists
-	Env map[string][]string
+	Env map[string]*Obj
 	Var Env
 	Fns map[string]*Shell
 	Bns Fns
@@ -116,29 +116,29 @@ func NewShell(debug bool) (*Shell, error) {
 func (sh *Shell) initEnv() error {
 	processEnv := os.Environ()
 
-	sh.Setenv("argv", os.Args)
-	sh.Setvar("argv", os.Args)
+	argv := NewListObj(os.Args)
+
+	sh.Setenv("argv", argv)
+	sh.Setvar("argv", argv)
 
 	for _, penv := range processEnv {
-		var value []string
+		var value *Obj
 		p := strings.Split(penv, "=")
 
-		if len(p) == 1 {
-			value = make([]string, 0, 1)
-		} else if len(p) > 1 {
-			value = append(make([]string, 0, 256), p[1:]...)
-		}
+		if len(p) == 2 {
+			value = NewStrObj(p[1])
 
-		sh.Setenv(p[0], value)
-		sh.Setvar(p[0], value)
+			sh.Setenv(p[0], value)
+			sh.Setvar(p[0], value)
+		}
 	}
 
-	pidVal := append(make([]string, 0, 1), strconv.Itoa(os.Getpid()))
+	pidVal := NewStrObj(strconv.Itoa(os.Getpid()))
 
 	sh.Setenv("PID", pidVal)
 	sh.Setvar("PID", pidVal)
 
-	shellVal := append(make([]string, 0, 1), os.Args[0])
+	shellVal := NewStrObj(os.Args[0])
 	sh.Setenv("SHELL", shellVal)
 	sh.Setvar("SHELL", shellVal)
 
@@ -148,8 +148,9 @@ func (sh *Shell) initEnv() error {
 		return err
 	}
 
-	sh.Setenv("PWD", append(make([]string, 0, 1), cwd))
-	sh.Setvar("PWD", append(make([]string, 0, 1), cwd))
+	cwdObj := NewStrObj(cwd)
+	sh.Setenv("PWD", cwdObj)
+	sh.Setvar("PWD", cwdObj)
 
 	return nil
 }
@@ -166,6 +167,8 @@ func (sh *Shell) SetName(a string) {
 	sh.name = a
 }
 
+func (sh *Shell) Name() string { return sh.name }
+
 func (sh *Shell) SetParent(a *Shell) {
 	sh.parent = a
 }
@@ -179,7 +182,7 @@ func (sh *Shell) Environ() Env {
 	return sh.env
 }
 
-func (sh *Shell) GetEnv(name string) ([]string, bool) {
+func (sh *Shell) GetEnv(name string) (*Obj, bool) {
 	if sh.parent != nil {
 		return sh.parent.GetEnv(name)
 	}
@@ -188,7 +191,7 @@ func (sh *Shell) GetEnv(name string) ([]string, bool) {
 	return value, ok
 }
 
-func (sh *Shell) Setenv(name string, value []string) {
+func (sh *Shell) Setenv(name string, value *Obj) {
 	if sh.parent != nil {
 		sh.parent.Setenv(name, value)
 		return
@@ -196,22 +199,14 @@ func (sh *Shell) Setenv(name string, value []string) {
 
 	sh.env[name] = value
 
-	if len(value) == 0 {
-		return
-	}
-
-	if len(value) > 1 {
-		os.Setenv(name, strings.Join(value, ":"))
-	} else {
-		os.Setenv(name, value[0])
-	}
+	os.Setenv(name, value.String())
 }
 
 func (sh *Shell) SetEnviron(env Env) {
 	sh.env = env
 }
 
-func (sh *Shell) GetVar(name string) ([]string, bool) {
+func (sh *Shell) GetVar(name string) (*Obj, bool) {
 	if value, ok := sh.vars[name]; ok {
 		return value, ok
 	}
@@ -237,7 +232,7 @@ func (sh *Shell) GetFn(name string) (*Shell, bool) {
 	return nil, false
 }
 
-func (sh *Shell) Setvar(name string, value []string) {
+func (sh *Shell) Setvar(name string, value *Obj) {
 	sh.vars[name] = value
 }
 
@@ -250,7 +245,7 @@ func (sh *Shell) Prompt() string {
 	value, ok := sh.GetEnv("PROMPT")
 
 	if ok {
-		return value[0]
+		return value.String()
 	}
 
 	return "<no prompt> "
@@ -269,8 +264,10 @@ func (sh *Shell) SetNashdPath(path string) {
 func (sh *Shell) SetDotDir(path string) {
 	sh.dotDir = path
 
-	sh.env["NASHPATH"] = append(make([]string, 0, 1), sh.dotDir)
-	sh.vars["NASHPATH"] = append(make([]string, 0, 1), sh.dotDir)
+	obj := NewStrObj(sh.dotDir)
+
+	sh.Setenv("NASHPATH", obj)
+	sh.Setvar("NASHPATH", obj)
 }
 
 func (sh *Shell) DotDir() string {
@@ -326,8 +323,9 @@ func (sh *Shell) setup() error {
 	}
 
 	if sh.env["PROMPT"] == nil {
-		sh.Setenv("PROMPT", append(make([]string, 0, 1), defPrompt))
-		sh.Setvar("PROMPT", append(make([]string, 0, 1), defPrompt))
+		pobj := NewStrObj(defPrompt)
+		sh.Setenv("PROMPT", pobj)
+		sh.Setvar("PROMPT", pobj)
 	}
 
 	sh.setupSignals()
@@ -373,22 +371,24 @@ func (sh *Shell) executeConcat(path *Arg) (string, error) {
 				return "", err
 			}
 
-			if len(partValues) > 1 {
+			if partValues.Type() == ListType {
 				return "", fmt.Errorf("Concat of list variables is not allowed: %s = %v", part.Value(), partValues)
-			} else if len(partValues) == 0 {
-				return "", fmt.Errorf("Variable %s not set", part.Value())
+			} else if partValues.Type() != StringType {
+				return "", fmt.Errorf("Invalid concat element: %v", partValues)
 			}
 
-			pathStr += partValues[0]
-		} else {
+			pathStr += partValues.Str()
+		} else if part.IsQuoted() || part.IsUnquoted() {
 			pathStr += part.Value()
+		} else if part.IsList() {
+			return "", newError("Concat of lists is not allowed: %+v", part.List())
 		}
 	}
 
 	return pathStr, nil
 }
 
-func (sh *Shell) Execute() ([]string, error) {
+func (sh *Shell) Execute() (*Obj, error) {
 	if sh.root != nil {
 		return sh.ExecuteTree(sh.root)
 	}
@@ -430,7 +430,7 @@ func (sh *Shell) ExecuteFile(path string) error {
 }
 
 // ExecuteTree evaluates the given tree
-func (sh *Shell) ExecuteTree(tr *Tree) ([]string, error) {
+func (sh *Shell) ExecuteTree(tr *Tree) (*Obj, error) {
 	var err error
 
 	if tr == nil || tr.Root == nil {
@@ -515,42 +515,28 @@ func (sh *Shell) ExecuteTree(tr *Tree) ([]string, error) {
 	return nil, nil
 }
 
-func (sh *Shell) executeReturn(n *ReturnNode) ([]string, error) {
+func (sh *Shell) executeReturn(n *ReturnNode) (*Obj, error) {
 	if n.arg == nil {
 		return nil, nil
 	}
 
-	returnValue := make([]string, 0, 64)
-
-	for _, arg := range n.arg {
-		if arg.IsVariable() {
-			values, err := sh.evalVariable(arg.Value())
-
-			if err != nil {
-				return nil, err
-			}
-
-			returnValue = append(returnValue, values...)
-
-		} else if arg.IsConcat() {
-			tmp, err := sh.executeConcat(arg)
-
-			if err != nil {
-				return nil, err
-			}
-
-			returnValue = append(returnValue, tmp)
-		} else {
-			returnValue = append(returnValue, arg.Value())
-		}
-	}
-
-	return returnValue, nil
-
+	return sh.evalArg(n.arg)
 }
 
 func (sh *Shell) executeImport(node *ImportNode) error {
-	fname := node.Filename()
+	arg := node.Path()
+
+	obj, err := sh.evalArg(arg)
+
+	if err != nil {
+		return err
+	}
+
+	if obj.Type() != StringType {
+		return newError("Invalid type on import argument: %s", obj.Type())
+	}
+
+	fname := obj.Str()
 
 	sh.log("Importing '%s'", fname)
 
@@ -813,7 +799,7 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 		goto cmdError
 	}
 
-	sh.Setvar("status", append(make([]string, 0, 1), "0"))
+	sh.Setvar("status", NewStrObj("0"))
 
 	return nil
 
@@ -824,9 +810,7 @@ cmdError:
 		}
 	}
 
-	statusVal := append(make([]string, 0, 1), strconv.Itoa(status))
-
-	sh.Setvar("status", statusVal)
+	sh.Setvar("status", NewStrObj(strconv.Itoa(status)))
 
 	sh.Lock()
 	defer sh.Unlock()
@@ -843,7 +827,7 @@ cmdError:
 	return err
 }
 
-func (sh *Shell) evalVariable(a string) ([]string, error) {
+func (sh *Shell) evalVariable(a string) (*Obj, error) {
 	if v, ok := sh.GetVar(a[1:]); ok {
 		return v, nil
 	}
@@ -851,9 +835,52 @@ func (sh *Shell) evalVariable(a string) ([]string, error) {
 	return nil, fmt.Errorf("Variable %s not set", a)
 }
 
+func (sh *Shell) evalArg(arg *Arg) (*Obj, error) {
+	if arg.IsQuoted() || arg.IsUnquoted() {
+		return NewStrObj(arg.Value()), nil
+	} else if arg.IsConcat() {
+		argVal, err := sh.executeConcat(arg)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return NewStrObj(argVal), nil
+	} else if arg.IsVariable() {
+		obj, err := sh.evalVariable(arg.Value())
+
+		if err != nil {
+			return nil, err
+		}
+
+		return obj, nil
+	} else if arg.IsList() {
+		argList := arg.List()
+		values := make([]string, 0, len(argList))
+
+		for _, arg := range argList {
+			obj, err := sh.evalArg(arg)
+
+			if err != nil {
+				return nil, err
+			}
+
+			if obj.Type() != StringType {
+				return nil, newError("Nested lists are not supported")
+			}
+
+			values = append(values, obj.Str())
+		}
+
+		return NewListObj(values), nil
+	}
+
+	return nil, newError("Invalid argument type: %+v", arg)
+}
+
 func (sh *Shell) executeSetAssignment(v *SetAssignmentNode) error {
 	var (
-		varValue []string
+		varValue *Obj
 		ok       bool
 	)
 
@@ -874,23 +901,17 @@ func (sh *Shell) concatElements(elem *Arg) (string, error) {
 	for i := 0; i < len(elem.concat); i++ {
 		ec := elem.concat[i]
 
-		if ec.IsVariable() {
-			elemstr, err := sh.evalVariable(ec.val)
+		obj, err := sh.evalArg(ec)
 
-			if err != nil {
-				return "", err
-			}
-
-			if len(elemstr) > 1 {
-				return "", errors.New("Impossible to concat list variable and string")
-			}
-
-			if len(elemstr) == 1 {
-				value = value + elemstr[0]
-			}
-		} else {
-			value = value + ec.val
+		if err != nil {
+			return "", err
 		}
+
+		if obj.Type() != StringType {
+			return "", newError("Impossible to concat elements of type %s", obj.Type())
+		}
+
+		value = value + obj.String()
 	}
 
 	return value, nil
@@ -936,9 +957,9 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 
 	outStr := string(varOut.Bytes())
 
-	if ifs, ok := sh.GetVar("IFS"); ok && len(ifs) > 0 {
+	if ifs, ok := sh.GetVar("IFS"); ok && ifs.Type() == ListType {
 		strelems = strings.FieldsFunc(outStr, func(r rune) bool {
-			for _, delim := range ifs {
+			for _, delim := range ifs.List() {
 				if len(delim) > 0 && rune(delim[0]) == r {
 					return true
 				}
@@ -946,45 +967,25 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 
 			return false
 		})
+
+		sh.Setvar(v.Name(), NewListObj(strelems))
 	} else {
-		strelems = append(make([]string, 0, 1), outStr)
+		sh.Setvar(v.Name(), NewStrObj(outStr))
 	}
 
-	sh.Setvar(v.Name(), strelems)
 	return nil
 }
 
 func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 	var err error
 
-	elems := v.list
-	strelems := make([]string, 0, len(elems))
+	obj, err := sh.evalArg(v.Value())
 
-	for i := 0; i < len(elems); i++ {
-		elem := elems[i]
-
-		if elem.IsConcat() {
-			value, err := sh.concatElements(elem)
-
-			if err != nil {
-				return err
-			}
-
-			strelems = append(strelems, value)
-		} else {
-			if elem.IsVariable() {
-				strelems, err = sh.evalVariable(elem.val)
-
-				if err != nil {
-					return err
-				}
-			} else {
-				strelems = append(strelems, elem.val)
-			}
-		}
+	if err != nil {
+		return err
 	}
 
-	sh.Setvar(v.name, strelems)
+	sh.Setvar(v.name, obj)
 	return nil
 }
 
@@ -1012,43 +1013,29 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 	}
 
 	if path == nil {
-		if pathlist, ok = sh.GetEnv("HOME"); !ok {
+		pathobj, ok := sh.GetEnv("HOME")
+
+		if !ok {
 			return errors.New("Nash don't know where to cd. No variable $HOME or $home set")
 		}
 
-		if len(pathlist) > 0 && pathlist[0] != "" {
-			pathStr = pathlist[0]
-		} else {
+		if pathobj.Type() != StringType {
 			return fmt.Errorf("Invalid $HOME value: %v", pathlist)
 		}
-	} else if path.IsVariable() {
-		elemstr, err := sh.evalVariable(path.Value())
 
-		if err != nil {
-			return err
-		}
-
-		if len(elemstr) == 0 {
-			return errors.New("Variable $path contains an empty list.")
-		}
-
-		if len(elemstr) > 1 {
-			return fmt.Errorf("Variable $path contains a list: %q", elemstr)
-		}
-
-		pathStr = elemstr[0]
-	} else if path.IsQuoted() || path.IsUnquoted() {
-		pathStr = path.Value()
-	} else if path.IsConcat() {
-		pathConcat, err := sh.executeConcat(path)
-
-		if err != nil {
-			return err
-		}
-
-		pathStr += pathConcat
+		pathStr = pathobj.Str()
 	} else {
-		return fmt.Errorf("Exec error: Invalid path: %v", path)
+		obj, err := sh.evalArg(path)
+
+		if err != nil {
+			return err
+		}
+
+		if obj.Type() != StringType {
+			return newError("HOME variable has invalid type: %s", obj.Type())
+		}
+
+		pathStr = obj.Str()
 	}
 
 	err := os.Chdir(pathStr)
@@ -1063,7 +1050,7 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 		return fmt.Errorf("Variable $PWD is not set")
 	}
 
-	cpwd := append(make([]string, 0, 1), pathStr)
+	cpwd := NewStrObj(pathStr)
 
 	sh.Setvar("OLDPWD", pwd)
 	sh.Setvar("PWD", cpwd)
@@ -1074,50 +1061,30 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 }
 
 func (sh *Shell) evalIfArguments(n *IfNode) (string, string, error) {
-	var (
-		lstr, rstr string
-	)
-
 	lvalue := n.Lvalue()
 	rvalue := n.Rvalue()
 
-	if len(lvalue.val) > 0 && lvalue.val[0] == '$' {
-		variableValue, err := sh.evalVariable(lvalue.val)
+	lobj, err := sh.evalArg(lvalue)
 
-		if err != nil {
-			return "", "", err
-		}
-
-		if len(variableValue) > 1 {
-			return "", "", fmt.Errorf("List is not comparable")
-		} else if len(variableValue) == 0 {
-			lstr = ""
-		} else {
-			lstr = variableValue[0]
-		}
-	} else {
-		lstr = lvalue.val
+	if err != nil {
+		return "", "", err
 	}
 
-	if len(rvalue.val) > 0 && rvalue.val[0] == '$' {
-		variableValue, err := sh.evalVariable(rvalue.val)
+	robj, err := sh.evalArg(rvalue)
 
-		if err != nil {
-			return "", "", err
-		}
-
-		if len(variableValue) > 1 {
-			return "", "", fmt.Errorf("List is not comparable")
-		} else if len(variableValue) == 0 {
-			rstr = ""
-		} else {
-			rstr = variableValue[0]
-		}
-	} else {
-		rstr = rvalue.val
+	if err != nil {
+		return "", "", err
 	}
 
-	return lstr, rstr, nil
+	if lobj.Type() != StringType {
+		return "", "", newError("lvalue is not comparable.")
+	}
+
+	if robj.Type() != StringType {
+		return "", "", newError("rvalue is not comparable")
+	}
+
+	return lobj.Str(), robj.Str(), nil
 }
 
 func (sh *Shell) executeIfEqual(n *IfNode) error {
@@ -1156,9 +1123,7 @@ func (sh *Shell) executeIfNotEqual(n *IfNode) error {
 	return nil
 }
 
-func (sh *Shell) executeFn(fn *Shell, args []*Arg) ([]string, error) {
-	var err error
-
+func (sh *Shell) executeFn(fn *Shell, args []*Arg) (*Obj, error) {
 	if len(fn.argNames) != len(args) {
 		return nil, newError("Wrong number of arguments for function %s. Expected %d but found %d",
 			fn.name, len(fn.argNames), len(args))
@@ -1166,36 +1131,21 @@ func (sh *Shell) executeFn(fn *Shell, args []*Arg) ([]string, error) {
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
-		argStr := ""
 		argName := fn.argNames[i]
 
-		if arg.IsConcat() {
-			argStr, err = sh.executeConcat(arg)
+		obj, err := sh.evalArg(arg)
 
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			argStr = arg.Value()
+		if err != nil {
+			return nil, err
 		}
 
-		if len(argStr) > 0 && argStr[0] == '$' {
-			elemstr, err := sh.evalVariable(argStr)
-
-			if err != nil {
-				return nil, err
-			}
-
-			fn.vars[argName] = elemstr
-		} else {
-			fn.vars[argName] = append(make([]string, 0, 1), argStr)
-		}
+		fn.Setvar(argName, obj)
 	}
 
 	return fn.Execute()
 }
 
-func (sh *Shell) executeFnInv(n *FnInvNode) ([]string, error) {
+func (sh *Shell) executeFnInv(n *FnInvNode) (*Obj, error) {
 	if fn, ok := sh.GetFn(n.Name()); ok {
 		return sh.executeFn(fn, n.args)
 	}
@@ -1250,19 +1200,44 @@ func (sh *Shell) executeFor(n *ForNode) error {
 	id := n.Identifier()
 	inVar := n.InVar()
 
-	if len(inVar) < 2 {
-		return newError("Invalid variable '%s'", inVar)
-	}
-
-	varList, err := sh.evalVariable(inVar)
+	obj, err := sh.evalVariable(inVar)
 
 	if err != nil {
 		return err
 	}
 
-	for _, val := range varList {
-		sh.Setvar(id, append(make([]string, 0, 1), val))
+	if obj.Type() != ListType {
+		return newError("Invalid variable type in for range: %s", obj.Type())
+	}
+
+	for _, val := range obj.List() {
+		sh.Setvar(id, NewStrObj(val))
+
 		_, err = sh.ExecuteTree(n.Tree())
+
+		sh.Lock()
+
+		type interruptedError interface {
+			Interrupted() bool
+		}
+
+		if errInterrupted, ok := err.(interruptedError); ok && errInterrupted.Interrupted() {
+			return err
+		}
+
+		if sh.interrupted {
+			sh.interrupted = !sh.interrupted
+
+			sh.Unlock()
+
+			if err != nil {
+				return newErrInterrupted(err.Error())
+			}
+
+			return newErrInterrupted("loop interrupted")
+		}
+
+		sh.Unlock()
 
 		if err != nil {
 			return err
@@ -1338,9 +1313,9 @@ func (sh *Shell) dump(out io.Writer) {
 
 func (sh *Shell) executeDump(n *DumpNode) error {
 	var (
-		err   error
-		fname string
-		file  io.Writer
+		err  error
+		file io.Writer
+		obj  *Obj
 	)
 
 	fnameArg := n.Filename()
@@ -1348,29 +1323,19 @@ func (sh *Shell) executeDump(n *DumpNode) error {
 	if fnameArg == nil {
 		file = sh.stdout
 		goto execDump
-	} else if fnameArg.IsVariable() {
-		variableList, err := sh.evalVariable(fnameArg.Value())
-
-		if err != nil {
-			return err
-		}
-
-		if len(variableList) == 0 || len(variableList) > 1 {
-			return newError("Invalid variable used in dump")
-		}
-
-		fname = variableList[0]
-	} else if fnameArg.IsConcat() {
-		fname, err = sh.executeConcat(fnameArg)
-
-		if err != nil {
-			return err
-		}
-	} else {
-		fname = fnameArg.Value()
 	}
 
-	file, err = os.OpenFile(fname, os.O_CREATE|os.O_RDWR, 0644)
+	obj, err = sh.evalArg(fnameArg)
+
+	if err != nil {
+		return err
+	}
+
+	if obj.Type() != StringType {
+		return newError("dump does not support argument of type %s", obj.Type())
+	}
+
+	file, err = os.OpenFile(obj.Str(), os.O_CREATE|os.O_RDWR, 0644)
 
 	if err != nil {
 		return err

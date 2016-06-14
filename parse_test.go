@@ -129,11 +129,10 @@ func TestBasicAssignment(t *testing.T) {
 	assign := NewAssignmentNode(0)
 	assign.SetVarName("test")
 
-	elems := make([]*Arg, 1, 1)
-	elems[0] = NewArg(6, ArgQuoted)
-	elems[0].SetString("hello")
+	elem := NewArg(6, ArgQuoted)
+	elem.SetString("hello")
 
-	assign.SetValueList(elems)
+	assign.SetValue(elem)
 	ln.Push(assign)
 	expected.Root = ln
 
@@ -145,24 +144,23 @@ func TestBasicAssignment(t *testing.T) {
 	assign = NewAssignmentNode(0)
 	assign.SetVarName("test")
 
-	elems = make([]*Arg, 1, 1)
 	concats := make([]*Arg, 2, 2)
+
 	hello := NewArg(6, ArgQuoted)
 	hello.SetString("hello")
-	variable := NewArg(15, ArgVariable)
+	variable := NewArg(13, ArgVariable)
 	variable.SetString("$var")
 
 	concats[0] = hello
 	concats[1] = variable
 	arg1 := NewArg(6, ArgConcat)
 	arg1.SetConcat(concats)
-	elems[0] = arg1
 
-	assign.SetValueList(elems)
+	assign.SetValue(arg1)
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("test", `test="hello" + $var`, expected, t, true)
+	parserTestTable("test", `test="hello"+$var`, expected, t, true)
 
 	// invalid, requires quote
 	// test=hello
@@ -202,7 +200,10 @@ func TestParseListAssignment(t *testing.T) {
 	values[3] = labs
 
 	assign.SetVarName("test")
-	assign.SetValueList(values)
+
+	elem := NewArg(7, ArgList)
+	elem.SetList(values)
+	assign.SetValue(elem)
 
 	ln.Push(assign)
 	expected.Root = ln
@@ -393,7 +394,7 @@ func TestParseCd(t *testing.T) {
 	expected := NewTree("test cd")
 	ln := NewListNode()
 	cd := NewCdNode(0)
-	arg := NewArg(0, ArgUnquoted)
+	arg := NewArg(3, ArgUnquoted)
 	arg.SetString("/tmp")
 	cd.SetDir(arg)
 	ln.Push(cd)
@@ -416,8 +417,9 @@ func TestParseCd(t *testing.T) {
 	assign.SetVarName("HOME")
 	arg = NewArg(6, ArgQuoted)
 	arg.SetString("/")
-	args := append(make([]*Arg, 0, 1), arg)
-	assign.SetValueList(args)
+
+	assign.SetValue(arg)
+
 	set := NewSetAssignmentNode(9, "HOME")
 	cd = NewCdNode(21)
 	pwd := NewCommandNode(24, "pwd")
@@ -441,10 +443,10 @@ pwd`, expected, t, true)
 	assign.SetVarName("GOPATH")
 	arg = NewArg(8, ArgQuoted)
 	arg.SetString("/home/i4k/gopath")
-	args = append(make([]*Arg, 0, 1), arg)
-	assign.SetValueList(args)
+
+	assign.SetValue(arg)
 	cd = NewCdNode(26)
-	path := NewArg(0, ArgVariable)
+	path := NewArg(29, ArgVariable)
 	path.SetString("$GOPATH")
 	cd.SetDir(path)
 
@@ -463,13 +465,13 @@ cd $GOPATH`, expected, t, true)
 	assign.SetVarName("GOPATH")
 	arg = NewArg(8, ArgQuoted)
 	arg.SetString("/home/i4k/gopath")
-	args = append(make([]*Arg, 0, 1), arg)
-	assign.SetValueList(args)
+
+	assign.SetValue(arg)
 	cd = NewCdNode(26)
-	path = NewArg(0, ArgConcat)
-	varg := NewArg(0, ArgVariable)
+	path = NewArg(29, ArgConcat)
+	varg := NewArg(29, ArgVariable)
 	varg.SetString("$GOPATH")
-	src := NewArg(0, ArgQuoted)
+	src := NewArg(38, ArgQuoted)
 	src.SetString("/src/github.com")
 	concat := make([]*Arg, 0, 2)
 	concat = append(concat, varg)
@@ -546,7 +548,7 @@ func TestParseImport(t *testing.T) {
 	expected := NewTree("test import")
 	ln := NewListNode()
 	importStmt := NewImportNode(0)
-	importStmt.SetPath(newSimpleArg(0, "env.sh", ArgQuoted))
+	importStmt.SetPath(newSimpleArg(7, "env.sh", ArgUnquoted))
 	ln.Push(importStmt)
 	expected.Root = ln
 
@@ -555,7 +557,7 @@ func TestParseImport(t *testing.T) {
 	expected = NewTree("test import with quotes")
 	ln = NewListNode()
 	importStmt = NewImportNode(0)
-	importStmt.SetPath(newSimpleArg(0, "env.sh", ArgQuoted))
+	importStmt.SetPath(newSimpleArg(8, "env.sh", ArgQuoted))
 	ln.Push(importStmt)
 	expected.Root = ln
 
@@ -867,7 +869,7 @@ func TestParseIssue22(t *testing.T) {
 	ifBlock := NewListNode()
 
 	cdNode := NewCdNode(36)
-	arg1 := NewArg(0, ArgVariable)
+	arg1 := NewArg(39, ArgVariable)
 	arg1.SetString("$GOPATH")
 	cdNode.SetDir(arg1)
 	ifBlock.Push(cdNode)
@@ -944,6 +946,7 @@ func TestParseReturn(t *testing.T) {
 	ln = NewListNode()
 
 	ret = NewReturnNode(0)
+
 	listvalues := make([]*Arg, 2)
 	arg1 := NewArg(9, ArgQuoted)
 	arg1.SetString("val1")
@@ -952,7 +955,10 @@ func TestParseReturn(t *testing.T) {
 	listvalues[0] = arg1
 	listvalues[1] = arg2
 
-	ret.SetReturn(listvalues)
+	retReturn := NewArg(7, ArgList)
+	retReturn.SetList(listvalues)
+
+	ret.SetReturn(retReturn)
 
 	ln.Push(ret)
 	expected.Root = ln
@@ -963,12 +969,10 @@ func TestParseReturn(t *testing.T) {
 	ln = NewListNode()
 
 	ret = NewReturnNode(0)
-	listvalues = make([]*Arg, 1)
 	arg1 = NewArg(7, ArgVariable)
 	arg1.SetString("$var")
-	listvalues[0] = arg1
 
-	ret.SetReturn(listvalues)
+	ret.SetReturn(arg1)
 
 	ln.Push(ret)
 	expected.Root = ln
@@ -979,12 +983,10 @@ func TestParseReturn(t *testing.T) {
 	ln = NewListNode()
 
 	ret = NewReturnNode(0)
-	listvalues = make([]*Arg, 1)
 	arg1 = NewArg(8, ArgQuoted)
 	arg1.SetString("value")
-	listvalues[0] = arg1
 
-	ret.SetReturn(listvalues)
+	ret.SetReturn(arg1)
 
 	ln.Push(ret)
 	expected.Root = ln

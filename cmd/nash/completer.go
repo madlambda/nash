@@ -33,13 +33,22 @@ func (c *Completer) Do(line []rune, pos int) (newLine [][]rune, offset int) {
 
 	pathVar, ok := c.sh.GetEnv("PATH")
 
-	if !ok {
+	if !ok || (pathVar.Type() != nash.StringType && pathVar.Type() != nash.ListType) {
 		return
+	}
+
+	var pathList []string
+
+	if pathVar.Type() == nash.StringType {
+		pathList = make([]string, 1)
+		pathList[0] = pathVar.Str()
+	} else {
+		pathList = pathVar.List()
 	}
 
 	path := make([]string, 0, 256)
 
-	for _, pathVal := range pathVar {
+	for _, pathVal := range pathList {
 		pathparts := strings.Split(pathVal, ":")
 		if len(pathparts) == 1 {
 			path = append(path, pathparts[0])
