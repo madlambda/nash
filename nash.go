@@ -746,9 +746,10 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 
 				if len(c.args) > len(fn.argNames) {
 					err = newError("Too much arguments for"+
-						" function '%s'. It expects %d args",
+						" function '%s'. It expects %d args, but given %d. Arguments: %q",
 						fn.name,
-						len(fn.argNames))
+						len(fn.argNames),
+						len(c.args), c.args)
 					goto cmdError
 				}
 
