@@ -210,6 +210,16 @@ func (sh *Shell) SetEnv(name string, value []string) {
 	}
 
 	sh.env[name] = value
+
+	if len(value) == 0 {
+		return
+	}
+
+	if len(value) > 1 {
+		os.Setenv(name, strings.Join(value, ":"))
+	} else {
+		os.Setenv(name, value[0])
+	}
 }
 
 func (sh *Shell) SetEnviron(env Env) {
