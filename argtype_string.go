@@ -4,9 +4,9 @@ package nash
 
 import "fmt"
 
-const _ArgType_name = "ArgQuotedArgUnquotedArgVariableArgConcat"
+const _ArgType_name = "ArgQuotedArgUnquotedArgVariableArgListArgConcat"
 
-var _ArgType_index = [...]uint8{0, 9, 20, 31, 40}
+var _ArgType_index = [...]uint8{0, 9, 20, 31, 38, 47}
 
 func (i ArgType) String() string {
 	i -= 1
