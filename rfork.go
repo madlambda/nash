@@ -82,7 +82,7 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 		Env:  buildenv(sh.Environ()),
 	}
 
-	forkFlags, err := getflags(rfork.arg.val)
+	forkFlags, err := getflags(rfork.arg.Value())
 
 	if err != nil {
 		return err

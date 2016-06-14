@@ -234,7 +234,7 @@ func lexStart(l *lexer) stateFn {
 	case r == '#':
 		return lexComment
 
-	case isIdentifier(r):
+	case isIdentifier(r) || r == '$':
 		return lexIdentifier
 
 	case isSafePath(r):
@@ -284,6 +284,11 @@ func lexIdentifier(l *lexer) stateFn {
 		l.next()
 		l.emit(itemLeftParen)
 		return lexInsideFnInv
+	}
+
+	if word[0] == '$' {
+		return l.errorf("Unexpected '$' at pos %d. Variable can only start a statement if it's a function invocation",
+			l.pos)
 	}
 
 	// name=val

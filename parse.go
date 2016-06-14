@@ -417,9 +417,9 @@ func (p *Parser) parseAssignValue(name item) (Node, error) {
 			return nil, err
 		}
 
-		n.SetValueList(append(make([]*Arg, 0, 1), arg))
+		n.SetValue(arg)
 	} else if it.typ == itemListOpen {
-		p.next()
+		lit := p.next()
 
 		values := make([]*Arg, 0, 128)
 
@@ -433,7 +433,10 @@ func (p *Parser) parseAssignValue(name item) (Node, error) {
 			return nil, newUnfinishedListError()
 		}
 
-		n.SetValueList(values)
+		listArg := NewArg(lit.pos, ArgList)
+		listArg.SetList(values)
+
+		n.SetValue(listArg)
 	} else {
 		return nil, fmt.Errorf("Unexpected token '%v'", it)
 	}
@@ -782,7 +785,9 @@ func (p *Parser) parseReturn() (Node, error) {
 		return ret, nil
 	}
 
-	p.next()
+	retIt = p.next()
+
+	retPos := retIt.pos
 
 	if valueIt.typ == itemListOpen {
 		values := make([]*Arg, 0, 128)
@@ -797,17 +802,17 @@ func (p *Parser) parseReturn() (Node, error) {
 			return nil, newUnfinishedListError()
 		}
 
-		ret.SetReturn(values)
+		listArg := NewArg(retPos, ArgList)
+		listArg.SetList(values)
+
+		ret.SetReturn(listArg)
 		return ret, nil
 	}
 
-	values := make([]*Arg, 1)
-
 	arg := NewArg(valueIt.pos, 0)
 	arg.SetItem(valueIt)
-	values[0] = arg
 
-	ret.SetReturn(values)
+	ret.SetReturn(arg)
 	return ret, nil
 }
 

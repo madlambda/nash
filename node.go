@@ -58,7 +58,7 @@ type (
 		NodeType
 		Pos
 		name string
-		list []*Arg
+		val  *Arg
 	}
 
 	CmdAssignmentNode struct {
@@ -83,13 +83,14 @@ type (
 		cmds []*CommandNode
 	}
 
-	// Arg is a command argument
+	// Arg is a command or fn argument
 	Arg struct {
 		NodeType
 		Pos
 
 		argType ArgType
-		val     string
+		str     string
+		list    []*Arg
 		concat  []*Arg
 	}
 
@@ -159,7 +160,7 @@ type (
 	ReturnNode struct {
 		NodeType
 		Pos
-		arg []*Arg
+		arg *Arg
 	}
 
 	BindFnNode struct {
@@ -254,6 +255,7 @@ const (
 	ArgQuoted ArgType = iota + 1
 	ArgUnquoted
 	ArgVariable
+	ArgList
 	ArgConcat
 )
 
@@ -297,16 +299,9 @@ func (n *ImportNode) SetPath(arg *Arg) {
 // Path returns the path of import
 func (n *ImportNode) Path() *Arg { return n.path }
 
-// Filename returns the path of import as an expanded string
-func (n *ImportNode) Filename() string { return n.path.val }
-
 // String returns the string representation of the import
 func (n *ImportNode) String() string {
-	if n.path.IsQuoted() {
-		return `import "` + n.path.val + `"`
-	} else {
-		return "import " + n.path.val
-	}
+	return `import ` + n.path.String()
 }
 
 // NewSetAssignmentNode creates a new assignment node
@@ -347,57 +342,25 @@ func (n *AssignmentNode) SetVarName(a string) {
 	n.name = a
 }
 
-// SetValueList sets the value of the variable
-func (n *AssignmentNode) SetValueList(alist []*Arg) {
-	n.list = alist
+// SetValueList sets the value of the list
+func (n *AssignmentNode) SetValue(val *Arg) {
+	n.val = val
+}
+
+// Value returns the assigned object
+func (n *AssignmentNode) Value() *Arg {
+	return n.val
 }
 
 // String returns the string representation of assignment statement
 func (n *AssignmentNode) String() string {
-	ret := n.name + "="
+	obj := n.val
 
-	if len(n.list) == 1 {
-		elem := n.list[0]
-
-		if !elem.IsConcat() {
-			if elem.IsVariable() {
-				return n.name + `=` + elem.val
-			}
-
-			return n.name + `="` + elem.val + `"`
-		}
-
-		for i := 0; i < len(elem.concat); i++ {
-			e := elem.concat[i]
-
-			if e.IsVariable() {
-				ret += e.val
-			} else {
-				ret += `"` + e.val + `"`
-			}
-
-			if i < (len(elem.concat) - 1) {
-				ret += " + "
-			}
-		}
-
-		return ret
-	} else if len(n.list) == 0 {
-		return n.name + `=""`
+	if obj.ArgType() == 0 || obj.ArgType() == ArgUnquoted || obj.ArgType() > ArgConcat {
+		return "<unknown>"
 	}
 
-	ret += "("
-
-	for i := 0; i < len(n.list); i++ {
-		ret += n.list[i].val
-
-		if i < len(n.list)-1 {
-			ret += " "
-		}
-	}
-
-	ret += ")"
-	return ret
+	return n.name + "=" + obj.String()
 }
 
 // NewCmdAssignmentNode creates a new command assignment
@@ -591,7 +554,7 @@ func (n *RforkNode) Tree() *Tree {
 
 // String returns the string representation of rfork statement
 func (n *RforkNode) String() string {
-	rforkstr := "rfork " + n.arg.val
+	rforkstr := "rfork " + n.arg.String()
 	tree := n.Tree()
 
 	if tree != nil {
@@ -635,30 +598,12 @@ func (n *CdNode) String() string {
 		return "cd"
 	}
 
-	if dir.IsQuoted() {
-		return `cd "` + dir.val + `"`
+	if dir.ArgType() != ArgQuoted && dir.ArgType() != ArgUnquoted &&
+		dir.ArgType() != ArgConcat && dir.ArgType() != ArgVariable {
+		return "cd <invalid path>"
 	}
 
-	if dir.IsUnquoted() || dir.IsVariable() {
-		return `cd ` + dir.val
-	}
-
-	if dir.IsConcat() {
-		ret := "cd "
-		for i := 0; i < len(dir.concat); i++ {
-			a := dir.concat[i]
-
-			ret += a.String()
-
-			if i < (len(dir.concat) - 1) {
-				ret += "+"
-			}
-		}
-
-		return ret
-	}
-
-	panic("internal error")
+	return "cd " + dir.String()
 }
 
 // NewArg creates a new argument
@@ -670,24 +615,36 @@ func NewArg(pos Pos, argType ArgType) *Arg {
 	}
 }
 
-// SetArgType set the type of argument (ArgQuoted, ArgUnquoted, ArgVariable)
+// SetArgType set the type of argument (ArgQuoted, ArgUnquoted, ArgVariable, ArgList)
 func (n *Arg) SetArgType(t ArgType) {
 	n.argType = t
 }
 
+// ArgType returns the argument type
+func (n *Arg) ArgType() ArgType { return n.argType }
+
 // SetString set the argument string value
 func (n *Arg) SetString(name string) {
-	n.val = name
+	n.str = name
 }
 
 // Value returns the argument string value
 func (n *Arg) Value() string {
-	return n.val
+	return n.str
+}
+
+// List returns the argument list
+func (n *Arg) List() []*Arg {
+	return n.list
 }
 
 // SetConcat set the concatenation parts
 func (n *Arg) SetConcat(v []*Arg) {
 	n.concat = v
+}
+
+func (n *Arg) SetList(v []*Arg) {
+	n.list = v
 }
 
 // SetItem is a helper to set an argument based on the lexer itemType
@@ -720,10 +677,13 @@ func (n *Arg) IsVariable() bool { return n.argType == ArgVariable }
 // IsConcat returns true if argument is a concatenation
 func (n *Arg) IsConcat() bool { return n.argType == ArgConcat }
 
+// IsList returns if argument is a list
+func (n *Arg) IsList() bool { return n.argType == ArgList }
+
 // String returns the string representation of argument
 func (n Arg) String() string {
 	if n.IsQuoted() {
-		return "\"" + n.val + "\""
+		return "\"" + n.str + "\""
 	} else if n.IsConcat() {
 		ret := ""
 
@@ -731,9 +691,9 @@ func (n Arg) String() string {
 			a := n.concat[i]
 
 			if a.IsQuoted() {
-				ret += `"` + a.val + `"`
+				ret += `"` + a.Value() + `"`
 			} else {
-				ret += a.val
+				ret += a.Value()
 			}
 
 			if i < (len(n.concat) - 1) {
@@ -742,9 +702,23 @@ func (n Arg) String() string {
 		}
 
 		return ret
+	} else if n.IsList() {
+		ret := "("
+
+		l := n.List()
+
+		for i := 0; i < len(l); i++ {
+			ret += l[i].String()
+
+			if i < len(l)-1 {
+				ret += " "
+			}
+		}
+
+		return ret + ")"
 	}
 
-	return n.val
+	return n.Value()
 }
 
 // NewCommentNode creates a new node for comments
@@ -827,17 +801,8 @@ func (n *IfNode) ElseTree() *Tree { return n.elseTree }
 func (n *IfNode) String() string {
 	var lstr, rstr string
 
-	if n.lvalue.IsQuoted() {
-		lstr = `"` + n.lvalue.val + `"`
-	} else {
-		lstr = n.lvalue.val // in case of variable
-	}
-
-	if n.rvalue.IsQuoted() {
-		rstr = `"` + n.rvalue.val + `"`
-	} else {
-		rstr = n.rvalue.val
-	}
+	lstr = n.lvalue.String()
+	rstr = n.rvalue.String()
 
 	ifStr := "if " + lstr + " " + n.op + " " + rstr + " {\n"
 
@@ -1054,27 +1019,17 @@ func NewReturnNode(pos Pos) *ReturnNode {
 }
 
 // SetReturn set the arguments to return
-func (n *ReturnNode) SetReturn(a []*Arg) {
+func (n *ReturnNode) SetReturn(a *Arg) {
 	n.arg = a
 }
 
 // Return returns the argument being returned
-func (n *ReturnNode) Return() []*Arg { return n.arg }
+func (n *ReturnNode) Return() *Arg { return n.arg }
 
 // String returns the string representation of return statement
 func (n *ReturnNode) String() string {
 	if n.arg != nil {
-		if len(n.arg) > 1 || len(n.arg) == 0 {
-			values := make([]string, 0, len(n.arg))
-
-			for _, a := range n.arg {
-				values = append(values, a.String())
-			}
-
-			return "return (" + strings.Join(values, " ") + ")"
-		}
-
-		return "return " + n.arg[0].String()
+		return "return " + n.arg.String()
 	}
 
 	return "return"

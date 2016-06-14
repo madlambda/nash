@@ -36,8 +36,8 @@ func compareArg(expected *Arg, value *Arg) (bool, error) {
 		return ok, fmt.Errorf(" CompareArgs(%v, %v) -> %s", expected, value, err.Error())
 	}
 
-	if expected.val != value.val {
-		return false, fmt.Errorf("Argument value differs: '%s' != '%s'", expected.val, value.val)
+	if expected.Value() != value.Value() {
+		return false, fmt.Errorf("Argument value differs: '%s' != '%s'", expected.Value(), value.Value())
 	}
 
 	ev := expected
@@ -48,8 +48,10 @@ func compareArg(expected *Arg, value *Arg) (bool, error) {
 	}
 
 	if ev.IsConcat() != vv.IsConcat() ||
-		ev.IsVariable() != vv.IsVariable() {
-		return false, fmt.Errorf("Variable differs in isConcat(%v, %v) || isVariable(%v, %v)\nExpected Node(%s) = %v\nParsed node(%s): %v", ev.IsConcat(), vv.IsConcat(), ev.IsVariable(), vv.IsVariable(), ev.argType, ev, vv.argType, vv)
+		ev.IsVariable() != vv.IsVariable() ||
+		ev.IsList() != vv.IsList() {
+		return false, fmt.Errorf("Variable differs in isConcat(%v, %v) || isVariable(%v, %v) || isList(%v, %v)\nExpected Node(%s) = %v\nParsed node(%s): %v", ev.IsConcat(), vv.IsConcat(), ev.IsVariable(), vv.IsVariable(),
+			ev.IsList(), vv.IsList(), ev.argType, ev, vv.argType, vv)
 	}
 
 	if len(ev.concat) != len(vv.concat) {
@@ -59,6 +61,22 @@ func compareArg(expected *Arg, value *Arg) (bool, error) {
 	for j := 0; j < len(ev.concat); j++ {
 		ce := ev.concat[j]
 		cv := vv.concat[j]
+
+		ok, err := compareArg(ce, cv)
+
+		if !ok {
+			return ok, err
+		}
+
+	}
+
+	if len(ev.List()) != len(vv.List()) {
+		return false, fmt.Errorf("Variable list length differs (%v, %v). %d != %d", ev, vv, len(ev.List()), len(vv.List()))
+	}
+
+	for j := 0; j < len(ev.List()); j++ {
+		ce := ev.list[j]
+		cv := vv.list[j]
 
 		ok, err := compareArg(ce, cv)
 
@@ -96,8 +114,8 @@ func compareImportNode(expected, value *ImportNode) (bool, error) {
 		return false, fmt.Errorf("One of the nodecommand are nil")
 	}
 
-	if expected.path.val != value.path.val {
-		return false, fmt.Errorf("Expected.path.val (%v) != value.path.val (%v)", expected.path.val, value.path.val)
+	if ok, err := compareArg(expected.path, value.path); !ok {
+		return false, err
 	}
 
 	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
@@ -116,8 +134,8 @@ func compareCdNode(expected, value *CdNode) (bool, error) {
 		return false, fmt.Errorf("One of the nodecommand are nil")
 	}
 
-	if expected.dir != nil && value.dir != nil && expected.dir.val != value.dir.val {
-		return false, fmt.Errorf("Expected.dir.val (%v) != value.dir.val (%v)", expected.dir.val, value.dir.val)
+	if ok, err := compareArg(expected.dir, value.dir); !ok {
+		return false, err
 	}
 
 	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
@@ -248,19 +266,8 @@ func compareAssignmentNode(expected, value *AssignmentNode) (bool, error) {
 		return false, fmt.Errorf("Variable name differs. '%s' != '%s'", expected.name, value.name)
 	}
 
-	if len(expected.list) != len(value.list) {
-		return false, fmt.Errorf("Variable list value length differs. %d != %d", len(expected.list), len(value.list))
-	}
-
-	for i := 0; i < len(expected.list); i++ {
-		ev := expected.list[i]
-		vv := value.list[i]
-
-		ok, err := compareArg(ev, vv)
-
-		if !ok {
-			return ok, err
-		}
+	if ok, err := compareArg(expected.Value(), value.Value()); !ok {
+		return false, err
 	}
 
 	return true, nil
@@ -389,17 +396,8 @@ func compareReturnNode(expected, value *ReturnNode) (bool, error) {
 	erets := expected.Return()
 	vrets := value.Return()
 
-	if len(erets) != len(vrets) {
-		return false, fmt.Errorf("compareReturnNode(%v, %v) -> Length differs (%d) != (%d)", expected, value, len(erets), len(vrets))
-	}
-
-	for i := 0; i < len(erets); i++ {
-		eret := erets[i]
-		vret := vrets[i]
-
-		if ok, err := compareArg(eret, vret); !ok {
-			return ok, err
-		}
+	if ok, err := compareArg(erets, vrets); !ok {
+		return false, err
 	}
 
 	return true, nil

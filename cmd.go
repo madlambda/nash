@@ -96,8 +96,6 @@ func (cmd *Command) SetFDMap(id int, value interface{}) {
 }
 
 func (cmd *Command) SetArgs(cargs []*Arg) error {
-	var err error
-
 	sh := cmd.sh
 	args := make([]string, len(cargs)+1)
 	args[0] = cmd.name
@@ -107,28 +105,20 @@ func (cmd *Command) SetArgs(cargs []*Arg) error {
 
 		carg := cargs[i]
 
-		if carg.IsConcat() {
-			argVal, err = sh.executeConcat(carg)
+		obj, err := sh.evalArg(carg)
 
-			if err != nil {
-				return err
-			}
-		} else if carg.IsVariable() {
-			arglist, err := sh.evalVariable(carg.Value())
+		if err != nil {
+			return err
+		}
 
-			if err != nil {
-				return err
-			}
-
-			if len(arglist) == 0 {
-				return newError("Variable '%s' not set", carg.Value())
-			} else if len(arglist) == 1 {
-				argVal = arglist[0]
-			} else if len(arglist) > 1 {
-				argVal = strings.Join(arglist, " ")
-			}
+		if obj.Type() == StringType {
+			argVal = obj.Str()
+		} else if obj.Type() == ListType {
+			argVal = strings.Join(obj.List(), " ")
+		} else if obj.Type() == FnType {
+			return newError("Impossible to pass function to command as argument.")
 		} else {
-			argVal = carg.Value()
+			return newError("Invalid argument '%v'", carg)
 		}
 
 		args[i+1] = argVal
@@ -159,38 +149,60 @@ func (cmd *Command) SetRedirects(redirDecls []*RedirectNode) error {
 }
 
 func (cmd *Command) openRedirectLocation(location *Arg) (io.WriteCloser, error) {
-	var protocol string
+	var (
+		protocol, locationStr string
+	)
 
-	if len(location.val) > 6 {
-		if location.val[0:6] == "tcp://" {
+	if !location.IsVariable() && !location.IsQuoted() && !location.IsUnquoted() {
+		return nil, newError("Invalid argument of type %v in redirection", location.ArgType())
+	}
+
+	if location.IsQuoted() || location.IsUnquoted() {
+		locationStr = location.Value()
+	} else {
+		obj, err := cmd.sh.evalVariable(location.Value())
+
+		if err != nil {
+			return nil, err
+		}
+
+		if obj.Type() != StringType {
+			return nil, newError("Invalid object type in redirection: %+v", obj.Type())
+		}
+
+		locationStr = obj.Str()
+	}
+
+	if len(locationStr) > 6 {
+		if locationStr[0:6] == "tcp://" {
 			protocol = "tcp"
-		} else if location.val[0:6] == "udp://" {
+		} else if locationStr[0:6] == "udp://" {
 			protocol = "udp"
-		} else if len(location.val) > 7 && location.val[0:7] == "unix://" {
+		} else if len(locationStr) > 7 && locationStr[0:7] == "unix://" {
 			protocol = "unix"
 		}
 	}
 
 	if protocol == "" {
-		return os.OpenFile(location.val, os.O_RDWR|os.O_CREATE, 0644)
+		return os.OpenFile(locationStr, os.O_RDWR|os.O_CREATE, 0644)
 	}
 
 	switch protocol {
 	case "tcp", "udp":
-		netParts := strings.Split(location.val[6:], ":")
+		netParts := strings.Split(locationStr[6:], ":")
 
 		if len(netParts) != 2 {
-			return nil, newError("Invalid tcp/udp address: %s", location.val)
+			return nil, newError("Invalid tcp/udp address: %s", locationStr)
 		}
 
 		url := netParts[0] + ":" + netParts[1]
 
 		return net.Dial(protocol, url)
 	case "unix":
-		return net.Dial(protocol, location.val[7:])
+		return net.Dial(protocol, locationStr[7:])
 	}
 
-	return nil, newError("Unexpected redirection value: %s", location.val)
+	return nil, newError("Unexpected redirection value: %s", locationStr)
 }
 
 func (cmd *Command) buildRedirect(redirDecl *RedirectNode) error {

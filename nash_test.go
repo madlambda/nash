@@ -1311,6 +1311,45 @@ test()`)
 	}
 }
 
+func TestExecuteFnAsFirstClass(t *testing.T) {
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.SetNashdPath(nashdPath)
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("test fn by arg", `
+        fn printer(val) {
+                echo -n $val
+        }
+
+        fn success(print, val) {
+                $print("[SUCCESS] " + $val)
+        }
+
+        success($printer, "Command executed!")
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected := `[SUCCESS] Command executed!`
+
+	if expected != string(out.Bytes()) {
+		t.Errorf("Differs: '%s' != '%s'", expected, string(out.Bytes()))
+		return
+	}
+}
+
 func TestExecuteDump(t *testing.T) {
 	sh, err := NewShell(false)
 

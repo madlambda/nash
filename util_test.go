@@ -7,25 +7,18 @@ import (
 
 func TestBuildEnv(t *testing.T) {
 	env := Env{
-		"teste": []string{},
+		"teste": nil,
 	}
 
 	penv := buildenv(env)
 
-	if len(penv) != 1 {
+	if len(penv) != 0 {
 		t.Errorf("Invalid env length")
 		return
 	}
 
-	if penv[0] != "teste=" {
-		t.Errorf("Invalid env value: %s", penv[0])
-		return
-	}
-
 	env = Env{
-		"PATH": []string{
-			"/bin:/usr/bin",
-		},
+		"PATH": NewStrObj("/bin:/usr/bin"),
 	}
 
 	penv = buildenv(env)
@@ -41,10 +34,10 @@ func TestBuildEnv(t *testing.T) {
 	}
 
 	env = Env{
-		"PATH": []string{
+		"PATH": NewListObj([]string{
 			"/bin",
 			"/usr/bin",
-		},
+		}),
 	}
 
 	penv = buildenv(env)
@@ -60,13 +53,11 @@ func TestBuildEnv(t *testing.T) {
 	}
 
 	env = Env{
-		"PATH": []string{
+		"PATH": NewListObj([]string{
 			"/bin",
 			"/usr/bin",
-		},
-		"path": []string{
-			"abracadabra",
-		},
+		}),
+		"path": NewStrObj("abracadabra"),
 	}
 
 	penv = buildenv(env)
