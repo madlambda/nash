@@ -20,7 +20,7 @@ var (
 
 	version     bool
 	debug       bool
-	file        string
+	files       []string
 	command     string
 	addr        string
 	noInit      bool
@@ -30,7 +30,6 @@ var (
 func init() {
 	flag.BoolVar(&version, "version", false, "Show version")
 	flag.BoolVar(&debug, "debug", false, "enable debug")
-	flag.StringVar(&file, "file", "", "script file")
 	flag.BoolVar(&noInit, "noinit", false, "do not load init file")
 	flag.StringVar(&command, "c", "", "command to execute")
 	flag.BoolVar(&interactive, "i", false, "Interactive mode (default if no args)")
@@ -47,6 +46,10 @@ func main() {
 	if version {
 		fmt.Printf("%s\n", VersionString)
 		os.Exit(0)
+	}
+
+	if len(flag.Args()) > 0 {
+		files = flag.Args()
 	}
 
 	shell, err := nash.NewShell(debug)
@@ -98,7 +101,7 @@ func main() {
 		return
 	}
 
-	if file != "" {
+	for _, file := range files {
 		err = shell.ExecuteFile(file)
 
 		if err != nil {
@@ -114,7 +117,7 @@ func main() {
 		}
 	}
 
-	if (file == "" && command == "") || interactive {
+	if (len(files) == 0 && command == "") || interactive {
 		err = cli(shell)
 
 		if err != nil {
