@@ -90,14 +90,36 @@ const (
 	defPrompt = "\033[31mλ>\033[0m "
 )
 
-// NewEnv creates a new environment from old one
-func NewEnv() (Env, Var, error) {
-	env := make(Env)
-	vars := make(Var)
+// NewShell creates a new shell object
+func NewShell(debug bool) (*Shell, error) {
+	sh := &Shell{
+		name:      "parent scope",
+		isFn:      false,
+		debug:     debug,
+		log:       NewLog(logNS, debug),
+		nashdPath: nashdAutoDiscover(),
+		stdout:    os.Stdout,
+		stderr:    os.Stderr,
+		stdin:     os.Stdin,
+		env:       make(Env),
+		vars:      make(Var),
+		fns:       make(Fns),
+		binds:     make(Fns),
+		argNames:  make([]string, 0, 16),
+		Mutex:     &sync.Mutex{},
+	}
+
+	sh.setup()
+
+	return sh, nil
+}
+
+// initEnv creates a new environment from old one
+func (sh *Shell) initEnv() error {
 	processEnv := os.Environ()
 
-	env["argv"] = os.Args
-	vars["argv"] = os.Args
+	sh.Setenv("argv", os.Args)
+	sh.Setvar("argv", os.Args)
 
 	for _, penv := range processEnv {
 		var value []string
@@ -109,64 +131,29 @@ func NewEnv() (Env, Var, error) {
 			value = append(make([]string, 0, 256), p[1:]...)
 		}
 
-		env[p[0]] = value
-		vars[p[0]] = value
+		sh.Setenv(p[0], value)
+		sh.Setvar(p[0], value)
 	}
 
 	pidVal := append(make([]string, 0, 1), strconv.Itoa(os.Getpid()))
 
-	env["PID"] = pidVal
-	vars["PID"] = pidVal
+	sh.Setenv("PID", pidVal)
+	sh.Setvar("PID", pidVal)
 
 	shellVal := append(make([]string, 0, 1), os.Args[0])
-	env["SHELL"] = shellVal
-	vars["SHELL"] = shellVal
+	sh.Setenv("SHELL", shellVal)
+	sh.Setvar("SHELL", shellVal)
 
 	cwd, err := os.Getwd()
 
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
-	env["PWD"] = append(make([]string, 0, 1), cwd)
-	vars["PWD"] = append(make([]string, 0, 1), cwd)
+	sh.Setenv("PWD", append(make([]string, 0, 1), cwd))
+	sh.Setvar("PWD", append(make([]string, 0, 1), cwd))
 
-	return env, vars, nil
-}
-
-// NewShell creates a new shell object
-func NewShell(debug bool) (*Shell, error) {
-	env, vars, err := NewEnv()
-
-	if err != nil {
-		return nil, err
-	}
-
-	if env["PROMPT"] == nil {
-		env["PROMPT"] = append(make([]string, 0, 1), defPrompt)
-		vars["PROMPT"] = append(make([]string, 0, 1), defPrompt)
-	}
-
-	sh := &Shell{
-		name:      "parent scope",
-		isFn:      false,
-		debug:     debug,
-		log:       NewLog(logNS, debug),
-		nashdPath: nashdAutoDiscover(),
-		stdout:    os.Stdout,
-		stderr:    os.Stderr,
-		stdin:     os.Stdin,
-		env:       env,
-		vars:      vars,
-		fns:       make(Fns),
-		binds:     make(Fns),
-		argNames:  make([]string, 0, 16),
-		Mutex:     &sync.Mutex{},
-	}
-
-	sh.setup()
-
-	return sh, nil
+	return nil
 }
 
 // Reset internal state
@@ -203,9 +190,9 @@ func (sh *Shell) GetEnv(name string) ([]string, bool) {
 	return value, ok
 }
 
-func (sh *Shell) SetEnv(name string, value []string) {
+func (sh *Shell) Setenv(name string, value []string) {
 	if sh.parent != nil {
-		sh.parent.SetEnv(name, value)
+		sh.parent.Setenv(name, value)
 		return
 	}
 
@@ -252,7 +239,7 @@ func (sh *Shell) GetFn(name string) (*Shell, bool) {
 	return nil, false
 }
 
-func (sh *Shell) SetVar(name string, value []string) {
+func (sh *Shell) Setvar(name string, value []string) {
 	sh.vars[name] = value
 }
 
@@ -333,8 +320,21 @@ func (sh *Shell) String() string {
 	return string(out.Bytes())
 }
 
-func (sh *Shell) setup() {
+func (sh *Shell) setup() error {
+	err := sh.initEnv()
+
+	if err != nil {
+		return err
+	}
+
+	if sh.env["PROMPT"] == nil {
+		sh.Setenv("PROMPT", append(make([]string, 0, 1), defPrompt))
+		sh.Setvar("PROMPT", append(make([]string, 0, 1), defPrompt))
+	}
+
 	sh.setupSignals()
+
+	return nil
 }
 
 func (sh *Shell) setupSignals() {
@@ -815,7 +815,7 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 		goto cmdError
 	}
 
-	sh.SetVar("status", append(make([]string, 0, 1), "0"))
+	sh.Setvar("status", append(make([]string, 0, 1), "0"))
 
 	return nil
 
@@ -828,7 +828,7 @@ cmdError:
 
 	statusVal := append(make([]string, 0, 1), strconv.Itoa(status))
 
-	sh.SetVar("status", statusVal)
+	sh.Setvar("status", statusVal)
 
 	sh.Lock()
 	defer sh.Unlock()
@@ -865,7 +865,7 @@ func (sh *Shell) executeSetAssignment(v *SetAssignmentNode) error {
 		return fmt.Errorf("Variable '%s' not set", varName)
 	}
 
-	sh.SetEnv(varName, varValue)
+	sh.Setenv(varName, varValue)
 
 	return nil
 }
@@ -924,7 +924,7 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 			return err
 		}
 
-		sh.SetVar(v.Name(), fnValues)
+		sh.Setvar(v.Name(), fnValues)
 		return nil
 	default:
 		err = newError("Unexpected node in assignment: %s", assign.String())
@@ -952,7 +952,7 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 		strelems = append(make([]string, 0, 1), outStr)
 	}
 
-	sh.SetVar(v.Name(), strelems)
+	sh.Setvar(v.Name(), strelems)
 	return nil
 }
 
@@ -986,7 +986,7 @@ func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 		}
 	}
 
-	sh.SetVar(v.name, strelems)
+	sh.Setvar(v.name, strelems)
 	return nil
 }
 
@@ -1067,10 +1067,10 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 
 	cpwd := append(make([]string, 0, 1), pathStr)
 
-	sh.SetVar("OLDPWD", pwd)
-	sh.SetVar("PWD", cpwd)
-	sh.SetEnv("OLDPWD", pwd)
-	sh.SetEnv("PWD", cpwd)
+	sh.Setvar("OLDPWD", pwd)
+	sh.Setvar("PWD", cpwd)
+	sh.Setenv("OLDPWD", pwd)
+	sh.Setenv("PWD", cpwd)
 
 	return nil
 }
@@ -1263,7 +1263,7 @@ func (sh *Shell) executeFor(n *ForNode) error {
 	}
 
 	for _, val := range varList {
-		sh.SetVar(id, append(make([]string, 0, 1), val))
+		sh.Setvar(id, append(make([]string, 0, 1), val))
 		_, err = sh.ExecuteTree(n.Tree())
 
 		if err != nil {
