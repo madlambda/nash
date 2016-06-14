@@ -75,6 +75,8 @@ const (
 	itemIf // if <condition> { <block> }
 	itemElse
 	itemComparison
+	itemLogicalOR  // ||
+	itemLogicalAND // &&
 	itemFor
 	itemForIn
 	itemRfork
@@ -695,6 +697,15 @@ func lexIfLRValue(l *lexer) bool {
 }
 
 func lexInsideIf(l *lexer) stateFn {
+	ignoreSpaces(l)
+
+	r := l.peek()
+
+	if r == '(' {
+		l.next()
+		l.emit(itemLeftParen)
+	}
+
 	ok := lexIfLRValue(l)
 
 	if !ok {
@@ -733,10 +744,39 @@ func lexInsideIf(l *lexer) stateFn {
 
 	ignoreSpaces(l)
 
-	r := l.next()
+	r = l.next()
 
-	if r != '{' {
-		return l.errorf("Unexpected %q at pos %d. Expected '{'", r, l.pos)
+	if r != '{' && r != '|' && r != '&' && r != ')' {
+		return l.errorf("Unexpected %q at pos %d. Expected '{' or '||' or '&&'", r, l.pos)
+	}
+
+	if r == ')' {
+		l.emit(itemRightParen)
+
+		ignoreSpaces(l)
+		r = l.next()
+	}
+
+	if r == '|' {
+		r = l.next()
+
+		if r != '|' {
+			return l.errorf("Unexpected %q. Expected '|'", r)
+		}
+
+		l.emit(itemLogicalOR)
+		return lexInsideIf
+	}
+
+	if r == '&' {
+		r = l.next()
+
+		if r != '&' {
+			return l.errorf("Unexpected %q. Expected '&'", r)
+		}
+
+		l.emit(itemLogicalAND)
+		return lexInsideIf
 	}
 
 	l.emit(itemLeftBlock)

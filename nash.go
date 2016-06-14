@@ -1070,8 +1070,10 @@ func (sh *Shell) evalIfArguments(n *IfNode) (string, string, error) {
 		lstr, rstr string
 	)
 
-	lvalue := n.Lvalue()
-	rvalue := n.Rvalue()
+	clause := n.Clause()
+
+	lvalue := clause.Lvalue()
+	rvalue := clause.Rvalue()
 
 	if len(lvalue.val) > 0 && lvalue.val[0] == '$' {
 		variableValue, err := sh.evalVariable(lvalue.val)
@@ -1385,7 +1387,8 @@ func (sh *Shell) executeBindFn(n *BindFnNode) error {
 }
 
 func (sh *Shell) executeIf(n *IfNode) error {
-	op := n.Op()
+	clause := n.Clause()
+	op := clause.Op()
 
 	if op == "==" {
 		return sh.executeIfEqual(n)

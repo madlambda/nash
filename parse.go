@@ -505,25 +505,34 @@ func (p *Parser) parseRfork() (Node, error) {
 	return n, nil
 }
 
-func (p *Parser) parseIf() (Node, error) {
-	it := p.next()
-
-	n := NewIfNode(it.pos)
-
+func (p *Parser) parseClause(openBlock bool) (Node, error) {
 	it = p.next()
+	fpos := it.pos
 
-	if it.typ != itemString && it.typ != itemVariable {
-		return nil, fmt.Errorf("if requires an lvalue of type string or variable. Found %v", it)
+	if it.typ != itemString && it.typ != itemVariable && it.typ != itemLeftParen {
+		return nil, fmt.Errorf("if requires an lvalue of type string or variable or open braces '('. Found %v", it)
 	}
+
+	if it.typ == itemLeftParen {
+		if openBlock {
+			return nil, newError("If doesn't support nested group conditions at pos %d", it.pos)
+		}
+
+		openBlock = true
+
+		it = p.next()
+	}
+
+	clause := NewClauseNode(fpos)
 
 	if it.typ == itemString {
 		arg := NewArg(it.pos, ArgQuoted)
 		arg.SetString(it.val)
-		n.SetLvalue(arg)
+		clause.SetLvalue(arg)
 	} else if it.typ == itemVariable {
 		arg := NewArg(it.pos, ArgVariable)
 		arg.SetString(it.val)
-		n.SetLvalue(arg)
+		clause.SetLvalue(arg)
 	} else {
 		return nil, newError("Unexpected token %v, expected itemString or itemVariable", it)
 	}
@@ -538,7 +547,7 @@ func (p *Parser) parseIf() (Node, error) {
 		return nil, fmt.Errorf("Invalid if operator '%s'. Valid comparison operators are '==' and '!='", it.val)
 	}
 
-	n.SetOp(it.val)
+	clause.SetOp(it.val)
 
 	it = p.next()
 
@@ -549,12 +558,66 @@ func (p *Parser) parseIf() (Node, error) {
 	if it.typ == itemString {
 		arg := NewArg(it.pos, ArgQuoted)
 		arg.SetString(it.val)
-		n.SetRvalue(arg)
+		clause.SetRvalue(arg)
 	} else {
 		arg := NewArg(it.pos, ArgUnquoted)
 		arg.SetString(it.val)
-		n.SetRvalue(arg)
+		clause.SetRvalue(arg)
 	}
+
+	if openBlock {
+		it = p.peek()
+
+		if it.typ != itemRightParen && it.typ != itemLogicalAND && it.typ != itemLogicalOR {
+			return nil, newError("Unexpected '%v'. Expected ')' or '||' or '&&'", it)
+		}
+
+		if it.typ == itemRightParen {
+			openBlock = false
+
+			p.next()
+			it = p.peek()
+		}
+
+		if it.typ == itemLogicalAND || it.typ == itemLogicalOR {
+			if it.typ == itemLogicalAND {
+				clause.nextLogical = "&&"
+			} else {
+				clause.nextLogical = "||"
+			}
+
+			p.next()
+			nextClause, err := p.parseClause(openBlock)
+
+			if err != nil {
+				return nil, err
+			}
+
+			clause.nextClause = nextClause
+
+			return clause, nil
+		}
+
+		if openBlock {
+			return nil, newError("Condition block not finished on if statement at pos %d", it.pos)
+		}
+	}
+
+	return clause, nil
+}
+
+func (p *Parser) parseIf() (Node, error) {
+	it := p.next()
+
+	n := NewIfNode(it.pos)
+
+	clause, err := p.parseClause()
+
+	if err != nil {
+		return nil, err
+	}
+
+	n.SetClause(clause)
 
 	it = p.next()
 

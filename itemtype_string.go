@@ -4,9 +4,9 @@ package nash
 
 import "fmt"
 
-const _itemType_name = "itemErroritemEOFitemBuiltinitemImportitemCommentitemSetEnvitemShowEnvitemVarNameitemAssignitemAssignCmditemConcatitemVariableitemListOpenitemListCloseitemListElemitemCommanditemPipeitemBindFnitemDumpitemReturnitemArgitemLeftBlockitemRightBlockitemLeftParenitemRightParenitemStringitemRedirRightitemRedirRBracketitemRedirLBracketitemRedirFileitemRedirNetAddritemRedirMapEqualitemRedirMapLSideitemRedirMapRSideitemIfitemElseitemComparisonitemForitemForInitemRforkitemRforkFlagsitemCditemFnDeclitemFnInv"
+const _itemType_name = "itemErroritemEOFitemBuiltinitemImportitemCommentitemSetEnvitemShowEnvitemVarNameitemAssignitemAssignCmditemConcatitemVariableitemListOpenitemListCloseitemListElemitemCommanditemPipeitemBindFnitemDumpitemReturnitemArgitemLeftBlockitemRightBlockitemLeftParenitemRightParenitemStringitemRedirRightitemRedirRBracketitemRedirLBracketitemRedirFileitemRedirNetAddritemRedirMapEqualitemRedirMapLSideitemRedirMapRSideitemIfitemElseitemComparisonitemLogicalORitemLogicalANDitemForitemForInitemRforkitemRforkFlagsitemCditemFnDeclitemFnInv"
 
-var _itemType_index = [...]uint16{0, 9, 16, 27, 37, 48, 58, 69, 80, 90, 103, 113, 125, 137, 150, 162, 173, 181, 191, 199, 209, 216, 229, 243, 256, 270, 280, 294, 311, 328, 341, 357, 374, 391, 408, 414, 422, 436, 443, 452, 461, 475, 481, 491, 500}
+var _itemType_index = [...]uint16{0, 9, 16, 27, 37, 48, 58, 69, 80, 90, 103, 113, 125, 137, 150, 162, 173, 181, 191, 199, 209, 216, 229, 243, 256, 270, 280, 294, 311, 328, 341, 357, 374, 391, 408, 414, 422, 436, 449, 463, 470, 479, 488, 502, 508, 518, 527}
 
 func (i itemType) String() string {
 	i -= 2
