@@ -1068,7 +1068,7 @@ func lexInsideBindFn(l *lexer) stateFn {
 	for {
 		r = l.next()
 
-		if isIdentifier(r) {
+		if isIdentifier(r) || r == '-' {
 			continue
 		}
 
@@ -1122,7 +1122,7 @@ func lexInsideCommand(l *lexer) stateFn {
 	case isSafeArg(r):
 		break
 	default:
-		return l.errorf("Invalid char %q at pos %d", r, l.pos)
+		return l.errorf("Invalid char %q at pos %d. String: %.10s", r, l.pos, l.input[l.pos:])
 	}
 
 	return func(l *lexer) stateFn {
@@ -1149,6 +1149,8 @@ func lexQuote(l *lexer, concatFn, nextFn stateFn) stateFn {
 					data = append(data, '\t')
 				case '\\':
 					data = append(data, '\\')
+				case '"':
+					data = append(data, '"')
 				case 'x', 'u', 'U':
 					return l.errorf("Escape types 'x', 'u' and 'U' aren't implemented yet")
 				case '0', '1', '2', '3', '4', '5', '6', '7':
@@ -1182,10 +1184,9 @@ func lexQuote(l *lexer, concatFn, nextFn stateFn) stateFn {
 			return l.errorf("Quoted string not finished: %s", l.input[l.start:])
 		}
 
-		l.backup()
 		l.emitVal(itemString, string(data))
-		l.next()
-		l.ignore()
+
+		l.ignore() // ignores last quote
 		break
 	}
 
