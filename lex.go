@@ -44,7 +44,7 @@ const (
 	itemComment
 	itemSetEnv
 	itemShowEnv
-	itemVarName
+	itemIdentifier
 	itemAssign
 	itemAssignCmd
 	itemConcat
@@ -62,7 +62,10 @@ const (
 	itemBracesClose   // }
 	itemParenOpen     // (
 	itemParenClose    // )
+	itemBracketOpen   // [
+	itemBracketClose  // ]
 	itemString        // "<string>"
+	itemNumber        // [0-9]+
 	itemRedirRight    // >
 	itemRedirRBracket // [ eg.: cmd >[1] file.out
 	itemRedirLBracket // ]
@@ -299,7 +302,7 @@ func lexIdentifier(l *lexer) stateFn {
 
 			if !isSpace(r) {
 				if r == '=' {
-					l.emit(itemVarName)
+					l.emit(itemIdentifier)
 
 					ignoreSpaces(l)
 					l.next()
@@ -326,7 +329,7 @@ func lexIdentifier(l *lexer) stateFn {
 						return l.errorf("Unexpected token '%v'. Expected '='", r)
 					}
 
-					l.emit(itemVarName)
+					l.emit(itemIdentifier)
 
 					ignoreSpaces(l)
 
@@ -497,7 +500,7 @@ func lexInsideSetenv(l *lexer) stateFn {
 		return l.errorf("internal error")
 	}
 
-	l.emit(itemVarName)
+	l.emit(itemIdentifier)
 	return lexStart
 }
 
@@ -590,6 +593,30 @@ func lexInsideCommonVariable(l *lexer, nextConcatFn stateFn, nextFn stateFn) sta
 
 	l.emit(itemVariable)
 
+	r = l.peek()
+
+	if r == '[' {
+		l.next()
+		l.emit(itemBracketOpen)
+
+		digits := "0123456789"
+
+		if !l.accept(digits) {
+			return l.errorf("Expected number on variable indexing. Found %q", l.peek())
+		}
+
+		l.acceptRun(digits)
+		l.emit(itemNumber)
+
+		r = l.next()
+
+		if r != ']' {
+			return l.errorf("Unexpected %q. Expecting ']'", r)
+		}
+
+		l.emit(itemBracketClose)
+	}
+
 	ignoreSpaces(l)
 
 	r = l.peek()
@@ -665,7 +692,7 @@ func lexInsideCd(l *lexer) stateFn {
 	return lexStart
 }
 
-func lexIfLRValue(l *lexer) bool {
+func lexIfLRValue(l *lexer) stateFn {
 	ignoreSpaces(l)
 
 	r := l.next()
@@ -673,37 +700,33 @@ func lexIfLRValue(l *lexer) bool {
 	switch {
 	case r == '"':
 		l.ignore()
-		lexQuote(l, nil, nil)
-		return true
-	case r == '$':
-		for {
-			r = l.next()
-
-			if !isIdentifier(r) {
-				break
-			}
+		for state := func(l *lexer) stateFn {
+			return lexQuote(l, lexIfLRValue, nil)
+		}; state != nil; {
+			state = state(l)
 		}
 
+		return nil
+	case r == '$':
 		l.backup()
 
-		if r == '"' {
-			l.errorf("Invalid quote inside variable name")
-			return false
+		for state := func(l *lexer) stateFn {
+			return lexInsideCommonVariable(l, lexIfLRValue, nil)
+		}; state != nil; {
+			state = state(l)
 		}
 
-		l.emit(itemVariable)
-		return true
+		return nil
 	}
 
-	l.errorf("Unexpected char %q at pos %d. IfDecl expects string or variable", r, l.pos)
-	return false
+	return l.errorf("Unexpected char %q at pos %d. IfDecl expects string or variable", r, l.pos)
 }
 
 func lexInsideIf(l *lexer) stateFn {
-	ok := lexIfLRValue(l)
+	errState := lexIfLRValue(l)
 
-	if !ok {
-		return nil
+	if errState != nil {
+		return errState
 	}
 
 	ignoreSpaces(l)
@@ -711,14 +734,12 @@ func lexInsideIf(l *lexer) stateFn {
 	// get first char of operator. Eg.: '!'
 	if !l.accept("=!") {
 		l.errorf("Unexpected char %q inside if statement", l.peek())
-		l.backup()
 		return nil
 	}
 
 	// get second char. Eg.: '='
 	if !l.accept("=!") {
 		l.errorf("Unexpected char %q inside if statement", l.peek())
-		l.backup()
 		return nil
 	}
 
@@ -730,10 +751,10 @@ func lexInsideIf(l *lexer) stateFn {
 
 	l.emit(itemComparison)
 
-	ok = lexIfLRValue(l)
+	errState = lexIfLRValue(l)
 
-	if !ok {
-		return nil
+	if errState != nil {
+		return errState
 	}
 
 	ignoreSpaces(l)
@@ -792,7 +813,7 @@ func lexInsideFor(l *lexer) stateFn {
 	word := l.input[l.start:l.pos]
 
 	if len(word) > 0 {
-		l.emit(itemVarName)
+		l.emit(itemIdentifier)
 
 		ignoreSpaces(l)
 
@@ -830,7 +851,7 @@ func lexInsideFnDecl(l *lexer) stateFn {
 
 	l.backup()
 
-	l.emit(itemVarName)
+	l.emit(itemIdentifier)
 
 	r = l.next()
 
@@ -858,7 +879,7 @@ getnextarg:
 	argName = l.input[l.start:l.pos]
 
 	if len(argName) > 0 {
-		l.emit(itemVarName)
+		l.emit(itemIdentifier)
 
 		r = l.peek()
 
@@ -1061,7 +1082,7 @@ func lexInsideBindFn(l *lexer) stateFn {
 		return l.errorf("Unexpected %q, expected identifier.", r)
 	}
 
-	l.emit(itemVarName)
+	l.emit(itemIdentifier)
 
 	ignoreSpaces(l)
 
@@ -1083,7 +1104,7 @@ func lexInsideBindFn(l *lexer) stateFn {
 		return l.errorf("Unexpected %q, expected identifier.", r)
 	}
 
-	l.emit(itemVarName)
+	l.emit(itemIdentifier)
 
 	return lexStart
 }

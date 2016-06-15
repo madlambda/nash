@@ -311,7 +311,7 @@ func (p *Parser) parseSet() (Node, error) {
 
 	it = p.next()
 
-	if it.typ != itemVarName {
+	if it.typ != itemIdentifier {
 		return nil, fmt.Errorf("Unexpected token %v, expected variable", it)
 	}
 
@@ -344,6 +344,28 @@ func (p *Parser) getArgument(allowArg bool) (*Arg, error) {
 	if firstToken.typ == itemVariable {
 		arg.SetArgType(ArgVariable)
 		arg.SetString(firstToken.val)
+
+		if it.typ == itemBracketOpen {
+			p.ignore()
+			it = p.next()
+
+			var indexArg *Arg
+
+			if it.typ == itemNumber {
+				indexArg = NewArg(it.pos, ArgNumber)
+			} else if it.typ == itemVariable {
+				indexArg = NewArg(it.pos, ArgVariable)
+			}
+
+			indexArg.SetString(it.val)
+			arg.SetIndex(indexArg)
+
+			it = p.next()
+
+			if it.typ != itemBracketClose {
+				return nil, newError("Unexpected token %v. Expected ']'", it)
+			}
+		}
 	} else if firstToken.typ == itemString {
 		arg.SetArgType(ArgQuoted)
 		arg.SetString(firstToken.val)
@@ -606,7 +628,7 @@ func (p *Parser) parseFnArgs() ([]string, error) {
 
 		if it.typ == itemParenClose {
 			break
-		} else if it.typ == itemVarName {
+		} else if it.typ == itemIdentifier {
 			args = append(args, it.val)
 		} else {
 			return nil, fmt.Errorf("Unexpected token %v. Expected identifier or ')'", it)
@@ -624,7 +646,7 @@ func (p *Parser) parseFnDecl() (Node, error) {
 
 	it = p.next()
 
-	if it.typ == itemVarName {
+	if it.typ == itemIdentifier {
 		n.SetName(it.val)
 
 		it = p.next()
@@ -739,13 +761,13 @@ func (p *Parser) parseBindFn() (Node, error) {
 
 	nameIt := p.next()
 
-	if nameIt.typ != itemVarName {
+	if nameIt.typ != itemIdentifier {
 		return nil, newError("Expected identifier, but found '%v'", nameIt)
 	}
 
 	cmdIt := p.next()
 
-	if cmdIt.typ != itemVarName {
+	if cmdIt.typ != itemIdentifier {
 		return nil, newError("Expected identifier, but found '%v'", cmdIt)
 	}
 
@@ -823,7 +845,7 @@ func (p *Parser) parseFor() (Node, error) {
 
 	it = p.peek()
 
-	if it.typ != itemVarName {
+	if it.typ != itemIdentifier {
 		goto forBlockParse
 	}
 
@@ -889,7 +911,7 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseShowEnv()
 	case itemSetEnv:
 		return p.parseSet()
-	case itemVarName:
+	case itemIdentifier:
 		return p.parseAssignment()
 	case itemCommand:
 		return p.parseCommand()

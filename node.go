@@ -92,6 +92,7 @@ type (
 		str     string
 		list    []*Arg
 		concat  []*Arg
+		index   *Arg
 	}
 
 	// RedirectNode represents the output redirection part of a command
@@ -255,6 +256,7 @@ const (
 	ArgQuoted ArgType = iota + 1
 	ArgUnquoted
 	ArgVariable
+	ArgNumber
 	ArgList
 	ArgConcat
 )
@@ -360,7 +362,7 @@ func (n *AssignmentNode) String() string {
 		return "<unknown>"
 	}
 
-	return n.name + "=" + obj.String()
+	return n.name + " = " + obj.String()
 }
 
 // NewCmdAssignmentNode creates a new command assignment
@@ -628,6 +630,14 @@ func (n *Arg) SetString(name string) {
 	n.str = name
 }
 
+// SetIndex set the variable index
+func (n *Arg) SetIndex(index *Arg) {
+	n.index = index
+}
+
+// Index return the variable index
+func (n *Arg) Index() *Arg { return n.index }
+
 // Value returns the argument string value
 func (n *Arg) Value() string {
 	return n.str
@@ -716,6 +726,8 @@ func (n Arg) String() string {
 		}
 
 		return ret + ")"
+	} else if n.Index() != nil {
+		return n.Value() + "[" + n.Index().String() + "]"
 	}
 
 	return n.Value()

@@ -61,7 +61,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "fn",
 		},
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "gocd",
 		},
 		item{
@@ -69,7 +69,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "(",
 		},
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "path",
 		},
 		item{
@@ -172,7 +172,7 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 
 	expected := []item{
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "version",
 		},
 		item{
@@ -184,7 +184,7 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 			val: "4.5.6",
 		},
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "canonName",
 		},
 		item{
@@ -272,7 +272,7 @@ func TestLexerIssue43(t *testing.T) {
 			val: "fn",
 		},
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "gpull",
 		},
 		item{
@@ -288,7 +288,7 @@ func TestLexerIssue43(t *testing.T) {
 			val: "{",
 		},
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "branch",
 		},
 		item{
