@@ -20,7 +20,7 @@ var (
 
 	version     bool
 	debug       bool
-	files       []string
+	file        string
 	command     string
 	addr        string
 	noInit      bool
@@ -41,6 +41,8 @@ func init() {
 }
 
 func main() {
+	var args []string
+
 	flag.Parse()
 
 	if version {
@@ -49,50 +51,14 @@ func main() {
 	}
 
 	if len(flag.Args()) > 0 {
-		files = flag.Args()
+		args = flag.Args()
+		file = args[0]
 	}
 
-	shell, err := nash.NewShell(debug)
+	shell, err := initShell()
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
-		os.Exit(1)
-	}
-
-	nashpath := os.Getenv("NASHPATH")
-
-	if nashpath == "" {
-		home := os.Getenv("HOME")
-
-		if home == "" {
-			user := os.Getenv("USER")
-
-			if user != "" {
-				home = "/home/" + user
-			} else {
-				fmt.Fprintf(os.Stderr, "Environment variable NASHPATH or $USER must be set")
-				os.Exit(1)
-			}
-		}
-
-		nashpath = home + "/.nash"
-	}
-
-	shell.SetDotDir(nashpath)
-
-	os.Mkdir(nashpath, 0755)
-
-	initFile := nashpath + "/init"
-
-	if d, err := os.Stat(initFile); err == nil && !noInit {
-		if m := d.Mode(); !m.IsDir() {
-			err = shell.ExecuteString("init", `import "`+initFile+`"`)
-
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "Failed to evaluate '%s': %s\n", initFile, err.Error())
-				os.Exit(1)
-			}
-		}
+		goto Error
 	}
 
 	if addr != "" {
@@ -101,8 +67,8 @@ func main() {
 		return
 	}
 
-	for _, file := range files {
-		err = shell.ExecuteFile(file)
+	if file != "" {
+		err = executeFilename(shell, file, args)
 
 		if err != nil {
 			goto Error
@@ -117,7 +83,7 @@ func main() {
 		}
 	}
 
-	if (len(files) == 0 && command == "") || interactive {
+	if (file == "" && command == "") || interactive {
 		err = cli(shell)
 
 		if err != nil {
@@ -131,4 +97,90 @@ Error:
 		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		os.Exit(1)
 	}
+}
+
+func getnashpath() (string, error) {
+	nashpath := os.Getenv("NASHPATH")
+
+	if nashpath != "" {
+		return nashpath, nil
+	}
+
+	home := os.Getenv("HOME")
+
+	if home == "" {
+		user := os.Getenv("USER")
+
+		if user != "" {
+			home = "/home/" + user
+		} else {
+			return "", fmt.Errorf("Environment variable NASHPATH or $USER must be set")
+		}
+	}
+
+	return home + "/.nash", nil
+}
+
+func initShell() (*nash.Shell, error) {
+	shell, err := nash.NewShell(debug)
+
+	if err != nil {
+		return nil, err
+	}
+
+	nashpath, err := getnashpath()
+
+	if err != nil {
+		return nil, err
+	}
+
+	shell.SetDotDir(nashpath)
+
+	os.Mkdir(nashpath, 0755)
+
+	initFile := nashpath + "/init"
+
+	if d, err := os.Stat(initFile); err == nil && !noInit {
+		if m := d.Mode(); !m.IsDir() {
+			err = shell.ExecuteString("init", `import "`+initFile+`"`)
+
+			if err != nil {
+				return nil, fmt.Errorf("Failed to evaluate '%s': %s\n", initFile, err.Error())
+			}
+		}
+	}
+
+	return shell, nil
+}
+
+func executeFilename(shell *nash.Shell, file string, args []string) error {
+	err := shell.ExecuteString("setting args", `ARGS = `+args2Nash(args))
+
+	if err != nil {
+		err = fmt.Errorf("Failed to set nash arguments: %s", err.Error())
+
+		return err
+	}
+
+	err = shell.ExecuteFile(file)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func args2Nash(args []string) string {
+	ret := "("
+
+	for i := 0; i < len(args); i++ {
+		ret += `"` + args[i] + `"`
+
+		if i < (len(args) - 1) {
+			ret += " "
+		}
+	}
+
+	return ret + ")"
 }
