@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -14,7 +13,6 @@ import (
 
 var (
 	testDir, gopath, nashdPath string
-	enableUserNS               bool
 )
 
 func init() {
@@ -29,31 +27,6 @@ func init() {
 
 	if _, err := os.Stat(nashdPath); err != nil {
 		panic("Please, run make build before running tests")
-	}
-
-	// Travis build doesn't support /proc/config.gz but have userns enabled
-	if os.Getenv("TRAVIS_BUILD") == "1" {
-		enableUserNS = true
-
-		return
-	}
-
-	usernsCmd := exec.Command("zgrep", "CONFIG_USER_NS", "/proc/config.gz")
-
-	content, err := usernsCmd.CombinedOutput()
-
-	if err != nil {
-		fmt.Printf("ERROR: %s\n", err.Error())
-		fmt.Printf("Warning: Impossible to know if kernel support USER namespace.\n")
-		fmt.Printf("Warning: USER namespace tests will not run.\n")
-		enableUserNS = false
-	}
-
-	switch strings.Trim(string(content), "\n \t") {
-	case "CONFIG_USER_NS=y":
-		enableUserNS = true
-	default:
-		enableUserNS = false
 	}
 }
 
@@ -153,106 +126,6 @@ func TestExecuteCommand(t *testing.T) {
 
 	if err == nil {
 		t.Errorf("Must fail")
-		return
-	}
-}
-
-func TestExecuteRforkUserNS(t *testing.T) {
-	if !enableUserNS {
-		t.Skip("User namespace not enabled")
-		return
-	}
-
-	var out bytes.Buffer
-
-	sh, err := NewShell(false)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
-
-	err = sh.ExecuteString("rfork test", `
-        rfork u {
-            id -u
-        }
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if string(out.Bytes()) != "0\n" {
-		t.Errorf("User namespace not supported in your kernel: %s", string(out.Bytes()))
-		return
-	}
-}
-
-func TestExecuteRforkEnvVars(t *testing.T) {
-	if !enableUserNS {
-		t.Skip("User namespace not enabled")
-		return
-	}
-
-	sh, err := NewShell(false)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	sh.SetNashdPath(nashdPath)
-
-	err = sh.ExecuteString("test env", `abra = "cadabra"
-setenv abra
-rfork up {
-	echo $abra
-}`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-}
-
-func TestExecuteRforkUserNSNested(t *testing.T) {
-	if !enableUserNS {
-		t.Skip("User namespace not enabled")
-		return
-	}
-
-	var out bytes.Buffer
-
-	sh, err := NewShell(false)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
-
-	err = sh.ExecuteString("rfork userns nested", `
-        rfork u {
-            id -u
-            rfork u {
-                id -u
-            }
-        }
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if string(out.Bytes()) != "0\n0\n" {
-		t.Errorf("User namespace not supported in your kernel")
 		return
 	}
 }
