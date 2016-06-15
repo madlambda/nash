@@ -980,7 +980,7 @@ func TestLexerRfork(t *testing.T) {
 			val: "usnm",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -992,7 +992,7 @@ func TestLexerRfork(t *testing.T) {
 			val: "inside namespace :)",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -1037,7 +1037,7 @@ func TestLexerSomethingIdontcareanymore(t *testing.T) {
 			val: "u",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -1045,7 +1045,7 @@ func TestLexerSomethingIdontcareanymore(t *testing.T) {
 			val: "ls",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -1668,7 +1668,7 @@ func TestLexerSimpleIf(t *testing.T) {
 			val: "other",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -1684,7 +1684,7 @@ func TestLexerSimpleIf(t *testing.T) {
 			val: "/",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -1712,7 +1712,7 @@ func TestLexerSimpleIf(t *testing.T) {
 			val: "$test",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -1728,7 +1728,7 @@ func TestLexerSimpleIf(t *testing.T) {
 			val: "/",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -1766,7 +1766,7 @@ func TestLexerIfElse(t *testing.T) {
 			val: "other",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -1782,7 +1782,7 @@ func TestLexerIfElse(t *testing.T) {
 			val: "/",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -1790,7 +1790,7 @@ func TestLexerIfElse(t *testing.T) {
 			val: "else",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -1798,7 +1798,7 @@ func TestLexerIfElse(t *testing.T) {
 			val: "pwd",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -1828,7 +1828,7 @@ func TestLexerIfElseIf(t *testing.T) {
 			val: "other",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -1844,7 +1844,7 @@ func TestLexerIfElseIf(t *testing.T) {
 			val: "/",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -1868,7 +1868,7 @@ func TestLexerIfElseIf(t *testing.T) {
 			val: "$var",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -1876,7 +1876,7 @@ func TestLexerIfElseIf(t *testing.T) {
 			val: "pwd",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -1884,7 +1884,7 @@ func TestLexerIfElseIf(t *testing.T) {
 			val: "else",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -1896,7 +1896,7 @@ func TestLexerIfElseIf(t *testing.T) {
 			val: "1",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -1925,19 +1925,19 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "build",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -1958,19 +1958,19 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -1991,27 +1991,27 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
@@ -2031,7 +2031,7 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "build",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -2043,15 +2043,15 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "debug",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2071,7 +2071,7 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "build",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -2083,11 +2083,11 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "debug",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -2099,7 +2099,7 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "tar",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2122,7 +2122,7 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "cd",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -2130,11 +2130,11 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "path",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -2190,7 +2190,7 @@ func TestLexerFnBasic(t *testing.T) {
 			val: "PROMPT",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2212,11 +2212,11 @@ func TestLexerFnInvocation(t *testing.T) {
 			val: "build",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
@@ -2232,7 +2232,7 @@ func TestLexerFnInvocation(t *testing.T) {
 			val: "build",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -2241,7 +2241,7 @@ func TestLexerFnInvocation(t *testing.T) {
 		},
 
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
@@ -2257,7 +2257,7 @@ func TestLexerFnInvocation(t *testing.T) {
 			val: "build",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -2270,7 +2270,7 @@ func TestLexerFnInvocation(t *testing.T) {
 		},
 
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
@@ -2286,7 +2286,7 @@ func TestLexerFnInvocation(t *testing.T) {
 			val: "build",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -2295,7 +2295,7 @@ func TestLexerFnInvocation(t *testing.T) {
 		},
 
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
@@ -2458,15 +2458,15 @@ func TestLexerReturn(t *testing.T) {
 			val: "test",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -2474,7 +2474,7 @@ func TestLexerReturn(t *testing.T) {
 			val: "return",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2500,15 +2500,15 @@ func TestLexerReturn(t *testing.T) {
 			val: "test",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -2520,7 +2520,7 @@ func TestLexerReturn(t *testing.T) {
 			val: "some value",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2543,15 +2543,15 @@ func TestLexerReturn(t *testing.T) {
 			val: "test",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -2575,7 +2575,7 @@ func TestLexerReturn(t *testing.T) {
 			val: "$value",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2598,15 +2598,15 @@ func TestLexerReturn(t *testing.T) {
 			val: "test",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -2630,7 +2630,7 @@ func TestLexerReturn(t *testing.T) {
 			val: ")",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2652,15 +2652,15 @@ func TestLexerReturn(t *testing.T) {
 			val: "test",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -2672,7 +2672,7 @@ func TestLexerReturn(t *testing.T) {
 			val: "$PWD",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2692,11 +2692,11 @@ func TestLexerFor(t *testing.T) {
 			val: "for",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2724,11 +2724,11 @@ func TestLexerFor(t *testing.T) {
 			val: "$files",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2751,7 +2751,7 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "printer",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -2759,11 +2759,11 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "val",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -2779,7 +2779,7 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "$val",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2791,7 +2791,7 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "success",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -2803,11 +2803,11 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "val",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -2815,7 +2815,7 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "$print",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -2831,11 +2831,11 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "$val",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -2843,7 +2843,7 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "success",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -2855,7 +2855,7 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "Command executed!",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{

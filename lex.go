@@ -58,10 +58,10 @@ const (
 	itemDump    // "dump" [ file ]
 	itemReturn
 	itemArg
-	itemLeftBlock     // {
-	itemRightBlock    // }
-	itemLeftParen     // (
-	itemRightParen    // )
+	itemBracesOpen    // {
+	itemBracesClose   // }
+	itemParenOpen     // (
+	itemParenClose    // )
 	itemString        // "<string>"
 	itemRedirRight    // >
 	itemRedirRBracket // [ eg.: cmd >[1] file.out
@@ -245,13 +245,13 @@ func lexStart(l *lexer) stateFn {
 		return l.errorf("Unexpected open block \"%#U\"", r)
 
 	case r == '}':
-		l.emit(itemRightBlock)
+		l.emit(itemBracesClose)
 		return lexStart
 	case r == '(':
-		l.emit(itemLeftParen)
+		l.emit(itemParenOpen)
 		return lexInsideFnInv
 	case r == ')':
-		l.emit(itemRightParen)
+		l.emit(itemParenClose)
 		return lexStart
 	}
 
@@ -282,7 +282,7 @@ func lexIdentifier(l *lexer) stateFn {
 	if r == '(' {
 		l.emit(itemFnInv)
 		l.next()
-		l.emit(itemLeftParen)
+		l.emit(itemParenOpen)
 		return lexInsideFnInv
 	}
 
@@ -350,7 +350,7 @@ func lexIdentifier(l *lexer) stateFn {
 					if r == '(' {
 						l.emit(itemFnInv)
 						l.next()
-						l.emit(itemLeftParen)
+						l.emit(itemParenOpen)
 						return lexInsideFnInv
 					}
 
@@ -744,7 +744,7 @@ func lexInsideIf(l *lexer) stateFn {
 		return l.errorf("Unexpected %q at pos %d. Expected '{'", r, l.pos)
 	}
 
-	l.emit(itemLeftBlock)
+	l.emit(itemBracesOpen)
 
 	return lexStart
 }
@@ -758,7 +758,7 @@ func lexForEnd(l *lexer) stateFn {
 		return l.errorf("Unexpected %q. Expected '{'", r)
 	}
 
-	l.emit(itemLeftBlock)
+	l.emit(itemBracesOpen)
 	return lexStart
 }
 
@@ -838,7 +838,7 @@ func lexInsideFnDecl(l *lexer) stateFn {
 		return l.errorf("Unexpected symbol %q. Expected '('", r)
 	}
 
-	l.emit(itemLeftParen)
+	l.emit(itemParenOpen)
 
 getnextarg:
 	ignoreSpaces(l)
@@ -871,7 +871,7 @@ getnextarg:
 	}
 
 	l.next()
-	l.emit(itemRightParen)
+	l.emit(itemParenClose)
 
 	ignoreSpaces(l)
 
@@ -881,7 +881,7 @@ getnextarg:
 		return l.errorf("Unexpected symbol %q. Expected '{'", r)
 	}
 
-	l.emit(itemLeftBlock)
+	l.emit(itemBracesOpen)
 
 	return lexStart
 }
@@ -942,7 +942,7 @@ func lexInsideFnInv(l *lexer) stateFn {
 
 	} else if r == ')' {
 		l.next()
-		l.emit(itemRightParen)
+		l.emit(itemParenClose)
 		return lexStart
 	}
 
@@ -955,7 +955,7 @@ func lexInsideElse(l *lexer) stateFn {
 	r := l.next()
 
 	if r == '{' {
-		l.emit(itemLeftBlock)
+		l.emit(itemBracesOpen)
 		return lexStart
 	}
 
@@ -1003,7 +1003,7 @@ func lexInsideRforkArgs(l *lexer) stateFn {
 	ignoreSpaces(l)
 
 	if l.accept("{") {
-		l.emit(itemLeftBlock)
+		l.emit(itemBracesOpen)
 	}
 
 	return lexStart
@@ -1107,7 +1107,7 @@ func lexInsideCommand(l *lexer) stateFn {
 			return lexQuote(l, lexInsideCommand, lexInsideCommand)
 		}
 	case r == '}':
-		l.emit(itemRightBlock)
+		l.emit(itemBracesClose)
 		return lexStart
 
 	case r == '>':

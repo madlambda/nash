@@ -65,7 +65,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "gocd",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -73,11 +73,11 @@ func TestLexerIssue22(t *testing.T) {
 			val: "path",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -97,7 +97,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -109,7 +109,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "$GOPATH",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -117,7 +117,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "else",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -145,11 +145,11 @@ func TestLexerIssue22(t *testing.T) {
 			val: "$path",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -230,7 +230,7 @@ func TestLexerIssue38(t *testing.T) {
 			val: "cd",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -254,7 +254,7 @@ func TestLexerIssue38(t *testing.T) {
 			val: "$path",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
@@ -276,15 +276,15 @@ func TestLexerIssue43(t *testing.T) {
 			val: "gpull",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -348,15 +348,15 @@ func TestLexerIssue43(t *testing.T) {
 			val: "refreshPrompt",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{

@@ -491,7 +491,7 @@ func (p *Parser) parseRfork() (Node, error) {
 
 	it = p.peek()
 
-	if it.typ == itemLeftBlock {
+	if it.typ == itemBracesOpen {
 		p.ignore() // ignore lookaheaded symbol
 		p.openblocks++
 
@@ -561,7 +561,7 @@ func (p *Parser) parseIf() (Node, error) {
 
 	it = p.next()
 
-	if it.typ != itemLeftBlock {
+	if it.typ != itemBracesOpen {
 		return nil, fmt.Errorf("Expected '{' but found %v", it)
 	}
 
@@ -604,7 +604,7 @@ func (p *Parser) parseFnArgs() ([]string, error) {
 	for {
 		it := p.next()
 
-		if it.typ == itemRightParen {
+		if it.typ == itemParenClose {
 			break
 		} else if it.typ == itemVarName {
 			args = append(args, it.val)
@@ -630,7 +630,7 @@ func (p *Parser) parseFnDecl() (Node, error) {
 		it = p.next()
 	}
 
-	if it.typ != itemLeftParen {
+	if it.typ != itemParenOpen {
 		return nil, newError("Unexpected token %v. Expected '('", it)
 	}
 
@@ -646,7 +646,7 @@ func (p *Parser) parseFnDecl() (Node, error) {
 
 	it = p.next()
 
-	if it.typ != itemLeftBlock {
+	if it.typ != itemBracesOpen {
 		return nil, newError("Unexpected token %v. Expected '{'", it)
 	}
 
@@ -675,7 +675,7 @@ func (p *Parser) parseFnInv() (Node, error) {
 
 	it = p.next()
 
-	if it.typ != itemLeftParen {
+	if it.typ != itemParenOpen {
 		return nil, newError("Invalid token %v. Expected '('", it)
 	}
 
@@ -690,7 +690,7 @@ func (p *Parser) parseFnInv() (Node, error) {
 			}
 
 			n.AddArg(arg)
-		} else if it.typ == itemRightParen {
+		} else if it.typ == itemParenClose {
 			p.next()
 			break
 		} else {
@@ -704,7 +704,7 @@ func (p *Parser) parseFnInv() (Node, error) {
 func (p *Parser) parseElse() (*ListNode, bool, error) {
 	it := p.next()
 
-	if it.typ == itemLeftBlock {
+	if it.typ == itemBracesOpen {
 		p.openblocks++
 
 		elseBlock, err := p.parseBlock()
@@ -848,7 +848,7 @@ func (p *Parser) parseFor() (Node, error) {
 forBlockParse:
 	it = p.peek()
 
-	if it.typ != itemLeftBlock {
+	if it.typ != itemBracesOpen {
 		return nil, newError("Expected '{' but found %q", it)
 	}
 
@@ -929,11 +929,11 @@ func (p *Parser) parseBlock() (*ListNode, error) {
 			goto finish
 		case itemError:
 			return nil, fmt.Errorf("Syntax error: %s", it.val)
-		case itemLeftBlock:
+		case itemBracesOpen:
 			p.ignore()
 
 			return nil, errors.New("Parser error: Unexpected '{'")
-		case itemRightBlock:
+		case itemBracesClose:
 			p.ignore()
 
 			if p.openblocks <= 0 {
