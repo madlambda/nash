@@ -2,12 +2,11 @@
 
 [![Build Status](https://travis-ci.org/NeowayLabs/nash.svg?branch=master)](https://travis-ci.org/NeowayLabs/nash) [![codecov.io](https://codecov.io/github/NeowayLabs/nash/coverage.svg?branch=master)](https://codecov.io/github/NeowayLabs/nash?branch=master)
 
-Nash is a Linux system shell that attempts to be more safe and give
+Nash is a system shell that attempts to be more safe and give
 more power to user. It's safe in the sense of it's far more hard to
 shoot yourself in the foot, (or in the head). It gives
 power to the user in the sense that you really can use `nash` to
-script deploys taking advantage of linux namespaces, cgroups, unionfs,
-etc, in an idiomatic way.
+script deploys taking advantage of namespaces in an idiomatic way.
 
 It's more safe for devops/sysadmins because it doesn't have the unsafe
 features of all former shells and it aim to have a very simple, safe
@@ -38,7 +37,9 @@ Pipes works like borne shell and derivations:
 λ> cat spec.ebnf | wc -l
 108
 ```
-Output redirection works like Plan9 rc, but not only for filenames. It supports output redirection to tcp, udp and unix network protocols.
+Output redirection works like Plan9 rc, but not only for filenames. It
+supports output redirection to tcp, udp and unix network protocols.
+
 ```sh
 # stdout to log.out, stderr to log.err
 λ> ./daemon >[1] log.out >[2] log.err
@@ -121,7 +122,7 @@ with that command with `bindfn` statement.
 λ> cd /var/log
 [/var/log]>
 ```
-The only control statements available are `if`, `else` and `for`. 
+The only control statements available are `if`, `else` and `for`.
 In the same way, nash doesn't support shell expansion at `if` condition.
 For check if a directory exists you must use:
 ```sh
@@ -155,7 +156,12 @@ For example, trying to evaluate an unbound variable aborts the program with erro
 ERROR: Variable '$bleh' not set
 ```
 
-# Container features
+# Namespace features
+
+Nash is built with namespace support only on Linux (Plan9 soon). If
+you use OSX, BSD or Windows, then the `rfork` keyword will fail.
+
+*The examples below assume you are on a Linux box.*
 
 Below are some facilities for namespace management inside nash.
 Make sure you have USER namespaces enabled in your kernel:
@@ -244,88 +250,7 @@ rfork <flags> {
 
 # OK, but how scripts should look like?
 
-Take a look in the script below:
-
-```sh
-#!/usr/bin/env nash
-# Library for build Linux Stali rootfs and execute a container in the image
-# For more info about stali, see: http://sta.li/
-# Requires: build-essential mawk
-
-imageName    = "stali-x86_64"
-imageDir     = "/home/" + $USER + "/.nash/images/stali"
-toolchainDir = $imageDir + "/toolchain"
-srcDir       = $imageDir + "/src"
-rootfsDir    = $imageDir + "/rootfs-x86_64"
-
-echo "Build stali rootfs"
-echo "Requires: build-essential mawk"
-
-fn cleanup() {
-    -rm -rf $toolchainDir
-    -rm -rf $srcDir
-    -rm -rf $rootfsDir
-}
-
-fn download() {
-    git clone --depth=1 http://git.sta.li/toolchain
-    git clone --depth=1 http://git.sta.li/src
-}
-
-fn stali_fsbuild(service) {
-    cp -a $service /tmp/
-
-    -mkdir -p $imageDir
-
-    cd $imageDir
-
-    cleanup()
-    download()
-
-    mkdir $rootfsDir
-    STALI_SRC = $PWD + "/src"
-
-    cd src
-
-    sed -i.bak "s#^DESTDIR=#DESTDIR=" + $rootfsDir + "#g" config.mk
-    make
-    make install
-
-    cd ..
-
-    serviceName <= basename $service | xargs echo -n
-    cp -a "/tmp/"+$serviceName $rootfsDir
-
-    tar cvf $imagename+".tar" $rootfsDir
-    bzip2 $imageName+".tar"
-
-    echo "Stali image generated: " + $imageName + ".tar.bz2"
-}
-
-# Run the $exec filename inside a container with $image rootfs
-fn stali_run(image, exec) {
-    targetDir = "/tmp/stali-rootfs"
-    -mkdir $targetDir
-    tar xvf $image -C $targetDir
-
-    # Create a container with User, pid, mount, ipc and uts namespaces
-    rfork upmis {
-        # mount the process filesystem inside PID namespace
-        mount -t proc proc /proc
-        cp /etc/resolv.conf $targetDir+"/etc/resolv.conf"
-        cp /etc/hosts $targetDir+"/etc/hosts"
-
-        chroot $targetDir $exec
-    }
-}
-```
-Invoke the functions `stali_fsbuild` for build the image and `stali_run` to execute
-the container image. Or bindfn the functions for some command.
-
-Pass "/bin/sh" to `stali_run` if you want a shell inside Stali.
-
-I know, I know, lots of questions in how to handle the hard parts of
-deploy. My answer is: Coming soon.
+See the project [nash-app-example](https://github.com/NeowayLabs/nash-app-example).
 
 # Didn't work?
 
