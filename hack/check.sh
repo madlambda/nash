@@ -15,12 +15,8 @@ GO="go"
 
 echo "mode: count" > coverage.txt
 
-if [ "x${TEST_DIRECTORY:0:1}" != "x." ]; then
-	TEST_DIRECTORY="./$TEST_DIRECTORY"
-fi
-
 # Standard $GO tooling behavior is to ignore dirs with leading underscors
-for dir in $(find "$TEST_DIRECTORY" -maxdepth 10 -not -path './.git*' -not -path './Godeps*' -not -path './contrib*' -not -path './cmd/nash/vendor*' -not -path './research*' -type d);
+for dir in $(find . -maxdepth 10 -not -path './.git*' -not -path './Godeps*' -not -path './contrib*' -not -path './cmd/nash/vendor*' -not -path './research*' -type d);
 do
     if ls $dir/*.go &> /dev/null; then
 	$GO test -v -race -covermode=atomic -coverprofile="$dir/profile.tmp" "$dir"
