@@ -342,7 +342,7 @@ func (sh *Shell) setupSignals() {
 			<-sigs
 
 			sh.Lock()
-			sh.interrupted = !sh.interrupted
+			sh.interrupted = true
 			sh.Unlock()
 		}
 	}()
