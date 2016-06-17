@@ -1661,4 +1661,35 @@ echo -n $list[$i]`)
 		t.Errorf("Fail: '%s' != '%s'", expected, result)
 		return
 	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("indexing", `IFS = ("\n")
+seq <= seq 0 2
+
+for i in $seq {
+    echo -n $list[$i]
+}`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	result = strings.TrimSpace(string(out.Bytes()))
+	expected = "123"
+
+	if expected != result {
+		t.Errorf("Fail: '%s' != '%s'", expected, result)
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("indexing", `echo -n $list[5]`)
+
+	if err == nil {
+		t.Error("Must fail. Out of bounds")
+		return
+	}
 }
