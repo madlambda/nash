@@ -2994,7 +2994,7 @@ func TestLexerListIndexing(t *testing.T) {
 		},
 		item{
 			typ: itemError,
-			val: "Expected number on variable indexing. Found 'a'",
+			val: "Expected number or variable on variable indexing. Found 'a'",
 		},
 		item{
 			typ: itemEOF,
@@ -3022,7 +3022,7 @@ func TestLexerListIndexing(t *testing.T) {
 		},
 		item{
 			typ: itemError,
-			val: "Expected number on variable indexing. Found ']'",
+			val: "Expected number or variable on variable indexing. Found ']'",
 		},
 		item{
 			typ: itemEOF,

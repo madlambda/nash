@@ -823,8 +823,10 @@ func (n *IfNode) String() string {
 	block := ifTree.String()
 	stmts := strings.Split(block, "\n")
 
-	for i := 0; i < len(stmts); i++ {
-		stmts[i] = "\t" + stmts[i]
+	if strings.TrimSpace(block) != "" {
+		for i := 0; i < len(stmts); i++ {
+			stmts[i] = "\t" + stmts[i]
+		}
 	}
 
 	ifStr += strings.Join(stmts, "\n") + "\n}"

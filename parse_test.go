@@ -37,10 +37,10 @@ func parserTestTable(name, content string, expected *Tree, t *testing.T, enableR
 	if content != trcontent {
 		t.Errorf(`Failed to reverse the tree.
 Expected:
-'%s'
+'%q'
 
 But got:
-'%s'
+'%q'
 `, content, trcontent)
 		return
 	}
@@ -1047,4 +1047,30 @@ func TestParseVariableIndexing(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("variable indexing", `test = $values[0]`, expected, t, true)
+
+	ln = NewListNode()
+
+	ifDecl := NewIfNode(0)
+	lvalue := NewArg(3, ArgVariable)
+	lvalue.SetString("$values")
+	index = NewArg(0, ArgNumber)
+	index.SetString("0")
+	lvalue.SetIndex(index)
+	ifDecl.SetLvalue(lvalue)
+	ifDecl.SetOp("==")
+	rvalue := NewArg(18, ArgQuoted)
+	rvalue.SetString("1")
+	ifDecl.SetRvalue(rvalue)
+
+	ifBlock := NewTree("if")
+	lnBody := NewListNode()
+	ifBlock.Root = lnBody
+	ifDecl.SetIfTree(ifBlock)
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("variable indexing", `if $values[0] == "1" {
+
+}`, expected, t, true)
 }

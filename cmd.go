@@ -160,7 +160,7 @@ func (cmd *Command) openRedirectLocation(location *Arg) (io.WriteCloser, error) 
 	if location.IsQuoted() || location.IsUnquoted() {
 		locationStr = location.Value()
 	} else {
-		obj, err := cmd.sh.evalVariable(location.Value())
+		obj, err := cmd.sh.evalVariable(location)
 
 		if err != nil {
 			return nil, err

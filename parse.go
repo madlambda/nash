@@ -81,6 +81,47 @@ func (p *Parser) peek() item {
 	return i
 }
 
+func (p *Parser) parseVariable() (*Arg, error) {
+	it := p.next()
+
+	if it.typ != itemVariable {
+		return nil, newError("Unexpected token %v. ", it)
+	}
+
+	arg := NewArg(it.pos, ArgVariable)
+	arg.SetString(it.val)
+
+	it = p.peek()
+
+	if it.typ == itemBracketOpen {
+		p.ignore()
+		it = p.next()
+
+		if it.typ != itemNumber && it.typ != itemVariable {
+			return nil, newError("Expected number or variable in index. Found %v", it)
+		}
+
+		var index *Arg
+
+		if it.typ == itemNumber {
+			index = NewArg(it.pos, ArgNumber)
+		} else {
+			index = NewArg(it.pos, ArgVariable)
+		}
+
+		index.SetString(it.val)
+		arg.SetIndex(index)
+
+		it = p.next()
+
+		if it.typ != itemBracketClose {
+			return nil, newError("Unexpected token %v. Expecting ']'", it)
+		}
+	}
+
+	return arg, nil
+}
+
 func (p *Parser) parsePipe(first *CommandNode) (Node, error) {
 	it := p.next()
 
@@ -355,6 +396,8 @@ func (p *Parser) getArgument(allowArg bool) (*Arg, error) {
 				indexArg = NewArg(it.pos, ArgNumber)
 			} else if it.typ == itemVariable {
 				indexArg = NewArg(it.pos, ArgVariable)
+			} else {
+				return nil, newError("Invalid index type: %v", it)
 			}
 
 			indexArg.SetString(it.val)
@@ -535,19 +578,24 @@ func (p *Parser) parseIf() (Node, error) {
 
 	n := NewIfNode(it.pos)
 
-	it = p.next()
+	it = p.peek()
 
 	if it.typ != itemString && it.typ != itemVariable {
 		return nil, fmt.Errorf("if requires an lvalue of type string or variable. Found %v", it)
 	}
 
 	if it.typ == itemString {
+		p.next()
 		arg := NewArg(it.pos, ArgQuoted)
 		arg.SetString(it.val)
 		n.SetLvalue(arg)
 	} else if it.typ == itemVariable {
-		arg := NewArg(it.pos, ArgVariable)
-		arg.SetString(it.val)
+		arg, err := p.parseVariable()
+
+		if err != nil {
+			return nil, err
+		}
+
 		n.SetLvalue(arg)
 	} else {
 		return nil, newError("Unexpected token %v, expected itemString or itemVariable", it)
@@ -556,7 +604,7 @@ func (p *Parser) parseIf() (Node, error) {
 	it = p.next()
 
 	if it.typ != itemComparison {
-		return nil, fmt.Errorf("Expected comparison. but found %v", it)
+		return nil, fmt.Errorf("Expected comparison, but found %v", it)
 	}
 
 	if it.val != "==" && it.val != "!=" {

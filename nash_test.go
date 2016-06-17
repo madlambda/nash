@@ -1614,3 +1614,33 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 		return
 	}
 }
+
+func TestExecuteVariableIndexing(t *testing.T) {
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var out bytes.Buffer
+
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("indexing", `list = ("1" "2" "3")
+        echo -n $list[0]`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	result := strings.TrimSpace(string(out.Bytes()))
+	expected := "1"
+
+	if expected != result {
+		t.Errorf("Fail: '%s' != '%s'", expected, result)
+		return
+	}
+}

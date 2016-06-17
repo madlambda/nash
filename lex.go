@@ -599,14 +599,25 @@ func lexInsideCommonVariable(l *lexer, nextConcatFn stateFn, nextFn stateFn) sta
 		l.next()
 		l.emit(itemBracketOpen)
 
-		digits := "0123456789"
+		r = l.peek()
 
-		if !l.accept(digits) {
-			return l.errorf("Expected number on variable indexing. Found %q", l.peek())
+		if r == '$' {
+			for state := func(l *lexer) stateFn {
+				return lexInsideCommonVariable(l, nextConcatFn, nil)
+			}; state != nil; {
+				state = state(l)
+			}
+		} else {
+			digits := "0123456789"
+
+			if !l.accept(digits) {
+				return l.errorf("Expected number or variable on variable indexing. Found %q", l.peek())
+			}
+
+			l.accept(digits)
+			l.acceptRun(digits)
+			l.emit(itemNumber)
 		}
-
-		l.acceptRun(digits)
-		l.emit(itemNumber)
 
 		r = l.next()
 
