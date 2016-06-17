@@ -1692,4 +1692,22 @@ for i in $seq {
 		t.Error("Must fail. Out of bounds")
 		return
 	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("indexing", `a = ("0")
+echo -n $list[$a[0]]`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	result = strings.TrimSpace(string(out.Bytes()))
+	expected = "1"
+
+	if expected != result {
+		t.Errorf("Fail: '%s' != '%s'", expected, result)
+		return
+	}
 }

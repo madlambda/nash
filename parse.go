@@ -362,6 +362,8 @@ func (p *Parser) parseSet() (Node, error) {
 }
 
 func (p *Parser) getArgument(allowArg bool) (*Arg, error) {
+	var err error
+
 	it := p.next()
 
 	if it.typ != itemString && it.typ != itemVariable && it.typ != itemArg {
@@ -394,13 +396,18 @@ func (p *Parser) getArgument(allowArg bool) (*Arg, error) {
 
 			if it.typ == itemNumber {
 				indexArg = NewArg(it.pos, ArgNumber)
+				indexArg.SetString(it.val)
 			} else if it.typ == itemVariable {
-				indexArg = NewArg(it.pos, ArgVariable)
+				p.backup(it)
+				indexArg, err = p.getArgument(false)
+
+				if err != nil {
+					return nil, err
+				}
 			} else {
 				return nil, newError("Invalid index type: %v", it)
 			}
 
-			indexArg.SetString(it.val)
 			arg.SetIndex(indexArg)
 
 			it = p.next()
