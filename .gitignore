@@ -1,1 +1,3 @@
 ./cmd/cnt/cnt
+/cmd/nash/nash
+/coverage.txt

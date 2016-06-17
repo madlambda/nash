@@ -1487,3 +1487,100 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 		return
 	}
 }
+
+func TestExecuteVariableIndexing(t *testing.T) {
+	sh, err := NewShell(false)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var out bytes.Buffer
+
+	sh.SetNashdPath(nashdPath)
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("indexing", `list = ("1" "2" "3")
+        echo -n $list[0]`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	result := strings.TrimSpace(string(out.Bytes()))
+	expected := "1"
+
+	if expected != result {
+		t.Errorf("Fail: '%s' != '%s'", expected, result)
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("indexing", `i = "0"
+echo -n $list[$i]`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	result = strings.TrimSpace(string(out.Bytes()))
+	expected = "1"
+
+	if expected != result {
+		t.Errorf("Fail: '%s' != '%s'", expected, result)
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("indexing", `IFS = ("\n")
+seq <= seq 0 2
+
+for i in $seq {
+    echo -n $list[$i]
+}`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	result = strings.TrimSpace(string(out.Bytes()))
+	expected = "123"
+
+	if expected != result {
+		t.Errorf("Fail: '%s' != '%s'", expected, result)
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("indexing", `echo -n $list[5]`)
+
+	if err == nil {
+		t.Error("Must fail. Out of bounds")
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("indexing", `a = ("0")
+echo -n $list[$a[0]]`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	result = strings.TrimSpace(string(out.Bytes()))
+	expected = "1"
+
+	if expected != result {
+		t.Errorf("Fail: '%s' != '%s'", expected, result)
+		return
+	}
+}

@@ -81,6 +81,47 @@ func (p *Parser) peek() item {
 	return i
 }
 
+func (p *Parser) parseVariable() (*Arg, error) {
+	it := p.next()
+
+	if it.typ != itemVariable {
+		return nil, newError("Unexpected token %v. ", it)
+	}
+
+	arg := NewArg(it.pos, ArgVariable)
+	arg.SetString(it.val)
+
+	it = p.peek()
+
+	if it.typ == itemBracketOpen {
+		p.ignore()
+		it = p.next()
+
+		if it.typ != itemNumber && it.typ != itemVariable {
+			return nil, newError("Expected number or variable in index. Found %v", it)
+		}
+
+		var index *Arg
+
+		if it.typ == itemNumber {
+			index = NewArg(it.pos, ArgNumber)
+		} else {
+			index = NewArg(it.pos, ArgVariable)
+		}
+
+		index.SetString(it.val)
+		arg.SetIndex(index)
+
+		it = p.next()
+
+		if it.typ != itemBracketClose {
+			return nil, newError("Unexpected token %v. Expecting ']'", it)
+		}
+	}
+
+	return arg, nil
+}
+
 func (p *Parser) parsePipe(first *CommandNode) (Node, error) {
 	it := p.next()
 
@@ -311,7 +352,7 @@ func (p *Parser) parseSet() (Node, error) {
 
 	it = p.next()
 
-	if it.typ != itemVarName {
+	if it.typ != itemIdentifier {
 		return nil, fmt.Errorf("Unexpected token %v, expected variable", it)
 	}
 
@@ -321,6 +362,8 @@ func (p *Parser) parseSet() (Node, error) {
 }
 
 func (p *Parser) getArgument(allowArg bool) (*Arg, error) {
+	var err error
+
 	it := p.next()
 
 	if it.typ != itemString && it.typ != itemVariable && it.typ != itemArg {
@@ -344,6 +387,35 @@ func (p *Parser) getArgument(allowArg bool) (*Arg, error) {
 	if firstToken.typ == itemVariable {
 		arg.SetArgType(ArgVariable)
 		arg.SetString(firstToken.val)
+
+		if it.typ == itemBracketOpen {
+			p.ignore()
+			it = p.next()
+
+			var indexArg *Arg
+
+			if it.typ == itemNumber {
+				indexArg = NewArg(it.pos, ArgNumber)
+				indexArg.SetString(it.val)
+			} else if it.typ == itemVariable {
+				p.backup(it)
+				indexArg, err = p.getArgument(false)
+
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				return nil, newError("Invalid index type: %v", it)
+			}
+
+			arg.SetIndex(indexArg)
+
+			it = p.next()
+
+			if it.typ != itemBracketClose {
+				return nil, newError("Unexpected token %v. Expected ']'", it)
+			}
+		}
 	} else if firstToken.typ == itemString {
 		arg.SetArgType(ArgQuoted)
 		arg.SetString(firstToken.val)
@@ -491,7 +563,7 @@ func (p *Parser) parseRfork() (Node, error) {
 
 	it = p.peek()
 
-	if it.typ == itemLeftBlock {
+	if it.typ == itemBracesOpen {
 		p.ignore() // ignore lookaheaded symbol
 		p.openblocks++
 
@@ -513,19 +585,24 @@ func (p *Parser) parseIf() (Node, error) {
 
 	n := NewIfNode(it.pos)
 
-	it = p.next()
+	it = p.peek()
 
 	if it.typ != itemString && it.typ != itemVariable {
 		return nil, fmt.Errorf("if requires an lvalue of type string or variable. Found %v", it)
 	}
 
 	if it.typ == itemString {
+		p.next()
 		arg := NewArg(it.pos, ArgQuoted)
 		arg.SetString(it.val)
 		n.SetLvalue(arg)
 	} else if it.typ == itemVariable {
-		arg := NewArg(it.pos, ArgVariable)
-		arg.SetString(it.val)
+		arg, err := p.parseVariable()
+
+		if err != nil {
+			return nil, err
+		}
+
 		n.SetLvalue(arg)
 	} else {
 		return nil, newError("Unexpected token %v, expected itemString or itemVariable", it)
@@ -534,7 +611,7 @@ func (p *Parser) parseIf() (Node, error) {
 	it = p.next()
 
 	if it.typ != itemComparison {
-		return nil, fmt.Errorf("Expected comparison. but found %v", it)
+		return nil, fmt.Errorf("Expected comparison, but found %v", it)
 	}
 
 	if it.val != "==" && it.val != "!=" {
@@ -561,7 +638,7 @@ func (p *Parser) parseIf() (Node, error) {
 
 	it = p.next()
 
-	if it.typ != itemLeftBlock {
+	if it.typ != itemBracesOpen {
 		return nil, fmt.Errorf("Expected '{' but found %v", it)
 	}
 
@@ -604,9 +681,9 @@ func (p *Parser) parseFnArgs() ([]string, error) {
 	for {
 		it := p.next()
 
-		if it.typ == itemRightParen {
+		if it.typ == itemParenClose {
 			break
-		} else if it.typ == itemVarName {
+		} else if it.typ == itemIdentifier {
 			args = append(args, it.val)
 		} else {
 			return nil, fmt.Errorf("Unexpected token %v. Expected identifier or ')'", it)
@@ -624,13 +701,13 @@ func (p *Parser) parseFnDecl() (Node, error) {
 
 	it = p.next()
 
-	if it.typ == itemVarName {
+	if it.typ == itemIdentifier {
 		n.SetName(it.val)
 
 		it = p.next()
 	}
 
-	if it.typ != itemLeftParen {
+	if it.typ != itemParenOpen {
 		return nil, newError("Unexpected token %v. Expected '('", it)
 	}
 
@@ -646,7 +723,7 @@ func (p *Parser) parseFnDecl() (Node, error) {
 
 	it = p.next()
 
-	if it.typ != itemLeftBlock {
+	if it.typ != itemBracesOpen {
 		return nil, newError("Unexpected token %v. Expected '{'", it)
 	}
 
@@ -675,7 +752,7 @@ func (p *Parser) parseFnInv() (Node, error) {
 
 	it = p.next()
 
-	if it.typ != itemLeftParen {
+	if it.typ != itemParenOpen {
 		return nil, newError("Invalid token %v. Expected '('", it)
 	}
 
@@ -690,7 +767,7 @@ func (p *Parser) parseFnInv() (Node, error) {
 			}
 
 			n.AddArg(arg)
-		} else if it.typ == itemRightParen {
+		} else if it.typ == itemParenClose {
 			p.next()
 			break
 		} else {
@@ -704,7 +781,7 @@ func (p *Parser) parseFnInv() (Node, error) {
 func (p *Parser) parseElse() (*ListNode, bool, error) {
 	it := p.next()
 
-	if it.typ == itemLeftBlock {
+	if it.typ == itemBracesOpen {
 		p.openblocks++
 
 		elseBlock, err := p.parseBlock()
@@ -739,13 +816,13 @@ func (p *Parser) parseBindFn() (Node, error) {
 
 	nameIt := p.next()
 
-	if nameIt.typ != itemVarName {
+	if nameIt.typ != itemIdentifier {
 		return nil, newError("Expected identifier, but found '%v'", nameIt)
 	}
 
 	cmdIt := p.next()
 
-	if cmdIt.typ != itemVarName {
+	if cmdIt.typ != itemIdentifier {
 		return nil, newError("Expected identifier, but found '%v'", cmdIt)
 	}
 
@@ -823,7 +900,7 @@ func (p *Parser) parseFor() (Node, error) {
 
 	it = p.peek()
 
-	if it.typ != itemVarName {
+	if it.typ != itemIdentifier {
 		goto forBlockParse
 	}
 
@@ -848,7 +925,7 @@ func (p *Parser) parseFor() (Node, error) {
 forBlockParse:
 	it = p.peek()
 
-	if it.typ != itemLeftBlock {
+	if it.typ != itemBracesOpen {
 		return nil, newError("Expected '{' but found %q", it)
 	}
 
@@ -889,7 +966,7 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseShowEnv()
 	case itemSetEnv:
 		return p.parseSet()
-	case itemVarName:
+	case itemIdentifier:
 		return p.parseAssignment()
 	case itemCommand:
 		return p.parseCommand()
@@ -929,11 +1006,11 @@ func (p *Parser) parseBlock() (*ListNode, error) {
 			goto finish
 		case itemError:
 			return nil, fmt.Errorf("Syntax error: %s", it.val)
-		case itemLeftBlock:
+		case itemBracesOpen:
 			p.ignore()
 
 			return nil, errors.New("Parser error: Unexpected '{'")
-		case itemRightBlock:
+		case itemBracesClose:
 			p.ignore()
 
 			if p.openblocks <= 0 {

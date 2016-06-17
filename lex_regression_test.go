@@ -61,23 +61,23 @@ func TestLexerIssue22(t *testing.T) {
 			val: "fn",
 		},
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "gocd",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "path",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -97,7 +97,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -109,7 +109,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "$GOPATH",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -117,7 +117,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "else",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
@@ -145,11 +145,11 @@ func TestLexerIssue22(t *testing.T) {
 			val: "$path",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{
@@ -172,7 +172,7 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 
 	expected := []item{
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "version",
 		},
 		item{
@@ -184,7 +184,7 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 			val: "4.5.6",
 		},
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "canonName",
 		},
 		item{
@@ -230,7 +230,7 @@ func TestLexerIssue38(t *testing.T) {
 			val: "cd",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
@@ -254,7 +254,7 @@ func TestLexerIssue38(t *testing.T) {
 			val: "$path",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
@@ -272,23 +272,23 @@ func TestLexerIssue43(t *testing.T) {
 			val: "fn",
 		},
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "gpull",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemLeftBlock,
+			typ: itemBracesOpen,
 			val: "{",
 		},
 		item{
-			typ: itemVarName,
+			typ: itemIdentifier,
 			val: "branch",
 		},
 		item{
@@ -348,15 +348,15 @@ func TestLexerIssue43(t *testing.T) {
 			val: "refreshPrompt",
 		},
 		item{
-			typ: itemLeftParen,
+			typ: itemParenOpen,
 			val: "(",
 		},
 		item{
-			typ: itemRightParen,
+			typ: itemParenClose,
 			val: ")",
 		},
 		item{
-			typ: itemRightBlock,
+			typ: itemBracesClose,
 			val: "}",
 		},
 		item{

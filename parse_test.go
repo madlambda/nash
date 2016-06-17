@@ -37,10 +37,10 @@ func parserTestTable(name, content string, expected *Tree, t *testing.T, enableR
 	if content != trcontent {
 		t.Errorf(`Failed to reverse the tree.
 Expected:
-'%s'
+'%q'
 
 But got:
-'%s'
+'%q'
 `, content, trcontent)
 		return
 	}
@@ -129,14 +129,14 @@ func TestBasicAssignment(t *testing.T) {
 	assign := NewAssignmentNode(0)
 	assign.SetVarName("test")
 
-	elem := NewArg(6, ArgQuoted)
+	elem := NewArg(8, ArgQuoted)
 	elem.SetString("hello")
 
 	assign.SetValue(elem)
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("simple assignment", `test="hello"`, expected, t, true)
+	parserTestTable("simple assignment", `test = "hello"`, expected, t, true)
 
 	// test concatenation of strings and variables
 
@@ -146,25 +146,25 @@ func TestBasicAssignment(t *testing.T) {
 
 	concats := make([]*Arg, 2, 2)
 
-	hello := NewArg(6, ArgQuoted)
+	hello := NewArg(8, ArgQuoted)
 	hello.SetString("hello")
-	variable := NewArg(13, ArgVariable)
+	variable := NewArg(15, ArgVariable)
 	variable.SetString("$var")
 
 	concats[0] = hello
 	concats[1] = variable
-	arg1 := NewArg(6, ArgConcat)
+	arg1 := NewArg(8, ArgConcat)
 	arg1.SetConcat(concats)
 
 	assign.SetValue(arg1)
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("test", `test="hello"+$var`, expected, t, true)
+	parserTestTable("test", `test = "hello"+$var`, expected, t, true)
 
 	// invalid, requires quote
 	// test=hello
-	parser := NewParser("", `test=hello`)
+	parser := NewParser("", `test = hello`)
 
 	tr, err := parser.Parse()
 
@@ -415,14 +415,14 @@ func TestParseCd(t *testing.T) {
 	ln = NewListNode()
 	assign := NewAssignmentNode(0)
 	assign.SetVarName("HOME")
-	arg = NewArg(6, ArgQuoted)
+	arg = NewArg(8, ArgQuoted)
 	arg.SetString("/")
 
 	assign.SetValue(arg)
 
-	set := NewSetAssignmentNode(9, "HOME")
-	cd = NewCdNode(21)
-	pwd := NewCommandNode(24, "pwd")
+	set := NewSetAssignmentNode(11, "HOME")
+	cd = NewCdNode(23)
+	pwd := NewCommandNode(26, "pwd")
 
 	ln.Push(assign)
 	ln.Push(set)
@@ -431,7 +431,7 @@ func TestParseCd(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("test cd into HOME by setenv", `HOME="/"
+	parserTestTable("test cd into HOME by setenv", `HOME = "/"
 setenv HOME
 cd
 pwd`, expected, t, true)
@@ -441,12 +441,12 @@ pwd`, expected, t, true)
 	ln = NewListNode()
 	assign = NewAssignmentNode(0)
 	assign.SetVarName("GOPATH")
-	arg = NewArg(8, ArgQuoted)
+	arg = NewArg(10, ArgQuoted)
 	arg.SetString("/home/i4k/gopath")
 
 	assign.SetValue(arg)
-	cd = NewCdNode(26)
-	path := NewArg(29, ArgVariable)
+	cd = NewCdNode(28)
+	path := NewArg(31, ArgVariable)
 	path.SetString("$GOPATH")
 	cd.SetDir(path)
 
@@ -455,7 +455,7 @@ pwd`, expected, t, true)
 
 	expected.Root = ln
 
-	parserTestTable("test cd into variable value", `GOPATH="/home/i4k/gopath"
+	parserTestTable("test cd into variable value", `GOPATH = "/home/i4k/gopath"
 cd $GOPATH`, expected, t, true)
 
 	// Test cd into custom variable
@@ -463,15 +463,15 @@ cd $GOPATH`, expected, t, true)
 	ln = NewListNode()
 	assign = NewAssignmentNode(0)
 	assign.SetVarName("GOPATH")
-	arg = NewArg(8, ArgQuoted)
+	arg = NewArg(10, ArgQuoted)
 	arg.SetString("/home/i4k/gopath")
 
 	assign.SetValue(arg)
-	cd = NewCdNode(26)
-	path = NewArg(29, ArgConcat)
-	varg := NewArg(29, ArgVariable)
+	cd = NewCdNode(28)
+	path = NewArg(31, ArgConcat)
+	varg := NewArg(31, ArgVariable)
 	varg.SetString("$GOPATH")
-	src := NewArg(38, ArgQuoted)
+	src := NewArg(40, ArgQuoted)
 	src.SetString("/src/github.com")
 	concat := make([]*Arg, 0, 2)
 	concat = append(concat, varg)
@@ -484,7 +484,7 @@ cd $GOPATH`, expected, t, true)
 
 	expected.Root = ln
 
-	parserTestTable("test cd into variable value", `GOPATH="/home/i4k/gopath"
+	parserTestTable("test cd into variable value", `GOPATH = "/home/i4k/gopath"
 cd $GOPATH+"/src/github.com"`, expected, t, true)
 
 }
@@ -1025,6 +1025,52 @@ func TestParseFor(t *testing.T) {
 	forStmt.SetInVar("$files")
 
 	parserTestTable("for", `for f in $files {
+
+}`, expected, t, true)
+}
+
+func TestParseVariableIndexing(t *testing.T) {
+	expected := NewTree("variable indexing")
+	ln := NewListNode()
+
+	assignment := NewAssignmentNode(0)
+	assignment.SetVarName("test")
+
+	variable := NewArg(7, ArgVariable)
+	variable.SetString("$values")
+
+	index := NewArg(0, ArgNumber)
+	index.SetString("0")
+	variable.SetIndex(index)
+	assignment.SetValue(variable)
+	ln.Push(assignment)
+	expected.Root = ln
+
+	parserTestTable("variable indexing", `test = $values[0]`, expected, t, true)
+
+	ln = NewListNode()
+
+	ifDecl := NewIfNode(0)
+	lvalue := NewArg(3, ArgVariable)
+	lvalue.SetString("$values")
+	index = NewArg(0, ArgNumber)
+	index.SetString("0")
+	lvalue.SetIndex(index)
+	ifDecl.SetLvalue(lvalue)
+	ifDecl.SetOp("==")
+	rvalue := NewArg(18, ArgQuoted)
+	rvalue.SetString("1")
+	ifDecl.SetRvalue(rvalue)
+
+	ifBlock := NewTree("if")
+	lnBody := NewListNode()
+	ifBlock.Root = lnBody
+	ifDecl.SetIfTree(ifBlock)
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("variable indexing", `if $values[0] == "1" {
 
 }`, expected, t, true)
 }

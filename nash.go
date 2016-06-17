@@ -365,7 +365,7 @@ func (sh *Shell) executeConcat(path *Arg) (string, error) {
 		}
 
 		if part.IsVariable() {
-			partValues, err := sh.evalVariable(part.Value())
+			partValues, err := sh.evalVariable(part)
 
 			if err != nil {
 				return "", err
@@ -828,12 +828,70 @@ cmdError:
 	return err
 }
 
-func (sh *Shell) evalVariable(a string) (*Obj, error) {
-	if v, ok := sh.GetVar(a[1:]); ok {
-		return v, nil
+func (sh *Shell) evalVariable(a *Arg) (*Obj, error) {
+	var (
+		v  *Obj
+		ok bool
+	)
+
+	if a.ArgType() != ArgVariable {
+		return nil, newError("Invalid eval of non variable argument: %s", a)
 	}
 
-	return nil, fmt.Errorf("Variable %s not set", a)
+	varName := a.Value()
+
+	if v, ok = sh.GetVar(varName[1:]); !ok {
+		return nil, fmt.Errorf("Variable %s not set", varName)
+	}
+
+	if a.Index() != nil {
+		if v.Type() != ListType {
+			return nil, newError("Invalid indexing of non-list variable: %s", v.Type())
+		}
+
+		var (
+			indexNum int
+			err      error
+		)
+
+		idxArg := a.Index()
+
+		if idxArg.ArgType() == ArgNumber {
+			indexNum, err = strconv.Atoi(idxArg.Value())
+
+			if err != nil {
+				return nil, err
+			}
+		} else if idxArg.ArgType() == ArgVariable {
+			idxObj, err := sh.evalVariable(idxArg)
+
+			if err != nil {
+				return nil, err
+			}
+
+			if idxObj.Type() != StringType {
+				return nil, newError("Invalid object type on index value: %s", idxObj.Type())
+			}
+
+			idxVal := idxObj.Str()
+			indexNum, err = strconv.Atoi(idxVal)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		values := v.List()
+
+		if indexNum < 0 || indexNum >= len(values) {
+			return nil, newError("Index out of bounds. len(%s) == %d, but given %d", varName, len(values), indexNum)
+		}
+
+		value := values[indexNum]
+		return NewStrObj(value), nil
+	}
+
+	return v, nil
 }
 
 func (sh *Shell) evalArg(arg *Arg) (*Obj, error) {
@@ -848,7 +906,7 @@ func (sh *Shell) evalArg(arg *Arg) (*Obj, error) {
 
 		return NewStrObj(argVal), nil
 	} else if arg.IsVariable() {
-		obj, err := sh.evalVariable(arg.Value())
+		obj, err := sh.evalVariable(arg)
 
 		if err != nil {
 			return nil, err
@@ -1150,7 +1208,10 @@ func (sh *Shell) executeFnInv(n *FnInvNode) (*Obj, error) {
 	fnName := n.Name()
 
 	if len(fnName) > 0 && fnName[0] == '$' {
-		obj, err := sh.evalVariable(fnName)
+		argVar := NewArg(n.Position(), ArgVariable)
+		argVar.SetString(fnName)
+
+		obj, err := sh.evalVariable(argVar)
 
 		if err != nil {
 			return nil, err
@@ -1217,7 +1278,10 @@ func (sh *Shell) executeFor(n *ForNode) error {
 	id := n.Identifier()
 	inVar := n.InVar()
 
-	obj, err := sh.evalVariable(inVar)
+	argVar := NewArg(n.Position(), ArgVariable)
+	argVar.SetString(inVar)
+
+	obj, err := sh.evalVariable(argVar)
 
 	if err != nil {
 		return err
