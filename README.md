@@ -8,7 +8,7 @@ shoot yourself in the foot, (or in the head). It gives
 power to the user in the sense that you really can use `nash` to
 script deploys taking advantage of namespaces in an idiomatic way.
 
-It's more safe for devops/sysadmins because it doesn't have the unsafe
+It's more safe for scripts because it doesn't have the unsafe
 features of all former shells and it aim to have a very simple, safe
 and frozen syntax specification. Every shell feature considered
 harmful was left behind, but some needed features are still missing.
