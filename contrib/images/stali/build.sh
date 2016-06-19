@@ -36,7 +36,9 @@ fn buildStali() {
 
     echo "Stali image generated: " + $imagename + ".tar.bz2"
 
-    return $PWD + "/" + $imagename + ".tar.bz2"
+    out = $PWD + "/" + $imagename + ".tar.bz2"
+
+    return $out
 }
 
 buildStali()
