@@ -817,7 +817,7 @@ cmdError:
 	defer sh.Unlock()
 
 	if sh.interrupted {
-		sh.interrupted = !sh.interrupted
+		sh.interrupted = false
 		return newErrInterrupted(err.Error())
 	}
 
@@ -1238,8 +1238,6 @@ func (sh *Shell) executeInfLoop(tr *Tree) error {
 
 		_, err := sh.ExecuteTree(tr)
 
-		sh.Lock()
-
 		type interruptedError interface {
 			Interrupted() bool
 		}
@@ -1248,8 +1246,10 @@ func (sh *Shell) executeInfLoop(tr *Tree) error {
 			return err
 		}
 
+		sh.Lock()
+
 		if sh.interrupted {
-			sh.interrupted = !sh.interrupted
+			sh.interrupted = false
 
 			sh.Unlock()
 
@@ -1296,8 +1296,6 @@ func (sh *Shell) executeFor(n *ForNode) error {
 
 		_, err = sh.ExecuteTree(n.Tree())
 
-		sh.Lock()
-
 		type interruptedError interface {
 			Interrupted() bool
 		}
@@ -1306,8 +1304,10 @@ func (sh *Shell) executeFor(n *ForNode) error {
 			return err
 		}
 
+		sh.Lock()
+
 		if sh.interrupted {
-			sh.interrupted = !sh.interrupted
+			sh.interrupted = false
 
 			sh.Unlock()
 
