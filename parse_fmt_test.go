@@ -78,6 +78,8 @@ func TestFmtVariables(t *testing.T) {
 	openbsd
 )`},
 
+		fmtTestTable{`IFS = ("\n")`, `IFS = ("\n")`},
+
 		// multiple variables
 		fmtTestTable{`test = "a"
 testb = "b"`, `test = "a"

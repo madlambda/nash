@@ -693,7 +693,7 @@ func (n *Arg) IsList() bool { return n.argType == ArgList }
 // String returns the string representation of argument
 func (n Arg) String() string {
 	if n.IsQuoted() {
-		return "\"" + n.str + "\""
+		return "\"" + stringify(n.str) + "\""
 	} else if n.IsConcat() {
 		ret := ""
 

@@ -53,3 +53,8 @@ func printVar(out io.Writer, name string, val *Obj) {
 func printEnv(out io.Writer, name string) {
 	fmt.Fprintf(out, "setenv %s\n", name)
 }
+
+func stringify(s string) string {
+	return strings.Replace(strings.Replace(s, "\n", "\\n", -1),
+		"\t", "\\t", -1)
+}
