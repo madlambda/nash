@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -10,21 +11,33 @@ import (
 	"github.com/NeowayLabs/nash"
 )
 
+var (
+	overwrite bool
+)
+
+func init() {
+	flag.BoolVar(&overwrite, "w", false, "overwrite file")
+}
+
 func main() {
 	var (
 		file io.ReadCloser
 		err  error
 	)
 
-	if len(os.Args) <= 1 {
-		file = os.Stdin
-	} else {
-		fname := os.Args[1]
-		file, err = os.Open(fname)
+	flag.Parse()
 
-		if err != nil {
-			log.Fatal("[ERROR] " + err.Error())
-		}
+	if len(flag.Args()) <= 0 {
+		flag.PrintDefaults()
+		return
+	}
+
+	fname := flag.Args()[0]
+
+	file, err = os.Open(fname)
+
+	if err != nil {
+		log.Fatal("[ERROR] " + err.Error())
 	}
 
 	defer file.Close()
@@ -45,5 +58,16 @@ func main() {
 		return
 	}
 
-	fmt.Printf("%s\n", ast)
+	if !overwrite {
+		fmt.Printf("%s\n", ast.String())
+	} else if ast.String() != string(content) {
+		file.Close()
+
+		err = ioutil.WriteFile(fname, []byte(fmt.Sprintf("%s\n", ast.String())), 0666)
+
+		if err != nil {
+			log.Printf("[ERROR] " + err.Error())
+			return
+		}
+	}
 }

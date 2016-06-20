@@ -1,4 +1,4 @@
-all: build
+all: build install
 
 VERSION=$(shell git rev-parse --abbrev-ref HEAD)
 
