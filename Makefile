@@ -11,4 +11,5 @@ test: deps build
 
 install:
 	cd cmd/nash && make install
+	cd cmd/nashfmt && make install
 	@echo "Nash installed on $(GOPATH)/bin/nash"

@@ -713,19 +713,21 @@ func (n Arg) String() string {
 
 		return ret
 	} else if n.IsList() {
-		ret := "("
-
 		l := n.List()
 
-		for i := 0; i < len(l); i++ {
-			ret += l[i].String()
+		elems := make([]string, len(l))
+		linecount := 0
 
-			if i < len(l)-1 {
-				ret += " "
-			}
+		for i := 0; i < len(l); i++ {
+			elems[i] = l[i].String()
+			linecount += len(elems[i])
 		}
 
-		return ret + ")"
+		if linecount+len(l) > 50 {
+			return "(\n\t" + strings.Join(elems, "\n\t") + "\n)"
+		}
+
+		return "(" + strings.Join(elems, " ") + ")"
 	} else if n.Index() != nil {
 		return n.Value() + "[" + n.Index().String() + "]"
 	}
