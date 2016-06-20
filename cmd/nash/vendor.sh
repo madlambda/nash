@@ -8,8 +8,7 @@ fn vendor() {
 	GOBIN = $GOPATH+"/bin"
 	setenv GOBIN
 	go get -v .
-	IFS = ("
-		")
+	IFS = ("\n")
 	paths <= ls vendor/src
 	for path in $paths {
 	mv "vendor/src/"+$path vendor/
