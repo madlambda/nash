@@ -63,7 +63,9 @@ func main() {
 	if !overwrite {
 		fmt.Printf("%s\n", ast.String())
 		return
-	} else if ast.String() != string(content) {
+	}
+
+	if ast.String() != string(content) {
 		err = ioutil.WriteFile(fname, []byte(fmt.Sprintf("%s\n", ast.String())), 0666)
 
 		if err != nil {
@@ -71,6 +73,4 @@ func main() {
 			return
 		}
 	}
-
-	os.Exit(1)
 }
