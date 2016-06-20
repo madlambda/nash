@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 
 	"github.com/NeowayLabs/nash"
@@ -37,16 +36,16 @@ func main() {
 	file, err = os.Open(fname)
 
 	if err != nil {
-		log.Fatal("[ERROR] " + err.Error())
+		fmt.Fprintf(os.Stderr, "[ERROR] "+err.Error())
+		os.Exit(1)
 	}
-
-	defer file.Close()
 
 	content, err := ioutil.ReadAll(file)
 
 	if err != nil {
-		log.Printf("[ERROR] " + err.Error())
-		return
+		file.Close()
+		fmt.Fprintf(os.Stderr, "[ERROR] "+err.Error())
+		os.Exit(1)
 	}
 
 	parser := nash.NewParser("nashfmt", string(content))
@@ -54,20 +53,24 @@ func main() {
 	ast, err := parser.Parse()
 
 	if err != nil {
-		log.Printf("[ERROR] " + err.Error())
-		return
+		fmt.Fprintf(os.Stderr, "[ERROR] "+err.Error())
+		file.Close()
+		os.Exit(1)
 	}
+
+	file.Close()
 
 	if !overwrite {
 		fmt.Printf("%s\n", ast.String())
+		return
 	} else if ast.String() != string(content) {
-		file.Close()
-
 		err = ioutil.WriteFile(fname, []byte(fmt.Sprintf("%s\n", ast.String())), 0666)
 
 		if err != nil {
-			log.Printf("[ERROR] " + err.Error())
+			fmt.Fprintf(os.Stderr, "[ERROR] "+err.Error())
 			return
 		}
 	}
+
+	os.Exit(1)
 }
