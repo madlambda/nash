@@ -122,11 +122,13 @@ func getnashpath() (string, error) {
 }
 
 func initShell() (*nash.Shell, error) {
-	shell, err := nash.NewShell(debug)
+	shell, err := nash.NewShell()
 
 	if err != nil {
 		return nil, err
 	}
+
+	shell.SetDebug(debug)
 
 	nashpath, err := getnashpath()
 

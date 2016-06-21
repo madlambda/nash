@@ -35,7 +35,7 @@ func TestExecuteFile(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -59,7 +59,7 @@ func TestExecuteFile(t *testing.T) {
 }
 
 func TestExecuteCommand(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -133,7 +133,7 @@ func TestExecuteCommand(t *testing.T) {
 func TestExecuteAssignment(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -179,7 +179,7 @@ func TestExecuteAssignment(t *testing.T) {
 		return
 	}
 
-	sh, err = NewShell(false)
+	sh, err = NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -201,7 +201,7 @@ func TestExecuteAssignment(t *testing.T) {
 func TestExecuteCmdAssignment(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -247,7 +247,7 @@ func TestExecuteCmdAssignment(t *testing.T) {
 		return
 	}
 
-	sh, err = NewShell(false)
+	sh, err = NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -269,7 +269,7 @@ func TestExecuteCmdAssignment(t *testing.T) {
 func TestExecuteCmdAssignmentIFS(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -361,7 +361,7 @@ for i in $range {
 }
 
 func TestExecuteRedirection(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -393,7 +393,7 @@ func TestExecuteRedirection(t *testing.T) {
 }
 
 func TestExecuteRedirectionMap(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -427,7 +427,7 @@ func TestExecuteRedirectionMap(t *testing.T) {
 func TestExecuteCd(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -512,7 +512,7 @@ func TestExecuteCd(t *testing.T) {
 func TestExecuteImport(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -547,7 +547,7 @@ func TestExecuteImport(t *testing.T) {
 func TestExecuteShowEnv(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -592,7 +592,7 @@ func TestExecuteShowEnv(t *testing.T) {
 func TestExecuteIfEqual(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -638,7 +638,7 @@ func TestExecuteIfEqual(t *testing.T) {
 func TestExecuteIfElse(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -688,7 +688,7 @@ func TestExecuteIfElse(t *testing.T) {
 func TestExecuteIfElseIf(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -736,7 +736,7 @@ func TestExecuteIfElseIf(t *testing.T) {
 }
 
 func TestExecuteFnDecl(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -757,7 +757,7 @@ func TestExecuteFnDecl(t *testing.T) {
 }
 
 func TestExecuteFnInv(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -829,7 +829,7 @@ echo -n $INSIDE
 }
 
 func TestExecuteFnInvOthers(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -871,7 +871,7 @@ echo -n $integers
 func TestExecuteBindFn(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -908,7 +908,7 @@ func TestExecutePipe(t *testing.T) {
 
 	os.Setenv("PATH", path)
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -957,7 +957,7 @@ func TestExecuteTCPRedirection(t *testing.T) {
 	done := make(chan bool)
 
 	go func() {
-		sh, err := NewShell(false)
+		sh, err := NewShell()
 
 		if err != nil {
 			t.Error(err)
@@ -1035,7 +1035,7 @@ func TestExecuteUnixRedirection(t *testing.T) {
 			writeDone <- true
 		}()
 
-		sh, err := NewShell(false)
+		sh, err := NewShell()
 
 		if err != nil {
 			t.Error(err)
@@ -1101,7 +1101,7 @@ func TestExecuteUDPRedirection(t *testing.T) {
 			writeDone <- true
 		}()
 
-		sh, err := NewShell(false)
+		sh, err := NewShell()
 
 		if err != nil {
 			t.Error(err)
@@ -1159,7 +1159,7 @@ func TestExecuteUDPRedirection(t *testing.T) {
 }
 
 func TestExecuteReturn(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -1185,7 +1185,7 @@ test()`)
 }
 
 func TestExecuteFnAsFirstClass(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -1224,7 +1224,7 @@ func TestExecuteFnAsFirstClass(t *testing.T) {
 }
 
 func TestExecuteDump(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -1317,7 +1317,7 @@ func TestExecuteDump(t *testing.T) {
 }
 
 func TestExecuteDumpVariable(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -1384,7 +1384,7 @@ func TestExecuteDumpVariable(t *testing.T) {
 }
 
 func TestExecuteConcat(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -1415,7 +1415,7 @@ echo -n $c`)
 }
 
 func TestExecuteFor(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -1453,7 +1453,7 @@ loop`
 }
 
 func TestExecuteInfiniteLoop(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -1489,7 +1489,7 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 }
 
 func TestExecuteVariableIndexing(t *testing.T) {
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)

@@ -89,12 +89,11 @@ const (
 )
 
 // NewShell creates a new shell object
-func NewShell(debug bool) (*Shell, error) {
+func NewShell() (*Shell, error) {
 	sh := &Shell{
 		name:      "parent scope",
 		isFn:      false,
-		debug:     debug,
-		log:       NewLog(logNS, debug),
+		log:       NewLog(logNS, false),
 		nashdPath: nashdAutoDiscover(),
 		stdout:    os.Stdout,
 		stderr:    os.Stderr,
@@ -161,6 +160,12 @@ func (sh *Shell) Reset() {
 	sh.vars = make(Var)
 	sh.env = make(Env)
 	sh.binds = make(Fns)
+}
+
+// SetDebug enable/disable debug in the shell
+func (sh *Shell) SetDebug(d bool) {
+	sh.debug = d
+	sh.log = NewLog(logNS, d)
 }
 
 func (sh *Shell) SetName(a string) {
@@ -249,11 +254,6 @@ func (sh *Shell) Prompt() string {
 	}
 
 	return "<no prompt> "
-}
-
-// SetDebug enable/disable debug in the shell
-func (sh *Shell) SetDebug(debug bool) {
-	sh.log = NewLog(logNS, debug)
 }
 
 // SetNashdPath sets an alternativa path to nashd
@@ -1329,12 +1329,13 @@ func (sh *Shell) executeFor(n *ForNode) error {
 }
 
 func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
-	fn, err := NewShell(sh.debug)
+	fn, err := NewShell()
 
 	if err != nil {
 		return err
 	}
 
+	fn.SetDebug(sh.debug)
 	fn.SetName(n.Name())
 	fn.SetParent(sh)
 	fn.SetStdout(sh.stdout)

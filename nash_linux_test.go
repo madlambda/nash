@@ -50,7 +50,7 @@ func TestExecuteRforkUserNS(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -83,7 +83,7 @@ func TestExecuteRforkEnvVars(t *testing.T) {
 		return
 	}
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -112,7 +112,7 @@ func TestExecuteRforkUserNSNested(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh, err := NewShell(false)
+	sh, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
