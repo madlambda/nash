@@ -106,7 +106,44 @@ func NewShell() (*Shell, error) {
 		Mutex:     &sync.Mutex{},
 	}
 
-	sh.setup()
+	err := sh.setup()
+
+	if err != nil {
+		return nil, err
+	}
+
+	sh.setupSignals()
+
+	return sh, nil
+}
+
+func NewSubShell(name string, parent *Shell) (*Shell, error) {
+	if parent == nil {
+		return nil, newError("A sub Shell requires a parent shell")
+	}
+
+	sh := &Shell{
+		name:      name,
+		isFn:      true,
+		parent:    parent,
+		log:       NewLog(logNS, false),
+		nashdPath: nashdAutoDiscover(),
+		stdout:    os.Stdout,
+		stderr:    os.Stderr,
+		stdin:     os.Stdin,
+		env:       make(Env),
+		vars:      make(Var),
+		fns:       make(Fns),
+		binds:     make(Fns),
+		argNames:  make([]string, 0, 16),
+		Mutex:     parent.Mutex,
+	}
+
+	err := sh.setup()
+
+	if err != nil {
+		return nil, err
+	}
 
 	return sh, nil
 }
@@ -327,8 +364,6 @@ func (sh *Shell) setup() error {
 		sh.Setenv("PROMPT", pobj)
 		sh.Setvar("PROMPT", pobj)
 	}
-
-	sh.setupSignals()
 
 	return nil
 }
@@ -1329,20 +1364,17 @@ func (sh *Shell) executeFor(n *ForNode) error {
 }
 
 func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
-	fn, err := NewShell()
+	fn, err := NewSubShell(n.Name(), sh)
 
 	if err != nil {
 		return err
 	}
 
 	fn.SetDebug(sh.debug)
-	fn.SetName(n.Name())
-	fn.SetParent(sh)
 	fn.SetStdout(sh.stdout)
 	fn.SetStderr(sh.stderr)
 	fn.SetStdin(sh.stdin)
 	fn.SetRepr(n.String())
-	fn.SetIsFn(true)
 	fn.SetDotDir(sh.dotDir)
 
 	args := n.Args()
