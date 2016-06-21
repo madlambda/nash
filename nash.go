@@ -377,7 +377,7 @@ func (sh *Shell) setupSignals() {
 			<-sigs
 
 			sh.Lock()
-			sh.interrupted = true
+			sh.setIntr(true)
 			sh.Unlock()
 		}
 	}()
@@ -385,8 +385,27 @@ func (sh *Shell) setupSignals() {
 
 func (sh *Shell) TriggerCTRLC() {
 	sh.Lock()
-	sh.interrupted = true
+	sh.setIntr(true)
 	sh.Unlock()
+}
+
+// setIntr *do not lock*. You must do it yourself!
+func (sh *Shell) setIntr(b bool) {
+	if sh.parent != nil {
+		sh.parent.setIntr(b)
+		return
+	}
+
+	sh.interrupted = b
+}
+
+// getIntr returns true if nash was interrupted by CTRL-C
+func (sh *Shell) getIntr() bool {
+	if sh.parent != nil {
+		return sh.parent.getIntr()
+	}
+
+	return sh.interrupted
 }
 
 func (sh *Shell) executeConcat(path *Arg) (string, error) {
@@ -747,8 +766,8 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 	)
 
 	sh.Lock()
-	if sh.interrupted {
-		sh.interrupted = false
+	if sh.getIntr() {
+		sh.setIntr(false)
 		sh.Unlock()
 		return newErrInterrupted("command interrupted")
 	}
@@ -851,8 +870,8 @@ cmdError:
 	sh.Lock()
 	defer sh.Unlock()
 
-	if sh.interrupted {
-		sh.interrupted = false
+	if sh.getIntr() {
+		sh.setIntr(false)
 		return newErrInterrupted(err.Error())
 	}
 
@@ -1283,9 +1302,8 @@ func (sh *Shell) executeInfLoop(tr *Tree) error {
 
 		sh.Lock()
 
-		if sh.interrupted {
-			sh.interrupted = false
-
+		if sh.getIntr() {
+			sh.setIntr(false)
 			sh.Unlock()
 
 			if err != nil {
@@ -1341,9 +1359,8 @@ func (sh *Shell) executeFor(n *ForNode) error {
 
 		sh.Lock()
 
-		if sh.interrupted {
-			sh.interrupted = false
-
+		if sh.getIntr() {
+			sh.setIntr(false)
 			sh.Unlock()
 
 			if err != nil {
