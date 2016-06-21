@@ -16,3 +16,7 @@ install:
 
 update-vendor:
 	cd cmd/nash && nash ./vendor.sh
+
+clean:
+	rm -f cmd/nash/nash
+	rm -f cmd/nashfmt/nashfmt
