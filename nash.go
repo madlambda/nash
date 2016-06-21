@@ -89,12 +89,11 @@ const (
 )
 
 // NewShell creates a new shell object
-func NewShell(debug bool) (*Shell, error) {
+func NewShell() (*Shell, error) {
 	sh := &Shell{
 		name:      "parent scope",
 		isFn:      false,
-		debug:     debug,
-		log:       NewLog(logNS, debug),
+		log:       NewLog(logNS, false),
 		nashdPath: nashdAutoDiscover(),
 		stdout:    os.Stdout,
 		stderr:    os.Stderr,
@@ -107,7 +106,44 @@ func NewShell(debug bool) (*Shell, error) {
 		Mutex:     &sync.Mutex{},
 	}
 
-	sh.setup()
+	err := sh.setup()
+
+	if err != nil {
+		return nil, err
+	}
+
+	sh.setupSignals()
+
+	return sh, nil
+}
+
+func NewSubShell(name string, parent *Shell) (*Shell, error) {
+	if parent == nil {
+		return nil, newError("A sub Shell requires a parent shell")
+	}
+
+	sh := &Shell{
+		name:      name,
+		isFn:      true,
+		parent:    parent,
+		log:       NewLog(logNS, false),
+		nashdPath: nashdAutoDiscover(),
+		stdout:    os.Stdout,
+		stderr:    os.Stderr,
+		stdin:     os.Stdin,
+		env:       make(Env),
+		vars:      make(Var),
+		fns:       make(Fns),
+		binds:     make(Fns),
+		argNames:  make([]string, 0, 16),
+		Mutex:     parent.Mutex,
+	}
+
+	err := sh.setup()
+
+	if err != nil {
+		return nil, err
+	}
 
 	return sh, nil
 }
@@ -161,6 +197,12 @@ func (sh *Shell) Reset() {
 	sh.vars = make(Var)
 	sh.env = make(Env)
 	sh.binds = make(Fns)
+}
+
+// SetDebug enable/disable debug in the shell
+func (sh *Shell) SetDebug(d bool) {
+	sh.debug = d
+	sh.log = NewLog(logNS, d)
 }
 
 func (sh *Shell) SetName(a string) {
@@ -251,11 +293,6 @@ func (sh *Shell) Prompt() string {
 	return "<no prompt> "
 }
 
-// SetDebug enable/disable debug in the shell
-func (sh *Shell) SetDebug(debug bool) {
-	sh.log = NewLog(logNS, debug)
-}
-
 // SetNashdPath sets an alternativa path to nashd
 func (sh *Shell) SetNashdPath(path string) {
 	sh.nashdPath = path
@@ -328,8 +365,6 @@ func (sh *Shell) setup() error {
 		sh.Setvar("PROMPT", pobj)
 	}
 
-	sh.setupSignals()
-
 	return nil
 }
 
@@ -342,7 +377,7 @@ func (sh *Shell) setupSignals() {
 			<-sigs
 
 			sh.Lock()
-			sh.interrupted = true
+			sh.setIntr(true)
 			sh.Unlock()
 		}
 	}()
@@ -350,8 +385,27 @@ func (sh *Shell) setupSignals() {
 
 func (sh *Shell) TriggerCTRLC() {
 	sh.Lock()
-	sh.interrupted = true
+	sh.setIntr(true)
 	sh.Unlock()
+}
+
+// setIntr *do not lock*. You must do it yourself!
+func (sh *Shell) setIntr(b bool) {
+	if sh.parent != nil {
+		sh.parent.setIntr(b)
+		return
+	}
+
+	sh.interrupted = b
+}
+
+// getIntr returns true if nash was interrupted by CTRL-C
+func (sh *Shell) getIntr() bool {
+	if sh.parent != nil {
+		return sh.parent.getIntr()
+	}
+
+	return sh.interrupted
 }
 
 func (sh *Shell) executeConcat(path *Arg) (string, error) {
@@ -712,8 +766,8 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 	)
 
 	sh.Lock()
-	if sh.interrupted {
-		sh.interrupted = false
+	if sh.getIntr() {
+		sh.setIntr(false)
 		sh.Unlock()
 		return newErrInterrupted("command interrupted")
 	}
@@ -816,8 +870,8 @@ cmdError:
 	sh.Lock()
 	defer sh.Unlock()
 
-	if sh.interrupted {
-		sh.interrupted = false
+	if sh.getIntr() {
+		sh.setIntr(false)
 		return newErrInterrupted(err.Error())
 	}
 
@@ -1248,9 +1302,8 @@ func (sh *Shell) executeInfLoop(tr *Tree) error {
 
 		sh.Lock()
 
-		if sh.interrupted {
-			sh.interrupted = false
-
+		if sh.getIntr() {
+			sh.setIntr(false)
 			sh.Unlock()
 
 			if err != nil {
@@ -1306,9 +1359,8 @@ func (sh *Shell) executeFor(n *ForNode) error {
 
 		sh.Lock()
 
-		if sh.interrupted {
-			sh.interrupted = false
-
+		if sh.getIntr() {
+			sh.setIntr(false)
 			sh.Unlock()
 
 			if err != nil {
@@ -1329,19 +1381,17 @@ func (sh *Shell) executeFor(n *ForNode) error {
 }
 
 func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
-	fn, err := NewShell(sh.debug)
+	fn, err := NewSubShell(n.Name(), sh)
 
 	if err != nil {
 		return err
 	}
 
-	fn.SetName(n.Name())
-	fn.SetParent(sh)
+	fn.SetDebug(sh.debug)
 	fn.SetStdout(sh.stdout)
 	fn.SetStderr(sh.stderr)
 	fn.SetStdin(sh.stdin)
 	fn.SetRepr(n.String())
-	fn.SetIsFn(true)
 	fn.SetDotDir(sh.dotDir)
 
 	args := n.Args()
