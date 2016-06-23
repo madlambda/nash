@@ -1584,3 +1584,41 @@ echo -n $list[$a[0]]`)
 		return
 	}
 }
+
+func TestExecuteSubShellDoesNotOverwriteparentEnv(t *testing.T) {
+	sh, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = sh.ExecuteString("set env", `SHELL = "bleh"
+setenv SHELL`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var out bytes.Buffer
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("set env from fn", `fn test() {
+}
+
+test()
+
+echo -n $SHELL`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "bleh" {
+		t.Errorf("Differ: '%s' != '%s'", "bleh", string(out.Bytes()))
+		return
+	}
+
+}
