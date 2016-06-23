@@ -139,12 +139,6 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 		Mutex:     parent.Mutex,
 	}
 
-	err := sh.setup()
-
-	if err != nil {
-		return nil, err
-	}
-
 	return sh, nil
 }
 
@@ -164,8 +158,8 @@ func (sh *Shell) initEnv() error {
 		if len(p) == 2 {
 			value = NewStrObj(p[1])
 
-			sh.Setenv(p[0], value)
 			sh.Setvar(p[0], value)
+			sh.Setenv(p[0], value)
 		}
 	}
 
@@ -174,9 +168,11 @@ func (sh *Shell) initEnv() error {
 	sh.Setenv("PID", pidVal)
 	sh.Setvar("PID", pidVal)
 
-	shellVal := NewStrObj(os.Args[0])
-	sh.Setenv("SHELL", shellVal)
-	sh.Setvar("SHELL", shellVal)
+	if _, ok := sh.Getenv("SHELL"); !ok {
+		shellVal := NewStrObj(os.Args[0])
+		sh.Setenv("SHELL", shellVal)
+		sh.Setvar("SHELL", shellVal)
+	}
 
 	cwd, err := os.Getwd()
 
@@ -224,9 +220,9 @@ func (sh *Shell) Environ() Env {
 	return sh.env
 }
 
-func (sh *Shell) GetEnv(name string) (*Obj, bool) {
+func (sh *Shell) Getenv(name string) (*Obj, bool) {
 	if sh.parent != nil {
-		return sh.parent.GetEnv(name)
+		return sh.parent.Getenv(name)
 	}
 
 	value, ok := sh.env[name]
@@ -284,7 +280,7 @@ func (sh *Shell) SetIsFn(b bool) { sh.isFn = b }
 
 // Prompt returns the environment prompt or the default one
 func (sh *Shell) Prompt() string {
-	value, ok := sh.GetEnv("PROMPT")
+	value, ok := sh.Getenv("PROMPT")
 
 	if ok {
 		return value.String()
@@ -1126,7 +1122,7 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 	}
 
 	if path == nil {
-		pathobj, ok := sh.GetEnv("HOME")
+		pathobj, ok := sh.Getenv("HOME")
 
 		if !ok {
 			return errors.New("Nash don't know where to cd. No variable $HOME or $home set")

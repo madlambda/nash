@@ -31,7 +31,7 @@ func (c *Completer) Do(line []rune, pos int) (newLine [][]rune, offset int) {
 		return completeFile([]rune{'/'}, 0, "/")
 	}
 
-	pathVar, ok := c.sh.GetEnv("PATH")
+	pathVar, ok := c.sh.Getenv("PATH")
 
 	if !ok || (pathVar.Type() != nash.StringType && pathVar.Type() != nash.ListType) {
 		return
