@@ -27,6 +27,7 @@ script:
 #  - goveralls -coverprofile=coverage.txt -service=travis-ci
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install go ; fi
   - sudo pip install codecov
 after_success:
   codecov
