@@ -1,3 +1,7 @@
+os:
+  - linux
+  - osx
+
 language: go
 sudo: required
 
@@ -18,7 +22,9 @@ script:
   - make test
 #  - goveralls -coverprofile=coverage.txt -service=travis-ci
 before_install:
-  - sudo pip install codecov
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo pip install codecov  ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update          ; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; pip install codecov; fi
 after_success:
   codecov
 notifications:
