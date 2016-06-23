@@ -2,6 +2,10 @@ os:
   - linux
   - osx
 
+matrix:
+  allow_failures:
+    - os: osx
+
 language: go
 sudo: required
 
