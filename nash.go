@@ -377,6 +377,8 @@ func (sh *Shell) setupSignals() {
 			case syscall.SIGINT:
 				sh.Lock()
 
+				// TODO(i4k): Review implementation when interrupted inside
+				// function loops
 				if sh.looping {
 					sh.setIntr(true)
 				}
