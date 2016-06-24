@@ -366,23 +366,35 @@ func (sh *Shell) setup() error {
 
 func (sh *Shell) setupSignals() {
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGCHLD)
 
 	go func() {
 		for {
-			<-sigs
+			sig := <-sigs
 
-			sh.Lock()
-			sh.setIntr(true)
-			sh.Unlock()
+			switch sig {
+			case syscall.SIGINT:
+				sh.Lock()
+				sh.setIntr(true)
+				sh.Unlock()
+			case syscall.SIGCHLD:
+				// dont need reaping because we dont have job control yet
+				// every command is wait'ed.
+			default:
+				fmt.Printf("%s\n", sig)
+			}
 		}
 	}()
 }
 
-func (sh *Shell) TriggerCTRLC() {
-	sh.Lock()
-	sh.setIntr(true)
-	sh.Unlock()
+func (sh *Shell) TriggerCTRLC() error {
+	p, err := os.FindProcess(os.Getpid())
+
+	if err != nil {
+		return err
+	}
+
+	return p.Signal(syscall.SIGINT)
 }
 
 // setIntr *do not lock*. You must do it yourself!
@@ -761,15 +773,6 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 		status      = 127
 	)
 
-	sh.Lock()
-	if sh.getIntr() {
-		sh.setIntr(false)
-		sh.Unlock()
-		return newErrInterrupted("command interrupted")
-	}
-
-	sh.Unlock()
-
 	cmdName := c.Name()
 
 	sh.log("Executing: %s\n", c.Name())
@@ -862,14 +865,6 @@ cmdError:
 	}
 
 	sh.Setvar("status", NewStrObj(strconv.Itoa(status)))
-
-	sh.Lock()
-	defer sh.Unlock()
-
-	if sh.getIntr() {
-		sh.setIntr(false)
-		return newErrInterrupted(err.Error())
-	}
 
 	if ignoreError {
 		return newErrIgnore(err.Error())
