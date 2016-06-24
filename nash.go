@@ -37,6 +37,7 @@ type (
 		currentFile string // current file being executed or imported
 
 		interrupted bool
+		looping     bool
 
 		stdin  io.Reader
 		stdout io.Writer
@@ -375,7 +376,11 @@ func (sh *Shell) setupSignals() {
 			switch sig {
 			case syscall.SIGINT:
 				sh.Lock()
-				sh.setIntr(true)
+
+				if sh.looping {
+					sh.setIntr(true)
+				}
+
 				sh.Unlock()
 			case syscall.SIGCHLD:
 				// dont need reaping because we dont have job control yet
@@ -1315,6 +1320,17 @@ func (sh *Shell) executeInfLoop(tr *Tree) error {
 }
 
 func (sh *Shell) executeFor(n *ForNode) error {
+	sh.Lock()
+	sh.looping = true
+	sh.Unlock()
+
+	defer func() {
+		sh.Lock()
+		defer sh.Unlock()
+
+		sh.looping = false
+	}()
+
 	if n.InVar() == "" {
 		return sh.executeInfLoop(n.Tree())
 	}

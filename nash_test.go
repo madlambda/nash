@@ -1620,5 +1620,23 @@ echo -n $SHELL`)
 		t.Errorf("Differ: '%s' != '%s'", "bleh", string(out.Bytes()))
 		return
 	}
+}
 
+func TestExecuteInterruptDoesNotCancelLoop(t *testing.T) {
+	sh, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	sh.TriggerCTRLC()
+
+	err = sh.ExecuteString("interrupting loop", `seq = (1 2 3 4 5)
+for i in $seq {}`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
 }
