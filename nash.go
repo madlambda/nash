@@ -170,7 +170,7 @@ func (sh *Shell) initEnv() error {
 	sh.Setvar("PID", pidVal)
 
 	if _, ok := sh.Getenv("SHELL"); !ok {
-		shellVal := NewStrObj(os.Args[0])
+		shellVal := NewStrObj(nashdAutoDiscover())
 		sh.Setenv("SHELL", shellVal)
 		sh.Setvar("SHELL", shellVal)
 	}
@@ -266,6 +266,22 @@ func (sh *Shell) GetFn(name string) (*Shell, bool) {
 
 	if sh.parent != nil {
 		return sh.parent.GetFn(name)
+	}
+
+	return nil, false
+}
+
+func (sh *Shell) Setbindfn(name string, value *Shell) {
+	sh.binds[name] = value
+}
+
+func (sh *Shell) Getbindfn(cmdName string) (*Shell, bool) {
+	if fn, ok := sh.binds[cmdName]; ok {
+		return fn, true
+	}
+
+	if sh.parent != nil {
+		return sh.parent.Getbindfn(cmdName)
 	}
 
 	return nil, false
@@ -801,7 +817,7 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 		sh.log("Command fails: %s", err.Error())
 
 		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
-			if fn, ok := sh.binds[cmdName]; ok {
+			if fn, ok := sh.Getbindfn(cmdName); ok {
 				sh.log("Executing bind %s", cmdName)
 
 				if len(c.args) > len(fn.argNames) {
@@ -1109,7 +1125,7 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 
 	path := cd.Dir()
 
-	if fn, ok := sh.binds["cd"]; ok {
+	if fn, ok := sh.Getbindfn("cd"); ok {
 		args := make([]*Arg, 0, 1)
 
 		if path != nil {
@@ -1490,7 +1506,7 @@ execDump:
 
 func (sh *Shell) executeBindFn(n *BindFnNode) error {
 	if fn, ok := sh.GetFn(n.Name()); ok {
-		sh.binds[n.CmdName()] = fn
+		sh.Setbindfn(n.CmdName(), fn)
 	} else {
 		return newError("No such function '%s'", n.Name())
 	}
