@@ -280,10 +280,6 @@ func (sh *Shell) Getbindfn(cmdName string) (*Shell, bool) {
 		return fn, true
 	}
 
-	if sh.parent != nil {
-		return sh.parent.Getbindfn(cmdName)
-	}
-
 	return nil, false
 }
 
