@@ -16,16 +16,26 @@ type (
 		openblocks int
 
 		insidePipe bool
+
+		keywordParsers map[itemType]parserFn
 	}
+
+	parserFn func() (Node, error)
 )
 
 // NewParser creates a new parser
 func NewParser(name, content string) *Parser {
-	return &Parser{
+	p := &Parser{
 		name:    name,
 		content: content,
 		l:       lex(name, content),
 	}
+
+	p.keywordParsers = map[itemType]parserFn{
+		itemBuiltin: p.parseBuiltin,
+	}
+
+	return p
 }
 
 // Parse starts the parsing.
@@ -288,6 +298,18 @@ func (p *Parser) parseRedirection(it item) (*RedirectNode, error) {
 	redir.SetLocation(arg)
 
 	return redir, nil
+}
+
+func (p *Parser) parseBuiltin() (Node, error) {
+	it := p.next()
+
+	node, err := p.parseBuiltin()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return NewBuiltinNode(it.pos, node), nil
 }
 
 func (p *Parser) parseImport() (Node, error) {
@@ -956,10 +978,8 @@ func (p *Parser) parseStatement() (Node, error) {
 	it := p.peek()
 
 	switch it.typ {
-	case itemError:
-		return nil, fmt.Errorf("Syntax error: %s", it.val)
 	case itemBuiltin:
-		panic("not implemented")
+		return p.keywordParsers[itemBuiltin]()
 	case itemImport:
 		return p.parseImport()
 	case itemShowEnv:
@@ -968,14 +988,10 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseSet()
 	case itemIdentifier:
 		return p.parseAssignment()
-	case itemCommand:
-		return p.parseCommand()
 	case itemRfork:
 		return p.parseRfork()
 	case itemCd:
 		return p.parseCd()
-	case itemComment:
-		return p.parseComment()
 	case itemIf:
 		return p.parseIf()
 	case itemFnDecl:
@@ -990,6 +1006,12 @@ func (p *Parser) parseStatement() (Node, error) {
 		return p.parseReturn()
 	case itemFor:
 		return p.parseFor()
+	case itemCommand:
+		return p.parseCommand()
+	case itemComment:
+		return p.parseComment()
+	case itemError:
+		return nil, fmt.Errorf("Syntax error: %s", it.val)
 	}
 
 	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)
