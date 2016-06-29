@@ -4,9 +4,9 @@
 
 Nash is a system shell that attempts to be more safe and give
 more power to user. It's safe in the sense of it's far more hard to
-shoot yourself in the foot, (or in the head). It gives
-power to the user in the sense that you really can use `nash` to
-script deploys taking advantage of namespaces in an idiomatic way.
+shoot yourself in the foot. It gives power to the user in the sense
+that you really can use `nash` to script deploys taking advantage 
+of namespaces (on linux and on plan9 soon) in an idiomatic way.
 
 It's more safe for scripts because it doesn't have the unsafe
 features of all former shells and it aim to have a very simple, safe
@@ -57,12 +57,16 @@ supports output redirection to tcp, udp and unix network protocols.
 λ> ./daemon >[1] "unix:///tmp/syslog.sock"
 ```
 
+**For safety, there's no `eval` or `string/tilde expansion` or `command substitution` in Nash.**
+
 To assign command output to a variable exists the '<=' operator. See the example
 below:
 ```sh
 fullpath <= realpath $path | xargs -n echo
 echo $fullpath
 ```
+The symbol '<=' redirects the stdout of the command or function invocation in the 
+right-hand side to the variable name specified.
 
 If you want the command output splited into an array, use the IFS
 special variable to store the delimiter (like bash, but use a list
