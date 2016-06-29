@@ -34,39 +34,39 @@ func TestFmtVariables(t *testing.T) {
 	testTable := []fmtTestTable{
 
 		// correct adjust of spaces
-		fmtTestTable{`test = "a"`, `test = "a"`},
-		fmtTestTable{`test="a"`, `test = "a"`},
-		fmtTestTable{`test= "a"`, `test = "a"`},
-		fmtTestTable{`test  ="a"`, `test = "a"`},
-		fmtTestTable{`test =    "a"`, `test = "a"`},
-		fmtTestTable{`test	="a"`, `test = "a"`},
-		fmtTestTable{`test		="a"`, `test = "a"`},
-		fmtTestTable{`test =	"a"`, `test = "a"`},
-		fmtTestTable{`test =		"a"`, `test = "a"`},
-		fmtTestTable{`test = ()`, `test = ()`},
-		fmtTestTable{`test=()`, `test = ()`},
-		fmtTestTable{`test =()`, `test = ()`},
-		fmtTestTable{`test	=()`, `test = ()`},
-		fmtTestTable{`test=	()`, `test = ()`},
-		fmtTestTable{`test = (plan9)`, `test = (plan9)`},
-		fmtTestTable{`test=(plan9)`, `test = (plan9)`},
-		fmtTestTable{`test      = (plan9)`, `test = (plan9)`},
-		fmtTestTable{`test	= (plan9)`, `test = (plan9)`},
-		fmtTestTable{`test	=	(plan9)`, `test = (plan9)`},
-		fmtTestTable{`test = (	plan9)`, `test = (plan9)`},
-		fmtTestTable{`test = (     plan9)`, `test = (plan9)`},
-		fmtTestTable{`test = (plan9     )`, `test = (plan9)`},
-		fmtTestTable{`test = (plan9 from bell labs)`, `test = (plan9 from bell labs)`},
-		fmtTestTable{`test = (plan9         from bell labs)`, `test = (plan9 from bell labs)`},
-		fmtTestTable{`test = (plan9         from         bell         labs)`, `test = (plan9 from bell labs)`},
-		fmtTestTable{`test = (plan9	from	bell	labs)`, `test = (plan9 from bell labs)`},
-		fmtTestTable{`test = (
+		{`test = "a"`, `test = "a"`},
+		{`test="a"`, `test = "a"`},
+		{`test= "a"`, `test = "a"`},
+		{`test  ="a"`, `test = "a"`},
+		{`test =    "a"`, `test = "a"`},
+		{`test	="a"`, `test = "a"`},
+		{`test		="a"`, `test = "a"`},
+		{`test =	"a"`, `test = "a"`},
+		{`test =		"a"`, `test = "a"`},
+		{`test = ()`, `test = ()`},
+		{`test=()`, `test = ()`},
+		{`test =()`, `test = ()`},
+		{`test	=()`, `test = ()`},
+		{`test=	()`, `test = ()`},
+		{`test = (plan9)`, `test = (plan9)`},
+		{`test=(plan9)`, `test = (plan9)`},
+		{`test      = (plan9)`, `test = (plan9)`},
+		{`test	= (plan9)`, `test = (plan9)`},
+		{`test	=	(plan9)`, `test = (plan9)`},
+		{`test = (	plan9)`, `test = (plan9)`},
+		{`test = (     plan9)`, `test = (plan9)`},
+		{`test = (plan9     )`, `test = (plan9)`},
+		{`test = (plan9 from bell labs)`, `test = (plan9 from bell labs)`},
+		{`test = (plan9         from bell labs)`, `test = (plan9 from bell labs)`},
+		{`test = (plan9         from         bell         labs)`, `test = (plan9 from bell labs)`},
+		{`test = (plan9	from	bell	labs)`, `test = (plan9 from bell labs)`},
+		{`test = (
 	plan9
 	from
 	bell
 	labs
 )`, `test = (plan9 from bell labs)`},
-		fmtTestTable{`test = (plan9 from bell labs windows linux freebsd netbsd openbsd)`, `test = (
+		{`test = (plan9 from bell labs windows linux freebsd netbsd openbsd)`, `test = (
 	plan9
 	from
 	bell
@@ -78,10 +78,10 @@ func TestFmtVariables(t *testing.T) {
 	openbsd
 )`},
 
-		fmtTestTable{`IFS = ("\n")`, `IFS = ("\n")`},
+		{`IFS = ("\n")`, `IFS = ("\n")`},
 
 		// multiple variables
-		fmtTestTable{`test = "a"
+		{`test = "a"
 testb = "b"`, `test = "a"
 testb = "b"`},
 	}

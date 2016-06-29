@@ -1,7 +1,5 @@
 package main
 
-// [27 91 51 49 109 206 187 27 91 48 109 32
-
 import (
 	"bytes"
 	"fmt"
@@ -36,7 +34,7 @@ func cli(sh *nash.Shell) error {
 
 	historyFile := sh.DotDir() + "/history"
 
-	for envName, _ := range sh.Environ() {
+	for envName := range sh.Environ() {
 		completers = append(completers, readline.PcItem(envName))
 	}
 

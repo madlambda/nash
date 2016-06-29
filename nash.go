@@ -1474,7 +1474,7 @@ func (sh *Shell) dumpVar(file io.Writer) {
 }
 
 func (sh *Shell) dumpEnv(file io.Writer) {
-	for n, _ := range sh.env {
+	for n := range sh.env {
 		printEnv(file, n)
 	}
 }
