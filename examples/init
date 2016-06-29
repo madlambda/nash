@@ -19,7 +19,7 @@ setenv PROMPT
 # cd overrides built-in cd
 # Add the current branch before prompt (if current directory is a git repo)
 fn cd(path) {
-        cd $path
+        builtin cd $path
 
         -test -d ./.git
 
