@@ -20,7 +20,11 @@ and purpose.
 
 [![asciicast](https://asciinema.org/a/6a1lqcllwctoaej6gzsxcuqo6.png)](https://asciinema.org/a/6a1lqcllwctoaej6gzsxcuqo6)
 
-For nash profile customizations (e.g: prompt, aliases, etc) see: https://github.com/tiago4orion/dotnash
+## Useful stuff
+
+- nashfmt: Formats nash code (like gofmt) but no code styling defined yet.
+- [Dotnash](https://github.com/tiago4orion/dotnash): Nash profile customizations (e.g: prompt, aliases, etc)
+- [nash-mode](https://github.com/tiago4orion/nash-mode.el): Emacs major mode integrated with `nashfmt`.
 
 Go ahead:
 
