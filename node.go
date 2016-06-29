@@ -188,7 +188,7 @@ type (
 	BuiltinNode struct {
 		NodeType
 		Pos
-		node Node
+		stmt Node
 	}
 )
 
@@ -1114,10 +1114,14 @@ func NewBuiltinNode(pos Pos, n Node) *BuiltinNode {
 	return &BuiltinNode{
 		NodeType: NodeBuiltin,
 		Pos:      pos,
-		node:     n,
+		stmt:     n,
 	}
 }
 
 func (n *BuiltinNode) String() string {
-	return "builtin " + n.node.String()
+	return "builtin " + n.stmt.String()
+}
+
+func (n *BuiltinNode) Stmt() Node {
+	return n.stmt
 }
