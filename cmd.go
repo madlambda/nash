@@ -56,7 +56,7 @@ func NewCommand(name string, sh *Shell) (*Command, error) {
 		}
 	}
 
-	sh.log("Executing: %s\n", cmdPath)
+	sh.logf("Executing: %s\n", cmdPath)
 
 	envVars := buildenv(sh.Environ())
 

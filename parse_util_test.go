@@ -350,7 +350,7 @@ func compareFnDeclNode(expected, value *FnDeclNode) (bool, error) {
 
 	if len(eargs) != len(vargs) {
 		return false, fmt.Errorf(" CompareFnDeclNode (%v, %v) -> '%d' != '%d'. Length differs.",
-			expected, value, ename, vname)
+			expected, value, len(eargs), len(vargs))
 	}
 
 	for i := 0; i < len(eargs); i++ {

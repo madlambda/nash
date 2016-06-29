@@ -10,12 +10,10 @@ import (
 	"os/exec"
 	"os/signal"
 	"path"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 )
 
 type (
@@ -30,7 +28,7 @@ type (
 		name        string
 		debug       bool
 		lambdas     uint
-		log         LogFn
+		logf        LogFn
 		nashdPath   string
 		dotDir      string
 		isFn        bool
@@ -94,7 +92,7 @@ func NewShell() (*Shell, error) {
 	sh := &Shell{
 		name:      "parent scope",
 		isFn:      false,
-		log:       NewLog(logNS, false),
+		logf:      NewLog(logNS, false),
 		nashdPath: nashdAutoDiscover(),
 		stdout:    os.Stdout,
 		stderr:    os.Stderr,
@@ -127,7 +125,7 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 		name:      name,
 		isFn:      true,
 		parent:    parent,
-		log:       NewLog(logNS, false),
+		logf:      NewLog(logNS, false),
 		nashdPath: nashdAutoDiscover(),
 		stdout:    os.Stdout,
 		stderr:    os.Stderr,
@@ -199,7 +197,7 @@ func (sh *Shell) Reset() {
 // SetDebug enable/disable debug in the shell
 func (sh *Shell) SetDebug(d bool) {
 	sh.debug = d
-	sh.log = NewLog(logNS, d)
+	sh.logf = NewLog(logNS, d)
 }
 
 func (sh *Shell) SetName(a string) {
@@ -258,7 +256,7 @@ func (sh *Shell) GetVar(name string) (*Obj, bool) {
 }
 
 func (sh *Shell) GetFn(name string) (*Shell, bool) {
-	sh.log("Looking for function '%s' on shell '%s'\n", name, sh.name)
+	sh.logf("Looking for function '%s' on shell '%s'\n", name, sh.name)
 
 	if fn, ok := sh.fns[name]; ok {
 		return fn, ok
@@ -520,7 +518,7 @@ func (sh *Shell) executeNode(node Node, builtin bool) (*Obj, error) {
 		err error
 	)
 
-	sh.log("Executing node: %v\n", node)
+	sh.logf("Executing node: %v\n", node)
 
 	switch node.Type() {
 	case NodeBuiltin:
@@ -640,7 +638,7 @@ func (sh *Shell) executeImport(node *ImportNode) error {
 
 	fname := obj.Str()
 
-	sh.log("Importing '%s'", fname)
+	sh.logf("Importing '%s'", fname)
 
 	if len(fname) > 0 && fname[0] == '/' {
 		return sh.ExecuteFile(fname)
@@ -656,7 +654,7 @@ func (sh *Shell) executeImport(node *ImportNode) error {
 	tries = append(tries, sh.dotDir+"/"+fname)
 	tries = append(tries, sh.dotDir+"/lib/"+fname)
 
-	sh.log("Trying %q\n", tries)
+	sh.logf("Trying %q\n", tries)
 
 	for _, path := range tries {
 		d, err := os.Stat(path)
@@ -815,13 +813,13 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 
 	cmdName := c.Name()
 
-	sh.log("Executing: %s\n", c.Name())
+	sh.logf("Executing: %s\n", c.Name())
 
 	if len(cmdName) > 1 && cmdName[0] == '-' {
 		ignoreError = true
 		cmdName = cmdName[1:]
 
-		sh.log("Ignoring error\n")
+		sh.logf("Ignoring error\n")
 	}
 
 	cmd, err := NewCommand(cmdName, sh)
@@ -831,11 +829,11 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 			NotFound() bool
 		}
 
-		sh.log("Command fails: %s", err.Error())
+		sh.logf("Command fails: %s", err.Error())
 
 		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
 			if fn, ok := sh.Getbindfn(cmdName); ok {
-				sh.log("Executing bind %s", cmdName)
+				sh.logf("Executing bind %s", cmdName)
 
 				if len(c.args) > len(fn.argNames) {
 					err = newError("Too much arguments for"+
@@ -1327,41 +1325,39 @@ func (sh *Shell) executeFnInv(n *FnInvNode) (*Obj, error) {
 }
 
 func (sh *Shell) executeInfLoop(tr *Tree) error {
-	for {
-		runtime.Gosched()
-		time.Sleep(time.Millisecond * 250)
+	var err error
 
-		_, err := sh.ExecuteTree(tr)
+	for {
+		_, err = sh.ExecuteTree(tr)
 
 		type interruptedError interface {
 			Interrupted() bool
 		}
 
 		if errInterrupted, ok := err.(interruptedError); ok && errInterrupted.Interrupted() {
-			return err
+			break
 		}
 
 		sh.Lock()
 
 		if sh.getIntr() {
 			sh.setIntr(false)
-			sh.Unlock()
 
 			if err != nil {
-				return newErrInterrupted(err.Error())
+				err = newErrInterrupted(err.Error())
+			} else {
+				err = newErrInterrupted("loop interrupted")
 			}
-
-			return newErrInterrupted("loop interrupted")
 		}
 
 		sh.Unlock()
 
 		if err != nil {
-			return err
+			break
 		}
 	}
 
-	return nil
+	return err
 }
 
 func (sh *Shell) executeFor(n *ForNode) error {
@@ -1459,14 +1455,14 @@ func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
 	fnName := n.Name()
 
 	if fnName == "" {
-		fnName = fmt.Sprintf("lambda %d", strconv.Itoa(int(sh.lambdas)))
+		fnName = fmt.Sprintf("lambda %d", int(sh.lambdas))
 		sh.lambdas++
 	}
 
 	sh.fns[fnName] = fn
 
 	sh.Setvar(fnName, NewFnObj(fn))
-	sh.log("Function %s declared on '%s'", fnName, sh.name)
+	sh.logf("Function %s declared on '%s'", fnName, sh.name)
 
 	return nil
 }

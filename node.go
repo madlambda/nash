@@ -851,9 +851,7 @@ func (n *IfNode) String() string {
 		elsestmts := strings.Split(elseBlock, "\n")
 
 		for i := 0; i < len(elsestmts); i++ {
-			if n.IsElseIf() {
-				elsestmts[i] = elsestmts[i]
-			} else {
+			if !n.IsElseIf() {
 				elsestmts[i] = "\t" + elsestmts[i]
 			}
 		}

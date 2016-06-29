@@ -1311,7 +1311,7 @@ func TestExecuteDump(t *testing.T) {
 	}
 
 	if strings.TrimSpace(string(content)) != expected {
-		t.Error("Must be equal. '%s' != '%s'", strings.TrimSpace(string(content)), expected)
+		t.Errorf("Must be equal. '%s' != '%s'", strings.TrimSpace(string(content)), expected)
 		return
 	}
 }

@@ -82,7 +82,7 @@ func TestParseReverseGetSame(t *testing.T) {
 	}
 
 	if tr.String() != "echo \"hello world\"" {
-		t.Error("Failed to reverse tree: %s", tr.String())
+		t.Errorf("Failed to reverse tree: %s", tr.String())
 		return
 	}
 }
