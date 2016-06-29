@@ -24,9 +24,12 @@ redirect    = ( ">" ( filename | uri | variable ) |
                ">" "[" unicode_digit "=" "]" ) .
 
 /* Builtin */
-builtin = importDecl | rforkDecl | cdDecl | ifDecl |
+builtin = builtinDecl | importDecl | rforkDecl | cdDecl | ifDecl |
           forDecl | setenvDecl | showenvDecl |
           fnDecl | fnInv | bindfn | dump .
+
+/* builtin only supported for "cd" by now.. */
+builtinDecl = "builtin" cdDecl .
 
 /* Import statement */
 importDecl = "import" ( filename | string_lit ) .

@@ -16,16 +16,43 @@ type (
 		openblocks int
 
 		insidePipe bool
+
+		keywordParsers map[itemType]parserFn
 	}
+
+	parserFn func() (Node, error)
 )
 
 // NewParser creates a new parser
 func NewParser(name, content string) *Parser {
-	return &Parser{
+	p := &Parser{
 		name:    name,
 		content: content,
 		l:       lex(name, content),
 	}
+
+	p.keywordParsers = map[itemType]parserFn{
+		itemBuiltin:    p.parseBuiltin,
+		itemCd:         p.parseCd,
+		itemFor:        p.parseFor,
+		itemIf:         p.parseIf,
+		itemFnDecl:     p.parseFnDecl,
+		itemFnInv:      p.parseFnInv,
+		itemReturn:     p.parseReturn,
+		itemImport:     p.parseImport,
+		itemShowEnv:    p.parseShowEnv,
+		itemSetEnv:     p.parseSet,
+		itemRfork:      p.parseRfork,
+		itemBindFn:     p.parseBindFn,
+		itemDump:       p.parseDump,
+		itemAssign:     p.parseAssignment,
+		itemIdentifier: p.parseAssignment,
+		itemCommand:    p.parseCommand,
+		itemComment:    p.parseComment,
+		itemError:      p.parseError,
+	}
+
+	return p
 }
 
 // Parse starts the parsing.
@@ -288,6 +315,22 @@ func (p *Parser) parseRedirection(it item) (*RedirectNode, error) {
 	redir.SetLocation(arg)
 
 	return redir, nil
+}
+
+func (p *Parser) parseBuiltin() (Node, error) {
+	it := p.next()
+
+	node, err := p.parseStatement()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if node.Type() != NodeCd {
+		return nil, newError("'builtin' must be used only with 'cd' keyword")
+	}
+
+	return NewBuiltinNode(it.pos, node), nil
 }
 
 func (p *Parser) parseImport() (Node, error) {
@@ -955,44 +998,17 @@ func (p *Parser) parseComment() (Node, error) {
 func (p *Parser) parseStatement() (Node, error) {
 	it := p.peek()
 
-	switch it.typ {
-	case itemError:
-		return nil, fmt.Errorf("Syntax error: %s", it.val)
-	case itemBuiltin:
-		panic("not implemented")
-	case itemImport:
-		return p.parseImport()
-	case itemShowEnv:
-		return p.parseShowEnv()
-	case itemSetEnv:
-		return p.parseSet()
-	case itemIdentifier:
-		return p.parseAssignment()
-	case itemCommand:
-		return p.parseCommand()
-	case itemRfork:
-		return p.parseRfork()
-	case itemCd:
-		return p.parseCd()
-	case itemComment:
-		return p.parseComment()
-	case itemIf:
-		return p.parseIf()
-	case itemFnDecl:
-		return p.parseFnDecl()
-	case itemFnInv:
-		return p.parseFnInv()
-	case itemBindFn:
-		return p.parseBindFn()
-	case itemDump:
-		return p.parseDump()
-	case itemReturn:
-		return p.parseReturn()
-	case itemFor:
-		return p.parseFor()
+	if fn, ok := p.keywordParsers[it.typ]; ok {
+		return fn()
 	}
 
 	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)
+}
+
+func (p *Parser) parseError() (Node, error) {
+	it := p.next()
+
+	return nil, newError(it.val)
 }
 
 func (p *Parser) parseBlock() (*ListNode, error) {

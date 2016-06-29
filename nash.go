@@ -280,6 +280,10 @@ func (sh *Shell) Getbindfn(cmdName string) (*Shell, bool) {
 		return fn, true
 	}
 
+	if sh.parent != nil {
+		return sh.parent.Getbindfn(cmdName)
+	}
+
 	return nil, false
 }
 
@@ -510,10 +514,66 @@ func (sh *Shell) ExecuteFile(path string) error {
 	return sh.ExecuteString(path, string(content))
 }
 
+func (sh *Shell) executeNode(node Node, builtin bool) (*Obj, error) {
+	var (
+		obj *Obj
+		err error
+	)
+
+	sh.log("Executing node: %v\n", node)
+
+	switch node.Type() {
+	case NodeBuiltin:
+		err = sh.executeBuiltin(node.(*BuiltinNode))
+	case NodeImport:
+		err = sh.executeImport(node.(*ImportNode))
+	case NodeShowEnv:
+		err = sh.executeShowEnv(node.(*ShowEnvNode))
+	case NodeComment:
+		// ignore
+	case NodeSetAssignment:
+		err = sh.executeSetAssignment(node.(*SetAssignmentNode))
+	case NodeAssignment:
+		err = sh.executeAssignment(node.(*AssignmentNode))
+	case NodeCmdAssignment:
+		err = sh.executeCmdAssignment(node.(*CmdAssignmentNode))
+	case NodeCommand:
+		err = sh.executeCommand(node.(*CommandNode))
+	case NodePipe:
+		err = sh.executePipe(node.(*PipeNode))
+	case NodeRfork:
+		err = sh.executeRfork(node.(*RforkNode))
+	case NodeCd:
+		err = sh.executeCd(node.(*CdNode), builtin)
+	case NodeIf:
+		err = sh.executeIf(node.(*IfNode))
+	case NodeFnDecl:
+		err = sh.executeFnDecl(node.(*FnDeclNode))
+	case NodeFnInv:
+		// invocation ignoring output
+		_, err = sh.executeFnInv(node.(*FnInvNode))
+	case NodeFor:
+		err = sh.executeFor(node.(*ForNode))
+	case NodeBindFn:
+		err = sh.executeBindFn(node.(*BindFnNode))
+	case NodeDump:
+		err = sh.executeDump(node.(*DumpNode))
+	case NodeReturn:
+		if sh.IsFn() {
+			obj, err = sh.executeReturn(node.(*ReturnNode))
+		} else {
+			err = newError("Unexpected return outside of function declaration.")
+		}
+	default:
+		// should never get here
+		return nil, newError("invalid node: %v.", node.Type())
+	}
+
+	return obj, err
+}
+
 // ExecuteTree evaluates the given tree
 func (sh *Shell) ExecuteTree(tr *Tree) (*Obj, error) {
-	var err error
-
 	if tr == nil || tr.Root == nil {
 		return nil, errors.New("nothing parsed")
 	}
@@ -521,56 +581,7 @@ func (sh *Shell) ExecuteTree(tr *Tree) (*Obj, error) {
 	root := tr.Root
 
 	for _, node := range root.Nodes {
-		sh.log("Executing node: %v\n", node)
-
-		switch node.Type() {
-		case NodeImport:
-			err = sh.executeImport(node.(*ImportNode))
-		case NodeShowEnv:
-			err = sh.executeShowEnv(node.(*ShowEnvNode))
-		case NodeComment:
-			continue // ignore comment
-		case NodeSetAssignment:
-			err := sh.executeSetAssignment(node.(*SetAssignmentNode))
-
-			if err != nil {
-				return nil, err
-			}
-		case NodeAssignment:
-			err = sh.executeAssignment(node.(*AssignmentNode))
-		case NodeCmdAssignment:
-			err = sh.executeCmdAssignment(node.(*CmdAssignmentNode))
-		case NodeCommand:
-			err = sh.executeCommand(node.(*CommandNode))
-		case NodePipe:
-			err = sh.executePipe(node.(*PipeNode))
-		case NodeRfork:
-			err = sh.executeRfork(node.(*RforkNode))
-		case NodeCd:
-			err = sh.executeCd(node.(*CdNode))
-		case NodeIf:
-			err = sh.executeIf(node.(*IfNode))
-		case NodeFnDecl:
-			err = sh.executeFnDecl(node.(*FnDeclNode))
-		case NodeFnInv:
-			// invocation ignoring output
-			_, err = sh.executeFnInv(node.(*FnInvNode))
-		case NodeFor:
-			err = sh.executeFor(node.(*ForNode))
-		case NodeBindFn:
-			err = sh.executeBindFn(node.(*BindFnNode))
-		case NodeDump:
-			err = sh.executeDump(node.(*DumpNode))
-		case NodeReturn:
-			if sh.IsFn() {
-				return sh.executeReturn(node.(*ReturnNode))
-			} else {
-				err = newError("Unexpected return outside of function declaration.")
-			}
-		default:
-			// should never get here
-			return nil, newError("invalid node: %v.", node.Type())
-		}
+		obj, err := sh.executeNode(node, false)
 
 		if err != nil {
 			type IgnoreError interface {
@@ -586,10 +597,14 @@ func (sh *Shell) ExecuteTree(tr *Tree) (*Obj, error) {
 			}
 
 			if errInterrupted, ok := err.(InterruptedError); ok && errInterrupted.Interrupted() {
-				return nil, err
+				return obj, err
 			}
 
 			return nil, err
+		}
+
+		if node.Type() == NodeReturn {
+			return obj, nil
 		}
 	}
 
@@ -602,6 +617,12 @@ func (sh *Shell) executeReturn(n *ReturnNode) (*Obj, error) {
 	}
 
 	return sh.evalArg(n.arg)
+}
+
+func (sh *Shell) executeBuiltin(node *BuiltinNode) error {
+	// cd and for does not return data
+	_, err := sh.executeNode(node.Stmt(), true)
+	return err
 }
 
 func (sh *Shell) executeImport(node *ImportNode) error {
@@ -1112,34 +1133,19 @@ func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 	return nil
 }
 
-func (sh *Shell) executeCd(cd *CdNode) error {
+func (sh *Shell) executeBuiltinCd(cd *CdNode) error {
 	var (
-		ok       bool
 		pathlist []string
 		pathStr  string
 	)
 
 	path := cd.Dir()
 
-	if fn, ok := sh.Getbindfn("cd"); ok {
-		args := make([]*Arg, 0, 1)
-
-		if path != nil {
-			args = append(args, path)
-		} else {
-			// empty arg
-			args = append(args, NewArg(0, ArgQuoted))
-		}
-
-		_, err := sh.executeFn(fn, args)
-		return err
-	}
-
 	if path == nil {
 		pathobj, ok := sh.Getenv("HOME")
 
 		if !ok {
-			return errors.New("Nash don't know where to cd. No variable $HOME or $home set")
+			return errors.New("Nash don't know where to cd. No variable $HOME set")
 		}
 
 		if pathobj.Type() != StringType {
@@ -1181,6 +1187,31 @@ func (sh *Shell) executeCd(cd *CdNode) error {
 	sh.Setenv("PWD", cpwd)
 
 	return nil
+}
+
+func (sh *Shell) executeCd(cd *CdNode, builtin bool) error {
+	var (
+		cdAlias  *Shell
+		hasAlias bool
+	)
+
+	if cdAlias, hasAlias = sh.Getbindfn("cd"); !hasAlias || builtin {
+		return sh.executeBuiltinCd(cd)
+	}
+
+	path := cd.Dir()
+
+	args := make([]*Arg, 0, 1)
+
+	if path != nil {
+		args = append(args, path)
+	} else {
+		// empty arg
+		args = append(args, NewArg(0, ArgQuoted))
+	}
+
+	_, err := sh.executeFn(cdAlias, args)
+	return err
 }
 
 func (sh *Shell) evalIfArguments(n *IfNode) (string, string, error) {

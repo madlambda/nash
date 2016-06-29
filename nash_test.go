@@ -84,7 +84,7 @@ func TestExecuteCommand(t *testing.T) {
         `)
 
 	if err != nil {
-		t.Error("Dash at beginning must ignore errors: ERROR: %s", err.Error())
+		t.Errorf("Dash at beginning must ignore errors: ERROR: %s", err.Error())
 		return
 	}
 
@@ -1639,4 +1639,59 @@ for i in $seq {}`)
 		t.Error(err)
 		return
 	}
+}
+
+func TestExecuteBuiltin(t *testing.T) {
+	sh, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.ExecuteString("test builtin", `oldpwd <= pwd | xargs echo -n
+builtin cd /
+pwd
+builtin cd $oldpwd`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	output := strings.TrimSpace(string(out.Bytes()))
+
+	if output != "/" {
+		t.Errorf("Output differs: '%s' != '%s'", output, "/")
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test builtin", `oldpwd <= pwd | xargs echo -n
+fn cd(path) {
+echo "going to " + $path
+builtin cd $path
+}
+
+cd("/")
+builtin cd $oldpwd`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	output = strings.TrimSpace(string(out.Bytes()))
+
+	if output != "going to /" {
+		t.Errorf("Output differs: '%s' != '%s'", output, "going to /")
+		return
+	}
+
+	out.Reset()
 }

@@ -184,6 +184,12 @@ type (
 		inVar      string
 		tree       *Tree
 	}
+
+	BuiltinNode struct {
+		NodeType
+		Pos
+		stmt Node
+	}
 )
 
 //go:generate stringer -type=NodeType
@@ -248,6 +254,9 @@ const (
 
 	// NodeFor is the type for "for" statements
 	NodeFor
+
+	// NodeBuiltin
+	NodeBuiltin
 )
 
 //go:generate stringer -type=ArgType
@@ -1098,4 +1107,21 @@ func (n *ForNode) String() string {
 	ret += "}"
 
 	return ret
+}
+
+// NewBuiltinNode creates a new "builtin" node
+func NewBuiltinNode(pos Pos, n Node) *BuiltinNode {
+	return &BuiltinNode{
+		NodeType: NodeBuiltin,
+		Pos:      pos,
+		stmt:     n,
+	}
+}
+
+func (n *BuiltinNode) String() string {
+	return "builtin " + n.stmt.String()
+}
+
+func (n *BuiltinNode) Stmt() Node {
+	return n.stmt
 }
