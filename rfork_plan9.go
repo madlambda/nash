@@ -1,4 +1,5 @@
 // +build plan9
+
 package nash
 
 import (
