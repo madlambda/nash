@@ -1,3 +1,0 @@
-* Nash
-** TODO Bypass CTRL-C to currently running process
-** TODO Add variable concatenation. Eg.: STALI_SRC=$PWD + "/src"
