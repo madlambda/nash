@@ -1,6 +1,6 @@
 # nash
 
-[![Build Status](https://travis-ci.org/NeowayLabs/nash.svg?branch=master)](https://travis-ci.org/NeowayLabs/nash) [![codecov.io](https://codecov.io/github/NeowayLabs/nash/coverage.svg?branch=master)](https://codecov.io/github/NeowayLabs/nash?branch=master)
+[![Build Status](https://travis-ci.org/NeowayLabs/nash.svg?branch=master)](https://travis-ci.org/NeowayLabs/nash) [![codecov.io](https://codecov.io/github/NeowayLabs/nash/coverage.svg?branch=master)](https://codecov.io/github/NeowayLabs/nash?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/NeowayLabs/nash)](https://goreportcard.com/report/github.com/NeowayLabs/nash)
 
 Nash is a system shell that attempts to be more safe and give
 more power to user. It's safe in the sense of it's far more hard to
