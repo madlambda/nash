@@ -1,4 +1,5 @@
-package nash
+// Package scanner is the lexical parser.
+package scanner
 
 import (
 	"fmt"
@@ -9,10 +10,8 @@ import (
 
 // Itemtype identifies the type of lex items
 type (
-	itemType int
-
 	item struct {
-		typ itemType
+		typ token.Token
 		pos Pos // start position of this item
 		val string
 	}
@@ -28,67 +27,12 @@ type (
 		width int       // width of last rune read
 		items chan item // channel of scanned items
 
-		lastNode itemType
+		lastNode Token
 	}
 )
 
-//go:generate stringer -type=itemType
-
 const (
-	eof = -1
-
-	itemError itemType = iota + 1 // error ocurred
-	itemEOF
-	itemBuiltin
-	itemImport
-	itemComment
-	itemSetEnv
-	itemShowEnv
-	itemIdentifier
-	itemAssign
-	itemAssignCmd
-	itemConcat
-	itemVariable
-	itemListOpen
-	itemListClose
-	itemListElem
-	itemCommand // alphanumeric identifier that's not a keyword
-	itemPipe    // ls | wc -l
-	itemBindFn  // "bindfn <fn> <cmd>
-	itemDump    // "dump" [ file ]
-	itemReturn
-	itemArg
-	itemBracesOpen    // {
-	itemBracesClose   // }
-	itemParenOpen     // (
-	itemParenClose    // )
-	itemBracketOpen   // [
-	itemBracketClose  // ]
-	itemString        // "<string>"
-	itemNumber        // [0-9]+
-	itemRedirRight    // >
-	itemRedirRBracket // [ eg.: cmd >[1] file.out
-	itemRedirLBracket // ]
-	itemRedirFile
-	itemRedirNetAddr
-	itemRedirMapEqual // = eg.: cmd >[2=1]
-	itemRedirMapLSide
-	itemRedirMapRSide
-
-	itemIf // if <condition> { <block> }
-	itemElse
-	itemComparison
-	itemFor
-	itemForIn
-	itemRfork
-	itemRforkFlags
-	itemCd
-
-	itemFnDecl // fn <name>(<arg>) { <block> }
-	itemFnInv  // <identifier>(<args>)
-)
-
-const (
+	eof        = -1
 	spaceChars = " \t\r\n"
 
 	rforkFlags = "cnsmifup"
@@ -96,9 +40,9 @@ const (
 
 func (i item) String() string {
 	switch i.typ {
-	case itemError:
-		return "Error: " + i.val
-	case itemEOF:
+	case token.Error:
+		return "ERROR: " + i.val
+	case token.EOF:
 		return "EOF"
 	}
 
@@ -115,7 +59,7 @@ func (l *lexer) run() {
 		state = state(l)
 	}
 
-	l.emit(itemEOF)
+	l.emit(token.EOF)
 	close(l.items) // No more tokens will be delivered
 }
 
@@ -191,8 +135,8 @@ func (l *lexer) acceptRun(valid string) {
 
 // errorf returns an error token
 func (l *lexer) errorf(format string, args ...interface{}) stateFn {
-	l.items <- item{
-		typ: itemError,
+	l.token.s <- item{
+		typ: token.Error,
 		val: fmt.Sprintf(format, args...),
 		pos: Pos(l.start),
 	}
@@ -210,9 +154,9 @@ func (l *lexer) String() string {
 
 func lex(name, input string) *lexer {
 	l := &lexer{
-		name:  name,
-		input: input,
-		items: make(chan item),
+		name:    name,
+		input:   input,
+		token.s: make(chan item),
 	}
 
 	go l.run() // concurrently run state machine
@@ -248,13 +192,13 @@ func lexStart(l *lexer) stateFn {
 		return l.errorf("Unexpected open block \"%#U\"", r)
 
 	case r == '}':
-		l.emit(itemBracesClose)
+		l.emit(token.BracesClose)
 		return lexStart
 	case r == '(':
-		l.emit(itemParenOpen)
+		l.emit(token.ParenOpen)
 		return lexInsideFnInv
 	case r == ')':
-		l.emit(itemParenClose)
+		l.emit(token.ParenClose)
 		return lexStart
 	}
 
@@ -283,9 +227,9 @@ func lexIdentifier(l *lexer) stateFn {
 	r := l.peek()
 
 	if r == '(' {
-		l.emit(itemFnInv)
+		l.emit(token.FnInv)
 		l.next()
-		l.emit(itemParenOpen)
+		l.emit(token.ParenOpen)
 		return lexInsideFnInv
 	}
 
@@ -302,11 +246,11 @@ func lexIdentifier(l *lexer) stateFn {
 
 			if !isSpace(r) {
 				if r == '=' {
-					l.emit(itemIdentifier)
+					l.emit(token.Identifier)
 
 					ignoreSpaces(l)
 					l.next()
-					l.emit(itemAssign)
+					l.emit(token.Assign)
 					return lexInsideAssignment
 				}
 
@@ -329,14 +273,14 @@ func lexIdentifier(l *lexer) stateFn {
 						return l.errorf("Unexpected token '%v'. Expected '='", r)
 					}
 
-					l.emit(itemIdentifier)
+					l.emit(token.Identifier)
 
 					ignoreSpaces(l)
 
 					l.next()
 					l.next()
 
-					l.emit(itemAssignCmd)
+					l.emit(token.AssignCmd)
 
 					ignoreSpaces(l)
 
@@ -351,13 +295,13 @@ func lexIdentifier(l *lexer) stateFn {
 					r = l.peek()
 
 					if r == '(' {
-						l.emit(itemFnInv)
+						l.emit(token.FnInv)
 						l.next()
-						l.emit(itemParenOpen)
+						l.emit(token.ParenOpen)
 						return lexInsideFnInv
 					}
 
-					l.emit(itemCommand)
+					l.emit(token.Command)
 					return lexInsideCommand
 				}
 
@@ -368,31 +312,31 @@ func lexIdentifier(l *lexer) stateFn {
 
 	switch word {
 	case "builtin":
-		l.emit(itemBuiltin)
+		l.emit(token.Builtin)
 		return lexStart
 	case "import":
-		l.emit(itemImport)
+		l.emit(token.Import)
 		return lexInsideImport
 	case "rfork":
-		l.emit(itemRfork)
+		l.emit(token.Rfork)
 		return lexInsideRforkArgs
 	case "cd":
-		l.emit(itemCd)
+		l.emit(token.Cd)
 		return lexInsideCd
 	case "setenv":
-		l.emit(itemSetEnv)
+		l.emit(token.SetEnv)
 		return lexInsideSetenv
 	case "if":
-		l.emit(itemIf)
+		l.emit(token.If)
 		return lexInsideIf
 	case "fn":
-		l.emit(itemFnDecl)
+		l.emit(token.FnDecl)
 		return lexInsideFnDecl
 	case "else":
-		l.emit(itemElse)
+		l.emit(token.Else)
 		return lexInsideElse
 	case "showenv":
-		l.emit(itemShowEnv)
+		l.emit(token.ShowEnv)
 
 		ignoreSpaces(l)
 
@@ -409,21 +353,21 @@ func lexIdentifier(l *lexer) stateFn {
 		l.backup()
 		return lexStart
 	case "bindfn":
-		l.emit(itemBindFn)
+		l.emit(token.BindFn)
 
 		return lexInsideBindFn
 	case "dump":
-		l.emit(itemDump)
+		l.emit(token.Dump)
 		return lexInsideDump
 	case "return":
-		l.emit(itemReturn)
+		l.emit(token.Return)
 		return lexInsideReturn
 	case "for":
-		l.emit(itemFor)
+		l.emit(token.For)
 		return lexInsideFor
 	}
 
-	l.emit(itemCommand)
+	l.emit(token.Command)
 	return lexInsideCommand
 }
 
@@ -500,7 +444,7 @@ func lexInsideSetenv(l *lexer) stateFn {
 		return l.errorf("internal error")
 	}
 
-	l.emit(itemIdentifier)
+	l.emit(token.Identifier)
 	return lexStart
 }
 
@@ -512,7 +456,7 @@ func lexInsideAssignment(l *lexer) stateFn {
 	switch {
 	case r == '(':
 		l.next()
-		l.emit(itemListOpen)
+		l.emit(token.ListOpen)
 
 		return lexInsideListVariable
 	case r == '"':
@@ -560,7 +504,7 @@ func lexInsideListVariable(l *lexer) stateFn {
 		return lexInsideCommonVariable(l, lexInsideListVariable, lexInsideListVariable)
 	case r == ')':
 		l.next()
-		l.emit(itemListClose)
+		l.emit(token.ListClose)
 		return lexStart
 	}
 
@@ -591,13 +535,13 @@ func lexInsideCommonVariable(l *lexer, nextConcatFn stateFn, nextFn stateFn) sta
 		return l.errorf("Invalid quote inside variable name")
 	}
 
-	l.emit(itemVariable)
+	l.emit(token.Variable)
 
 	r = l.peek()
 
 	if r == '[' {
 		l.next()
-		l.emit(itemBracketOpen)
+		l.emit(token.BracketOpen)
 
 		r = l.peek()
 
@@ -616,7 +560,7 @@ func lexInsideCommonVariable(l *lexer, nextConcatFn stateFn, nextFn stateFn) sta
 
 			l.accept(digits)
 			l.acceptRun(digits)
-			l.emit(itemNumber)
+			l.emit(token.Number)
 		}
 
 		r = l.next()
@@ -625,7 +569,7 @@ func lexInsideCommonVariable(l *lexer, nextConcatFn stateFn, nextFn stateFn) sta
 			return l.errorf("Unexpected %q. Expecting ']'", r)
 		}
 
-		l.emit(itemBracketClose)
+		l.emit(token.BracketClose)
 	}
 
 	ignoreSpaces(l)
@@ -635,7 +579,7 @@ func lexInsideCommonVariable(l *lexer, nextConcatFn stateFn, nextFn stateFn) sta
 	switch {
 	case r == '+':
 		l.next()
-		l.emit(itemConcat)
+		l.emit(token.Concat)
 
 		return nextConcatFn
 	}
@@ -672,7 +616,7 @@ func lexInsideCd(l *lexer) stateFn {
 			return l.errorf("Invalid quote inside variable name")
 		}
 
-		l.emit(itemVariable)
+		l.emit(token.Variable)
 
 		ignoreSpaces(l)
 
@@ -681,7 +625,7 @@ func lexInsideCd(l *lexer) stateFn {
 		switch {
 		case r == '+':
 			l.next()
-			l.emit(itemConcat)
+			l.emit(token.Concat)
 			return lexInsideCd
 		}
 
@@ -760,7 +704,7 @@ func lexInsideIf(l *lexer) stateFn {
 		return l.errorf("Invalid comparison operator '%s'", word)
 	}
 
-	l.emit(itemComparison)
+	l.emit(token.Comparison)
 
 	errState = lexIfLRValue(l)
 
@@ -776,7 +720,7 @@ func lexInsideIf(l *lexer) stateFn {
 		return l.errorf("Unexpected %q at pos %d. Expected '{'", r, l.pos)
 	}
 
-	l.emit(itemBracesOpen)
+	l.emit(token.BracesOpen)
 
 	return lexStart
 }
@@ -790,7 +734,7 @@ func lexForEnd(l *lexer) stateFn {
 		return l.errorf("Unexpected %q. Expected '{'", r)
 	}
 
-	l.emit(itemBracesOpen)
+	l.emit(token.BracesOpen)
 	return lexStart
 }
 
@@ -824,7 +768,7 @@ func lexInsideFor(l *lexer) stateFn {
 	word := l.input[l.start:l.pos]
 
 	if len(word) > 0 {
-		l.emit(itemIdentifier)
+		l.emit(token.Identifier)
 
 		ignoreSpaces(l)
 
@@ -835,7 +779,7 @@ func lexInsideFor(l *lexer) stateFn {
 			return l.errorf("Unexpected %q. Expected 'in'", ri)
 		}
 
-		l.emit(itemForIn)
+		l.emit(token.ForIn)
 		return lexInsideForIn
 	}
 
@@ -862,7 +806,7 @@ func lexInsideFnDecl(l *lexer) stateFn {
 
 	l.backup()
 
-	l.emit(itemIdentifier)
+	l.emit(token.Identifier)
 
 	r = l.next()
 
@@ -870,7 +814,7 @@ func lexInsideFnDecl(l *lexer) stateFn {
 		return l.errorf("Unexpected symbol %q. Expected '('", r)
 	}
 
-	l.emit(itemParenOpen)
+	l.emit(token.ParenOpen)
 
 getnextarg:
 	ignoreSpaces(l)
@@ -890,7 +834,7 @@ getnextarg:
 	argName = l.input[l.start:l.pos]
 
 	if len(argName) > 0 {
-		l.emit(itemIdentifier)
+		l.emit(token.Identifier)
 
 		r = l.peek()
 
@@ -903,7 +847,7 @@ getnextarg:
 	}
 
 	l.next()
-	l.emit(itemParenClose)
+	l.emit(token.ParenClose)
 
 	ignoreSpaces(l)
 
@@ -913,7 +857,7 @@ getnextarg:
 		return l.errorf("Unexpected symbol %q. Expected '{'", r)
 	}
 
-	l.emit(itemBracesOpen)
+	l.emit(token.BracesOpen)
 
 	return lexStart
 }
@@ -926,7 +870,7 @@ func lexInsideReturn(l *lexer) stateFn {
 	switch {
 	case r == '(':
 		l.next()
-		l.emit(itemListOpen)
+		l.emit(token.ListOpen)
 		return lexInsideListVariable
 	case r == '"':
 		l.next()
@@ -974,7 +918,7 @@ func lexInsideFnInv(l *lexer) stateFn {
 
 	} else if r == ')' {
 		l.next()
-		l.emit(itemParenClose)
+		l.emit(token.ParenClose)
 		return lexStart
 	}
 
@@ -987,7 +931,7 @@ func lexInsideElse(l *lexer) stateFn {
 	r := l.next()
 
 	if r == '{' {
-		l.emit(itemBracesOpen)
+		l.emit(token.BracesOpen)
 		return lexStart
 	}
 
@@ -1004,7 +948,7 @@ func lexInsideElse(l *lexer) stateFn {
 	word := l.input[l.start:l.pos]
 
 	if word == "if" {
-		l.emit(itemIf)
+		l.emit(token.If)
 		return lexInsideIf
 	}
 
@@ -1030,12 +974,12 @@ func lexInsideRforkArgs(l *lexer) stateFn {
 
 	l.acceptRun(rforkFlags)
 
-	l.emit(itemRforkFlags)
+	l.emit(token.RforkFlags)
 
 	ignoreSpaces(l)
 
 	if l.accept("{") {
-		l.emit(itemBracesOpen)
+		l.emit(token.BracesOpen)
 	}
 
 	return lexStart
@@ -1066,7 +1010,7 @@ func lexInsideCommandName(l *lexer) stateFn {
 		return l.errorf("- requires a command")
 	}
 
-	l.emit(itemCommand)
+	l.emit(token.Command)
 	return lexInsideCommand
 }
 
@@ -1093,7 +1037,7 @@ func lexInsideBindFn(l *lexer) stateFn {
 		return l.errorf("Unexpected %q, expected identifier.", r)
 	}
 
-	l.emit(itemIdentifier)
+	l.emit(token.Identifier)
 
 	ignoreSpaces(l)
 
@@ -1115,7 +1059,7 @@ func lexInsideBindFn(l *lexer) stateFn {
 		return l.errorf("Unexpected %q, expected identifier.", r)
 	}
 
-	l.emit(itemIdentifier)
+	l.emit(token.Identifier)
 
 	return lexStart
 }
@@ -1139,14 +1083,14 @@ func lexInsideCommand(l *lexer) stateFn {
 			return lexQuote(l, lexInsideCommand, lexInsideCommand)
 		}
 	case r == '}':
-		l.emit(itemBracesClose)
+		l.emit(token.BracesClose)
 		return lexStart
 
 	case r == '>':
-		l.emit(itemRedirRight)
+		l.emit(token.RedirRight)
 		return lexInsideRedirect
 	case r == '|':
-		l.emit(itemPipe)
+		l.emit(token.Pipe)
 		return lexStart
 	case r == '$':
 		l.backup()
@@ -1216,7 +1160,7 @@ func lexQuote(l *lexer, concatFn, nextFn stateFn) stateFn {
 			return l.errorf("Quoted string not finished: %s", l.input[l.start:])
 		}
 
-		l.emitVal(itemString, string(data))
+		l.emitVal(token.String, string(data))
 
 		l.ignore() // ignores last quote
 		break
@@ -1233,7 +1177,7 @@ func lexQuote(l *lexer, concatFn, nextFn stateFn) stateFn {
 		}
 
 		l.next()
-		l.emit(itemConcat)
+		l.emit(token.Concat)
 
 		return concatFn
 	}
@@ -1247,7 +1191,7 @@ func lexArg(l *lexer, concatFn, nextFn stateFn) stateFn {
 
 		if r == eof {
 			if l.pos > l.start {
-				l.emit(itemArg)
+				l.emit(token.Arg)
 			}
 
 			return nil
@@ -1258,7 +1202,7 @@ func lexArg(l *lexer, concatFn, nextFn stateFn) stateFn {
 		}
 
 		l.backup()
-		l.emit(itemArg)
+		l.emit(token.Arg)
 		break
 	}
 
@@ -1269,7 +1213,7 @@ func lexArg(l *lexer, concatFn, nextFn stateFn) stateFn {
 	switch {
 	case r == '+':
 		l.next()
-		l.emit(itemConcat)
+		l.emit(token.Concat)
 
 		return concatFn
 	}
@@ -1284,7 +1228,7 @@ func lexInsideRedirect(l *lexer) stateFn {
 
 	switch {
 	case r == '[':
-		l.emit(itemRedirLBracket)
+		l.emit(token.RedirLBracket)
 		return lexInsideRedirMapLeftSide
 	case r == ']':
 		return l.errorf("Unexpected ']' at pos %d", l.pos)
@@ -1307,7 +1251,7 @@ func lexInsideRedirect(l *lexer) stateFn {
 			break
 		}
 
-		l.emit(itemString)
+		l.emit(token.String)
 
 		l.next() // get last '"' again
 		l.ignore()
@@ -1324,7 +1268,7 @@ func lexInsideRedirect(l *lexer) stateFn {
 			}
 		}
 
-		l.emit(itemArg)
+		l.emit(token.Arg)
 	default:
 		return l.errorf("Unexpected redirect identifier: %s", l.input[l.start:l.pos])
 	}
@@ -1336,12 +1280,12 @@ func lexInsideRedirect(l *lexer) stateFn {
 	r = l.next()
 
 	if r == '>' {
-		l.emit(itemRedirRight)
+		l.emit(token.RedirRight)
 		return lexInsideRedirect
 	}
 
 	if r == '|' {
-		l.emit(itemPipe)
+		l.emit(token.Pipe)
 		return lexStart
 	}
 
@@ -1366,9 +1310,9 @@ func lexInsideRedirMapLeftSide(l *lexer) stateFn {
 
 			if r == ']' {
 				// [xxx]
-				l.emit(itemRedirMapLSide)
+				l.emit(token.RedirMapLSide)
 				l.next()
-				l.emit(itemRedirRBracket)
+				l.emit(token.RedirRBracket)
 
 				ignoreSpaces(l)
 
@@ -1380,13 +1324,13 @@ func lexInsideRedirMapLeftSide(l *lexer) stateFn {
 
 				if r == '>' {
 					l.next()
-					l.emit(itemRedirRight)
+					l.emit(token.RedirRight)
 					return lexInsideRedirect
 				}
 
 				if r == '|' {
 					l.next()
-					l.emit(itemPipe)
+					l.emit(token.Pipe)
 				}
 
 				return lexStart
@@ -1397,9 +1341,9 @@ func lexInsideRedirMapLeftSide(l *lexer) stateFn {
 			}
 
 			// [xxx=
-			l.emit(itemRedirMapLSide)
+			l.emit(token.RedirMapLSide)
 			l.next()
-			l.emit(itemRedirMapEqual)
+			l.emit(token.RedirMapEqual)
 
 			return lexInsideRedirMapRightSide
 		}
@@ -1419,7 +1363,7 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 			if len(l.input[l.start:l.pos]) == 0 {
 				if r == ']' {
 					l.next()
-					l.emit(itemRedirRBracket)
+					l.emit(token.RedirRBracket)
 
 					ignoreSpaces(l)
 
@@ -1431,7 +1375,7 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 
 					if r == '>' {
 						l.next()
-						l.emit(itemRedirRight)
+						l.emit(token.RedirRight)
 						return lexInsideRedirect
 					}
 
@@ -1441,9 +1385,9 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 				return l.errorf("Unexpected %c at pos %d", r, l.pos)
 			}
 
-			l.emit(itemRedirMapRSide)
+			l.emit(token.RedirMapRSide)
 			l.next()
-			l.emit(itemRedirRBracket)
+			l.emit(token.RedirRBracket)
 
 			ignoreSpaces(l)
 
@@ -1455,13 +1399,13 @@ func lexInsideRedirMapRightSide(l *lexer) stateFn {
 
 			if r == '>' {
 				l.next()
-				l.emit(itemRedirRight)
+				l.emit(token.RedirRight)
 				return lexInsideRedirect
 			}
 
 			if r == '|' {
 				l.next()
-				l.emit(itemPipe)
+				l.emit(token.Pipe)
 			}
 
 			break
@@ -1479,14 +1423,14 @@ func lexComment(l *lexer) stateFn {
 
 		if isEndOfLine(r) {
 			l.backup()
-			l.emit(itemComment)
+			l.emit(token.Comment)
 
 			break
 		}
 
 		if r == eof {
 			l.backup()
-			l.emit(itemComment)
+			l.emit(token.Comment)
 			break
 		}
 	}
