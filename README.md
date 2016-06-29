@@ -4,7 +4,7 @@
 
 Nash is a system shell that attempts to be more safe and give
 more power to user. It's safe in the sense of it's far more hard to
-shoot yourself in the foot. It gives power to the user in the sense
+shoot yourself in the foot. It gives power to user in the sense
 that you really can use `nash` to script deploys taking advantage 
 of namespaces (on linux and on plan9 soon) in an idiomatic way.
 
