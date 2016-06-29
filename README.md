@@ -94,7 +94,7 @@ On bash you need to enclose the `$fullname` variable in quotes to avoid problems
 Nash syntax does not support shell expansion from strings. There's no way to
 do things like the following in nash:
 ```bash
-echo "The date is: $(date +%D)"
+echo "The date is: $(date +%D)" # DOESNT WORKS!
 ```
 Instead you need to assign each command output to a proper variable and then concat
 it with another string when needed. In nash, the example above must be something
