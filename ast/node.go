@@ -11,7 +11,7 @@ import (
 
 const (
 	RedirMapNoValue = -1
-	RedirMapSupress = -1
+	RedirMapSupress = -2
 )
 
 type (
@@ -319,6 +319,8 @@ func NewSetAssignmentNode(pos token.Pos, name string) *SetAssignmentNode {
 	}
 }
 
+func (n *SetAssignmentNode) Identifier() string { return n.varName }
+
 // String returns the string representation of assignment
 func (n *SetAssignmentNode) String() string {
 	return "setenv " + n.varName
@@ -344,9 +346,11 @@ func NewAssignmentNode(pos token.Pos) *AssignmentNode {
 }
 
 // SetVarName sets the name of the variable
-func (n *AssignmentNode) SetVarName(a string) {
+func (n *AssignmentNode) SetIdentifier(a string) {
 	n.name = a
 }
+
+func (n *AssignmentNode) Identifier() string { return n.name }
 
 // SetValueList sets the value of the list
 func (n *AssignmentNode) SetValue(val *Arg) {
@@ -423,10 +427,14 @@ func (n *CommandNode) SetArgs(args []*Arg) {
 	n.args = args
 }
 
+func (n *CommandNode) Args() []*Arg { return n.args }
+
 // AddRedirect adds a new redirect node to command
 func (n *CommandNode) AddRedirect(redir *RedirectNode) {
 	n.redirs = append(n.redirs, redir)
 }
+
+func (n *CommandNode) Redirects() []*RedirectNode { return n.redirs }
 
 // Name returns the program name
 func (n *CommandNode) Name() string { return n.name }
@@ -504,10 +512,15 @@ func (r *RedirectNode) SetMap(lfd int, rfd int) {
 	r.rmap.rfd = rfd
 }
 
+func (r *RedirectNode) LeftFD() int  { return r.rmap.lfd }
+func (r *RedirectNode) RightFD() int { return r.rmap.rfd }
+
 // SetLocation of the output
 func (r *RedirectNode) SetLocation(s *Arg) {
 	r.location = s
 }
+
+func (r *RedirectNode) Location() *Arg { return r.location }
 
 // String returns the string representation of redirect
 func (r *RedirectNode) String() string {
@@ -542,6 +555,10 @@ func NewRforkNode(pos token.Pos) *RforkNode {
 		NodeType: NodeRfork,
 		Pos:      pos,
 	}
+}
+
+func (n *RforkNode) Arg() *Arg {
+	return n.arg
 }
 
 // SetFlags sets the rfork flags
@@ -661,6 +678,8 @@ func (n *Arg) List() []*Arg {
 func (n *Arg) SetConcat(v []*Arg) {
 	n.concat = v
 }
+
+func (n *Arg) Concat() []*Arg { return n.concat }
 
 func (n *Arg) SetList(v []*Arg) {
 	n.list = v
@@ -967,6 +986,8 @@ func (n *FnInvNode) Name() string {
 func (n *FnInvNode) AddArg(arg *Arg) {
 	n.args = append(n.args, arg)
 }
+
+func (n *FnInvNode) Args() []*Arg { return n.args }
 
 // String returns the string representation of function invocation
 func (n *FnInvNode) String() string {

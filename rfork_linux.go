@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/NeowayLabs/nash/ast"
 )
 
 func getProcAttrs(flags uintptr) *syscall.SysProcAttr {
@@ -57,9 +59,9 @@ retryRforkDial:
 // executeRfork executes the calling program again but passing
 // a new name for the process on os.Args[0] and passing an unix
 // socket file to communicate to.
-func (sh *Shell) executeRfork(rfork *RforkNode) error {
+func (sh *Shell) executeRfork(rfork *ast.RforkNode) error {
 	var (
-		tr               *Tree
+		tr               *ast.Tree
 		i                int
 		nashClient       net.Conn
 		copyOut, copyErr bool
@@ -85,7 +87,9 @@ func (sh *Shell) executeRfork(rfork *RforkNode) error {
 		Env:  buildenv(sh.Environ()),
 	}
 
-	forkFlags, err := getflags(rfork.arg.Value())
+	arg := rfork.Arg()
+
+	forkFlags, err := getflags(arg.Value())
 
 	if err != nil {
 		return err

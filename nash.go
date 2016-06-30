@@ -2,7 +2,6 @@ package nash
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +14,8 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/NeowayLabs/nash/ast"
+	"github.com/NeowayLabs/nash/errors"
 	"github.com/NeowayLabs/nash/parser"
 )
 
@@ -49,7 +50,7 @@ type (
 		fns      Fns
 		binds    Fns
 
-		root   *Tree
+		root   *ast.Tree
 		parent *Shell
 
 		repr string // string representation
@@ -58,17 +59,17 @@ type (
 	}
 
 	errIgnore struct {
-		*nashError
+		*errors.NashError
 	}
 
 	errInterrupted struct {
-		*nashError
+		*errors.NashError
 	}
 )
 
 func newErrIgnore(format string, arg ...interface{}) error {
 	e := &errIgnore{
-		nashError: newError(format, arg...),
+		NashError: errors.NewError(format, arg...),
 	}
 
 	return e
@@ -78,7 +79,7 @@ func (e *errIgnore) Ignore() bool { return true }
 
 func newErrInterrupted(format string, arg ...interface{}) error {
 	return &errInterrupted{
-		nashError: newError(format, arg...),
+		NashError: errors.NewError(format, arg...),
 	}
 }
 
@@ -120,7 +121,7 @@ func NewShell() (*Shell, error) {
 
 func NewSubShell(name string, parent *Shell) (*Shell, error) {
 	if parent == nil {
-		return nil, newError("A sub Shell requires a parent shell")
+		return nil, errors.NewError("A sub Shell requires a parent shell")
 	}
 
 	sh := &Shell{
@@ -343,11 +344,11 @@ func (sh *Shell) AddArgName(name string) {
 	sh.argNames = append(sh.argNames, name)
 }
 
-func (sh *Shell) SetTree(t *Tree) {
+func (sh *Shell) SetTree(t *ast.Tree) {
 	sh.root = t
 }
 
-func (sh *Shell) Tree() *Tree { return sh.root }
+func (sh *Shell) Tree() *ast.Tree { return sh.root }
 
 func (sh *Shell) SetRepr(a string) {
 	sh.repr = a
@@ -439,14 +440,16 @@ func (sh *Shell) getIntr() bool {
 	return sh.interrupted
 }
 
-func (sh *Shell) executeConcat(path *Arg) (string, error) {
+func (sh *Shell) executeConcat(path *ast.Arg) (string, error) {
 	var pathStr string
 
-	for i := 0; i < len(path.concat); i++ {
-		part := path.concat[i]
+	concat := path.Concat()
+
+	for i := 0; i < len(concat); i++ {
+		part := concat[i]
 
 		if part.IsConcat() {
-			return "", errors.New("Nested concat is not allowed")
+			return "", errors.NewError("Nested concat is not allowed")
 		}
 
 		if part.IsVariable() {
@@ -466,7 +469,7 @@ func (sh *Shell) executeConcat(path *Arg) (string, error) {
 		} else if part.IsQuoted() || part.IsUnquoted() {
 			pathStr += part.Value()
 		} else if part.IsList() {
-			return "", newError("Concat of lists is not allowed: %+v", part.List())
+			return "", errors.NewError("Concat of lists is not allowed: %+v", part.List())
 		}
 	}
 
@@ -514,7 +517,7 @@ func (sh *Shell) ExecuteFile(path string) error {
 	return sh.ExecuteString(path, string(content))
 }
 
-func (sh *Shell) executeNode(node Node, builtin bool) (*Obj, error) {
+func (sh *Shell) executeNode(node ast.Node, builtin bool) (*Obj, error) {
 	var (
 		obj *Obj
 		err error
@@ -523,59 +526,59 @@ func (sh *Shell) executeNode(node Node, builtin bool) (*Obj, error) {
 	sh.logf("Executing node: %v\n", node)
 
 	switch node.Type() {
-	case NodeBuiltin:
-		err = sh.executeBuiltin(node.(*BuiltinNode))
-	case NodeImport:
-		err = sh.executeImport(node.(*ImportNode))
-	case NodeShowEnv:
-		err = sh.executeShowEnv(node.(*ShowEnvNode))
-	case NodeComment:
+	case ast.NodeBuiltin:
+		err = sh.executeBuiltin(node.(*ast.BuiltinNode))
+	case ast.NodeImport:
+		err = sh.executeImport(node.(*ast.ImportNode))
+	case ast.NodeShowEnv:
+		err = sh.executeShowEnv(node.(*ast.ShowEnvNode))
+	case ast.NodeComment:
 		// ignore
-	case NodeSetAssignment:
-		err = sh.executeSetAssignment(node.(*SetAssignmentNode))
-	case NodeAssignment:
-		err = sh.executeAssignment(node.(*AssignmentNode))
-	case NodeCmdAssignment:
-		err = sh.executeCmdAssignment(node.(*CmdAssignmentNode))
-	case NodeCommand:
-		err = sh.executeCommand(node.(*CommandNode))
-	case NodePipe:
-		err = sh.executePipe(node.(*PipeNode))
-	case NodeRfork:
-		err = sh.executeRfork(node.(*RforkNode))
-	case NodeCd:
-		err = sh.executeCd(node.(*CdNode), builtin)
-	case NodeIf:
-		err = sh.executeIf(node.(*IfNode))
-	case NodeFnDecl:
-		err = sh.executeFnDecl(node.(*FnDeclNode))
-	case NodeFnInv:
+	case ast.NodeSetAssignment:
+		err = sh.executeSetAssignment(node.(*ast.SetAssignmentNode))
+	case ast.NodeAssignment:
+		err = sh.executeAssignment(node.(*ast.AssignmentNode))
+	case ast.NodeCmdAssignment:
+		err = sh.executeCmdAssignment(node.(*ast.CmdAssignmentNode))
+	case ast.NodeCommand:
+		err = sh.executeCommand(node.(*ast.CommandNode))
+	case ast.NodePipe:
+		err = sh.executePipe(node.(*ast.PipeNode))
+	case ast.NodeRfork:
+		err = sh.executeRfork(node.(*ast.RforkNode))
+	case ast.NodeCd:
+		err = sh.executeCd(node.(*ast.CdNode), builtin)
+	case ast.NodeIf:
+		err = sh.executeIf(node.(*ast.IfNode))
+	case ast.NodeFnDecl:
+		err = sh.executeFnDecl(node.(*ast.FnDeclNode))
+	case ast.NodeFnInv:
 		// invocation ignoring output
-		_, err = sh.executeFnInv(node.(*FnInvNode))
-	case NodeFor:
-		err = sh.executeFor(node.(*ForNode))
-	case NodeBindFn:
-		err = sh.executeBindFn(node.(*BindFnNode))
-	case NodeDump:
-		err = sh.executeDump(node.(*DumpNode))
-	case NodeReturn:
+		_, err = sh.executeFnInv(node.(*ast.FnInvNode))
+	case ast.NodeFor:
+		err = sh.executeFor(node.(*ast.ForNode))
+	case ast.NodeBindFn:
+		err = sh.executeBindFn(node.(*ast.BindFnNode))
+	case ast.NodeDump:
+		err = sh.executeDump(node.(*ast.DumpNode))
+	case ast.NodeReturn:
 		if sh.IsFn() {
-			obj, err = sh.executeReturn(node.(*ReturnNode))
+			obj, err = sh.executeReturn(node.(*ast.ReturnNode))
 		} else {
-			err = newError("Unexpected return outside of function declaration.")
+			err = errors.NewError("Unexpected return outside of function declaration.")
 		}
 	default:
 		// should never get here
-		return nil, newError("invalid node: %v.", node.Type())
+		return nil, errors.NewError("invalid node: %v.", node.Type())
 	}
 
 	return obj, err
 }
 
 // ExecuteTree evaluates the given tree
-func (sh *Shell) ExecuteTree(tr *Tree) (*Obj, error) {
+func (sh *Shell) ExecuteTree(tr *ast.Tree) (*Obj, error) {
 	if tr == nil || tr.Root == nil {
-		return nil, errors.New("nothing parsed")
+		return nil, errors.NewError("nothing parsed")
 	}
 
 	root := tr.Root
@@ -603,7 +606,7 @@ func (sh *Shell) ExecuteTree(tr *Tree) (*Obj, error) {
 			return nil, err
 		}
 
-		if node.Type() == NodeReturn {
+		if node.Type() == ast.NodeReturn {
 			return obj, nil
 		}
 	}
@@ -611,21 +614,21 @@ func (sh *Shell) ExecuteTree(tr *Tree) (*Obj, error) {
 	return nil, nil
 }
 
-func (sh *Shell) executeReturn(n *ReturnNode) (*Obj, error) {
-	if n.arg == nil {
+func (sh *Shell) executeReturn(n *ast.ReturnNode) (*Obj, error) {
+	if n.Return() == nil {
 		return nil, nil
 	}
 
-	return sh.evalArg(n.arg)
+	return sh.evalArg(n.Return())
 }
 
-func (sh *Shell) executeBuiltin(node *BuiltinNode) error {
+func (sh *Shell) executeBuiltin(node *ast.BuiltinNode) error {
 	// cd and for does not return data
 	_, err := sh.executeNode(node.Stmt(), true)
 	return err
 }
 
-func (sh *Shell) executeImport(node *ImportNode) error {
+func (sh *Shell) executeImport(node *ast.ImportNode) error {
 	arg := node.Path()
 
 	obj, err := sh.evalArg(arg)
@@ -635,7 +638,7 @@ func (sh *Shell) executeImport(node *ImportNode) error {
 	}
 
 	if obj.Type() != StringType {
-		return newError("Invalid type on import argument: %s", obj.Type())
+		return errors.NewError("Invalid type on import argument: %s", obj.Type())
 	}
 
 	fname := obj.Str()
@@ -670,12 +673,12 @@ func (sh *Shell) executeImport(node *ImportNode) error {
 		}
 	}
 
-	return newError("Failed to import path '%s'. The locations below have been tried:\n \"%s\"",
+	return errors.NewError("Failed to import path '%s'. The locations below have been tried:\n \"%s\"",
 		fname,
 		strings.Join(tries, `", "`))
 }
 
-func (sh *Shell) executeShowEnv(node *ShowEnvNode) error {
+func (sh *Shell) executeShowEnv(node *ast.ShowEnvNode) error {
 	envVars := buildenv(sh.Environ())
 	for _, e := range envVars {
 		fmt.Fprintf(sh.stdout, "%s\n", e)
@@ -684,12 +687,12 @@ func (sh *Shell) executeShowEnv(node *ShowEnvNode) error {
 	return nil
 }
 
-func (sh *Shell) executePipe(pipe *PipeNode) error {
+func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 	var err error
 	nodeCommands := pipe.Commands()
 
 	if len(nodeCommands) <= 1 {
-		return newError("Pipe requires at least two commands.")
+		return errors.NewError("Pipe requires at least two commands.")
 	}
 
 	cmds := make([]*Command, len(nodeCommands))
@@ -697,13 +700,13 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 	// Create all commands
 	for i := 0; i < len(nodeCommands); i++ {
 		nodeCmd := nodeCommands[i]
-		cmd, err := NewCommand(nodeCmd.name, sh)
+		cmd, err := NewCommand(nodeCmd.Name(), sh)
 
 		if err != nil {
 			return err
 		}
 
-		err = cmd.SetArgs(nodeCmd.args)
+		err = cmd.SetArgs(nodeCmd.Args())
 
 		if err != nil {
 			return err
@@ -712,7 +715,7 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 		cmd.SetPassDone(false)
 
 		if i < (len(nodeCommands) - 1) {
-			err = cmd.SetRedirects(nodeCmd.redirs)
+			err = cmd.SetRedirects(nodeCmd.Redirects())
 
 			if err != nil {
 				return err
@@ -733,11 +736,11 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 
 		// connect commands
 		if cmds[i+1].Stdin != os.Stdin {
-			return newError("Stdin redirected")
+			return errors.NewError("Stdin redirected")
 		}
 
 		if cmd.Stdout != os.Stdout {
-			return newError("Stdout redirected")
+			return errors.NewError("Stdout redirected")
 		}
 
 		cmds[i+1].Stdin = nil
@@ -807,7 +810,7 @@ func (sh *Shell) executePipe(pipe *PipeNode) error {
 	return nil
 }
 
-func (sh *Shell) executeCommand(c *CommandNode) error {
+func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 	var (
 		ignoreError bool
 		status      = 127
@@ -837,20 +840,20 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 			if fn, ok := sh.Getbindfn(cmdName); ok {
 				sh.logf("Executing bind %s", cmdName)
 
-				if len(c.args) > len(fn.argNames) {
-					err = newError("Too much arguments for"+
+				if len(c.Args()) > len(fn.argNames) {
+					err = errors.NewError("Too much arguments for"+
 						" function '%s'. It expects %d args, but given %d. Arguments: %q",
 						fn.name,
 						len(fn.argNames),
-						len(c.args), c.args)
+						len(c.Args()), c.Args())
 					goto cmdError
 				}
 
-				for i := 0 + len(c.args); i < len(fn.argNames); i++ {
-					c.args = append(c.args, NewArg(0, ArgQuoted))
+				for i := 0 + len(c.Args()); i < len(fn.argNames); i++ {
+					c.SetArgs(append(c.Args(), ast.NewArg(0, ast.ArgQuoted)))
 				}
 
-				_, err = sh.executeFn(fn, c.args)
+				_, err = sh.executeFn(fn, c.Args())
 
 				if err != nil {
 					goto cmdError
@@ -863,7 +866,7 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 		goto cmdError
 	}
 
-	err = cmd.SetArgs(c.args)
+	err = cmd.SetArgs(c.Args())
 
 	if err != nil {
 		goto cmdError
@@ -873,7 +876,7 @@ func (sh *Shell) executeCommand(c *CommandNode) error {
 	cmd.SetFDMap(1, sh.stdout)
 	cmd.SetFDMap(2, sh.stderr)
 
-	err = cmd.SetRedirects(c.redirs)
+	err = cmd.SetRedirects(c.Redirects())
 
 	if err != nil {
 		goto cmdError
@@ -913,14 +916,14 @@ cmdError:
 	return err
 }
 
-func (sh *Shell) evalVariable(a *Arg) (*Obj, error) {
+func (sh *Shell) evalVariable(a *ast.Arg) (*Obj, error) {
 	var (
 		v  *Obj
 		ok bool
 	)
 
-	if a.ArgType() != ArgVariable {
-		return nil, newError("Invalid eval of non variable argument: %s", a)
+	if a.ArgType() != ast.ArgVariable {
+		return nil, errors.NewError("Invalid eval of non variable argument: %s", a)
 	}
 
 	varName := a.Value()
@@ -931,7 +934,7 @@ func (sh *Shell) evalVariable(a *Arg) (*Obj, error) {
 
 	if a.Index() != nil {
 		if v.Type() != ListType {
-			return nil, newError("Invalid indexing of non-list variable: %s", v.Type())
+			return nil, errors.NewError("Invalid indexing of non-list variable: %s", v.Type())
 		}
 
 		var (
@@ -941,13 +944,13 @@ func (sh *Shell) evalVariable(a *Arg) (*Obj, error) {
 
 		idxArg := a.Index()
 
-		if idxArg.ArgType() == ArgNumber {
+		if idxArg.ArgType() == ast.ArgNumber {
 			indexNum, err = strconv.Atoi(idxArg.Value())
 
 			if err != nil {
 				return nil, err
 			}
-		} else if idxArg.ArgType() == ArgVariable {
+		} else if idxArg.ArgType() == ast.ArgVariable {
 			idxObj, err := sh.evalVariable(idxArg)
 
 			if err != nil {
@@ -955,7 +958,7 @@ func (sh *Shell) evalVariable(a *Arg) (*Obj, error) {
 			}
 
 			if idxObj.Type() != StringType {
-				return nil, newError("Invalid object type on index value: %s", idxObj.Type())
+				return nil, errors.NewError("Invalid object type on index value: %s", idxObj.Type())
 			}
 
 			idxVal := idxObj.Str()
@@ -969,7 +972,7 @@ func (sh *Shell) evalVariable(a *Arg) (*Obj, error) {
 		values := v.List()
 
 		if indexNum < 0 || indexNum >= len(values) {
-			return nil, newError("Index out of bounds. len(%s) == %d, but given %d", varName, len(values), indexNum)
+			return nil, errors.NewError("Index out of bounds. len(%s) == %d, but given %d", varName, len(values), indexNum)
 		}
 
 		value := values[indexNum]
@@ -979,7 +982,7 @@ func (sh *Shell) evalVariable(a *Arg) (*Obj, error) {
 	return v, nil
 }
 
-func (sh *Shell) evalArg(arg *Arg) (*Obj, error) {
+func (sh *Shell) evalArg(arg *ast.Arg) (*Obj, error) {
 	if arg.IsQuoted() || arg.IsUnquoted() {
 		return NewStrObj(arg.Value()), nil
 	} else if arg.IsConcat() {
@@ -1010,7 +1013,7 @@ func (sh *Shell) evalArg(arg *Arg) (*Obj, error) {
 			}
 
 			if obj.Type() != StringType {
-				return nil, newError("Nested lists are not supported")
+				return nil, errors.NewError("Nested lists are not supported")
 			}
 
 			values = append(values, obj.Str())
@@ -1019,16 +1022,16 @@ func (sh *Shell) evalArg(arg *Arg) (*Obj, error) {
 		return NewListObj(values), nil
 	}
 
-	return nil, newError("Invalid argument type: %+v", arg)
+	return nil, errors.NewError("Invalid argument type: %+v", arg)
 }
 
-func (sh *Shell) executeSetAssignment(v *SetAssignmentNode) error {
+func (sh *Shell) executeSetAssignment(v *ast.SetAssignmentNode) error {
 	var (
 		varValue *Obj
 		ok       bool
 	)
 
-	varName := v.varName
+	varName := v.Identifier()
 
 	if varValue, ok = sh.GetVar(varName); !ok {
 		return fmt.Errorf("Variable '%s' not set", varName)
@@ -1039,11 +1042,12 @@ func (sh *Shell) executeSetAssignment(v *SetAssignmentNode) error {
 	return nil
 }
 
-func (sh *Shell) concatElements(elem *Arg) (string, error) {
+func (sh *Shell) concatElements(elem *ast.Arg) (string, error) {
 	value := ""
 
-	for i := 0; i < len(elem.concat); i++ {
-		ec := elem.concat[i]
+	concat := elem.Concat()
+	for i := 0; i < len(concat); i++ {
+		ec := concat[i]
 
 		obj, err := sh.evalArg(ec)
 
@@ -1052,7 +1056,7 @@ func (sh *Shell) concatElements(elem *Arg) (string, error) {
 		}
 
 		if obj.Type() != StringType {
-			return "", newError("Impossible to concat elements of type %s", obj.Type())
+			return "", errors.NewError("Impossible to concat elements of type %s", obj.Type())
 		}
 
 		value = value + obj.String()
@@ -1061,7 +1065,7 @@ func (sh *Shell) concatElements(elem *Arg) (string, error) {
 	return value, nil
 }
 
-func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
+func (sh *Shell) executeCmdAssignment(v *ast.CmdAssignmentNode) error {
 	var (
 		varOut bytes.Buffer
 		err    error
@@ -1076,12 +1080,12 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 	assign := v.Command()
 
 	switch assign.Type() {
-	case NodeCommand:
-		err = sh.executeCommand(assign.(*CommandNode))
-	case NodePipe:
-		err = sh.executePipe(assign.(*PipeNode))
-	case NodeFnInv:
-		fnValues, err := sh.executeFnInv(assign.(*FnInvNode))
+	case ast.NodeCommand:
+		err = sh.executeCommand(assign.(*ast.CommandNode))
+	case ast.NodePipe:
+		err = sh.executePipe(assign.(*ast.PipeNode))
+	case ast.NodeFnInv:
+		fnValues, err := sh.executeFnInv(assign.(*ast.FnInvNode))
 
 		if err != nil {
 			return err
@@ -1090,7 +1094,7 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 		sh.Setvar(v.Name(), fnValues)
 		return nil
 	default:
-		err = newError("Unexpected node in assignment: %s", assign.String())
+		err = errors.NewError("Unexpected node in assignment: %s", assign.String())
 	}
 
 	if err != nil {
@@ -1120,7 +1124,7 @@ func (sh *Shell) executeCmdAssignment(v *CmdAssignmentNode) error {
 	return nil
 }
 
-func (sh *Shell) executeAssignment(v *AssignmentNode) error {
+func (sh *Shell) executeAssignment(v *ast.AssignmentNode) error {
 	var err error
 
 	obj, err := sh.evalArg(v.Value())
@@ -1129,11 +1133,11 @@ func (sh *Shell) executeAssignment(v *AssignmentNode) error {
 		return err
 	}
 
-	sh.Setvar(v.name, obj)
+	sh.Setvar(v.Identifier(), obj)
 	return nil
 }
 
-func (sh *Shell) executeBuiltinCd(cd *CdNode) error {
+func (sh *Shell) executeBuiltinCd(cd *ast.CdNode) error {
 	var (
 		pathlist []string
 		pathStr  string
@@ -1145,7 +1149,7 @@ func (sh *Shell) executeBuiltinCd(cd *CdNode) error {
 		pathobj, ok := sh.Getenv("HOME")
 
 		if !ok {
-			return errors.New("Nash don't know where to cd. No variable $HOME set")
+			return errors.NewError("Nash don't know where to cd. No variable $HOME set")
 		}
 
 		if pathobj.Type() != StringType {
@@ -1161,7 +1165,7 @@ func (sh *Shell) executeBuiltinCd(cd *CdNode) error {
 		}
 
 		if obj.Type() != StringType {
-			return newError("HOME variable has invalid type: %s", obj.Type())
+			return errors.NewError("HOME variable has invalid type: %s", obj.Type())
 		}
 
 		pathStr = obj.Str()
@@ -1189,7 +1193,7 @@ func (sh *Shell) executeBuiltinCd(cd *CdNode) error {
 	return nil
 }
 
-func (sh *Shell) executeCd(cd *CdNode, builtin bool) error {
+func (sh *Shell) executeCd(cd *ast.CdNode, builtin bool) error {
 	var (
 		cdAlias  *Shell
 		hasAlias bool
@@ -1201,20 +1205,20 @@ func (sh *Shell) executeCd(cd *CdNode, builtin bool) error {
 
 	path := cd.Dir()
 
-	args := make([]*Arg, 0, 1)
+	args := make([]*ast.Arg, 0, 1)
 
 	if path != nil {
 		args = append(args, path)
 	} else {
 		// empty arg
-		args = append(args, NewArg(0, ArgQuoted))
+		args = append(args, ast.NewArg(0, ast.ArgQuoted))
 	}
 
 	_, err := sh.executeFn(cdAlias, args)
 	return err
 }
 
-func (sh *Shell) evalIfArguments(n *IfNode) (string, string, error) {
+func (sh *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
 	lvalue := n.Lvalue()
 	rvalue := n.Rvalue()
 
@@ -1231,17 +1235,17 @@ func (sh *Shell) evalIfArguments(n *IfNode) (string, string, error) {
 	}
 
 	if lobj.Type() != StringType {
-		return "", "", newError("lvalue is not comparable.")
+		return "", "", errors.NewError("lvalue is not comparable.")
 	}
 
 	if robj.Type() != StringType {
-		return "", "", newError("rvalue is not comparable")
+		return "", "", errors.NewError("rvalue is not comparable")
 	}
 
 	return lobj.Str(), robj.Str(), nil
 }
 
-func (sh *Shell) executeIfEqual(n *IfNode) error {
+func (sh *Shell) executeIfEqual(n *ast.IfNode) error {
 	lstr, rstr, err := sh.evalIfArguments(n)
 
 	if err != nil {
@@ -1259,7 +1263,7 @@ func (sh *Shell) executeIfEqual(n *IfNode) error {
 	return nil
 }
 
-func (sh *Shell) executeIfNotEqual(n *IfNode) error {
+func (sh *Shell) executeIfNotEqual(n *ast.IfNode) error {
 	lstr, rstr, err := sh.evalIfArguments(n)
 
 	if err != nil {
@@ -1277,9 +1281,9 @@ func (sh *Shell) executeIfNotEqual(n *IfNode) error {
 	return nil
 }
 
-func (sh *Shell) executeFn(fn *Shell, args []*Arg) (*Obj, error) {
+func (sh *Shell) executeFn(fn *Shell, args []*ast.Arg) (*Obj, error) {
 	if len(fn.argNames) != len(args) {
-		return nil, newError("Wrong number of arguments for function %s. Expected %d but found %d",
+		return nil, errors.NewError("Wrong number of arguments for function %s. Expected %d but found %d",
 			fn.name, len(fn.argNames), len(args))
 	}
 
@@ -1299,11 +1303,11 @@ func (sh *Shell) executeFn(fn *Shell, args []*Arg) (*Obj, error) {
 	return fn.Execute()
 }
 
-func (sh *Shell) executeFnInv(n *FnInvNode) (*Obj, error) {
+func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 	fnName := n.Name()
 
 	if len(fnName) > 0 && fnName[0] == '$' {
-		argVar := NewArg(n.Position(), ArgVariable)
+		argVar := ast.NewArg(n.Position(), ast.ArgVariable)
 		argVar.SetString(fnName)
 
 		obj, err := sh.evalVariable(argVar)
@@ -1313,20 +1317,20 @@ func (sh *Shell) executeFnInv(n *FnInvNode) (*Obj, error) {
 		}
 
 		if obj.Type() != FnType {
-			return nil, newError("Variable '%s' isnt a function.", fnName)
+			return nil, errors.NewError("Variable '%s' isnt a function.", fnName)
 		}
 
-		return sh.executeFn(obj.Fn(), n.args)
+		return sh.executeFn(obj.Fn(), n.Args())
 	}
 
 	if fn, ok := sh.GetFn(n.Name()); ok {
-		return sh.executeFn(fn, n.args)
+		return sh.executeFn(fn, n.Args())
 	}
 
-	return nil, newError("no such function '%s'", fnName)
+	return nil, errors.NewError("no such function '%s'", fnName)
 }
 
-func (sh *Shell) executeInfLoop(tr *Tree) error {
+func (sh *Shell) executeInfLoop(tr *ast.Tree) error {
 	var err error
 
 	for {
@@ -1362,7 +1366,7 @@ func (sh *Shell) executeInfLoop(tr *Tree) error {
 	return err
 }
 
-func (sh *Shell) executeFor(n *ForNode) error {
+func (sh *Shell) executeFor(n *ast.ForNode) error {
 	sh.Lock()
 	sh.looping = true
 	sh.Unlock()
@@ -1381,7 +1385,7 @@ func (sh *Shell) executeFor(n *ForNode) error {
 	id := n.Identifier()
 	inVar := n.InVar()
 
-	argVar := NewArg(n.Position(), ArgVariable)
+	argVar := ast.NewArg(n.Position(), ast.ArgVariable)
 	argVar.SetString(inVar)
 
 	obj, err := sh.evalVariable(argVar)
@@ -1391,7 +1395,7 @@ func (sh *Shell) executeFor(n *ForNode) error {
 	}
 
 	if obj.Type() != ListType {
-		return newError("Invalid variable type in for range: %s", obj.Type())
+		return errors.NewError("Invalid variable type in for range: %s", obj.Type())
 	}
 
 	for _, val := range obj.List() {
@@ -1430,7 +1434,7 @@ func (sh *Shell) executeFor(n *ForNode) error {
 	return nil
 }
 
-func (sh *Shell) executeFnDecl(n *FnDeclNode) error {
+func (sh *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 	fn, err := NewSubShell(n.Name(), sh)
 
 	if err != nil {
@@ -1493,7 +1497,7 @@ func (sh *Shell) dump(out io.Writer) {
 	sh.dumpFns(out)
 }
 
-func (sh *Shell) executeDump(n *DumpNode) error {
+func (sh *Shell) executeDump(n *ast.DumpNode) error {
 	var (
 		err  error
 		file io.Writer
@@ -1514,7 +1518,7 @@ func (sh *Shell) executeDump(n *DumpNode) error {
 	}
 
 	if obj.Type() != StringType {
-		return newError("dump does not support argument of type %s", obj.Type())
+		return errors.NewError("dump does not support argument of type %s", obj.Type())
 	}
 
 	file, err = os.OpenFile(obj.Str(), os.O_CREATE|os.O_RDWR, 0644)
@@ -1529,17 +1533,17 @@ execDump:
 	return nil
 }
 
-func (sh *Shell) executeBindFn(n *BindFnNode) error {
+func (sh *Shell) executeBindFn(n *ast.BindFnNode) error {
 	if fn, ok := sh.GetFn(n.Name()); ok {
 		sh.Setbindfn(n.CmdName(), fn)
 	} else {
-		return newError("No such function '%s'", n.Name())
+		return errors.NewError("No such function '%s'", n.Name())
 	}
 
 	return nil
 }
 
-func (sh *Shell) executeIf(n *IfNode) error {
+func (sh *Shell) executeIf(n *ast.IfNode) error {
 	op := n.Op()
 
 	if op == "==" {

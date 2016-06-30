@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/NeowayLabs/nash"
+	"github.com/NeowayLabs/nash/parser"
 	"github.com/chzyer/readline"
 )
 
@@ -103,9 +104,9 @@ func cli(sh *nash.Shell) error {
 
 		content.Write([]byte(line + "\n"))
 
-		parser := nash.NewParser(fmt.Sprintf("line %d", lineidx), string(content.Bytes()))
+		parse := parser.NewParser(fmt.Sprintf("line %d", lineidx), string(content.Bytes()))
 
-		tr, err := parser.Parse()
+		tr, err := parse.Parse()
 
 		if err != nil {
 			if interrupted, ok := err.(Interrupted); ok && interrupted.Interrupted() {

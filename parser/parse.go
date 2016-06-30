@@ -68,7 +68,7 @@ func (p *Parser) Parse() (*ast.Tree, error) {
 		return nil, err
 	}
 
-	tr := NewTree(p.name)
+	tr := ast.NewTree(p.name)
 	tr.Root = root
 
 	return tr, nil
@@ -527,7 +527,7 @@ func (p *Parser) parseAssignment() (ast.Node, error) {
 
 func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 	n := ast.NewAssignmentNode(name.Pos())
-	n.SetVarName(name.Value())
+	n.SetIdentifier(name.Value())
 
 	it := p.peek()
 
@@ -668,10 +668,10 @@ func (p *Parser) parseIf() (ast.Node, error) {
 
 	if it.Value() != "==" && it.Value() != "!=" {
 		return nil, fmt.Errorf("Invalid if operator '%s'. Valid comparison operators are '==' and '!='",
-			it.val)
+			it.Value())
 	}
 
-	n.SetOp(it.val)
+	n.SetOp(it.Value())
 
 	it = p.next()
 
@@ -680,12 +680,12 @@ func (p *Parser) parseIf() (ast.Node, error) {
 	}
 
 	if it.Type() == token.String {
-		arg := ast.NewArg(it.Pos(), ArgQuoted)
-		arg.SetString(it.val)
+		arg := ast.NewArg(it.Pos(), ast.ArgQuoted)
+		arg.SetString(it.Value())
 		n.SetRvalue(arg)
 	} else {
-		arg := ast.NewArg(it.Pos(), ArgUnquoted)
-		arg.SetString(it.val)
+		arg := ast.NewArg(it.Pos(), ast.ArgUnquoted)
+		arg.SetString(it.Value())
 		n.SetRvalue(arg)
 	}
 
@@ -703,7 +703,7 @@ func (p *Parser) parseIf() (ast.Node, error) {
 		return nil, err
 	}
 
-	ifTree := NewTree("if block")
+	ifTree := ast.NewTree("if block")
 	ifTree.Root = r
 	n.SetIfTree(ifTree)
 
@@ -718,7 +718,7 @@ func (p *Parser) parseIf() (ast.Node, error) {
 			return nil, err
 		}
 
-		elseTree := NewTree("else tree")
+		elseTree := ast.NewTree("else tree")
 		elseTree.Root = elseBlock
 
 		n.SetElseIf(elseIf)
@@ -737,7 +737,7 @@ func (p *Parser) parseFnArgs() ([]string, error) {
 		if it.Type() == token.RParen {
 			break
 		} else if it.Type() == token.Ident {
-			args = append(args, it.val)
+			args = append(args, it.Value())
 		} else {
 			return nil, fmt.Errorf("Unexpected token %v. Expected identifier or ')'", it)
 		}
@@ -755,7 +755,7 @@ func (p *Parser) parseFnDecl() (ast.Node, error) {
 	it = p.next()
 
 	if it.Type() == token.Ident {
-		n.SetName(it.val)
+		n.SetName(it.Value())
 
 		it = p.next()
 	}
@@ -782,7 +782,7 @@ func (p *Parser) parseFnDecl() (ast.Node, error) {
 
 	p.openblocks++
 
-	tree := NewTree(fmt.Sprintf("fn %s body", n.Name()))
+	tree := ast.NewTree(fmt.Sprintf("fn %s body", n.Name()))
 
 	r, err := p.parseBlock()
 
@@ -801,7 +801,7 @@ func (p *Parser) parseFnDecl() (ast.Node, error) {
 func (p *Parser) parseFnInv() (ast.Node, error) {
 	it := p.next()
 
-	n := ast.NewFnInvNode(it.Pos(), it.val)
+	n := ast.NewFnInvNode(it.Pos(), it.Value())
 
 	it = p.next()
 
@@ -869,17 +869,17 @@ func (p *Parser) parseBindFn() (ast.Node, error) {
 
 	nameIt := p.next()
 
-	if nameit.Type() != token.Ident {
+	if nameIt.Type() != token.Ident {
 		return nil, errors.NewError("Expected identifier, but found '%v'", nameIt)
 	}
 
 	cmdIt := p.next()
 
-	if cmdit.Type() != token.Ident {
+	if cmdIt.Type() != token.Ident {
 		return nil, errors.NewError("Expected identifier, but found '%v'", cmdIt)
 	}
 
-	n := ast.NewBindFnNode(bindIt.Pos(), nameIt.val, cmdIt.val)
+	n := ast.NewBindFnNode(bindIt.Pos(), nameIt.Value(), cmdIt.Value())
 	return n, nil
 }
 
@@ -890,7 +890,7 @@ func (p *Parser) parseDump() (ast.Node, error) {
 
 	fnameIt := p.peek()
 
-	if fnameit.Type() != token.String && fnameit.Type() != token.Variable && fnameit.Type() != token.Arg {
+	if fnameIt.Type() != token.String && fnameIt.Type() != token.Variable && fnameIt.Type() != token.Arg {
 		return dump, nil
 	}
 
@@ -911,7 +911,7 @@ func (p *Parser) parseReturn() (ast.Node, error) {
 
 	valueIt := p.peek()
 
-	if valueit.Type() != token.String && valueit.Type() != token.Variable && valueit.Type() != token.LParen {
+	if valueIt.Type() != token.String && valueIt.Type() != token.Variable && valueIt.Type() != token.LParen {
 		return ret, nil
 	}
 
@@ -919,20 +919,20 @@ func (p *Parser) parseReturn() (ast.Node, error) {
 
 	retPos := retIt.Pos()
 
-	if valueit.Type() == token.LParen {
-		values := make([]*Arg, 0, 128)
+	if valueIt.Type() == token.LParen {
+		values := make([]*ast.Arg, 0, 128)
 
-		for valueIt = p.next(); valueit.Type() == token.Arg || valueit.Type() == token.String || valueit.Type() == token.Variable; valueIt = p.next() {
+		for valueIt = p.next(); valueIt.Type() == token.Arg || valueIt.Type() == token.String || valueIt.Type() == token.Variable; valueIt = p.next() {
 			arg := ast.NewArg(valueIt.Pos(), 0)
 			arg.SetItem(valueIt)
 			values = append(values, arg)
 		}
 
-		if valueit.Type() != token.RParen {
-			return nil, newUnfinishedListError()
+		if valueIt.Type() != token.RParen {
+			return nil, errors.NewUnfinishedListError()
 		}
 
-		listArg := ast.NewArg(retPos, ArgList)
+		listArg := ast.NewArg(retPos, ast.ArgList)
 		listArg.SetList(values)
 
 		ret.SetReturn(listArg)
@@ -959,7 +959,7 @@ func (p *Parser) parseFor() (ast.Node, error) {
 
 	p.next()
 
-	forStmt.SetIdentifier(it.val)
+	forStmt.SetIdentifier(it.Value())
 
 	it = p.next()
 
@@ -973,7 +973,7 @@ func (p *Parser) parseFor() (ast.Node, error) {
 		return nil, errors.NewError("Expected variable but found %q", it)
 	}
 
-	forStmt.SetInVar(it.val)
+	forStmt.SetInVar(it.Value())
 
 forBlockParse:
 	it = p.peek()
@@ -985,7 +985,7 @@ forBlockParse:
 	p.ignore() // ignore lookaheaded symbol
 	p.openblocks++
 
-	tree := NewTree("for block")
+	tree := ast.NewTree("for block")
 
 	r, err := p.parseBlock()
 
@@ -1002,7 +1002,7 @@ forBlockParse:
 func (p *Parser) parseComment() (ast.Node, error) {
 	it := p.next()
 
-	return ast.NewCommentNode(it.Pos(), it.val), nil
+	return ast.NewCommentNode(it.Pos(), it.Value()), nil
 }
 
 func (p *Parser) parseStatement() (ast.Node, error) {
@@ -1018,7 +1018,7 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 func (p *Parser) parseError() (ast.Node, error) {
 	it := p.next()
 
-	return nil, errors.NewError(it.val)
+	return nil, errors.NewError(it.Value())
 }
 
 func (p *Parser) parseBlock() (*ast.ListNode, error) {
@@ -1028,10 +1028,10 @@ func (p *Parser) parseBlock() (*ast.ListNode, error) {
 		it := p.peek()
 
 		switch it.Type() {
-		case 0, token.EOF:
+		case token.EOF:
 			goto finish
 		case token.Illegal:
-			return nil, fmt.Errorf("Syntax error: %s", it.val)
+			return nil, fmt.Errorf("Syntax error: %s", it.Value())
 		case token.LBrace:
 			p.ignore()
 
@@ -1058,15 +1058,8 @@ func (p *Parser) parseBlock() (*ast.ListNode, error) {
 
 finish:
 	if p.openblocks != 0 {
-		return nil, newUnfinishedBlockError()
+		return nil, errors.NewUnfinishedBlockError()
 	}
 
 	return ln, nil
-}
-
-// NewTree creates a new AST tree
-func NewTree(name string) *ast.Tree {
-	return &Tree{
-		Name: name,
-	}
 }
