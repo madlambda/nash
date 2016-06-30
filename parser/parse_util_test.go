@@ -193,8 +193,8 @@ func compareCommandNode(expected, value *ast.CommandNode) (bool, error) {
 		return false, fmt.Errorf("One of the nodecommand are nil")
 	}
 
-	ename := expected.name
-	vname := value.name
+	ename := expected.Name()
+	vname := value.Name()
 
 	if ename != vname {
 		return false, fmt.Errorf("CommandNode: expected.name('%s') != value.name('%s')",
@@ -205,8 +205,8 @@ func compareCommandNode(expected, value *ast.CommandNode) (bool, error) {
 		return ok, fmt.Errorf(" CompareCommandNode (%v, %v)-> %s", expected, value, err.Error())
 	}
 
-	eargs := expected.args
-	vargs := value.args
+	eargs := expected.Args()
+	vargs := value.Args()
 
 	if len(eargs) != len(vargs) {
 		return false, fmt.Errorf("CommandNode: length of expected.args and value.args differs: %d != %d", len(eargs), len(vargs))
@@ -271,8 +271,8 @@ func compareAssignmentNode(expected, value *ast.AssignmentNode) (bool, error) {
 		return false, fmt.Errorf("Only one of the nodes are nil. %v != %v", expected, value)
 	}
 
-	if expected.name != value.name {
-		return false, fmt.Errorf("Variable name differs. '%s' != '%s'", expected.name, value.name)
+	if expected.Identifier() != value.Identifier() {
+		return false, fmt.Errorf("Variable name differs. '%s' != '%s'", expected.Identifier(), value.Identifier())
 	}
 
 	if ok, err := compareArg(expected.Value(), value.Value()); !ok {
