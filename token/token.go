@@ -2,7 +2,10 @@ package token
 
 import "strconv"
 
-type Token int
+type (
+	Token int
+	Pos   int
+)
 
 const (
 	Illegal Token = iota // error ocurred
@@ -42,9 +45,7 @@ const (
 
 	redirect_beg
 
-	RedirRight // >
-	RedirFile
-	RedirNetAddr
+	RedirRight    // >
 	RedirMapEqual // = eg.: cmd >[2=1]
 	RedirMapLSide
 	RedirMapRSide
@@ -71,7 +72,7 @@ const (
 )
 
 var tokens = [...]string{
-	Error:   "ILLEGAL",
+	Illegal: "ILLEGAL",
 	EOF:     "EOF",
 	Comment: "COMMENT",
 
@@ -99,9 +100,6 @@ var tokens = [...]string{
 	Pipe:     "|",
 
 	RedirRight:    ">",
-	RedirFile:     "REDIR-FILE",
-	RedirNetAddr:  "REDIR-NET",
-	RedirMapEqual: "=",
 	RedirMapLSide: "MAP-LSIDE",
 	RedirMapRSide: "MAP-RSIDE",
 
@@ -120,6 +118,11 @@ var tokens = [...]string{
 	Cd:      "CD",
 	FnDecl:  "FN",
 	FnInv:   "FN-INV",
+}
+
+// token.Position returns the position of the node in file
+func (p Pos) Position() Pos {
+	return p
 }
 
 func (tok Token) String() string {

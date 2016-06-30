@@ -14,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+
+	"github.com/NeowayLabs/nash/parser"
 )
 
 type (
@@ -481,7 +483,7 @@ func (sh *Shell) Execute() (*Obj, error) {
 
 // ExecuteString executes the commands specified by string content
 func (sh *Shell) ExecuteString(path, content string) error {
-	parser := NewParser(path, content)
+	parser := parser.NewParser(path, content)
 
 	tr, err := parser.Parse()
 
