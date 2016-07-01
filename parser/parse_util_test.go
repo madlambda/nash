@@ -235,8 +235,8 @@ func compareCommentNode(expected, value *ast.CommentNode) (bool, error) {
 		return false, fmt.Errorf("Only one of the nodes are nil. %v != %v", expected, value)
 	}
 
-	if expected.val != value.val {
-		return false, fmt.Errorf("Comment val differ: '%s' != '%s'", expected.val, value.val)
+	if expected.String() != value.String() {
+		return false, fmt.Errorf("Comment val differ: '%s' != '%s'", expected.String(), value.String())
 	}
 
 	return true, nil
@@ -255,8 +255,8 @@ func compareSetAssignmentNode(expected, value *ast.SetAssignmentNode) (bool, err
 		return ok, fmt.Errorf(" CompareRforkNode (%v, %v) -> %s", expected, value, err.Error())
 	}
 
-	if expected.varName != value.varName {
-		return false, fmt.Errorf("Set identifier mismatch. %s != %s", expected.varName, value.varName)
+	if expected.Identifier() != value.Identifier() {
+		return false, fmt.Errorf("Set identifier mismatch. %s != %s", expected.Identifier(), value.Identifier())
 	}
 
 	return true, nil
@@ -295,7 +295,7 @@ func compareRforkNode(expected, value *ast.RforkNode) (bool, error) {
 		return ok, fmt.Errorf(" CompareRforkNode (%v, %v) -> %s", expected, value, err.Error())
 	}
 
-	if ok, err := compareArg(expected.arg, value.arg); !ok {
+	if ok, err := compareArg(expected.Arg(), value.Arg()); !ok {
 		return ok, fmt.Errorf("CompareRforkNode (%v, %v) -> %s", expected, value, err.Error())
 	}
 
@@ -465,10 +465,10 @@ func compareCmdAssignmentNode(expected, value *ast.CmdAssignmentNode) (bool, err
 	}
 
 	switch ecmd.Type() {
-	case NodeCommand:
-		return compareCommandNode(ecmd.(*ast.CommandNode), vcmd.(*CommandNode))
-	case NodePipe:
-		return comparePipeNode(ecmd.(*ast.PipeNode), vcmd.(*PipeNode))
+	case ast.NodeCommand:
+		return compareCommandNode(ecmd.(*ast.CommandNode), vcmd.(*ast.CommandNode))
+	case ast.NodePipe:
+		return comparePipeNode(ecmd.(*ast.PipeNode), vcmd.(*ast.PipeNode))
 	}
 
 	return false, fmt.Errorf("Unexpected type %s", ecmd.Type())

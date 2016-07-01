@@ -119,6 +119,10 @@ func NewShell() (*Shell, error) {
 	return sh, nil
 }
 
+// NewSubShell creates a nash.Shell that inherits the parent shell stdin,
+// stdout, stderr and mutex lock.
+// Every variable and function lookup is done first in the subshell and then, if
+// not found, in the parent shell recursively.
 func NewSubShell(name string, parent *Shell) (*Shell, error) {
 	if parent == nil {
 		return nil, errors.NewError("A sub Shell requires a parent shell")
@@ -130,9 +134,9 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 		parent:    parent,
 		logf:      NewLog(logNS, false),
 		nashdPath: nashdAutoDiscover(),
-		stdout:    os.Stdout,
-		stderr:    os.Stderr,
-		stdin:     os.Stdin,
+		stdout:    parent.Stdout(),
+		stderr:    parent.Stderr(),
+		stdin:     parent.Stdin(),
 		env:       make(Env),
 		vars:      make(Var),
 		fns:       make(Fns),
@@ -339,6 +343,10 @@ func (sh *Shell) SetStdout(out io.Writer) {
 func (sh *Shell) SetStderr(err io.Writer) {
 	sh.stderr = err
 }
+
+func (sh *Shell) Stdout() io.Writer { return sh.stdout }
+func (sh *Shell) Stderr() io.Writer { return sh.stderr }
+func (sh *Shell) Stdin() io.Reader  { return sh.stdin }
 
 func (sh *Shell) AddArgName(name string) {
 	sh.argNames = append(sh.argNames, name)
