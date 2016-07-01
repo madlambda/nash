@@ -9,7 +9,7 @@ import (
 import "testing"
 
 func testTable(name, content string, expected []Token, t *testing.T) {
-	l := lex(name, content)
+	l := Lex(name, content)
 
 	if l == nil {
 		t.Errorf("Failed to initialize lexer")
@@ -68,7 +68,7 @@ func TestLexerTokenToString(t *testing.T) {
 		val: "some error",
 	}
 
-	if it.String() != "Error: some error" {
+	if it.String() != "ERROR: some error" {
 		t.Errorf("wrong error string: %s", it.String())
 	}
 
@@ -77,7 +77,7 @@ func TestLexerTokenToString(t *testing.T) {
 		val: "echo",
 	}
 
-	if it.String() != "(token.Command) - pos: 0, val: \"echo\"" {
+	if it.String() != "(COMMAND) - pos: 0, val: \"echo\"" {
 		t.Errorf("wrong command name: %s", it.String())
 	}
 
@@ -87,7 +87,7 @@ func TestLexerTokenToString(t *testing.T) {
 	}
 
 	// test if long names are truncated
-	if it.String() != "(token.Command) - pos: 0, val: \"echooooooo\"..." {
+	if it.String() != "(COMMAND) - pos: 0, val: \"echooooooo\"..." {
 		t.Errorf("wrong command name: %s", it.String())
 	}
 }
@@ -736,15 +736,15 @@ func TestLexerPipe(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "2",
 		},
 		{
-			typ: TokenRedirMapEqual,
+			typ: token.Assign,
 			val: "=",
 		},
 		{
-			typ: TokenRedirMapRSide,
+			typ: token.RedirMapRSide,
 			val: "1",
 		},
 		{
@@ -961,11 +961,11 @@ func TestLexerVariousCommands(t *testing.T) {
 func TestLexerRfork(t *testing.T) {
 	expected := []Token{
 		{
-			typ: TokenRfork,
+			typ: token.Rfork,
 			val: "rfork",
 		},
 		{
-			typ: TokenRforkFlags,
+			typ: token.String,
 			val: "u",
 		},
 		{
@@ -977,11 +977,11 @@ func TestLexerRfork(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenRfork,
+			typ: token.Rfork,
 			val: "rfork",
 		},
 		{
-			typ: TokenRforkFlags,
+			typ: token.String,
 			val: "usnm",
 		},
 		{
@@ -1015,7 +1015,7 @@ func TestLexerRfork(t *testing.T) {
 func TestLexerRforkInvalidArguments(t *testing.T) {
 	expected := []Token{
 		{
-			typ: TokenRfork,
+			typ: token.Rfork,
 			val: "rfork",
 		},
 		{
@@ -1034,11 +1034,11 @@ func TestLexerSomethingIdontcareanymore(t *testing.T) {
 	// maybe oneliner rfork isnt a good idea
 	expected := []Token{
 		{
-			typ: TokenRfork,
+			typ: token.Rfork,
 			val: "rfork",
 		},
 		{
-			typ: TokenRforkFlags,
+			typ: token.String,
 			val: "u",
 		},
 		{
@@ -1302,11 +1302,11 @@ func TestLexerRedirectMap(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "2",
 		},
 		{
-			typ: TokenRedirMapEqual,
+			typ: token.Assign,
 			val: "=",
 		},
 		{
@@ -1335,15 +1335,15 @@ func TestLexerRedirectMap(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "2",
 		},
 		{
-			typ: TokenRedirMapEqual,
+			typ: token.Assign,
 			val: "=",
 		},
 		{
-			typ: TokenRedirMapRSide,
+			typ: token.RedirMapRSide,
 			val: "1",
 		},
 		{
@@ -1374,11 +1374,11 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "2",
 		},
 		{
-			typ: TokenRedirMapEqual,
+			typ: token.Assign,
 			val: "=",
 		},
 		{
@@ -1411,15 +1411,15 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "2",
 		},
 		{
-			typ: TokenRedirMapEqual,
+			typ: token.Assign,
 			val: "=",
 		},
 		{
-			typ: TokenRedirMapRSide,
+			typ: token.RedirMapRSide,
 			val: "1",
 		},
 		{
@@ -1451,7 +1451,7 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "2",
 		},
 		{
@@ -1485,7 +1485,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "1",
 		},
 		{
@@ -1505,7 +1505,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "2",
 		},
 		{
@@ -1537,15 +1537,15 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "2",
 		},
 		{
-			typ: TokenRedirMapEqual,
+			typ: token.Assign,
 			val: "=",
 		},
 		{
-			typ: TokenRedirMapRSide,
+			typ: token.RedirMapRSide,
 			val: "1",
 		},
 		{
@@ -1561,7 +1561,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "1",
 		},
 		{
@@ -1593,15 +1593,15 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "1",
 		},
 		{
-			typ: TokenRedirMapEqual,
+			typ: token.Assign,
 			val: "=",
 		},
 		{
-			typ: TokenRedirMapRSide,
+			typ: token.RedirMapRSide,
 			val: "2",
 		},
 		{
@@ -1617,11 +1617,11 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "2",
 		},
 		{
-			typ: TokenRedirMapEqual,
+			typ: token.Assign,
 			val: "=",
 		},
 		{
@@ -1639,7 +1639,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 func TestLexerImport(t *testing.T) {
 	expected := []Token{
 		{
-			typ: TokenImport,
+			typ: token.Import,
 			val: "import",
 		},
 		{
@@ -1709,7 +1709,7 @@ func TestLexerSimpleIf(t *testing.T) {
 			val: "test",
 		},
 		{
-			typ: token.Equal,
+			typ: token.NotEqual,
 			val: "!=",
 		},
 		{
@@ -1771,7 +1771,7 @@ func TestLexerIfWithConcat(t *testing.T) {
 			val: "001",
 		},
 		{
-			typ: token.Equal,
+			typ: token.NotEqual,
 			val: "!=",
 		},
 		{
@@ -1847,7 +1847,7 @@ func TestLexerIfElse(t *testing.T) {
 			val: "}",
 		},
 		{
-			typ: TokenElse,
+			typ: token.Else,
 			val: "else",
 		},
 		{
@@ -1909,7 +1909,7 @@ func TestLexerIfElseIf(t *testing.T) {
 			val: "}",
 		},
 		{
-			typ: TokenElse,
+			typ: token.Else,
 			val: "else",
 		},
 		{
@@ -1941,7 +1941,7 @@ func TestLexerIfElseIf(t *testing.T) {
 			val: "}",
 		},
 		{
-			typ: TokenElse,
+			typ: token.Else,
 			val: "else",
 		},
 		{
@@ -1978,7 +1978,7 @@ func TestLexerIfElseIf(t *testing.T) {
 func TestLexerFnBasic(t *testing.T) {
 	expected := []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2011,7 +2011,7 @@ func TestLexerFnBasic(t *testing.T) {
 	// lambda
 	expected = []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2044,7 +2044,7 @@ func TestLexerFnBasic(t *testing.T) {
 	// IIFE
 	expected = []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2084,7 +2084,7 @@ func TestLexerFnBasic(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2124,7 +2124,7 @@ func TestLexerFnBasic(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2175,7 +2175,7 @@ func TestLexerFnBasic(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2269,7 +2269,7 @@ func TestLexerFnBasic(t *testing.T) {
 func TestLexerFnInvocation(t *testing.T) {
 	expected := []Token{
 		{
-			typ: TokenFnInv,
+			typ: token.FnInv,
 			val: "build",
 		},
 		{
@@ -2289,7 +2289,7 @@ func TestLexerFnInvocation(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenFnInv,
+			typ: token.FnInv,
 			val: "build",
 		},
 		{
@@ -2314,7 +2314,7 @@ func TestLexerFnInvocation(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenFnInv,
+			typ: token.FnInv,
 			val: "build",
 		},
 		{
@@ -2343,7 +2343,7 @@ func TestLexerFnInvocation(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenFnInv,
+			typ: token.FnInv,
 			val: "build",
 		},
 		{
@@ -2392,7 +2392,7 @@ func TestLexerAssignCmdOut(t *testing.T) {
 func TestLexerBindFn(t *testing.T) {
 	expected := []Token{
 		{
-			typ: TokenBindFn,
+			typ: token.BindFn,
 			val: "bindfn",
 		},
 		{
@@ -2431,7 +2431,7 @@ func TestLexerRedirectionNetwork(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: TokenRedirMapLSide,
+			typ: token.RedirMapLSide,
 			val: "1",
 		},
 		{
@@ -2453,7 +2453,7 @@ func TestLexerRedirectionNetwork(t *testing.T) {
 func TestLexerDump(t *testing.T) {
 	expected := []Token{
 		{
-			typ: TokenDump,
+			typ: token.Dump,
 			val: "dump",
 		},
 		{
@@ -2465,7 +2465,7 @@ func TestLexerDump(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenDump,
+			typ: token.Dump,
 			val: "dump",
 		},
 		{
@@ -2481,7 +2481,7 @@ func TestLexerDump(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenDump,
+			typ: token.Dump,
 			val: "dump",
 		},
 		{
@@ -2499,7 +2499,7 @@ func TestLexerDump(t *testing.T) {
 func TestLexerReturn(t *testing.T) {
 	expected := []Token{
 		{
-			typ: TokenReturn,
+			typ: token.Return,
 			val: "return",
 		},
 		{
@@ -2511,7 +2511,7 @@ func TestLexerReturn(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2531,7 +2531,7 @@ func TestLexerReturn(t *testing.T) {
 			val: "{",
 		},
 		{
-			typ: TokenReturn,
+			typ: token.Return,
 			val: "return",
 		},
 		{
@@ -2553,7 +2553,7 @@ func TestLexerReturn(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2573,7 +2573,7 @@ func TestLexerReturn(t *testing.T) {
 			val: "{",
 		},
 		{
-			typ: TokenReturn,
+			typ: token.Return,
 			val: "return",
 		},
 		{
@@ -2596,7 +2596,7 @@ func TestLexerReturn(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2628,7 +2628,7 @@ func TestLexerReturn(t *testing.T) {
 			val: "some value",
 		},
 		{
-			typ: TokenReturn,
+			typ: token.Return,
 			val: "return",
 		},
 		{
@@ -2651,7 +2651,7 @@ func TestLexerReturn(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2671,7 +2671,7 @@ func TestLexerReturn(t *testing.T) {
 			val: "{",
 		},
 		{
-			typ: TokenReturn,
+			typ: token.Return,
 			val: "return",
 		},
 		{
@@ -2705,7 +2705,7 @@ func TestLexerReturn(t *testing.T) {
 
 	expected = []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2725,7 +2725,7 @@ func TestLexerReturn(t *testing.T) {
 			val: "{",
 		},
 		{
-			typ: TokenReturn,
+			typ: token.Return,
 			val: "return",
 		},
 		{
@@ -2804,7 +2804,7 @@ func TestLexerFor(t *testing.T) {
 func TestLexerFnAsFirstClass(t *testing.T) {
 	expected := []Token{
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2844,7 +2844,7 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "}",
 		},
 		{
-			typ: TokenFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
@@ -2872,7 +2872,7 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "{",
 		},
 		{
-			typ: TokenFnInv,
+			typ: token.FnInv,
 			val: "$print",
 		},
 		{
@@ -2900,7 +2900,7 @@ func TestLexerFnAsFirstClass(t *testing.T) {
 			val: "}",
 		},
 		{
-			typ: TokenFnInv,
+			typ: token.FnInv,
 			val: "success",
 		},
 		{

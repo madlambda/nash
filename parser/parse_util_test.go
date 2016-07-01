@@ -8,12 +8,6 @@ import (
 	"github.com/NeowayLabs/nash/token"
 )
 
-func newSimpleArg(pos token.Pos, n string, typ ast.ArgType) *ast.Arg {
-	arg := ast.NewArg(pos, typ)
-	arg.SetString(n)
-	return arg
-}
-
 func comparePosition(expected token.Pos, value token.Pos) (bool, error) {
 	if expected != value {
 		return false, fmt.Errorf("Position mismatch: %d != %d", expected, value)

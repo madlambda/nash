@@ -45,8 +45,7 @@ const (
 
 	redirect_beg
 
-	RedirRight    // >
-	RedirMapEqual // = eg.: cmd >[2=1]
+	RedirRight // >
 	RedirMapLSide
 	RedirMapRSide
 

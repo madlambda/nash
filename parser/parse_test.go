@@ -513,10 +513,10 @@ func TestParseRforkWithBlock(t *testing.T) {
 	rfork.SetFlags(arg)
 
 	insideFork := ast.NewCommandNode(11, "mount")
-	insideFork.AddArg(newSimpleArg(17, "-t", ast.ArgUnquoted))
-	insideFork.AddArg(newSimpleArg(20, "proc", ast.ArgUnquoted))
-	insideFork.AddArg(newSimpleArg(25, "proc", ast.ArgUnquoted))
-	insideFork.AddArg(newSimpleArg(30, "/proc", ast.ArgUnquoted))
+	insideFork.AddArg(ast.NewSimpleArg(17, "-t", ast.ArgUnquoted))
+	insideFork.AddArg(ast.NewSimpleArg(20, "proc", ast.ArgUnquoted))
+	insideFork.AddArg(ast.NewSimpleArg(25, "proc", ast.ArgUnquoted))
+	insideFork.AddArg(ast.NewSimpleArg(30, "/proc", ast.ArgUnquoted))
 
 	bln := ast.NewListNode()
 	bln.Push(insideFork)
@@ -550,7 +550,7 @@ func TestParseImport(t *testing.T) {
 	expected := ast.NewTree("test import")
 	ln := ast.NewListNode()
 	importStmt := ast.NewImportNode(0)
-	importStmt.SetPath(newSimpleArg(7, "env.sh", ast.ArgUnquoted))
+	importStmt.SetPath(ast.NewSimpleArg(7, "env.sh", ast.ArgUnquoted))
 	ln.Push(importStmt)
 	expected.Root = ln
 
@@ -559,7 +559,7 @@ func TestParseImport(t *testing.T) {
 	expected = ast.NewTree("test import with quotes")
 	ln = ast.NewListNode()
 	importStmt = ast.NewImportNode(0)
-	importStmt.SetPath(newSimpleArg(8, "env.sh", ast.ArgQuoted))
+	importStmt.SetPath(ast.NewSimpleArg(8, "env.sh", ast.ArgQuoted))
 	ln.Push(importStmt)
 	expected.Root = ln
 
@@ -570,8 +570,8 @@ func TestParseIf(t *testing.T) {
 	expected := ast.NewTree("test if")
 	ln := ast.NewListNode()
 	ifDecl := ast.NewIfNode(0)
-	ifDecl.SetLvalue(newSimpleArg(4, "test", ast.ArgQuoted))
-	ifDecl.SetRvalue(newSimpleArg(14, "other", ast.ArgQuoted))
+	ifDecl.SetLvalue(ast.NewSimpleArg(4, "test", ast.ArgQuoted))
+	ifDecl.SetRvalue(ast.NewSimpleArg(14, "other", ast.ArgQuoted))
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewListNode()
@@ -593,8 +593,8 @@ func TestParseIf(t *testing.T) {
 	expected = ast.NewTree("test if")
 	ln = ast.NewListNode()
 	ifDecl = ast.NewIfNode(0)
-	ifDecl.SetLvalue(newSimpleArg(4, "", ast.ArgQuoted))
-	ifDecl.SetRvalue(newSimpleArg(10, "other", ast.ArgQuoted))
+	ifDecl.SetLvalue(ast.NewSimpleArg(4, "", ast.ArgQuoted))
+	ifDecl.SetRvalue(ast.NewSimpleArg(10, "other", ast.ArgQuoted))
 	ifDecl.SetOp("!=")
 
 	subBlock = ast.NewListNode()
@@ -618,8 +618,8 @@ func TestParseIfLvariable(t *testing.T) {
 	expected := ast.NewTree("test if with variable")
 	ln := ast.NewListNode()
 	ifDecl := ast.NewIfNode(0)
-	ifDecl.SetLvalue(newSimpleArg(3, "$test", ast.ArgVariable))
-	ifDecl.SetRvalue(newSimpleArg(13, "other", ast.ArgQuoted))
+	ifDecl.SetLvalue(ast.NewSimpleArg(3, "$test", ast.ArgVariable))
+	ifDecl.SetRvalue(ast.NewSimpleArg(13, "other", ast.ArgQuoted))
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewListNode()
@@ -643,8 +643,8 @@ func TestParseIfElse(t *testing.T) {
 	expected := ast.NewTree("test if else with variable")
 	ln := ast.NewListNode()
 	ifDecl := ast.NewIfNode(0)
-	ifDecl.SetLvalue(newSimpleArg(3, "$test", ast.ArgVariable))
-	ifDecl.SetRvalue(newSimpleArg(13, "other", ast.ArgQuoted))
+	ifDecl.SetLvalue(ast.NewSimpleArg(3, "$test", ast.ArgVariable))
+	ifDecl.SetRvalue(ast.NewSimpleArg(13, "other", ast.ArgQuoted))
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewListNode()
@@ -679,8 +679,8 @@ func TestParseIfElseIf(t *testing.T) {
 	expected := ast.NewTree("test if else with variable")
 	ln := ast.NewListNode()
 	ifDecl := ast.NewIfNode(0)
-	ifDecl.SetLvalue(newSimpleArg(3, "$test", ast.ArgVariable))
-	ifDecl.SetRvalue(newSimpleArg(13, "other", ast.ArgQuoted))
+	ifDecl.SetLvalue(ast.NewSimpleArg(3, "$test", ast.ArgVariable))
+	ifDecl.SetRvalue(ast.NewSimpleArg(13, "other", ast.ArgQuoted))
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewListNode()
@@ -694,8 +694,8 @@ func TestParseIfElseIf(t *testing.T) {
 
 	elseIfDecl := ast.NewIfNode(0)
 
-	elseIfDecl.SetLvalue(newSimpleArg(4, "$test", ast.ArgVariable))
-	elseIfDecl.SetRvalue(newSimpleArg(15, "others", ast.ArgQuoted))
+	elseIfDecl.SetLvalue(ast.NewSimpleArg(4, "$test", ast.ArgVariable))
+	elseIfDecl.SetRvalue(ast.NewSimpleArg(15, "others", ast.ArgQuoted))
 	elseIfDecl.SetOp("==")
 
 	elseIfBlock := ast.NewListNode()

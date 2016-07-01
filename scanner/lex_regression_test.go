@@ -85,7 +85,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "{",
 		},
 		{
-			typ: TokenIf,
+			typ: token.If,
 			val: "if",
 		},
 		{
@@ -97,7 +97,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "==",
 		},
 		{
-			typ: TokenString,
+			typ: token.String,
 			val: "",
 		},
 		{
@@ -105,7 +105,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "{",
 		},
 		{
-			typ: TokenCd,
+			typ: token.Cd,
 			val: "cd",
 		},
 		{
@@ -117,7 +117,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "}",
 		},
 		{
-			typ: TokenElse,
+			typ: token.Else,
 			val: "else",
 		},
 		{
@@ -125,7 +125,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "{",
 		},
 		{
-			typ: TokenCd,
+			typ: token.Cd,
 			val: "cd",
 		},
 		{
@@ -137,7 +137,7 @@ func TestLexerIssue22(t *testing.T) {
 			val: "+",
 		},
 		{
-			typ: TokenString,
+			typ: token.String,
 			val: "/src/",
 		},
 		{
@@ -180,11 +180,11 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 			val: "version",
 		},
 		{
-			typ: TokenAssign,
+			typ: token.Assign,
 			val: "=",
 		},
 		{
-			typ: TokenString,
+			typ: token.String,
 			val: "4.5.6",
 		},
 		{
@@ -192,7 +192,7 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 			val: "canonName",
 		},
 		{
-			typ: TokenAssignCmd,
+			typ: token.AssignCmd,
 			val: "<=",
 		},
 		{
@@ -216,7 +216,7 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 			val: "sed",
 		},
 		{
-			typ: TokenString,
+			typ: token.String,
 			val: "s/\\.//g",
 		},
 		{
@@ -230,7 +230,7 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 func TestLexerIssue38(t *testing.T) {
 	expected := []Token{
 		{
-			typ: TokenFnInv,
+			typ: token.FnInv,
 			val: "cd",
 		},
 		{
@@ -246,7 +246,7 @@ func TestLexerIssue38(t *testing.T) {
 			val: "+",
 		},
 		{
-			typ: TokenString,
+			typ: token.String,
 			val: "/src/",
 		},
 		{
@@ -296,7 +296,7 @@ func TestLexerIssue43(t *testing.T) {
 			val: "branch",
 		},
 		{
-			typ: TokenAssignCmd,
+			typ: token.AssignCmd,
 			val: "<=",
 		},
 		{
@@ -348,7 +348,7 @@ func TestLexerIssue43(t *testing.T) {
 			val: "$branch",
 		},
 		{
-			typ: TokenFnInv,
+			typ: token.FnInv,
 			val: "refreshPrompt",
 		},
 		{
