@@ -1,25 +1,29 @@
-package nash
+package parser
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/NeowayLabs/nash/ast"
+)
 
 func TestParseIssue38(t *testing.T) {
-	expected := NewTree("parse issue38")
+	expected := ast.NewTree("parse issue38")
 
-	ln := NewListNode()
+	ln := ast.NewListNode()
 
-	fnInv := NewFnInvNode(0, "cd")
+	fnInv := ast.NewFnInvNode(0, "cd")
 
-	arg := NewArg(0, ArgConcat)
+	arg := ast.NewArg(0, ast.ArgConcat)
 
-	args := make([]*Arg, 3)
+	args := make([]*ast.Arg, 3)
 
-	arg1 := NewArg(0, ArgVariable)
+	arg1 := ast.NewArg(0, ast.ArgVariable)
 	arg1.SetString("$GOPATH")
 
-	arg2 := NewArg(0, ArgQuoted)
+	arg2 := ast.NewArg(0, ast.ArgQuoted)
 	arg2.SetString("/src/")
 
-	arg3 := NewArg(0, ArgVariable)
+	arg3 := ast.NewArg(0, ast.ArgVariable)
 	arg3.SetString("$path")
 
 	args[0] = arg1
@@ -43,40 +47,40 @@ func TestParseIssue43(t *testing.T) {
 	refreshPrompt()
 }`
 
-	expected := NewTree("parse issue 41")
-	ln := NewListNode()
+	expected := ast.NewTree("parse issue 41")
+	ln := ast.NewListNode()
 
-	fnDecl := NewFnDeclNode(0, "gpull")
-	fnTree := NewTree("fn")
-	fnBlock := NewListNode()
+	fnDecl := ast.NewFnDeclNode(0, "gpull")
+	fnTree := ast.NewTree("fn")
+	fnBlock := ast.NewListNode()
 
-	branchAssign := NewCmdAssignmentNode(14, "branch")
-	gitRevParse := NewCommandNode(24, "git")
-	arg1 := NewArg(28, ArgUnquoted)
+	branchAssign := ast.NewCmdAssignmentNode(14, "branch")
+	gitRevParse := ast.NewCommandNode(24, "git")
+	arg1 := ast.NewArg(28, ast.ArgUnquoted)
 	arg1.SetString("rev-parse")
 
-	arg2 := NewArg(38, ArgUnquoted)
+	arg2 := ast.NewArg(38, ast.ArgUnquoted)
 	arg2.SetString("--abbrev-ref")
 
-	arg3 := NewArg(51, ArgUnquoted)
+	arg3 := ast.NewArg(51, ast.ArgUnquoted)
 	arg3.SetString("HEAD")
 
 	gitRevParse.AddArg(arg1)
 	gitRevParse.AddArg(arg2)
 	gitRevParse.AddArg(arg3)
 
-	xargs := NewCommandNode(58, "xargs")
+	xargs := ast.NewCommandNode(58, "xargs")
 
-	xarg1 := NewArg(64, ArgUnquoted)
+	xarg1 := ast.NewArg(64, ast.ArgUnquoted)
 	xarg1.SetString("echo")
 
-	xarg2 := NewArg(69, ArgUnquoted)
+	xarg2 := ast.NewArg(69, ast.ArgUnquoted)
 	xarg2.SetString("-n")
 
 	xargs.AddArg(xarg1)
 	xargs.AddArg(xarg2)
 
-	pipe := NewPipeNode(56)
+	pipe := ast.NewPipeNode(56)
 	pipe.AddCmd(gitRevParse)
 	pipe.AddCmd(xargs)
 
@@ -84,15 +88,15 @@ func TestParseIssue43(t *testing.T) {
 
 	fnBlock.Push(branchAssign)
 
-	gitPull := NewCommandNode(73, "git")
+	gitPull := ast.NewCommandNode(73, "git")
 
-	pullArg1 := NewArg(77, ArgUnquoted)
+	pullArg1 := ast.NewArg(77, ast.ArgUnquoted)
 	pullArg1.SetString("pull")
 
-	pullArg2 := NewArg(82, ArgUnquoted)
+	pullArg2 := ast.NewArg(82, ast.ArgUnquoted)
 	pullArg2.SetString("origin")
 
-	pullArg3 := NewArg(89, ArgVariable)
+	pullArg3 := ast.NewArg(89, ast.ArgVariable)
 	pullArg3.SetString("$branch")
 
 	gitPull.AddArg(pullArg1)
@@ -101,7 +105,7 @@ func TestParseIssue43(t *testing.T) {
 
 	fnBlock.Push(gitPull)
 
-	fnInv := NewFnInvNode(98, "refreshPrompt")
+	fnInv := ast.NewFnInvNode(98, "refreshPrompt")
 	fnBlock.Push(fnInv)
 	fnTree.Root = fnBlock
 

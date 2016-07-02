@@ -1,31 +1,35 @@
-package nash
+package scanner
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/NeowayLabs/nash/token"
+)
 
 func TestLexerIssue34(t *testing.T) {
-	expected := []item{
+	expected := []Token{
 		{
-			typ: itemCommand,
+			typ: token.Command,
 			val: "cat",
 		},
 		{
-			typ: itemArg,
+			typ: token.Arg,
 			val: "/etc/passwd",
 		},
 		{
-			typ: itemRedirRight,
+			typ: token.RedirRight,
 			val: ">",
 		},
 		{
-			typ: itemArg,
+			typ: token.Arg,
 			val: "/dev/null",
 		},
 		{
-			typ: itemError,
+			typ: token.Illegal,
 			val: "Expected end of line or redirection, but found 'e'",
 		},
 		{
-			typ: itemEOF,
+			typ: token.EOF,
 		},
 	}
 
@@ -33,21 +37,21 @@ func TestLexerIssue34(t *testing.T) {
 }
 
 func TestLexerIssue21(t *testing.T) {
-	expected := []item{
+	expected := []Token{
 		{
-			typ: itemCommand,
+			typ: token.Command,
 			val: "cmd",
 		},
 		{
-			typ: itemRedirRight,
+			typ: token.RedirRight,
 			val: ">",
 		},
 		{
-			typ: itemVariable,
+			typ: token.Variable,
 			val: "$outFname",
 		},
 		{
-			typ: itemEOF,
+			typ: token.EOF,
 		},
 	}
 
@@ -55,105 +59,105 @@ func TestLexerIssue21(t *testing.T) {
 }
 
 func TestLexerIssue22(t *testing.T) {
-	expected := []item{
+	expected := []Token{
 		{
-			typ: itemFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
-			typ: itemIdentifier,
+			typ: token.Ident,
 			val: "gocd",
 		},
 		{
-			typ: itemParenOpen,
+			typ: token.LParen,
 			val: "(",
 		},
 		{
-			typ: itemIdentifier,
+			typ: token.Ident,
 			val: "path",
 		},
 		{
-			typ: itemParenClose,
+			typ: token.RParen,
 			val: ")",
 		},
 		{
-			typ: itemBracesOpen,
+			typ: token.LBrace,
 			val: "{",
 		},
 		{
-			typ: itemIf,
+			typ: token.If,
 			val: "if",
 		},
 		{
-			typ: itemVariable,
+			typ: token.Variable,
 			val: "$path",
 		},
 		{
-			typ: itemComparison,
+			typ: token.Equal,
 			val: "==",
 		},
 		{
-			typ: itemString,
+			typ: token.String,
 			val: "",
 		},
 		{
-			typ: itemBracesOpen,
+			typ: token.LBrace,
 			val: "{",
 		},
 		{
-			typ: itemCd,
+			typ: token.Cd,
 			val: "cd",
 		},
 		{
-			typ: itemVariable,
+			typ: token.Variable,
 			val: "$GOPATH",
 		},
 		{
-			typ: itemBracesClose,
+			typ: token.RBrace,
 			val: "}",
 		},
 		{
-			typ: itemElse,
+			typ: token.Else,
 			val: "else",
 		},
 		{
-			typ: itemBracesOpen,
+			typ: token.LBrace,
 			val: "{",
 		},
 		{
-			typ: itemCd,
+			typ: token.Cd,
 			val: "cd",
 		},
 		{
-			typ: itemVariable,
+			typ: token.Variable,
 			val: "$GOPATH",
 		},
 		{
-			typ: itemConcat,
+			typ: token.Concat,
 			val: "+",
 		},
 		{
-			typ: itemString,
+			typ: token.String,
 			val: "/src/",
 		},
 		{
-			typ: itemConcat,
+			typ: token.Concat,
 			val: "+",
 		},
 		{
-			typ: itemVariable,
+			typ: token.Variable,
 			val: "$path",
 		},
 		{
-			typ: itemBracesClose,
+			typ: token.RBrace,
 			val: "}",
 		},
 		{
-			typ: itemBracesClose,
+			typ: token.RBrace,
 			val: "}",
 		},
 		{
-			typ: itemEOF,
+			typ: token.EOF,
 		},
 	}
 
@@ -170,53 +174,53 @@ func TestLexerIssue19(t *testing.T) {
 	line := `version = "4.5.6"
 canonName <= echo -n $version | sed "s/\\.//g"`
 
-	expected := []item{
+	expected := []Token{
 		{
-			typ: itemIdentifier,
+			typ: token.Ident,
 			val: "version",
 		},
 		{
-			typ: itemAssign,
+			typ: token.Assign,
 			val: "=",
 		},
 		{
-			typ: itemString,
+			typ: token.String,
 			val: "4.5.6",
 		},
 		{
-			typ: itemIdentifier,
+			typ: token.Ident,
 			val: "canonName",
 		},
 		{
-			typ: itemAssignCmd,
+			typ: token.AssignCmd,
 			val: "<=",
 		},
 		{
-			typ: itemCommand,
+			typ: token.Command,
 			val: "echo",
 		},
 		{
-			typ: itemArg,
+			typ: token.Arg,
 			val: "-n",
 		},
 		{
-			typ: itemVariable,
+			typ: token.Variable,
 			val: "$version",
 		},
 		{
-			typ: itemPipe,
+			typ: token.Pipe,
 			val: "|",
 		},
 		{
-			typ: itemCommand,
+			typ: token.Command,
 			val: "sed",
 		},
 		{
-			typ: itemString,
+			typ: token.String,
 			val: "s/\\.//g",
 		},
 		{
-			typ: itemEOF,
+			typ: token.EOF,
 		},
 	}
 
@@ -224,41 +228,41 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 }
 
 func TestLexerIssue38(t *testing.T) {
-	expected := []item{
+	expected := []Token{
 		{
-			typ: itemFnInv,
+			typ: token.FnInv,
 			val: "cd",
 		},
 		{
-			typ: itemParenOpen,
+			typ: token.LParen,
 			val: "(",
 		},
 		{
-			typ: itemVariable,
+			typ: token.Variable,
 			val: "$GOPATH",
 		},
 		{
-			typ: itemConcat,
+			typ: token.Concat,
 			val: "+",
 		},
 		{
-			typ: itemString,
+			typ: token.String,
 			val: "/src/",
 		},
 		{
-			typ: itemConcat,
+			typ: token.Concat,
 			val: "+",
 		},
 		{
-			typ: itemVariable,
+			typ: token.Variable,
 			val: "$path",
 		},
 		{
-			typ: itemParenClose,
+			typ: token.RParen,
 			val: ")",
 		},
 		{
-			typ: itemEOF,
+			typ: token.EOF,
 		},
 	}
 
@@ -266,101 +270,101 @@ func TestLexerIssue38(t *testing.T) {
 }
 
 func TestLexerIssue43(t *testing.T) {
-	expected := []item{
+	expected := []Token{
 		{
-			typ: itemFnDecl,
+			typ: token.FnDecl,
 			val: "fn",
 		},
 		{
-			typ: itemIdentifier,
+			typ: token.Ident,
 			val: "gpull",
 		},
 		{
-			typ: itemParenOpen,
+			typ: token.LParen,
 			val: "(",
 		},
 		{
-			typ: itemParenClose,
+			typ: token.RParen,
 			val: ")",
 		},
 		{
-			typ: itemBracesOpen,
+			typ: token.LBrace,
 			val: "{",
 		},
 		{
-			typ: itemIdentifier,
+			typ: token.Ident,
 			val: "branch",
 		},
 		{
-			typ: itemAssignCmd,
+			typ: token.AssignCmd,
 			val: "<=",
 		},
 		{
-			typ: itemCommand,
+			typ: token.Command,
 			val: "git",
 		},
 		{
-			typ: itemArg,
+			typ: token.Arg,
 			val: "rev-parse",
 		},
 		{
-			typ: itemArg,
+			typ: token.Arg,
 			val: "--abbrev-ref",
 		},
 		{
-			typ: itemArg,
+			typ: token.Arg,
 			val: "HEAD",
 		},
 		{
-			typ: itemPipe,
+			typ: token.Pipe,
 			val: "|",
 		},
 		{
-			typ: itemCommand,
+			typ: token.Command,
 			val: "xargs",
 		},
 		{
-			typ: itemArg,
+			typ: token.Arg,
 			val: "echo",
 		},
 		{
-			typ: itemArg,
+			typ: token.Arg,
 			val: "-n",
 		},
 		{
-			typ: itemCommand,
+			typ: token.Command,
 			val: "git",
 		},
 		{
-			typ: itemArg,
+			typ: token.Arg,
 			val: "pull",
 		},
 		{
-			typ: itemArg,
+			typ: token.Arg,
 			val: "origin",
 		},
 		{
-			typ: itemVariable,
+			typ: token.Variable,
 			val: "$branch",
 		},
 		{
-			typ: itemFnInv,
+			typ: token.FnInv,
 			val: "refreshPrompt",
 		},
 		{
-			typ: itemParenOpen,
+			typ: token.LParen,
 			val: "(",
 		},
 		{
-			typ: itemParenClose,
+			typ: token.RParen,
 			val: ")",
 		},
 		{
-			typ: itemBracesClose,
+			typ: token.RBrace,
 			val: "}",
 		},
 		{
-			typ: itemEOF,
+			typ: token.EOF,
 		},
 	}
 

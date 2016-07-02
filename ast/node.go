@@ -1,21 +1,24 @@
-package nash
+package ast
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/NeowayLabs/nash/scanner"
+	"github.com/NeowayLabs/nash/token"
 )
 
 const (
-	redirMapNoValue int = -1
-	redirMapSupress     = -2
+	RedirMapNoValue = -1
+	RedirMapSupress = -2
 )
 
 type (
 	// Node represents nodes in the grammar
 	Node interface {
 		Type() NodeType
-		Position() Pos
+		Position() token.Pos
 		String() string
 	}
 
@@ -29,41 +32,38 @@ type (
 	// ListNode is the block
 	ListNode struct {
 		NodeType
-		Pos
+		token.Pos
 		Nodes []Node
 	}
 
-	// Pos is the position of a node in file
-	Pos int
-
 	ImportNode struct {
 		NodeType
-		Pos
+		token.Pos
 		path *Arg
 	}
 
 	SetAssignmentNode struct {
 		NodeType
-		Pos
+		token.Pos
 		varName string
 	}
 
 	ShowEnvNode struct {
 		NodeType
-		Pos
+		token.Pos
 	}
 
 	// AssignmentNode is a node for variable assignments
 	AssignmentNode struct {
 		NodeType
-		Pos
+		token.Pos
 		name string
 		val  *Arg
 	}
 
 	CmdAssignmentNode struct {
 		NodeType
-		Pos
+		token.Pos
 		name string
 		cmd  Node
 	}
@@ -71,7 +71,7 @@ type (
 	// CommandNode is a node for commands
 	CommandNode struct {
 		NodeType
-		Pos
+		token.Pos
 		name   string
 		args   []*Arg
 		redirs []*RedirectNode
@@ -79,14 +79,14 @@ type (
 
 	PipeNode struct {
 		NodeType
-		Pos
+		token.Pos
 		cmds []*CommandNode
 	}
 
 	// Arg is a command or fn argument
 	Arg struct {
 		NodeType
-		Pos
+		token.Pos
 
 		argType ArgType
 		str     string
@@ -98,7 +98,7 @@ type (
 	// RedirectNode represents the output redirection part of a command
 	RedirectNode struct {
 		NodeType
-		Pos
+		token.Pos
 		rmap     RedirMap
 		location *Arg
 	}
@@ -106,7 +106,7 @@ type (
 	// RforkNode is a builtin node for rfork
 	RforkNode struct {
 		NodeType
-		Pos
+		token.Pos
 		arg  *Arg
 		tree *Tree
 	}
@@ -114,14 +114,14 @@ type (
 	// CdNode is a builtin node for change directories
 	CdNode struct {
 		NodeType
-		Pos
+		token.Pos
 		dir *Arg
 	}
 
 	// CommentNode is the node for comments
 	CommentNode struct {
 		NodeType
-		Pos
+		token.Pos
 		val string
 	}
 
@@ -133,7 +133,7 @@ type (
 
 	IfNode struct {
 		NodeType
-		Pos
+		token.Pos
 		lvalue *Arg
 		rvalue *Arg
 		op     string
@@ -145,7 +145,7 @@ type (
 
 	FnDeclNode struct {
 		NodeType
-		Pos
+		token.Pos
 		name string
 		args []string
 		tree *Tree
@@ -153,33 +153,33 @@ type (
 
 	FnInvNode struct {
 		NodeType
-		Pos
+		token.Pos
 		name string
 		args []*Arg
 	}
 
 	ReturnNode struct {
 		NodeType
-		Pos
+		token.Pos
 		arg *Arg
 	}
 
 	BindFnNode struct {
 		NodeType
-		Pos
+		token.Pos
 		name    string
 		cmdname string
 	}
 
 	DumpNode struct {
 		NodeType
-		Pos
+		token.Pos
 		filename *Arg
 	}
 
 	ForNode struct {
 		NodeType
-		Pos
+		token.Pos
 		identifier string
 		inVar      string
 		tree       *Tree
@@ -187,7 +187,7 @@ type (
 
 	BuiltinNode struct {
 		NodeType
-		Pos
+		token.Pos
 		stmt Node
 	}
 )
@@ -260,7 +260,6 @@ const (
 )
 
 //go:generate stringer -type=ArgType
-
 const (
 	ArgQuoted ArgType = iota + 1
 	ArgUnquoted
@@ -269,11 +268,6 @@ const (
 	ArgList
 	ArgConcat
 )
-
-// Position returns the position of the node in file
-func (p Pos) Position() Pos {
-	return p
-}
 
 // Type returns the type of the node
 func (t NodeType) Type() NodeType {
@@ -295,7 +289,7 @@ func (l *ListNode) Push(n Node) {
 }
 
 // NewImportNode creates a new ImportNode object
-func NewImportNode(pos Pos) *ImportNode {
+func NewImportNode(pos token.Pos) *ImportNode {
 	return &ImportNode{
 		NodeType: NodeImport,
 		Pos:      pos,
@@ -316,7 +310,7 @@ func (n *ImportNode) String() string {
 }
 
 // NewSetAssignmentNode creates a new assignment node
-func NewSetAssignmentNode(pos Pos, name string) *SetAssignmentNode {
+func NewSetAssignmentNode(pos token.Pos, name string) *SetAssignmentNode {
 	return &SetAssignmentNode{
 		NodeType: NodeSetAssignment,
 		Pos:      pos,
@@ -324,13 +318,15 @@ func NewSetAssignmentNode(pos Pos, name string) *SetAssignmentNode {
 	}
 }
 
+func (n *SetAssignmentNode) Identifier() string { return n.varName }
+
 // String returns the string representation of assignment
 func (n *SetAssignmentNode) String() string {
 	return "setenv " + n.varName
 }
 
 // NewShowEnvNode creates a new showenv node
-func NewShowEnvNode(pos Pos) *ShowEnvNode {
+func NewShowEnvNode(pos token.Pos) *ShowEnvNode {
 	return &ShowEnvNode{
 		NodeType: NodeShowEnv,
 		Pos:      pos,
@@ -341,7 +337,7 @@ func NewShowEnvNode(pos Pos) *ShowEnvNode {
 func (n *ShowEnvNode) String() string { return "showenv" }
 
 // NewAssignmentNode creates a new assignment
-func NewAssignmentNode(pos Pos) *AssignmentNode {
+func NewAssignmentNode(pos token.Pos) *AssignmentNode {
 	return &AssignmentNode{
 		NodeType: NodeAssignment,
 		Pos:      pos,
@@ -349,9 +345,11 @@ func NewAssignmentNode(pos Pos) *AssignmentNode {
 }
 
 // SetVarName sets the name of the variable
-func (n *AssignmentNode) SetVarName(a string) {
+func (n *AssignmentNode) SetIdentifier(a string) {
 	n.name = a
 }
+
+func (n *AssignmentNode) Identifier() string { return n.name }
 
 // SetValueList sets the value of the list
 func (n *AssignmentNode) SetValue(val *Arg) {
@@ -375,7 +373,7 @@ func (n *AssignmentNode) String() string {
 }
 
 // NewCmdAssignmentNode creates a new command assignment
-func NewCmdAssignmentNode(pos Pos, name string) *CmdAssignmentNode {
+func NewCmdAssignmentNode(pos token.Pos, name string) *CmdAssignmentNode {
 	return &CmdAssignmentNode{
 		NodeType: NodeCmdAssignment,
 		Pos:      pos,
@@ -409,7 +407,7 @@ func (n *CmdAssignmentNode) String() string {
 }
 
 // NewCommandNode creates a new node for commands
-func NewCommandNode(pos Pos, name string) *CommandNode {
+func NewCommandNode(pos token.Pos, name string) *CommandNode {
 	return &CommandNode{
 		NodeType: NodeCommand,
 		Pos:      pos,
@@ -428,10 +426,14 @@ func (n *CommandNode) SetArgs(args []*Arg) {
 	n.args = args
 }
 
+func (n *CommandNode) Args() []*Arg { return n.args }
+
 // AddRedirect adds a new redirect node to command
 func (n *CommandNode) AddRedirect(redir *RedirectNode) {
 	n.redirs = append(n.redirs, redir)
 }
+
+func (n *CommandNode) Redirects() []*RedirectNode { return n.redirs }
 
 // Name returns the program name
 func (n *CommandNode) Name() string { return n.name }
@@ -458,7 +460,7 @@ func (n *CommandNode) String() string {
 }
 
 // NewPipeNode creates a new command pipeline
-func NewPipeNode(pos Pos) *PipeNode {
+func NewPipeNode(pos token.Pos) *PipeNode {
 	return &PipeNode{
 		NodeType: NodePipe,
 		Pos:      pos,
@@ -492,12 +494,13 @@ func (n *PipeNode) String() string {
 }
 
 // NewRedirectNode creates a new redirection node for commands
-func NewRedirectNode(pos Pos) *RedirectNode {
+func NewRedirectNode(pos token.Pos) *RedirectNode {
 	return &RedirectNode{
 		rmap: RedirMap{
 			lfd: -1,
 			rfd: -1,
 		},
+		Pos:      pos,
 		location: nil,
 	}
 }
@@ -508,10 +511,15 @@ func (r *RedirectNode) SetMap(lfd int, rfd int) {
 	r.rmap.rfd = rfd
 }
 
+func (r *RedirectNode) LeftFD() int  { return r.rmap.lfd }
+func (r *RedirectNode) RightFD() int { return r.rmap.rfd }
+
 // SetLocation of the output
 func (r *RedirectNode) SetLocation(s *Arg) {
 	r.location = s
 }
+
+func (r *RedirectNode) Location() *Arg { return r.location }
 
 // String returns the string representation of redirect
 func (r *RedirectNode) String() string {
@@ -527,9 +535,9 @@ func (r *RedirectNode) String() string {
 
 	if r.rmap.rfd >= 0 {
 		result = ">[" + strconv.Itoa(r.rmap.lfd) + "=" + strconv.Itoa(r.rmap.rfd) + "]"
-	} else if r.rmap.rfd == redirMapNoValue {
+	} else if r.rmap.rfd == RedirMapNoValue {
 		result = ">[" + strconv.Itoa(r.rmap.lfd) + "]"
-	} else if r.rmap.rfd == redirMapSupress {
+	} else if r.rmap.rfd == RedirMapSupress {
 		result = ">[" + strconv.Itoa(r.rmap.lfd) + "=]"
 	}
 
@@ -541,11 +549,15 @@ func (r *RedirectNode) String() string {
 }
 
 // NewRforkNode creates a new node for rfork
-func NewRforkNode(pos Pos) *RforkNode {
+func NewRforkNode(pos token.Pos) *RforkNode {
 	return &RforkNode{
 		NodeType: NodeRfork,
 		Pos:      pos,
 	}
+}
+
+func (n *RforkNode) Arg() *Arg {
+	return n.arg
 }
 
 // SetFlags sets the rfork flags
@@ -561,6 +573,10 @@ func (n *RforkNode) SetBlock(t *Tree) {
 // Tree returns the child tree of node
 func (n *RforkNode) Tree() *Tree {
 	return n.tree
+}
+
+func (n *RforkNode) SetTree(t *Tree) {
+	n.tree = t
 }
 
 // String returns the string representation of rfork statement
@@ -584,7 +600,7 @@ func (n *RforkNode) String() string {
 }
 
 // NewCdNode creates a new node for changing directory
-func NewCdNode(pos Pos) *CdNode {
+func NewCdNode(pos token.Pos) *CdNode {
 	return &CdNode{
 		NodeType: NodeCd,
 		Pos:      pos,
@@ -618,7 +634,7 @@ func (n *CdNode) String() string {
 }
 
 // NewArg creates a new argument
-func NewArg(pos Pos, argType ArgType) *Arg {
+func NewArg(pos token.Pos, argType ArgType) *Arg {
 	return &Arg{
 		NodeType: NodeArg,
 		Pos:      pos,
@@ -662,21 +678,23 @@ func (n *Arg) SetConcat(v []*Arg) {
 	n.concat = v
 }
 
+func (n *Arg) Concat() []*Arg { return n.concat }
+
 func (n *Arg) SetList(v []*Arg) {
 	n.list = v
 }
 
 // SetItem is a helper to set an argument based on the lexer itemType
-func (n *Arg) SetItem(val item) error {
-	if val.typ == itemArg {
+func (n *Arg) SetItem(val scanner.Token) error {
+	if val.Type() == token.Arg {
 		n.SetArgType(ArgUnquoted)
-		n.SetString(val.val)
-	} else if val.typ == itemString {
+		n.SetString(val.Value())
+	} else if val.Type() == token.String {
 		n.SetArgType(ArgQuoted)
-		n.SetString(val.val)
-	} else if val.typ == itemVariable {
+		n.SetString(val.Value())
+	} else if val.Type() == token.Variable {
 		n.SetArgType(ArgVariable)
-		n.SetString(val.val)
+		n.SetString(val.Value())
 	} else {
 		return fmt.Errorf("Arg doesn't support type %v", val)
 	}
@@ -745,7 +763,7 @@ func (n Arg) String() string {
 }
 
 // NewCommentNode creates a new node for comments
-func NewCommentNode(pos Pos, val string) *CommentNode {
+func NewCommentNode(pos token.Pos, val string) *CommentNode {
 	return &CommentNode{
 		NodeType: NodeComment,
 		Pos:      pos,
@@ -759,7 +777,7 @@ func (n *CommentNode) String() string {
 }
 
 // NewIfNode creates a new if block statement
-func NewIfNode(pos Pos) *IfNode {
+func NewIfNode(pos token.Pos) *IfNode {
 	return &IfNode{
 		NodeType: NodeIf,
 		Pos:      pos,
@@ -871,7 +889,7 @@ func (n *IfNode) String() string {
 }
 
 // NewFnDeclNode creates a new function declaration
-func NewFnDeclNode(pos Pos, name string) *FnDeclNode {
+func NewFnDeclNode(pos token.Pos, name string) *FnDeclNode {
 	return &FnDeclNode{
 		NodeType: NodeFnDecl,
 		Pos:      pos,
@@ -944,7 +962,7 @@ func (n *FnDeclNode) String() string {
 }
 
 // NewFnInvNode creates a new function invocation
-func NewFnInvNode(pos Pos, name string) *FnInvNode {
+func NewFnInvNode(pos token.Pos, name string) *FnInvNode {
 	return &FnInvNode{
 		NodeType: NodeFnInv,
 		Pos:      pos,
@@ -968,6 +986,8 @@ func (n *FnInvNode) AddArg(arg *Arg) {
 	n.args = append(n.args, arg)
 }
 
+func (n *FnInvNode) Args() []*Arg { return n.args }
+
 // String returns the string representation of function invocation
 func (n *FnInvNode) String() string {
 	fnInvStr := n.name + "("
@@ -986,7 +1006,7 @@ func (n *FnInvNode) String() string {
 }
 
 // NewBindFnNode creates a new bindfn statement
-func NewBindFnNode(pos Pos, name, cmd string) *BindFnNode {
+func NewBindFnNode(pos token.Pos, name, cmd string) *BindFnNode {
 	return &BindFnNode{
 		NodeType: NodeBindFn,
 		Pos:      pos,
@@ -1007,7 +1027,7 @@ func (n *BindFnNode) String() string {
 }
 
 // NewDumpNode creates a new dump statement
-func NewDumpNode(pos Pos) *DumpNode {
+func NewDumpNode(pos token.Pos) *DumpNode {
 	return &DumpNode{
 		NodeType: NodeDump,
 		Pos:      pos,
@@ -1034,7 +1054,7 @@ func (n *DumpNode) String() string {
 }
 
 // NewReturnNode create a return statement
-func NewReturnNode(pos Pos) *ReturnNode {
+func NewReturnNode(pos token.Pos) *ReturnNode {
 	return &ReturnNode{
 		Pos:      pos,
 		NodeType: NodeReturn,
@@ -1059,7 +1079,7 @@ func (n *ReturnNode) String() string {
 }
 
 // NewForNode create a new for statement
-func NewForNode(pos Pos) *ForNode {
+func NewForNode(pos token.Pos) *ForNode {
 	return &ForNode{
 		NodeType: NodeFor,
 		Pos:      pos,
@@ -1108,7 +1128,7 @@ func (n *ForNode) String() string {
 }
 
 // NewBuiltinNode creates a new "builtin" node
-func NewBuiltinNode(pos Pos, n Node) *BuiltinNode {
+func NewBuiltinNode(pos token.Pos, n Node) *BuiltinNode {
 	return &BuiltinNode{
 		NodeType: NodeBuiltin,
 		Pos:      pos,

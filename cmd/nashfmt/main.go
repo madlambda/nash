@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/NeowayLabs/nash"
+	"github.com/NeowayLabs/nash/parser"
 )
 
 var (
@@ -48,7 +48,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	parser := nash.NewParser("nashfmt", string(content))
+	parser := parser.NewParser("nashfmt", string(content))
 
 	ast, err := parser.Parse()
 

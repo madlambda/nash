@@ -1,4 +1,4 @@
-package nash
+package ast
 
 import "strings"
 
@@ -9,6 +9,13 @@ type (
 		Root *ListNode // top-level root of the tree.
 	}
 )
+
+// NewTree creates a new AST tree
+func NewTree(name string) *Tree {
+	return &Tree{
+		Name: name,
+	}
+}
 
 func (tree *Tree) String() string {
 	if tree.Root == nil {
