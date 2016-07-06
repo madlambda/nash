@@ -865,6 +865,20 @@ func TestLexerUnquoteArg(t *testing.T) {
 	testTable("testSimpleCommand", `echo #hello-world`, expected, t)
 }
 
+func TestLexerDashedCommand(t *testing.T) {
+	expected := []Token{
+		{
+			typ: token.Command,
+			val: "google-chrome",
+		},
+		{
+			typ: token.EOF,
+		},
+	}
+
+	testTable("testDashedCommand", `google-chrome`, expected, t)
+}
+
 func TestLexerPathCommand(t *testing.T) {
 	expected := []Token{
 		{

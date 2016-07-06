@@ -243,6 +243,18 @@ func lexIdentifier(l *Lexer) stateFn {
 			l.pos)
 	}
 
+	if len(word) > 0 && r == '-' {
+		for r == '-' {
+			l.next()
+
+			absorbIdentifier(l)
+
+			r = l.peek()
+		}
+
+		goto commandName
+	}
+
 	// name=val
 	if isSpace(r) || r == '=' {
 		// lookahead by hand, to avoid more complex Lexer API
@@ -372,6 +384,7 @@ func lexIdentifier(l *Lexer) stateFn {
 		return lexInsideFor
 	}
 
+commandName:
 	l.emit(token.Command)
 	return lexInsideCommand
 }
