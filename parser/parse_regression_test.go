@@ -116,3 +116,33 @@ func TestParseIssue43(t *testing.T) {
 
 	parserTestTable("parse issue 41", content, expected, t, true)
 }
+
+func TestParseIssue68(t *testing.T) {
+	expected := ast.NewTree("parse issue #68")
+	ln := ast.NewListNode()
+
+	catCmd := ast.NewCommandNode(0, "cat")
+	catArg := ast.NewArg(4, ast.ArgUnquoted)
+	catArg.SetString("PKGBUILD")
+	catCmd.AddArg(catArg)
+
+	sedCmd := ast.NewCommandNode(15, "sed")
+	sedArg := ast.NewArg(20, ast.ArgQuoted)
+	sedArg.SetString(`s#\$pkgdir#/home/i4k/alt#g`)
+	sedCmd.AddArg(sedArg)
+
+	sedRedir := ast.NewRedirectNode(0)
+	sedRedirArg := ast.NewArg(0, ast.ArgUnquoted)
+	sedRedirArg.SetString("PKGBUILD2")
+	sedRedir.SetLocation(sedRedirArg)
+	sedCmd.AddRedirect(sedRedir)
+
+	pipe := ast.NewPipeNode(13)
+	pipe.AddCmd(catCmd)
+	pipe.AddCmd(sedCmd)
+
+	ln.Push(pipe)
+	expected.Root = ln
+
+	parserTestTable("parse issue #68", `cat PKGBUILD | sed "s#\\$pkgdir#/home/i4k/alt#g" > PKGBUILD2`, expected, t, false)
+}

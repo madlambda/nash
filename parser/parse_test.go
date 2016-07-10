@@ -39,10 +39,10 @@ func parserTestTable(name, content string, expected *ast.Tree, t *testing.T, ena
 	if content != trcontent {
 		t.Errorf(`Failed to reverse the tree.
 Expected:
-'%q'
+'%s'
 
 But got:
-'%q'
+'%s'
 `, content, trcontent)
 		return
 	}
