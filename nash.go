@@ -765,6 +765,18 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 
 	cmds[last].stdinDone <- true
 
+	for _, r := range nodeCommands[last].Redirects() {
+		if r.LeftFD() == 0 {
+			continue
+		}
+
+		err = cmds[last].buildRedirect(r)
+
+		if err != nil {
+			return err
+		}
+	}
+
 	if sh.stdout != os.Stdout {
 		cmds[last].Stdout = nil
 		stdout, err := cmds[last].StdoutPipe()
@@ -778,7 +790,18 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 			cmds[last].stdoutDone <- true
 		}()
 	} else {
-		cmds[last].Stdout = sh.stdout
+		fdMap := cmds[last].fdMap
+
+		if value, ok := fdMap[1]; !ok {
+			cmds[last].Stdout = sh.stdout
+		} else {
+			err = cmds[last].setupStdout(value)
+
+			if err != nil {
+				return err
+			}
+		}
+
 		cmds[last].stdoutDone <- true
 	}
 
@@ -795,7 +818,18 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 			cmds[last].stderrDone <- true
 		}()
 	} else {
-		cmds[last].Stderr = sh.stderr
+		fdMap := cmds[last].fdMap
+
+		if value, ok := fdMap[2]; !ok {
+			cmds[last].Stderr = sh.stderr
+		} else {
+			cmds[last].setupStderr(value)
+
+			if err != nil {
+				return err
+			}
+		}
+
 		cmds[last].stderrDone <- true
 	}
 
@@ -805,6 +839,8 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 		if err != nil {
 			return err
 		}
+
+		defer cmd.CloseNetDescriptors()
 	}
 
 	for _, cmd := range cmds {
