@@ -1,29 +1,32 @@
 package nash
 
 import (
+	"fmt"
 	"io"
-	"net"
 	"os"
 	"os/exec"
-	"strings"
+	"sort"
 
-	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
 )
 
 type (
-	FDMap map[int]interface{}
-
-	Command struct {
-		name string
+	// Cmd is a nash command. It has maps of input and output file
+	// descriptors that can be set by SetInputfd and SetOutputfd.
+	// This can be used to pipe execution of Cmd commands.
+	Cmd struct {
 		*exec.Cmd
-		sh    *Shell
-		fdMap FDMap
 
-		stdinDone, stdoutDone, stderrDone chan bool
-		passDone                          bool
+		fdIn  map[uint]io.Reader
+		fdOut map[uint]io.Writer
+
+		goroutines      []func() error // goroutines copying data pipes
+		errch           chan error     // one send per goroutine
+		closeAfterStart []io.Closer
+		closeAfterWait  []io.Closer
 	}
 
+	// errCmdNotFound is an error indicating the command wasn't found.
 	errCmdNotFound struct {
 		*errors.NashError
 	}
@@ -41,439 +44,282 @@ func (e *errCmdNotFound) NotFound() bool {
 	return true
 }
 
-func NewCommand(name string, sh *Shell) (*Command, error) {
+func NewCmd(name string) (*Cmd, error) {
 	var (
-		err error
+		err     error
+		cmdPath = name
 	)
 
-	cmdPath := name
+	cmd := Cmd{
+		fdIn:  make(map[uint]io.Reader),
+		fdOut: make(map[uint]io.Writer),
+	}
 
 	if name[0] != '/' {
 		cmdPath, err = exec.LookPath(name)
 
 		if err != nil {
-			return nil, newCmdNotFound("Command '%s' not found on PATH=%s: %s",
+			return nil, newCmdNotFound("Command '%s' not found on PATH: %s",
 				name,
-				os.Getenv("PATH"),
 				err.Error())
 		}
 	}
 
-	sh.logf("Executing: %s\n", cmdPath)
-
-	envVars := buildenv(sh.Environ())
-
-	cmd := &Command{
-		name: name,
-		sh:   sh,
-		Cmd: &exec.Cmd{
-			Path:   cmdPath,
-			Stdin:  os.Stdin,
-			Stdout: os.Stdout,
-			Stderr: os.Stderr,
-			Env:    envVars,
-		},
-		fdMap:      make(FDMap),
-		stdinDone:  make(chan bool, 1),
-		stdoutDone: make(chan bool, 1),
-		stderrDone: make(chan bool, 1),
-
-		// if set to false, you need to sinchronize by hand
-		// be careful with deadlocks
-		passDone: true,
+	cmd.Cmd = &exec.Cmd{
+		Path: cmdPath,
 	}
 
-	cmd.fdMap[0] = os.Stdin
-	cmd.fdMap[1] = os.Stdout
-	cmd.fdMap[2] = os.Stderr
-
-	return cmd, nil
+	return &cmd, nil
 }
 
-func (cmd *Command) SetPassDone(b bool) {
-	cmd.passDone = b
-}
-
-func (cmd *Command) SetFDMap(id int, value interface{}) {
-	cmd.fdMap[id] = value
-}
-
-func (cmd *Command) SetArgs(cargs []*ast.Arg) error {
-	sh := cmd.sh
-	args := make([]string, len(cargs)+1)
-	args[0] = cmd.name
-
-	for i := 0; i < len(cargs); i++ {
-		var argVal string
-
-		carg := cargs[i]
-
-		obj, err := sh.evalArg(carg)
-
-		if err != nil {
-			return err
-		}
-
-		if obj.Type() == StringType {
-			argVal = obj.Str()
-		} else if obj.Type() == ListType {
-			argVal = strings.Join(obj.List(), " ")
-		} else if obj.Type() == FnType {
-			return errors.NewError("Impossible to pass function to command as argument.")
-		} else {
-			return errors.NewError("Invalid argument '%v'", carg)
-		}
-
-		args[i+1] = argVal
+func (c *Cmd) SetArgs(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("Require at least the argument name")
 	}
 
-	cmd.Cmd.Args = args
+	if args[0] != c.Path {
+		return fmt.Errorf("Require first argument equals command name")
+	}
+
+	c.Cmd.Args = args
 	return nil
 }
 
-func (cmd *Command) SetRedirects(redirDecls []*ast.RedirectNode) error {
-	var err error
+func (c *Cmd) SetEnviron(env []string) {
+	c.Cmd.Env = env
+}
 
-	for _, r := range redirDecls {
-		err = cmd.buildRedirect(r)
+// SetInputfd sets an input file descriptor into fork'ed process.
+// It receives an io.Reader, but if the underlying type is
+// an *os.File, then its fd is used, otherwise a pipe will be created
+// with an additional goroutine to copy data from the reader.
+func (c *Cmd) SetInputfd(n uint, in io.Reader) error {
+	if n == 1 || n == 2 {
+		return fmt.Errorf("File descriptors 1 and 2 must be writable")
+	}
+
+	c.fdIn[n] = in
+	return nil
+}
+
+func (c *Cmd) GetInputfd(n uint) (io.Reader, bool) {
+	r, ok := c.fdIn[n]
+
+	return r, ok
+}
+
+// SetOutputfd sets an output file descriptor into fork'ed process.
+// It receives an io.Writer, but if the underlying type is
+// an *os.File, then its fd is used, otherwise a pipe will be created
+// with an additional goroutine to copy data to writer.
+func (c *Cmd) SetOutputfd(n uint, out io.Writer) error {
+	if n == 0 {
+		return fmt.Errorf("File descriptor 0 must be read-only")
+	}
+
+	c.fdOut[n] = out
+	return nil
+}
+
+func (c *Cmd) GetOutputfd(n uint) (io.Writer, bool) {
+	r, ok := c.fdOut[n]
+
+	return r, ok
+}
+
+func (c *Cmd) addExtraFile(value *os.File) {
+	if c.Cmd.ExtraFiles == nil {
+		c.Cmd.ExtraFiles = make([]*os.File, 0, 8)
+	}
+
+	c.Cmd.ExtraFiles = append(c.Cmd.ExtraFiles, value)
+}
+
+func (c *Cmd) applyInputfd() error {
+	for fd, in := range c.fdIn {
+		if fd == 0 {
+			// Golang os/exec already handles the case of non-file reader
+			return nil
+		}
+
+		file, ok := in.(*os.File)
+
+		if ok {
+			c.fdIn[fd] = file
+			return nil
+		}
+
+		// for non-standard file descriptors we need to get proper pipes
+		pr, pw, err := os.Pipe()
 
 		if err != nil {
 			return err
 		}
+
+		c.closeAfterStart = append(c.closeAfterStart, pr)
+		c.closeAfterWait = append(c.closeAfterWait, pw)
+		c.goroutines = append(c.goroutines, func() error {
+			_, err := io.Copy(pw, in)
+
+			if err1 := pw.Close(); err == nil {
+				err = err1
+			}
+
+			return err
+		})
+
+		c.fdIn[fd] = pr
 	}
 
-	err = cmd.setupRedirects()
+	return nil
+}
+
+func (c *Cmd) applyOutputfd() error {
+	for fd, out := range c.fdOut {
+		if fd == 1 || fd == 2 {
+			return nil
+		}
+
+		file, ok := out.(*os.File)
+
+		if ok {
+			c.fdOut[fd] = file
+			return nil
+		}
+
+		// for non-standard file descriptors we need to get proper pipes
+		pr, pw, err := os.Pipe()
+
+		if err != nil {
+			return err
+		}
+
+		c.closeAfterStart = append(c.closeAfterStart, pw)
+		c.closeAfterWait = append(c.closeAfterWait, pr)
+		c.goroutines = append(c.goroutines, func() error {
+			_, err := io.Copy(out, pr)
+			pr.Close() // in case io.Copy stopped due to write error
+			return err
+		})
+
+		c.fdOut[fd] = pw
+	}
+
+	return nil
+
+}
+
+func (c *Cmd) applyfd() error {
+	err := c.applyInputfd()
 
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
+	err = c.applyOutputfd()
 
-func (cmd *Command) openRedirectLocation(location *ast.Arg) (io.WriteCloser, error) {
-	var (
-		protocol, locationStr string
-	)
-
-	if !location.IsVariable() && !location.IsQuoted() && !location.IsUnquoted() {
-		return nil, errors.NewError("Invalid argument of type %v in redirection", location.ArgType())
+	if err != nil {
+		return err
 	}
 
-	if location.IsQuoted() || location.IsUnquoted() {
-		locationStr = location.Value()
-	} else {
-		obj, err := cmd.sh.evalVariable(location)
+	fds := make([]int, 0, len(c.fdIn)+len(c.fdOut))
 
-		if err != nil {
-			return nil, err
-		}
-
-		if obj.Type() != StringType {
-			return nil, errors.NewError("Invalid object type in redirection: %+v", obj.Type())
-		}
-
-		locationStr = obj.Str()
+	for fd, _ := range c.fdIn {
+		fds = append(fds, int(fd))
 	}
 
-	if len(locationStr) > 6 {
-		if locationStr[0:6] == "tcp://" {
-			protocol = "tcp"
-		} else if locationStr[0:6] == "udp://" {
-			protocol = "udp"
-		} else if len(locationStr) > 7 && locationStr[0:7] == "unix://" {
-			protocol = "unix"
-		}
+	for fd, _ := range c.fdOut {
+		fds = append(fds, int(fd))
 	}
 
-	if protocol == "" {
-		return os.OpenFile(locationStr, os.O_RDWR|os.O_CREATE, 0644)
-	}
+	sort.Ints(fds)
 
-	switch protocol {
-	case "tcp", "udp":
-		netParts := strings.Split(locationStr[6:], ":")
-
-		if len(netParts) != 2 {
-			return nil, errors.NewError("Invalid tcp/udp address: %s", locationStr)
-		}
-
-		url := netParts[0] + ":" + netParts[1]
-
-		return net.Dial(protocol, url)
-	case "unix":
-		return net.Dial(protocol, locationStr[7:])
-	}
-
-	return nil, errors.NewError("Unexpected redirection value: %s", locationStr)
-}
-
-func (cmd *Command) buildRedirect(redirDecl *ast.RedirectNode) error {
-	if redirDecl.LeftFD() > 2 || redirDecl.LeftFD() < ast.RedirMapSupress {
-		return errors.NewError("Invalid file descriptor redirection: fd=%d", redirDecl.LeftFD())
-	}
-
-	if redirDecl.RightFD() > 2 || redirDecl.RightFD() < ast.RedirMapSupress {
-		return errors.NewError("Invalid file descriptor redirection: fd=%d", redirDecl.RightFD())
-	}
-
-	// Note(i4k): We need to remove the repetitive code in some smarter way
-	switch redirDecl.LeftFD() {
-	case 0:
-		switch redirDecl.RightFD() {
-		case 0: // does nothing
-		case 1:
-			cmd.fdMap[0] = cmd.fdMap[1]
-		case 2:
-			cmd.fdMap[0] = cmd.fdMap[2]
-		case ast.RedirMapNoValue:
-			if redirDecl.Location() == nil {
-				return errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
-			}
-
-			file, err := cmd.openRedirectLocation(redirDecl.Location())
-
-			if err != nil {
-				return err
-			}
-
-			cmd.fdMap[0] = file
-		case ast.RedirMapSupress:
-			if redirDecl.Location() != nil {
-				return errors.NewError("Invalid redirect mapping: %d -> %d",
-					redirDecl.LeftFD(),
-					redirDecl.RightFD())
-			}
-
-			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
-
-			if err != nil {
-				return err
-			}
-
-			cmd.fdMap[0] = file
-		}
-	case 1:
-		switch redirDecl.RightFD() {
+	for _, fd := range fds {
+		switch fd {
 		case 0:
-			return errors.NewError("Invalid redirect mapping: %d -> %d", 1, 0)
-		case 1: // do nothing
-		case 2:
-			cmd.fdMap[1] = cmd.fdMap[2]
-		case ast.RedirMapNoValue:
-			if redirDecl.Location() == nil {
-				return errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
-			}
-
-			file, err := cmd.openRedirectLocation(redirDecl.Location())
-
-			if err != nil {
-				return err
-			}
-
-			cmd.fdMap[1] = file
-		case ast.RedirMapSupress:
-			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
-
-			if err != nil {
-				return err
-			}
-
-			cmd.fdMap[1] = file
-		}
-	case 2:
-		switch redirDecl.RightFD() {
-		case 0:
-			return errors.NewError("Invalid redirect mapping: %d -> %d", 2, 1)
+			c.Cmd.Stdin = c.fdIn[0]
 		case 1:
-			cmd.fdMap[2] = cmd.fdMap[1]
-		case 2: // do nothing
-		case ast.RedirMapNoValue:
-			if redirDecl.Location() == nil {
-				return errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
-			}
-
-			file, err := cmd.openRedirectLocation(redirDecl.Location())
-
-			if err != nil {
-				return err
-			}
-
-			cmd.fdMap[2] = file
-		case ast.RedirMapSupress:
-			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
-
-			if err != nil {
-				return err
-			}
-
-			cmd.fdMap[2] = file
-		}
-	case ast.RedirMapNoValue:
-		if redirDecl.Location() == nil {
-			return errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
-		}
-
-		file, err := cmd.openRedirectLocation(redirDecl.Location())
-
-		if err != nil {
-			return err
-		}
-
-		cmd.fdMap[1] = file
-	}
-
-	return nil
-}
-
-func (cmd *Command) setupStdin(value interface{}) error {
-	rc, ok := value.(io.Reader)
-
-	if !ok {
-		return errors.NewError("Stdin requires a reader stream in redirect")
-	}
-
-	if rc == os.Stdin {
-		cmd.Stdin = rc
-
-		if cmd.passDone {
-			cmd.stdinDone <- true
-		}
-	} else {
-		cmd.Stdin = nil
-		stdin, err := cmd.StdinPipe()
-
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			io.Copy(stdin, rc)
-			cmd.stdinDone <- true
-		}()
-	}
-
-	return nil
-}
-
-func (cmd *Command) setupStdout(value interface{}) error {
-	wc, ok := value.(io.Writer)
-
-	if !ok {
-		return errors.NewError("Stdout requires a writer stream in redirect")
-	}
-
-	switch wc {
-	case os.Stdin:
-		return errors.NewError("Invalid redirect mapping: %d -> %d", 1, 0)
-	case os.Stdout:
-		cmd.Stdout = os.Stdout
-
-		if cmd.passDone {
-			cmd.stdoutDone <- true
-		}
-	case os.Stderr:
-		cmd.Stdout = cmd.Stderr
-		if cmd.passDone {
-			cmd.stdoutDone <- true
-		}
-	default:
-		cmd.Stdout = nil
-		stdout, err := cmd.StdoutPipe()
-
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			io.Copy(wc, stdout)
-			cmd.stdoutDone <- true
-		}()
-	}
-
-	return nil
-}
-
-func (cmd *Command) setupStderr(value interface{}) error {
-	wc, ok := value.(io.Writer)
-
-	if !ok {
-		return errors.NewError("Stderr requires a writer stream in redirect")
-	}
-
-	switch wc {
-	case os.Stdin:
-		return errors.NewError("Invalid redirect mapping: %d -> %d", 2, 1)
-	case os.Stdout:
-		cmd.Stderr = cmd.Stdout
-
-		if cmd.passDone {
-			cmd.stderrDone <- true
-		}
-	case os.Stderr:
-		cmd.Stderr = os.Stderr
-
-		if cmd.passDone {
-			cmd.stderrDone <- true
-		}
-	default:
-		cmd.Stderr = nil
-		stderr, err := cmd.StderrPipe()
-
-		if err != nil {
-			return err
-		}
-
-		go func() {
-			io.Copy(wc, stderr)
-			cmd.stderrDone <- true
-		}()
-	}
-
-	return nil
-}
-
-func (cmd *Command) setupRedirects() error {
-	for k, v := range cmd.fdMap {
-		switch k {
-		case 0:
-			err := cmd.setupStdin(v)
-
-			if err != nil {
-				return err
-			}
-		case 1:
-			err := cmd.setupStdout(v)
-
-			if err != nil {
-				return err
-			}
+			c.Cmd.Stdout = c.fdOut[1]
 		case 2:
-			err := cmd.setupStderr(v)
-
-			if err != nil {
-				return err
-			}
+			c.Cmd.Stderr = c.fdOut[2]
 		default:
-			return errors.NewError("Invalid file descriptor redirection: fd=%d", k)
+			var value interface{}
+
+			value, ok := c.fdIn[uint(fd)]
+
+			if !ok {
+				value, ok = c.fdOut[uint(fd)]
+
+				if !ok {
+					return fmt.Errorf("internal error: race cond applying fd")
+				}
+			}
+
+			file, ok := value.(*os.File)
+
+			if !ok {
+				return fmt.Errorf("File descriptors > 2 must be open files.")
+			}
+
+			c.addExtraFile(file)
 		}
 	}
 
 	return nil
 }
 
-func (cmd *Command) Wait() error {
-	<-cmd.stdinDone
-	<-cmd.stdoutDone
-	<-cmd.stderrDone
-
-	return cmd.Cmd.Wait()
+func (c *Cmd) closeDescriptors(closers []io.Closer) {
+	for _, fd := range closers {
+		fd.Close()
+	}
 }
 
-func (cmd *Command) CloseNetDescriptors() {
-	for _, fd := range cmd.fdMap {
-		if fdc, ok := fd.(*net.TCPConn); ok {
-			fdc.Close()
+func (c *Cmd) Wait() error {
+	defer c.closeDescriptors(c.closeAfterWait)
+
+	err := c.Cmd.Wait()
+
+	var copyError error
+	for range c.goroutines {
+		if err := <-c.errch; err != nil && copyError == nil {
+			copyError = err
 		}
 	}
+
+	if err != nil {
+		return err
+	} else if copyError != nil {
+		return copyError
+	}
+
+	return nil
+}
+
+func (c *Cmd) Start() error {
+	if err := c.applyfd(); err != nil {
+		c.closeDescriptors(c.closeAfterStart)
+		c.closeDescriptors(c.closeAfterWait)
+
+		return err
+	}
+
+	err := c.Cmd.Start()
+
+	if err != nil {
+		c.closeDescriptors(c.closeAfterStart)
+		c.closeDescriptors(c.closeAfterWait)
+		return err
+	}
+
+	c.closeDescriptors(c.closeAfterStart)
+
+	c.errch = make(chan error, len(c.goroutines))
+
+	for _, fn := range c.goroutines {
+		go func(fn func() error) {
+			c.errch <- fn()
+		}(fn)
+	}
+
+	return nil
 }
