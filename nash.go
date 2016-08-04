@@ -873,6 +873,8 @@ func (sh *Shell) setRedirects(cmd *Cmd, redirDecls []*ast.RedirectNode) error {
 		if err != nil {
 			return err
 		}
+
+		defer cmd.CloseNetDescriptors()
 	}
 
 	return nil

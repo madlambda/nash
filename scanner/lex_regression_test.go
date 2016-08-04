@@ -375,3 +375,18 @@ func TestLexerIssue43(t *testing.T) {
         refreshPrompt()
 }`, expected, t)
 }
+
+func TestLexerIssue68(t *testing.T) {
+	expected := []Token{
+		{typ: token.Command, val: "cat"},
+		{typ: token.Arg, val: "PKGBUILD"},
+		{typ: token.Pipe, val: "|"},
+		{typ: token.Command, val: "sed"},
+		{typ: token.String, val: "s#\\\\$pkgdir#/home/i4k/alt#g"},
+		{typ: token.RedirRight, val: ">"},
+		{typ: token.Arg, val: "PKGBUILD2"},
+		{typ: token.EOF},
+	}
+
+	testTable("test issue #68", `cat PKGBUILD | sed "s#\\\\$pkgdir#/home/i4k/alt#g" > PKGBUILD2`, expected, t)
+}
