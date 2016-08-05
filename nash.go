@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -448,7 +449,7 @@ func (sh *Shell) getIntr() bool {
 	return sh.interrupted
 }
 
-func (sh *Shell) executeConcat(path *ast.Arg) (string, error) {
+func (sh *Shell) evalConcat(path *ast.Arg) (string, error) {
 	var pathStr string
 
 	concat := path.Concat()
@@ -696,34 +697,42 @@ func (sh *Shell) executeShowEnv(node *ast.ShowEnvNode) error {
 }
 
 func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
-	var err error
 	nodeCommands := pipe.Commands()
 
-	if len(nodeCommands) <= 1 {
+	if len(nodeCommands) < 2 {
 		return errors.NewError("Pipe requires at least two commands.")
 	}
 
-	cmds := make([]*Command, len(nodeCommands))
+	cmds := make([]*Cmd, len(nodeCommands))
+
+	last := len(nodeCommands) - 1
 
 	// Create all commands
 	for i := 0; i < len(nodeCommands); i++ {
 		nodeCmd := nodeCommands[i]
-		cmd, err := NewCommand(nodeCmd.Name(), sh)
+		cmd, err := NewCmd(nodeCmd.Name())
 
 		if err != nil {
 			return err
 		}
 
-		err = cmd.SetArgs(nodeCmd.Args())
+		args, err := sh.processArgs(cmd.Path, nodeCmd.Args())
 
 		if err != nil {
 			return err
 		}
 
-		cmd.SetPassDone(false)
+		err = cmd.SetArgs(args)
 
-		if i < (len(nodeCommands) - 1) {
-			err = cmd.SetRedirects(nodeCmd.Redirects())
+		if err != nil {
+			return err
+		}
+
+		cmd.Stdin = sh.stdin
+		cmd.Stderr = sh.stderr
+
+		if i < last {
+			err = sh.setRedirects(cmd, nodeCmd.Redirects())
 
 			if err != nil {
 				return err
@@ -733,70 +742,30 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 		cmds[i] = cmd
 	}
 
-	last := len(nodeCommands) - 1
+	// Shell does not support stdin redirection yet
+	cmds[0].Stdin = sh.stdin
 
 	// Setup the commands. Pointing the stdin of next command to stdout of previous.
 	// Except the last one
 	for i, cmd := range cmds[:last] {
-		//cmd.SetFDMap(0, sh.stdin)
-		//cmd.SetFDMap(1, sh.stdout)
-		//cmd.SetFDMap(2, sh.stderr)
+		cmd.Stderr = sh.stderr
 
-		// connect commands
-		if cmds[i+1].Stdin != os.Stdin {
-			return errors.NewError("Stdin redirected")
-		}
-
-		if cmd.Stdout != os.Stdout {
-			return errors.NewError("Stdout redirected")
-		}
-
-		cmds[i+1].Stdin = nil
-		cmd.Stdout = nil
-
-		if cmds[i+1].Stdin, err = cmd.StdoutPipe(); err != nil {
-			return err
-		}
-
-		cmd.stdoutDone <- true
-		cmd.stdinDone <- true
-		cmd.stderrDone <- true
-	}
-
-	cmds[last].stdinDone <- true
-
-	if sh.stdout != os.Stdout {
-		cmds[last].Stdout = nil
-		stdout, err := cmds[last].StdoutPipe()
+		stdin, err := cmd.StdoutPipe()
 
 		if err != nil {
 			return err
 		}
 
-		go func() {
-			io.Copy(sh.stdout, stdout)
-			cmds[last].stdoutDone <- true
-		}()
-	} else {
-		cmds[last].Stdout = sh.stdout
-		cmds[last].stdoutDone <- true
+		cmds[i+1].Stdin = stdin
 	}
 
-	if sh.stderr != os.Stderr {
-		cmds[last].Stderr = nil
-		stderr, err := cmds[last].StderrPipe()
+	cmds[last].Stdout = sh.stdout
+	cmds[last].Stderr = sh.stderr
 
-		if err != nil {
-			return err
-		}
+	err := sh.setRedirects(cmds[last], nodeCommands[last].Redirects())
 
-		go func() {
-			io.Copy(sh.stderr, stderr)
-			cmds[last].stderrDone <- true
-		}()
-	} else {
-		cmds[last].Stderr = sh.stderr
-		cmds[last].stderrDone <- true
+	if err != nil {
+		return err
 	}
 
 	for _, cmd := range cmds {
@@ -818,10 +787,209 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 	return nil
 }
 
+func (sh *Shell) openRedirectLocation(location *ast.Arg) (io.WriteCloser, error) {
+	var (
+		protocol, locationStr string
+	)
+
+	if !location.IsVariable() && !location.IsQuoted() && !location.IsUnquoted() {
+		return nil, errors.NewError("Invalid argument of type %v in redirection", location.ArgType())
+	}
+
+	if location.IsQuoted() || location.IsUnquoted() {
+		locationStr = location.Value()
+	} else {
+		obj, err := sh.evalVariable(location)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if obj.Type() != StringType {
+			return nil, errors.NewError("Invalid object type in redirection: %+v", obj.Type())
+		}
+
+		locationStr = obj.Str()
+	}
+
+	if len(locationStr) > 6 {
+		if locationStr[0:6] == "tcp://" {
+			protocol = "tcp"
+		} else if locationStr[0:6] == "udp://" {
+			protocol = "udp"
+		} else if len(locationStr) > 7 && locationStr[0:7] == "unix://" {
+			protocol = "unix"
+		}
+	}
+
+	if protocol == "" {
+		return os.OpenFile(locationStr, os.O_RDWR|os.O_CREATE, 0644)
+	}
+
+	switch protocol {
+	case "tcp", "udp":
+		netParts := strings.Split(locationStr[6:], ":")
+
+		if len(netParts) != 2 {
+			return nil, errors.NewError("Invalid tcp/udp address: %s", locationStr)
+		}
+
+		url := netParts[0] + ":" + netParts[1]
+
+		return net.Dial(protocol, url)
+	case "unix":
+		return net.Dial(protocol, locationStr[7:])
+	}
+
+	return nil, errors.NewError("Unexpected redirection value: %s", locationStr)
+}
+
+func (sh *Shell) processArgs(cmd string, nodeArgs []*ast.Arg) ([]string, error) {
+	args := make([]string, len(nodeArgs)+1)
+	args[0] = cmd
+
+	for i := 0; i < len(nodeArgs); i++ {
+		var argVal string
+
+		carg := nodeArgs[i]
+
+		obj, err := sh.evalArg(carg)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if obj.Type() == StringType {
+			argVal = obj.Str()
+		} else if obj.Type() == ListType {
+			argVal = strings.Join(obj.List(), " ")
+		} else if obj.Type() == FnType {
+			return nil, errors.NewError("Function cannot be passed as argument to commands.")
+		} else {
+			return nil, errors.NewError("Invalid command argument '%v'", carg)
+		}
+
+		args[i+1] = argVal
+	}
+
+	return args, nil
+}
+
+func (sh *Shell) setRedirects(cmd *Cmd, redirDecls []*ast.RedirectNode) error {
+	var err error
+
+	for _, r := range redirDecls {
+		err = sh.buildRedirect(cmd, r)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (sh *Shell) buildRedirect(cmd *Cmd, redirDecl *ast.RedirectNode) error {
+	if redirDecl.LeftFD() > 2 || redirDecl.LeftFD() < ast.RedirMapSupress {
+		return errors.NewError("Invalid file descriptor redirection: fd=%d", redirDecl.LeftFD())
+	}
+
+	if redirDecl.RightFD() > 2 || redirDecl.RightFD() < ast.RedirMapSupress {
+		return errors.NewError("Invalid file descriptor redirection: fd=%d", redirDecl.RightFD())
+	}
+
+	var err error
+
+	// Note(i4k): We need to remove the repetitive code in some smarter way
+	switch redirDecl.LeftFD() {
+	case 0:
+		return fmt.Errorf("Does not support stdin redirection yet")
+	case 1:
+		switch redirDecl.RightFD() {
+		case 0:
+			return errors.NewError("Invalid redirect mapping: %d -> %d", 1, 0)
+		case 1: // do nothing
+		case 2:
+			cmd.Stdout = cmd.Stderr
+		case ast.RedirMapNoValue:
+			if redirDecl.Location() == nil {
+				return errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
+			}
+
+			file, err := sh.openRedirectLocation(redirDecl.Location())
+
+			if err != nil {
+				return err
+			}
+
+			cmd.Stdout = file
+			cmd.AddCloseAfterWait(file)
+		case ast.RedirMapSupress:
+			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
+
+			if err != nil {
+				return err
+			}
+
+			cmd.Stdout = file
+		}
+	case 2:
+		switch redirDecl.RightFD() {
+		case 0:
+			return errors.NewError("Invalid redirect mapping: %d -> %d", 2, 1)
+		case 1:
+			cmd.Stderr = cmd.Stdout
+		case 2: // do nothing
+		case ast.RedirMapNoValue:
+			if redirDecl.Location() == nil {
+				return errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
+			}
+
+			file, err := sh.openRedirectLocation(redirDecl.Location())
+
+			if err != nil {
+				return err
+			}
+
+			cmd.Stderr = file
+			cmd.AddCloseAfterWait(file)
+		case ast.RedirMapSupress:
+			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
+
+			if err != nil {
+				return err
+			}
+
+			cmd.Stderr = file
+		}
+	case ast.RedirMapNoValue:
+		if redirDecl.Location() == nil {
+			return errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
+		}
+
+		file, err := sh.openRedirectLocation(redirDecl.Location())
+
+		if err != nil {
+			return err
+		}
+
+		cmd.Stdout = file
+		cmd.AddCloseAfterWait(file)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 	var (
 		ignoreError bool
 		status      = 127
+		args        []string
+		envVars     []string
 	)
 
 	cmdName := c.Name()
@@ -835,7 +1003,7 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 		sh.logf("Ignoring error\n")
 	}
 
-	cmd, err := NewCommand(cmdName, sh)
+	cmd, err := NewCmd(cmdName)
 
 	if err != nil {
 		type NotFound interface {
@@ -874,23 +1042,31 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 		goto cmdError
 	}
 
-	err = cmd.SetArgs(c.Args())
+	args, err = sh.processArgs(cmd.Path, c.Args())
 
 	if err != nil {
 		goto cmdError
 	}
 
-	cmd.SetFDMap(0, sh.stdin)
-	cmd.SetFDMap(1, sh.stdout)
-	cmd.SetFDMap(2, sh.stderr)
-
-	err = cmd.SetRedirects(c.Redirects())
+	err = cmd.SetArgs(args)
 
 	if err != nil {
 		goto cmdError
 	}
 
-	defer cmd.CloseNetDescriptors()
+	envVars = buildenv(sh.Environ())
+
+	cmd.SetEnviron(envVars)
+
+	cmd.Stdin = sh.stdin
+	cmd.Stdout = sh.stdout
+	cmd.Stderr = sh.stderr
+
+	err = sh.setRedirects(cmd, c.Redirects())
+
+	if err != nil {
+		goto cmdError
+	}
 
 	err = cmd.Start()
 
@@ -994,7 +1170,7 @@ func (sh *Shell) evalArg(arg *ast.Arg) (*Obj, error) {
 	if arg.IsQuoted() || arg.IsUnquoted() {
 		return NewStrObj(arg.Value()), nil
 	} else if arg.IsConcat() {
-		argVal, err := sh.executeConcat(arg)
+		argVal, err := sh.evalConcat(arg)
 
 		if err != nil {
 			return nil, err

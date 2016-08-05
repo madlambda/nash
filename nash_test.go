@@ -951,10 +951,16 @@ func TestExecutePipe(t *testing.T) {
 	out.Reset()
 }
 
-func TestExecuteTCPRedirection(t *testing.T) {
+func testTCPRedirection(t *testing.T, port, command string) {
 	message := "hello world"
 
 	done := make(chan bool)
+
+	l, err := net.Listen("tcp", port)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	go func() {
 		sh, err := NewShell()
@@ -968,19 +974,13 @@ func TestExecuteTCPRedirection(t *testing.T) {
 
 		<-done
 
-		err = sh.ExecuteString("test net redirection", `echo -n "`+message+`" >[1] "tcp://localhost:6666"`)
+		err = sh.ExecuteString("test net redirection", command)
 
 		if err != nil {
 			t.Error(err)
 			return
 		}
 	}()
-
-	l, err := net.Listen("tcp", ":6666")
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	defer l.Close()
 
@@ -1007,7 +1007,11 @@ func TestExecuteTCPRedirection(t *testing.T) {
 
 		return // Done
 	}
+}
 
+func TestTCPRedirection(t *testing.T) {
+	testTCPRedirection(t, ":6666", `echo -n "hello world" >[1] "tcp://localhost:6666"`)
+	testTCPRedirection(t, ":6667", `echo -n "hello world" > "tcp://localhost:6667"`)
 }
 
 func TestExecuteUnixRedirection(t *testing.T) {
