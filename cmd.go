@@ -81,7 +81,6 @@ func (c *Cmd) SetEnviron(env []string) {
 
 func (c *Cmd) closeDescriptors(closers []io.Closer) {
 	for _, fd := range closers {
-		fmt.Printf("Closing: %+v\n", fd)
 		fd.Close()
 	}
 }
