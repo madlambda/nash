@@ -956,6 +956,12 @@ func TestExecuteTCPRedirection(t *testing.T) {
 
 	done := make(chan bool)
 
+	l, err := net.Listen("tcp", ":6666")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	go func() {
 		sh, err := NewShell()
 
@@ -975,12 +981,6 @@ func TestExecuteTCPRedirection(t *testing.T) {
 			return
 		}
 	}()
-
-	l, err := net.Listen("tcp", ":6666")
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	defer l.Close()
 

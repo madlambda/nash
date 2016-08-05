@@ -449,7 +449,7 @@ func (sh *Shell) getIntr() bool {
 	return sh.interrupted
 }
 
-func (sh *Shell) executeConcat(path *ast.Arg) (string, error) {
+func (sh *Shell) evalConcat(path *ast.Arg) (string, error) {
 	var pathStr string
 
 	concat := path.Concat()
@@ -728,8 +728,8 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 			return err
 		}
 
-		cmd.SetInputfd(0, sh.stdin)
-		cmd.SetOutputfd(2, sh.stderr)
+		cmd.Stdin = sh.stdin
+		cmd.Stderr = sh.stderr
 
 		if i < last {
 			err = sh.setRedirects(cmd, nodeCmd.Redirects())
@@ -743,12 +743,12 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 	}
 
 	// Shell does not support stdin redirection yet
-	cmds[0].SetInputfd(0, sh.stdin)
+	cmds[0].Stdin = sh.stdin
 
 	// Setup the commands. Pointing the stdin of next command to stdout of previous.
 	// Except the last one
 	for i, cmd := range cmds[:last] {
-		cmd.SetOutputfd(2, sh.stderr)
+		cmd.Stderr = sh.stderr
 
 		stdin, err := cmd.StdoutPipe()
 
@@ -756,11 +756,11 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 			return err
 		}
 
-		cmds[i+1].SetInputfd(0, stdin)
+		cmds[i+1].Stdin = stdin
 	}
 
-	cmds[last].SetOutputfd(1, sh.stdout)
-	cmds[last].SetOutputfd(2, sh.stderr)
+	cmds[last].Stdout = sh.stdout
+	cmds[last].Stderr = sh.stderr
 
 	err := sh.setRedirects(cmds[last], nodeCommands[last].Redirects())
 
@@ -910,11 +910,7 @@ func (sh *Shell) buildRedirect(cmd *Cmd, redirDecl *ast.RedirectNode) error {
 			return errors.NewError("Invalid redirect mapping: %d -> %d", 1, 0)
 		case 1: // do nothing
 		case 2:
-			if out, ok := cmd.GetOutputfd(2); ok {
-				err = cmd.SetOutputfd(1, out)
-			} else {
-				err = fmt.Errorf("No such fd 2 for redirection")
-			}
+			cmd.Stdout = cmd.Stderr
 		case ast.RedirMapNoValue:
 			if redirDecl.Location() == nil {
 				return errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
@@ -926,7 +922,8 @@ func (sh *Shell) buildRedirect(cmd *Cmd, redirDecl *ast.RedirectNode) error {
 				return err
 			}
 
-			err = cmd.SetOutputfd(1, file)
+			cmd.Stdout = file
+			cmd.AddCloseAfterWait(file)
 		case ast.RedirMapSupress:
 			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
 
@@ -934,18 +931,14 @@ func (sh *Shell) buildRedirect(cmd *Cmd, redirDecl *ast.RedirectNode) error {
 				return err
 			}
 
-			err = cmd.SetOutputfd(1, file)
+			cmd.Stdout = file
 		}
 	case 2:
 		switch redirDecl.RightFD() {
 		case 0:
 			return errors.NewError("Invalid redirect mapping: %d -> %d", 2, 1)
 		case 1:
-			if out, ok := cmd.GetOutputfd(1); ok {
-				err = cmd.SetOutputfd(2, out)
-			} else {
-				err = fmt.Errorf("No such fd 1 for redirection")
-			}
+			cmd.Stderr = cmd.Stdout
 		case 2: // do nothing
 		case ast.RedirMapNoValue:
 			if redirDecl.Location() == nil {
@@ -958,7 +951,8 @@ func (sh *Shell) buildRedirect(cmd *Cmd, redirDecl *ast.RedirectNode) error {
 				return err
 			}
 
-			err = cmd.SetOutputfd(2, file)
+			cmd.Stderr = file
+			cmd.AddCloseAfterWait(file)
 		case ast.RedirMapSupress:
 			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
 
@@ -966,7 +960,7 @@ func (sh *Shell) buildRedirect(cmd *Cmd, redirDecl *ast.RedirectNode) error {
 				return err
 			}
 
-			err = cmd.SetOutputfd(2, file)
+			cmd.Stderr = file
 		}
 	case ast.RedirMapNoValue:
 		if redirDecl.Location() == nil {
@@ -979,7 +973,8 @@ func (sh *Shell) buildRedirect(cmd *Cmd, redirDecl *ast.RedirectNode) error {
 			return err
 		}
 
-		err = cmd.SetOutputfd(1, file)
+		cmd.Stdout = file
+		cmd.AddCloseAfterWait(file)
 	}
 
 	if err != nil {
@@ -1063,9 +1058,9 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 
 	cmd.SetEnviron(envVars)
 
-	cmd.SetInputfd(0, sh.stdin)
-	cmd.SetOutputfd(1, sh.stdout)
-	cmd.SetOutputfd(2, sh.stderr)
+	cmd.Stdin = sh.stdin
+	cmd.Stdout = sh.stdout
+	cmd.Stderr = sh.stderr
 
 	err = sh.setRedirects(cmd, c.Redirects())
 
@@ -1175,7 +1170,7 @@ func (sh *Shell) evalArg(arg *ast.Arg) (*Obj, error) {
 	if arg.IsQuoted() || arg.IsUnquoted() {
 		return NewStrObj(arg.Value()), nil
 	} else if arg.IsConcat() {
-		argVal, err := sh.executeConcat(arg)
+		argVal, err := sh.evalConcat(arg)
 
 		if err != nil {
 			return nil, err
