@@ -705,6 +705,8 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 
 	cmds := make([]*Cmd, len(nodeCommands))
 
+	last := len(nodeCommands) - 1
+
 	// Create all commands
 	for i := 0; i < len(nodeCommands); i++ {
 		nodeCmd := nodeCommands[i]
@@ -726,16 +728,19 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 			return err
 		}
 
-		err = sh.setRedirects(cmd, nodeCmd.Redirects())
+		cmd.SetInputfd(0, sh.stdin)
+		cmd.SetOutputfd(2, sh.stderr)
 
-		if err != nil {
-			return err
+		if i < last {
+			err = sh.setRedirects(cmd, nodeCmd.Redirects())
+
+			if err != nil {
+				return err
+			}
 		}
 
 		cmds[i] = cmd
 	}
-
-	last := len(nodeCommands) - 1
 
 	// Shell does not support stdin redirection yet
 	cmds[0].SetInputfd(0, sh.stdin)
@@ -756,6 +761,12 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 
 	cmds[last].SetOutputfd(1, sh.stdout)
 	cmds[last].SetOutputfd(2, sh.stderr)
+
+	err := sh.setRedirects(cmds[last], nodeCommands[last].Redirects())
+
+	if err != nil {
+		return err
+	}
 
 	for _, cmd := range cmds {
 		err := cmd.Start()
