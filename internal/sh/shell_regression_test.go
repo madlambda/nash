@@ -38,3 +38,26 @@ func TestExecuteIssue68(t *testing.T) {
 		return
 	}
 }
+
+func TestExecuteErrorSuppression(t *testing.T) {
+	sh, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = sh.ExecuteString("-input-", `-bllsdlfjlsd`)
+
+	if err != nil {
+		t.Errorf("Expected to not fail...: %s", err.Error())
+		return
+	}
+
+	// issue #72
+	err = sh.ExecuteString("-input-", `echo lalala | -grep lelele`)
+
+	if err != nil {
+		t.Errorf("Expected to not fail...:%s", err.Error())
+		return
+	}
+}

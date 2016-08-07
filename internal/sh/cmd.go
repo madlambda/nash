@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 
+	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
 )
 
@@ -15,8 +17,7 @@ type (
 	Cmd struct {
 		*exec.Cmd
 
-		closeAfterStart []io.Closer
-		closeAfterWait  []io.Closer
+		sh *Shell
 	}
 
 	// errCmdNotFound is an error indicating the command wasn't found.
@@ -37,13 +38,15 @@ func (e *errCmdNotFound) NotFound() bool {
 	return true
 }
 
-func NewCmd(name string) (*Cmd, error) {
+func NewCmd(name string, sh *Shell) (*Cmd, error) {
 	var (
 		err     error
 		cmdPath = name
 	)
 
-	cmd := Cmd{}
+	cmd := Cmd{
+		sh: sh,
+	}
 
 	if name[0] != '/' {
 		cmdPath, err = exec.LookPath(name)
@@ -62,7 +65,52 @@ func NewCmd(name string) (*Cmd, error) {
 	return &cmd, nil
 }
 
-func (c *Cmd) SetArgs(args []string) error {
+func (c *Cmd) Stdin() io.Reader  { return c.Cmd.Stdin }
+func (c *Cmd) Stdout() io.Writer { return c.Cmd.Stdout }
+func (c *Cmd) Stderr() io.Writer { return c.Cmd.Stderr }
+
+func (c *Cmd) SetStdin(in io.Reader)   { c.Cmd.Stdin = in }
+func (c *Cmd) SetStdout(out io.Writer) { c.Cmd.Stdout = out }
+func (c *Cmd) SetStderr(err io.Writer) { c.Cmd.Stderr = err }
+
+func (c *Cmd) processArgs(cmd string, nodeArgs []*ast.Arg) ([]string, error) {
+	args := make([]string, len(nodeArgs)+1)
+	args[0] = cmd
+
+	for i := 0; i < len(nodeArgs); i++ {
+		var argVal string
+
+		carg := nodeArgs[i]
+
+		obj, err := c.sh.evalArg(carg)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if obj.Type() == StringType {
+			argVal = obj.Str()
+		} else if obj.Type() == ListType {
+			argVal = strings.Join(obj.List(), " ")
+		} else if obj.Type() == FnType {
+			return nil, errors.NewError("Function cannot be passed as argument to commands.")
+		} else {
+			return nil, errors.NewError("Invalid command argument '%v'", carg)
+		}
+
+		args[i+1] = argVal
+	}
+
+	return args, nil
+}
+
+func (c *Cmd) SetArgs(nodeArgs []*ast.Arg) error {
+	args, err := c.processArgs(c.Path, nodeArgs)
+
+	if err != nil {
+		return err
+	}
+
 	if len(args) < 1 {
 		return fmt.Errorf("Require at least the argument name")
 	}
@@ -79,23 +127,7 @@ func (c *Cmd) SetEnviron(env []string) {
 	c.Cmd.Env = env
 }
 
-func (c *Cmd) closeDescriptors(closers []io.Closer) {
-	for _, fd := range closers {
-		fd.Close()
-	}
-}
-
-func (c *Cmd) AddCloseAfterWait(closer io.Closer) {
-	c.closeAfterWait = append(c.closeAfterWait, closer)
-}
-
-func (c *Cmd) AddCloseAfterStart(closer io.Closer) {
-	c.closeAfterStart = append(c.closeAfterStart, closer)
-}
-
 func (c *Cmd) Wait() error {
-	defer c.closeDescriptors(c.closeAfterWait)
-
 	err := c.Cmd.Wait()
 
 	if err != nil {
@@ -109,12 +141,8 @@ func (c *Cmd) Start() error {
 	err := c.Cmd.Start()
 
 	if err != nil {
-		c.closeDescriptors(c.closeAfterStart)
-		c.closeDescriptors(c.closeAfterWait)
 		return err
 	}
-
-	c.closeDescriptors(c.closeAfterStart)
 
 	return nil
 }

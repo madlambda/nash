@@ -235,42 +235,46 @@ func (sh *Shell) executeShowEnv(node *ast.ShowEnvNode) error {
 }
 
 func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
+	var closeAfterWait []io.Closer
+
+	defer func() {
+		for _, c := range closeAfterWait {
+			c.Close()
+		}
+	}()
+
 	nodeCommands := pipe.Commands()
 
 	if len(nodeCommands) < 2 {
 		return errors.NewError("Pipe requires at least two commands.")
 	}
 
-	cmds := make([]*Cmd, len(nodeCommands))
+	cmds := make([]Runner, len(nodeCommands))
 
 	last := len(nodeCommands) - 1
 
 	// Create all commands
 	for i := 0; i < len(nodeCommands); i++ {
 		nodeCmd := nodeCommands[i]
-		cmd, err := NewCmd(nodeCmd.Name())
+
+		cmd, _, err := sh.getCommand(nodeCmd)
 
 		if err != nil {
 			return err
 		}
 
-		args, err := sh.processArgs(cmd.Path, nodeCmd.Args())
+		err = cmd.SetArgs(nodeCmd.Args())
 
 		if err != nil {
 			return err
 		}
 
-		err = cmd.SetArgs(args)
-
-		if err != nil {
-			return err
-		}
-
-		cmd.Stdin = sh.stdin
-		cmd.Stderr = sh.stderr
+		cmd.SetStdin(sh.stdin)
+		cmd.SetStderr(sh.stderr)
 
 		if i < last {
-			err = sh.setRedirects(cmd, nodeCmd.Redirects())
+			closeFiles, err := sh.setRedirects(cmd, nodeCmd.Redirects())
+			closeAfterWait = append(closeAfterWait, closeFiles...)
 
 			if err != nil {
 				return err
@@ -281,12 +285,12 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 	}
 
 	// Shell does not support stdin redirection yet
-	cmds[0].Stdin = sh.stdin
+	cmds[0].SetStdin(sh.stdin)
 
 	// Setup the commands. Pointing the stdin of next command to stdout of previous.
 	// Except the last one
 	for i, cmd := range cmds[:last] {
-		cmd.Stderr = sh.stderr
+		cmd.SetStderr(sh.stderr)
 
 		stdin, err := cmd.StdoutPipe()
 
@@ -294,13 +298,14 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 			return err
 		}
 
-		cmds[i+1].Stdin = stdin
+		cmds[i+1].SetStdin(stdin)
 	}
 
-	cmds[last].Stdout = sh.stdout
-	cmds[last].Stderr = sh.stderr
+	cmds[last].SetStdout(sh.stdout)
+	cmds[last].SetStderr(sh.stderr)
 
-	err := sh.setRedirects(cmds[last], nodeCommands[last].Redirects())
+	closeFiles, err := sh.setRedirects(cmds[last], nodeCommands[last].Redirects())
+	closeAfterWait = append(closeAfterWait, closeFiles...)
 
 	if err != nil {
 		return err
@@ -382,58 +387,30 @@ func (sh *Shell) openRedirectLocation(location *ast.Arg) (io.WriteCloser, error)
 	return nil, errors.NewError("Unexpected redirection value: %s", locationStr)
 }
 
-func (sh *Shell) processArgs(cmd string, nodeArgs []*ast.Arg) ([]string, error) {
-	args := make([]string, len(nodeArgs)+1)
-	args[0] = cmd
-
-	for i := 0; i < len(nodeArgs); i++ {
-		var argVal string
-
-		carg := nodeArgs[i]
-
-		obj, err := sh.evalArg(carg)
-
-		if err != nil {
-			return nil, err
-		}
-
-		if obj.Type() == StringType {
-			argVal = obj.Str()
-		} else if obj.Type() == ListType {
-			argVal = strings.Join(obj.List(), " ")
-		} else if obj.Type() == FnType {
-			return nil, errors.NewError("Function cannot be passed as argument to commands.")
-		} else {
-			return nil, errors.NewError("Invalid command argument '%v'", carg)
-		}
-
-		args[i+1] = argVal
-	}
-
-	return args, nil
-}
-
-func (sh *Shell) setRedirects(cmd *Cmd, redirDecls []*ast.RedirectNode) error {
-	var err error
+func (sh *Shell) setRedirects(cmd Runner, redirDecls []*ast.RedirectNode) ([]io.Closer, error) {
+	var closeAfterWait []io.Closer
 
 	for _, r := range redirDecls {
-		err = sh.buildRedirect(cmd, r)
+		closeFiles, err := sh.buildRedirect(cmd, r)
+		closeAfterWait = append(closeAfterWait, closeFiles...)
 
 		if err != nil {
-			return err
+			return closeAfterWait, err
 		}
 	}
 
-	return nil
+	return closeAfterWait, nil
 }
 
-func (sh *Shell) buildRedirect(cmd *Cmd, redirDecl *ast.RedirectNode) error {
+func (sh *Shell) buildRedirect(cmd Runner, redirDecl *ast.RedirectNode) ([]io.Closer, error) {
+	var closeAfterWait []io.Closer
+
 	if redirDecl.LeftFD() > 2 || redirDecl.LeftFD() < ast.RedirMapSupress {
-		return errors.NewError("Invalid file descriptor redirection: fd=%d", redirDecl.LeftFD())
+		return closeAfterWait, errors.NewError("Invalid file descriptor redirection: fd=%d", redirDecl.LeftFD())
 	}
 
 	if redirDecl.RightFD() > 2 || redirDecl.RightFD() < ast.RedirMapSupress {
-		return errors.NewError("Invalid file descriptor redirection: fd=%d", redirDecl.RightFD())
+		return closeAfterWait, errors.NewError("Invalid file descriptor redirection: fd=%d", redirDecl.RightFD())
 	}
 
 	var err error
@@ -441,93 +418,88 @@ func (sh *Shell) buildRedirect(cmd *Cmd, redirDecl *ast.RedirectNode) error {
 	// Note(i4k): We need to remove the repetitive code in some smarter way
 	switch redirDecl.LeftFD() {
 	case 0:
-		return fmt.Errorf("Does not support stdin redirection yet")
+		return closeAfterWait, fmt.Errorf("Does not support stdin redirection yet")
 	case 1:
 		switch redirDecl.RightFD() {
 		case 0:
-			return errors.NewError("Invalid redirect mapping: %d -> %d", 1, 0)
+			return closeAfterWait, errors.NewError("Invalid redirect mapping: %d -> %d", 1, 0)
 		case 1: // do nothing
 		case 2:
-			cmd.Stdout = cmd.Stderr
+			cmd.SetStdout(cmd.Stderr())
 		case ast.RedirMapNoValue:
 			if redirDecl.Location() == nil {
-				return errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
+				return closeAfterWait, errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
 			}
 
 			file, err := sh.openRedirectLocation(redirDecl.Location())
 
 			if err != nil {
-				return err
+				return closeAfterWait, err
 			}
 
-			cmd.Stdout = file
-			cmd.AddCloseAfterWait(file)
+			cmd.SetStdout(file)
+			closeAfterWait = append(closeAfterWait, file)
 		case ast.RedirMapSupress:
 			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
 
 			if err != nil {
-				return err
+				return closeAfterWait, err
 			}
 
-			cmd.Stdout = file
+			cmd.SetStdout(file)
 		}
 	case 2:
 		switch redirDecl.RightFD() {
 		case 0:
-			return errors.NewError("Invalid redirect mapping: %d -> %d", 2, 1)
+			return closeAfterWait, errors.NewError("Invalid redirect mapping: %d -> %d", 2, 1)
 		case 1:
-			cmd.Stderr = cmd.Stdout
+			cmd.SetStderr(cmd.Stdout())
 		case 2: // do nothing
 		case ast.RedirMapNoValue:
 			if redirDecl.Location() == nil {
-				return errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
+				return closeAfterWait, errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
 			}
 
 			file, err := sh.openRedirectLocation(redirDecl.Location())
 
 			if err != nil {
-				return err
+				return closeAfterWait, err
 			}
 
-			cmd.Stderr = file
-			cmd.AddCloseAfterWait(file)
+			cmd.SetStderr(file)
+			closeAfterWait = append(closeAfterWait, file)
 		case ast.RedirMapSupress:
 			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
 
 			if err != nil {
-				return err
+				return closeAfterWait, err
 			}
 
-			cmd.Stderr = file
+			cmd.SetStderr(file)
 		}
 	case ast.RedirMapNoValue:
 		if redirDecl.Location() == nil {
-			return errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
+			return closeAfterWait, errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
 		}
 
 		file, err := sh.openRedirectLocation(redirDecl.Location())
 
 		if err != nil {
-			return err
+			return closeAfterWait, err
 		}
 
-		cmd.Stdout = file
-		cmd.AddCloseAfterWait(file)
+		cmd.SetStdout(file)
+		closeAfterWait = append(closeAfterWait, file)
 	}
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return closeAfterWait, err
 }
 
-func (sh *Shell) executeCommand(c *ast.CommandNode) error {
+func (sh *Shell) getCommand(c *ast.CommandNode) (Runner, bool, error) {
 	var (
 		ignoreError bool
-		status      = 127
-		args        []string
-		envVars     []string
+		cmd         Runner
+		err         error
 	)
 
 	cmdName := c.Name()
@@ -541,7 +513,7 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 		sh.logf("Ignoring error\n")
 	}
 
-	cmd, err := NewCmd(cmdName)
+	cmd, err = NewCmd(cmdName, sh)
 
 	if err != nil {
 		type NotFound interface {
@@ -560,33 +532,48 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 						fn.name,
 						len(fn.argNames),
 						len(c.Args()), c.Args())
-					goto cmdError
+					return nil, ignoreError, err
 				}
 
 				for i := 0 + len(c.Args()); i < len(fn.argNames); i++ {
 					c.SetArgs(append(c.Args(), ast.NewArg(0, ast.ArgQuoted)))
 				}
 
-				_, err = sh.executeFn(fn, c.Args())
-
-				if err != nil {
-					goto cmdError
-				}
-
-				return nil
+				return fn, ignoreError, nil
 			}
+
+			return nil, ignoreError, err
 		}
 
-		goto cmdError
+		return nil, ignoreError, err
 	}
 
-	args, err = sh.processArgs(cmd.Path, c.Args())
+	return cmd, ignoreError, nil
+}
+
+func (sh *Shell) executeCommand(c *ast.CommandNode) error {
+	var (
+		ignoreError    bool
+		status         = 127
+		envVars        []string
+		closeAfterWait []io.Closer
+		cmd            Runner
+		err            error
+	)
+
+	defer func() {
+		for _, c := range closeAfterWait {
+			c.Close()
+		}
+	}()
+
+	cmd, ignoreError, err = sh.getCommand(c)
 
 	if err != nil {
 		goto cmdError
 	}
 
-	err = cmd.SetArgs(args)
+	err = cmd.SetArgs(c.Args())
 
 	if err != nil {
 		goto cmdError
@@ -596,11 +583,11 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 
 	cmd.SetEnviron(envVars)
 
-	cmd.Stdin = sh.stdin
-	cmd.Stdout = sh.stdout
-	cmd.Stderr = sh.stderr
+	cmd.SetStdin(sh.stdin)
+	cmd.SetStdout(sh.stdout)
+	cmd.SetStderr(sh.stderr)
 
-	err = sh.setRedirects(cmd, c.Redirects())
+	closeAfterWait, err = sh.setRedirects(cmd, c.Redirects())
 
 	if err != nil {
 		goto cmdError
@@ -1004,28 +991,21 @@ func (sh *Shell) executeIfNotEqual(n *ast.IfNode) error {
 }
 
 func (sh *Shell) executeFn(fn *Shell, args []*ast.Arg) (*Obj, error) {
-	if len(fn.argNames) != len(args) {
-		return nil, errors.NewError("Wrong number of arguments for function %s. Expected %d but found %d",
-			fn.name, len(fn.argNames), len(args))
-	}
+	err := fn.SetArgs(args)
 
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		argName := fn.argNames[i]
-
-		obj, err := sh.evalArg(arg)
-
-		if err != nil {
-			return nil, err
-		}
-
-		fn.Setvar(argName, obj)
+	if err != nil {
+		return nil, err
 	}
 
 	return fn.Execute()
 }
 
 func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
+	var (
+		fn *Shell
+		ok bool
+	)
+
 	fnName := n.Name()
 
 	if len(fnName) > 0 && fnName[0] == '$' {
@@ -1042,14 +1022,17 @@ func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 			return nil, errors.NewError("Variable '%s' isnt a function.", fnName)
 		}
 
-		return sh.executeFn(obj.Fn(), n.Args())
+		fn = obj.Fn()
+	} else {
+		fn, ok = sh.GetFn(fnName)
+
+		if !ok {
+			return nil, errors.NewError("no such function '%s'", fnName)
+		}
 	}
 
-	if fn, ok := sh.GetFn(n.Name()); ok {
-		return sh.executeFn(fn, n.Args())
-	}
-
-	return nil, errors.NewError("no such function '%s'", fnName)
+	fn.SetArgs(n.Args())
+	return fn.Execute()
 }
 
 func (sh *Shell) executeInfLoop(tr *ast.Tree) error {

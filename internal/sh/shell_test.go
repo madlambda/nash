@@ -557,7 +557,7 @@ func TestExecuteShowEnv(t *testing.T) {
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	sh.SetEnviron(make(Env)) // zero'ing the env
+	sh.SetEnviron([]string{}) // zero'ing the env
 
 	err = sh.ExecuteString("test showenv", "showenv")
 

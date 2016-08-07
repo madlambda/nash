@@ -24,6 +24,23 @@ type (
 	Fns map[string]*Shell
 	Bns Fns
 
+	Runner interface {
+		Start() error
+		Wait() error
+
+		SetArgs([]*ast.Arg) error
+		SetEnviron([]string)
+		SetStdin(io.Reader)
+		SetStdout(io.Writer)
+		SetStderr(io.Writer)
+
+		StdoutPipe() (io.ReadCloser, error)
+
+		Stdin() io.Reader
+		Stdout() io.Writer
+		Stderr() io.Writer
+	}
+
 	// Shell is the core data structure.
 	Shell struct {
 		name        string
@@ -42,6 +59,7 @@ type (
 		stderr io.Writer
 
 		argNames []string
+		done     chan error
 		env      Env
 		vars     Var
 		fns      Fns
@@ -102,6 +120,7 @@ func NewShell() (*Shell, error) {
 		fns:       make(Fns),
 		binds:     make(Fns),
 		argNames:  make([]string, 0, 16),
+		done:      make(chan error),
 		Mutex:     &sync.Mutex{},
 	}
 
@@ -139,6 +158,7 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 		fns:       make(Fns),
 		binds:     make(Fns),
 		argNames:  make([]string, 0, 16),
+		done:      make(chan error),
 		Mutex:     parent.Mutex,
 	}
 
@@ -146,9 +166,7 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 }
 
 // initEnv creates a new environment from old one
-func (sh *Shell) initEnv() error {
-	processEnv := os.Environ()
-
+func (sh *Shell) initEnv(processEnv []string) error {
 	argv := NewListObj(os.Args)
 
 	sh.Setenv("argv", argv)
@@ -210,6 +228,28 @@ func (sh *Shell) SetName(a string) {
 
 func (sh *Shell) Name() string { return sh.name }
 
+func (sh *Shell) SetArgs(nodeArgs []*ast.Arg) error {
+	if len(sh.argNames) != len(nodeArgs) {
+		return errors.NewError("Wrong number of arguments for function %s. Expected %d but found %d",
+			sh.name, len(sh.argNames), len(nodeArgs))
+	}
+
+	for i := 0; i < len(nodeArgs); i++ {
+		arg := nodeArgs[i]
+		argName := sh.argNames[i]
+
+		obj, err := sh.evalArg(arg)
+
+		if err != nil {
+			return err
+		}
+
+		sh.Setvar(argName, obj)
+	}
+
+	return nil
+}
+
 func (sh *Shell) SetParent(a *Shell) {
 	sh.parent = a
 }
@@ -238,12 +278,23 @@ func (sh *Shell) Setenv(name string, value *Obj) {
 	}
 
 	sh.env[name] = value
-
 	os.Setenv(name, value.String())
 }
 
-func (sh *Shell) SetEnviron(env Env) {
-	sh.env = env
+func (sh *Shell) SetEnviron(processEnv []string) {
+	sh.env = make(Env)
+
+	for _, penv := range processEnv {
+		var value *Obj
+		p := strings.Split(penv, "=")
+
+		if len(p) == 2 {
+			value = NewStrObj(p[1])
+
+			sh.Setvar(p[0], value)
+			sh.Setenv(p[0], value)
+		}
+	}
 }
 
 func (sh *Shell) GetVar(name string) (*Obj, bool) {
@@ -302,19 +353,13 @@ func (sh *Shell) SetNashdPath(path string) {
 }
 
 // SetStdin sets the stdin for commands
-func (sh *Shell) SetStdin(in io.Reader) {
-	sh.stdin = in
-}
+func (sh *Shell) SetStdin(in io.Reader) { sh.stdin = in }
 
 // SetStdout sets stdout for commands
-func (sh *Shell) SetStdout(out io.Writer) {
-	sh.stdout = out
-}
+func (sh *Shell) SetStdout(out io.Writer) { sh.stdout = out }
 
 // SetStderr sets stderr for commands
-func (sh *Shell) SetStderr(err io.Writer) {
-	sh.stderr = err
-}
+func (sh *Shell) SetStderr(err io.Writer) { sh.stderr = err }
 
 func (sh *Shell) Stdout() io.Writer { return sh.stdout }
 func (sh *Shell) Stderr() io.Writer { return sh.stderr }
@@ -350,7 +395,7 @@ func (sh *Shell) String() string {
 }
 
 func (sh *Shell) setup() error {
-	err := sh.initEnv()
+	err := sh.initEnv(os.Environ())
 
 	if err != nil {
 		return err
@@ -428,7 +473,7 @@ func (sh *Shell) Execute() (*Obj, error) {
 		return sh.ExecuteTree(sh.root)
 	}
 
-	return nil, nil
+	return nil, fmt.Errorf("Nothing to execute")
 }
 
 // ExecuteString executes the commands specified by string content
@@ -462,4 +507,35 @@ func (sh *Shell) ExecuteFile(path string) error {
 	}()
 
 	return sh.ExecuteString(path, string(content))
+}
+
+func (sh *Shell) Start() error {
+	// TODO: what we'll do with fn return value in case of pipes?
+
+	if sh.root != nil {
+		go func() {
+			_, err := sh.ExecuteTree(sh.root)
+
+			sh.done <- err
+		}()
+	}
+
+	return fmt.Errorf("Nothing to execute")
+}
+
+func (sh *Shell) Wait() error {
+	err := <-sh.done
+	return err
+}
+
+// TODO: closeAfterStart and closAfterWait
+func (sh *Shell) StdoutPipe() (io.ReadCloser, error) {
+	pr, pw, err := os.Pipe()
+
+	if err != nil {
+		return nil, err
+	}
+
+	sh.stdout = pw
+	return pr, nil
 }
