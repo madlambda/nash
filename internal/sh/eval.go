@@ -193,8 +193,18 @@ func (sh *Shell) executeImport(node *ast.ImportNode) error {
 		tries = append(tries, path.Dir(sh.currentFile)+"/"+fname)
 	}
 
-	tries = append(tries, sh.dotDir+"/"+fname)
-	tries = append(tries, sh.dotDir+"/lib/"+fname)
+	nashPath, ok := sh.Getenv("NASHPATH")
+
+	if !ok {
+		return errors.NewError("NASHPATH environment variable not set")
+	} else if nashPath.Type() != StringType {
+		return errors.NewError("NASHPATH must be n string")
+	}
+
+	dotDir := nashPath.String()
+
+	tries = append(tries, dotDir+"/"+fname)
+	tries = append(tries, dotDir+"/lib/"+fname)
 
 	sh.logf("Trying %q\n", tries)
 
@@ -1158,7 +1168,6 @@ func (sh *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 	fn.SetStderr(sh.stderr)
 	fn.SetStdin(sh.stdin)
 	fn.SetRepr(n.String())
-	fn.SetDotDir(sh.dotDir)
 
 	args := n.Args()
 

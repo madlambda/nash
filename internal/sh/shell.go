@@ -31,7 +31,6 @@ type (
 		lambdas     uint
 		logf        LogFn
 		nashdPath   string
-		dotDir      string
 		isFn        bool
 		currentFile string // current file being executed or imported
 
@@ -217,7 +216,6 @@ func (sh *Shell) SetParent(a *Shell) {
 
 func (sh *Shell) Environ() Env {
 	if sh.parent != nil {
-		// Note(i4k): stack overflow, refactor this!
 		return sh.parent.Environ()
 	}
 
@@ -298,33 +296,9 @@ func (sh *Shell) IsFn() bool { return sh.isFn }
 
 func (sh *Shell) SetIsFn(b bool) { sh.isFn = b }
 
-// Prompt returns the environment prompt or the default one
-func (sh *Shell) Prompt() string {
-	value, ok := sh.Getenv("PROMPT")
-
-	if ok {
-		return value.String()
-	}
-
-	return "<no prompt> "
-}
-
 // SetNashdPath sets an alternativa path to nashd
 func (sh *Shell) SetNashdPath(path string) {
 	sh.nashdPath = path
-}
-
-func (sh *Shell) SetDotDir(path string) {
-	sh.dotDir = path
-
-	obj := NewStrObj(sh.dotDir)
-
-	sh.Setenv("NASHPATH", obj)
-	sh.Setvar("NASHPATH", obj)
-}
-
-func (sh *Shell) DotDir() string {
-	return sh.dotDir
 }
 
 // SetStdin sets the stdin for commands
@@ -459,9 +433,9 @@ func (sh *Shell) Execute() (*Obj, error) {
 
 // ExecuteString executes the commands specified by string content
 func (sh *Shell) ExecuteString(path, content string) error {
-	parser := parser.NewParser(path, content)
+	p := parser.NewParser(path, content)
 
-	tr, err := parser.Parse()
+	tr, err := p.Parse()
 
 	if err != nil {
 		return err
