@@ -1,4 +1,4 @@
-package nash
+package sh
 
 import (
 	"bytes"
@@ -15,6 +15,44 @@ import (
 	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
 )
+
+// evalConcat reveives the AST representation of a concatenation of objects and
+// returns the string representation, or error.
+func (sh *Shell) evalConcat(path *ast.Arg) (string, error) {
+	var pathStr string
+
+	concat := path.Concat()
+
+	for i := 0; i < len(concat); i++ {
+		part := concat[i]
+
+		if part.IsConcat() {
+			return "", errors.NewError("Nested concat is not allowed")
+		}
+
+		if part.IsVariable() {
+			partValues, err := sh.evalVariable(part)
+
+			if err != nil {
+				return "", err
+			}
+
+			if partValues.Type() == ListType {
+				return "", fmt.Errorf("Concat of list variables is not allowed: %s = %v", part.Value(), partValues)
+			} else if partValues.Type() != StringType {
+				return "", fmt.Errorf("Invalid concat element: %v", partValues)
+			}
+
+			pathStr += partValues.Str()
+		} else if part.IsQuoted() || part.IsUnquoted() {
+			pathStr += part.Value()
+		} else if part.IsList() {
+			return "", errors.NewError("Concat of lists is not allowed: %+v", part.List())
+		}
+	}
+
+	return pathStr, nil
+}
 
 func (sh *Shell) executeNode(node ast.Node, builtin bool) (*Obj, error) {
 	var (

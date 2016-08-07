@@ -1,7 +1,7 @@
 // +build linux
 
 // nash provides the execution engine
-package nash
+package sh
 
 import (
 	"fmt"

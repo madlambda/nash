@@ -1,6 +1,6 @@
 // +build linux
 
-package nash
+package sh
 
 import (
 	"bytes"

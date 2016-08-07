@@ -1,6 +1,6 @@
 // +build plan9
 
-package nash
+package sh
 
 import (
 	"fmt"

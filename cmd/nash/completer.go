@@ -2,23 +2,21 @@ package main
 
 import (
 	"io/ioutil"
+	"os"
 	"strings"
 
-	"github.com/NeowayLabs/nash"
 	"github.com/chzyer/readline"
 )
 
 var runes = readline.Runes{}
 
 type Completer struct {
-	sh              *nash.Shell
 	prefixCompleter readline.PrefixCompleterInterface
 }
 
-func NewCompleter(sh *nash.Shell, p ...readline.PrefixCompleterInterface) *Completer {
+func NewCompleter(p ...readline.PrefixCompleterInterface) *Completer {
 	return &Completer{
 		prefixCompleter: readline.NewPrefixCompleter(p...),
-		sh:              sh,
 	}
 }
 
@@ -31,31 +29,15 @@ func (c *Completer) Do(line []rune, pos int) (newLine [][]rune, offset int) {
 		return completeFile([]rune{'/'}, 0, "/")
 	}
 
-	pathVar, ok := c.sh.Getenv("PATH")
-
-	if !ok || (pathVar.Type() != nash.StringType && pathVar.Type() != nash.ListType) {
-		return
-	}
-
-	var pathList []string
-
-	if pathVar.Type() == nash.StringType {
-		pathList = make([]string, 1)
-		pathList[0] = pathVar.Str()
-	} else {
-		pathList = pathVar.List()
-	}
-
+	pathVal := os.Getenv("PATH")
 	path := make([]string, 0, 256)
 
-	for _, pathVal := range pathList {
-		pathparts := strings.Split(pathVal, ":")
-		if len(pathparts) == 1 {
-			path = append(path, pathparts[0])
-		} else {
-			for _, p := range pathparts {
-				path = append(path, p)
-			}
+	pathparts := strings.Split(pathVal, ":")
+	if len(pathparts) == 1 {
+		path = append(path, pathparts[0])
+	} else {
+		for _, p := range pathparts {
+			path = append(path, p)
 		}
 	}
 

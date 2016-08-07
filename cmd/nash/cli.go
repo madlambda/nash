@@ -39,7 +39,7 @@ func cli(sh *nash.Shell) error {
 		completers = append(completers, readline.PcItem(envName))
 	}
 
-	completer := NewCompleter(sh, completers...)
+	completer := NewCompleter(completers...)
 
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:          sh.Prompt(),

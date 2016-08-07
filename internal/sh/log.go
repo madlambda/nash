@@ -1,4 +1,4 @@
-package nash
+package sh
 
 import (
 	"log"

@@ -1,6 +1,8 @@
-package nash
+package sh
 
-import "strings"
+import (
+	"strings"
+)
 
 //go:generate stringer -type=objType
 const (
