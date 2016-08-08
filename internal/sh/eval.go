@@ -958,7 +958,7 @@ func (sh *Shell) executeBuiltinCd(cd *ast.CdNode) error {
 
 func (sh *Shell) executeCd(cd *ast.CdNode, builtin bool) error {
 	var (
-		cdAlias  *Shell
+		cdAlias  *Fn
 		hasAlias bool
 	)
 
@@ -1044,7 +1044,7 @@ func (sh *Shell) executeIfNotEqual(n *ast.IfNode) error {
 	return nil
 }
 
-func (sh *Shell) executeFn(fn *Shell, args []*ast.Arg) (*Obj, error) {
+func (sh *Shell) executeFn(fn *Fn, args []*ast.Arg) (*Obj, error) {
 	err := fn.SetArgs(args, sh)
 
 	if err != nil {
@@ -1056,7 +1056,7 @@ func (sh *Shell) executeFn(fn *Shell, args []*ast.Arg) (*Obj, error) {
 
 func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 	var (
-		fn *Shell
+		fn *Fn
 		ok bool
 	)
 
@@ -1201,16 +1201,12 @@ func (sh *Shell) executeFor(n *ast.ForNode) error {
 }
 
 func (sh *Shell) executeFnDecl(n *ast.FnDeclNode) error {
-	fn, err := NewSubShell(n.Name(), sh)
+	fn, err := NewFn(n.Name(), sh)
 
 	if err != nil {
 		return err
 	}
 
-	fn.SetDebug(sh.debug)
-	fn.SetStdout(sh.stdout)
-	fn.SetStderr(sh.stderr)
-	fn.SetStdin(sh.stdin)
 	fn.SetRepr(n.String())
 
 	args := n.Args()

@@ -21,7 +21,7 @@ type (
 	// Env is the environment map of lists
 	Env map[string]*Obj
 	Var Env
-	Fns map[string]*Shell
+	Fns map[string]*Fn
 	Bns Fns
 
 	Runner interface {
@@ -58,12 +58,10 @@ type (
 		stdout io.Writer
 		stderr io.Writer
 
-		argNames []string
-		done     chan error
-		env      Env
-		vars     Var
-		fns      Fns
-		binds    Fns
+		env   Env
+		vars  Var
+		fns   Fns
+		binds Fns
 
 		root   *ast.Tree
 		parent *Shell
@@ -121,8 +119,6 @@ func NewShell() (*Shell, error) {
 		vars:      make(Var),
 		fns:       make(Fns),
 		binds:     make(Fns),
-		argNames:  make([]string, 0, 16),
-		done:      make(chan error),
 		Mutex:     &sync.Mutex{},
 	}
 
@@ -159,8 +155,6 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 		vars:      make(Var),
 		fns:       make(Fns),
 		binds:     make(Fns),
-		argNames:  make([]string, 0, 16),
-		done:      make(chan error),
 		Mutex:     parent.Mutex,
 	}
 
@@ -230,28 +224,6 @@ func (sh *Shell) SetName(a string) {
 
 func (sh *Shell) Name() string { return sh.name }
 
-func (sh *Shell) SetArgs(nodeArgs []*ast.Arg, envShell *Shell) error {
-	if len(sh.argNames) != len(nodeArgs) {
-		return errors.NewError("Wrong number of arguments for function %s. Expected %d but found %d",
-			sh.name, len(sh.argNames), len(nodeArgs))
-	}
-
-	for i := 0; i < len(nodeArgs); i++ {
-		arg := nodeArgs[i]
-		argName := sh.argNames[i]
-
-		obj, err := envShell.evalArg(arg)
-
-		if err != nil {
-			return err
-		}
-
-		sh.Setvar(argName, obj)
-	}
-
-	return nil
-}
-
 func (sh *Shell) SetParent(a *Shell) {
 	sh.parent = a
 }
@@ -311,7 +283,7 @@ func (sh *Shell) GetVar(name string) (*Obj, bool) {
 	return nil, false
 }
 
-func (sh *Shell) GetFn(name string) (*Shell, bool) {
+func (sh *Shell) GetFn(name string) (*Fn, bool) {
 	sh.logf("Looking for function '%s' on shell '%s'\n", name, sh.name)
 
 	if fn, ok := sh.fns[name]; ok {
@@ -325,11 +297,11 @@ func (sh *Shell) GetFn(name string) (*Shell, bool) {
 	return nil, false
 }
 
-func (sh *Shell) Setbindfn(name string, value *Shell) {
+func (sh *Shell) Setbindfn(name string, value *Fn) {
 	sh.binds[name] = value
 }
 
-func (sh *Shell) Getbindfn(cmdName string) (*Shell, bool) {
+func (sh *Shell) Getbindfn(cmdName string) (*Fn, bool) {
 	if fn, ok := sh.binds[cmdName]; ok {
 		return fn, true
 	}
@@ -366,10 +338,6 @@ func (sh *Shell) SetStderr(err io.Writer) { sh.stderr = err }
 func (sh *Shell) Stdout() io.Writer { return sh.stdout }
 func (sh *Shell) Stderr() io.Writer { return sh.stderr }
 func (sh *Shell) Stdin() io.Reader  { return sh.stdin }
-
-func (sh *Shell) AddArgName(name string) {
-	sh.argNames = append(sh.argNames, name)
-}
 
 // SetTree sets the internal tree of the interpreter. It's used for
 // sub-shells like `fn`.
@@ -470,14 +438,6 @@ func (sh *Shell) getIntr() bool {
 	return sh.interrupted
 }
 
-func (sh *Shell) Execute() (*Obj, error) {
-	if sh.root != nil {
-		return sh.ExecuteTree(sh.root)
-	}
-
-	return nil, fmt.Errorf("Nothing to execute")
-}
-
 // ExecuteString executes the commands specified by string content
 func (sh *Shell) ExecuteString(path, content string) error {
 	p := parser.NewParser(path, content)
@@ -509,35 +469,4 @@ func (sh *Shell) ExecuteFile(path string) error {
 	}()
 
 	return sh.ExecuteString(path, string(content))
-}
-
-func (sh *Shell) Start() error {
-	// TODO: what we'll do with fn return value in case of pipes?
-
-	if sh.root != nil {
-		go func() {
-			_, err := sh.ExecuteTree(sh.root)
-
-			sh.done <- err
-		}()
-	}
-
-	return fmt.Errorf("Nothing to execute")
-}
-
-func (sh *Shell) Wait() error {
-	err := <-sh.done
-	return err
-}
-
-// TODO: closeAfterStart and closAfterWait
-func (sh *Shell) StdoutPipe() (io.ReadCloser, error) {
-	pr, pw, err := os.Pipe()
-
-	if err != nil {
-		return nil, err
-	}
-
-	sh.stdout = pw
-	return pr, nil
 }
