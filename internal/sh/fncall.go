@@ -81,7 +81,7 @@ func (fn *Fn) Execute() (*Obj, error) {
 }
 
 func (fn *Fn) Start() error {
-	// TODO: what we'll do with fn return value in case of pipes?
+	// TODO: what we'll do with fn return values in case of pipes?
 
 	go func() {
 		_, err := fn.Execute()
@@ -98,17 +98,6 @@ func (fn *Fn) Wait() error {
 	return err
 }
 
-func (fn *Fn) Run() error {
-	err := fn.Start()
-
-	if err != nil {
-		return err
-	}
-
-	return fn.Wait()
-}
-
-// TODO: closeAfterStart and closAfterWait
 func (fn *Fn) StdoutPipe() (io.ReadCloser, error) {
 	pr, pw, err := os.Pipe()
 
@@ -118,6 +107,7 @@ func (fn *Fn) StdoutPipe() (io.ReadCloser, error) {
 
 	fn.SetStdout(pw)
 
+	// As fn doesn't fork, both fd can be closed after wait is called
 	fn.closeAfterWait = append(fn.closeAfterWait, pw, pr)
 	return pr, nil
 }

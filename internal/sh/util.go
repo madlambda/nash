@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -67,4 +68,18 @@ func getErrStatus(err error, def int) string {
 	}
 
 	return strconv.Itoa(status)
+}
+
+func nashdAutoDiscover() string {
+	path, err := os.Readlink("/proc/self/exe")
+
+	if err != nil {
+		path = os.Args[0]
+
+		if _, err := os.Stat(path); err != nil {
+			return ""
+		}
+	}
+
+	return path
 }

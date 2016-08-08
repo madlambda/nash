@@ -1717,7 +1717,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 
 	scode, ok := sh.GetVar("status")
 
-	if !ok || scode.Type() != StringType || scode.String() != strconv.Itoa(defStatusCode) {
+	if !ok || scode.Type() != StringType || scode.String() != strconv.Itoa(ENotFound) {
 		t.Errorf("Invalid status code %s", scode.String())
 		return
 	}
@@ -1750,7 +1750,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 
 	scode, ok = sh.GetVar("status")
 
-	if !ok || scode.Type() != StringType || scode.String() != "127|127" {
+	if !ok || scode.Type() != StringType || scode.String() != "255|127" {
 		t.Errorf("Invalid status code %s", scode)
 		return
 	}
