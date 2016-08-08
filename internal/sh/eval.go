@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -1098,6 +1099,8 @@ func (sh *Shell) executeInfLoop(tr *ast.Tree) error {
 
 	for {
 		_, err = sh.ExecuteTree(tr)
+
+		runtime.Gosched()
 
 		type interruptedError interface {
 			Interrupted() bool
