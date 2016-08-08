@@ -28,7 +28,7 @@ type (
 		Start() error
 		Wait() error
 
-		SetArgs([]*ast.Arg) error
+		SetArgs([]*ast.Arg, *Shell) error
 		SetEnviron([]string)
 		SetStdin(io.Reader)
 		SetStdout(io.Writer)
@@ -103,6 +103,8 @@ func (e *errInterrupted) Interrupted() bool { return true }
 const (
 	logNS     = "nash.Shell"
 	defPrompt = "\033[31mλ>\033[0m "
+
+	defStatusCode = 127
 )
 
 // NewShell creates a new shell object
@@ -228,7 +230,7 @@ func (sh *Shell) SetName(a string) {
 
 func (sh *Shell) Name() string { return sh.name }
 
-func (sh *Shell) SetArgs(nodeArgs []*ast.Arg) error {
+func (sh *Shell) SetArgs(nodeArgs []*ast.Arg, envShell *Shell) error {
 	if len(sh.argNames) != len(nodeArgs) {
 		return errors.NewError("Wrong number of arguments for function %s. Expected %d but found %d",
 			sh.name, len(sh.argNames), len(nodeArgs))
@@ -238,7 +240,7 @@ func (sh *Shell) SetArgs(nodeArgs []*ast.Arg) error {
 		arg := nodeArgs[i]
 		argName := sh.argNames[i]
 
-		obj, err := sh.evalArg(arg)
+		obj, err := envShell.evalArg(arg)
 
 		if err != nil {
 			return err

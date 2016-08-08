@@ -6,11 +6,9 @@ import (
 	"io"
 	"net"
 	"os"
-	"os/exec"
 	"path"
 	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
@@ -48,6 +46,8 @@ func (sh *Shell) evalConcat(path *ast.Arg) (string, error) {
 			pathStr += part.Value()
 		} else if part.IsList() {
 			return "", errors.NewError("Concat of lists is not allowed: %+v", part.List())
+		} else {
+			return "", fmt.Errorf("Invalid argument: %+v", part)
 		}
 	}
 
@@ -196,7 +196,7 @@ func (sh *Shell) executeImport(node *ast.ImportNode) error {
 	nashPath, ok := sh.Getenv("NASHPATH")
 
 	if !ok {
-		return errors.NewError("NASHPATH environment variable not set")
+		return errors.NewError("NASHPATH environment variable not set on shell %s", sh.name)
 	} else if nashPath.Type() != StringType {
 		return errors.NewError("NASHPATH must be n string")
 	}
@@ -235,7 +235,13 @@ func (sh *Shell) executeShowEnv(node *ast.ShowEnvNode) error {
 }
 
 func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
-	var closeAfterWait []io.Closer
+	var (
+		closeFiles     []io.Closer
+		closeAfterWait []io.Closer
+		defStatus      = defStatusCode
+		errIndex       int
+		err            error
+	)
 
 	defer func() {
 		for _, c := range closeAfterWait {
@@ -250,34 +256,52 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 	}
 
 	cmds := make([]Runner, len(nodeCommands))
+	errs := make([]string, len(nodeCommands))
+	igns := make([]bool, len(nodeCommands)) // ignoreErrors
+	cods := make([]string, len(nodeCommands))
+
+	for i := 0; i < len(nodeCommands); i++ {
+		errs[i] = "not started"
+		cods[i] = strconv.Itoa(defStatus)
+	}
 
 	last := len(nodeCommands) - 1
 
 	// Create all commands
 	for i := 0; i < len(nodeCommands); i++ {
+		var (
+			cmd    Runner
+			ignore bool
+		)
+
 		nodeCmd := nodeCommands[i]
 
-		cmd, _, err := sh.getCommand(nodeCmd)
+		cmd, ignore, err = sh.getCommand(nodeCmd)
+
+		igns[i] = ignore
 
 		if err != nil {
-			return err
+			errIndex = i
+			goto pipeError
 		}
 
-		err = cmd.SetArgs(nodeCmd.Args())
+		err = cmd.SetArgs(nodeCmd.Args(), sh)
 
 		if err != nil {
-			return err
+			errIndex = i
+			goto pipeError
 		}
 
 		cmd.SetStdin(sh.stdin)
 		cmd.SetStderr(sh.stderr)
 
 		if i < last {
-			closeFiles, err := sh.setRedirects(cmd, nodeCmd.Redirects())
+			closeFiles, err = sh.setRedirects(cmd, nodeCmd.Redirects())
 			closeAfterWait = append(closeAfterWait, closeFiles...)
 
 			if err != nil {
-				return err
+				errIndex = i
+				goto pipeError
 			}
 		}
 
@@ -290,12 +314,17 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 	// Setup the commands. Pointing the stdin of next command to stdout of previous.
 	// Except the last one
 	for i, cmd := range cmds[:last] {
+		var (
+			stdin io.ReadCloser
+		)
+
 		cmd.SetStderr(sh.stderr)
 
-		stdin, err := cmd.StdoutPipe()
+		stdin, err = cmd.StdoutPipe()
 
 		if err != nil {
-			return err
+			errIndex = i
+			goto pipeError
 		}
 
 		cmds[i+1].SetStdin(stdin)
@@ -304,30 +333,60 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 	cmds[last].SetStdout(sh.stdout)
 	cmds[last].SetStderr(sh.stderr)
 
-	closeFiles, err := sh.setRedirects(cmds[last], nodeCommands[last].Redirects())
+	closeFiles, err = sh.setRedirects(cmds[last], nodeCommands[last].Redirects())
 	closeAfterWait = append(closeAfterWait, closeFiles...)
 
 	if err != nil {
-		return err
+		errIndex = last
+		goto pipeError
 	}
 
-	for _, cmd := range cmds {
-		err := cmd.Start()
+	for i := 0; i < len(cmds); i++ {
+		cmd := cmds[i]
+
+		err = cmd.Start()
 
 		if err != nil {
-			return err
+			errIndex = i
+			goto pipeError
 		}
+
+		errs[i] = "ok"
+		cods[i] = "0"
 	}
 
-	for _, cmd := range cmds {
-		err := cmd.Wait()
+	for i, cmd := range cmds {
+		err = cmd.Wait()
 
 		if err != nil {
-			return err
+			errIndex = i
+			goto pipeError
 		}
+
+		errs[i] = "ok"
+		cods[i] = "0"
 	}
 
+	sh.Setvar("status", NewStrObj("0"))
 	return nil
+
+pipeError:
+	if igns[errIndex] {
+		errs[errIndex] = "none"
+	} else {
+		errs[errIndex] = err.Error()
+	}
+
+	cods[errIndex] = getErrStatus(err, defStatus)
+
+	err = errors.NewError(strings.Join(errs, "|"))
+	sh.Setvar("status", NewStrObj(strings.Join(cods, "|")))
+
+	if igns[errIndex] {
+		return nil
+	}
+
+	return err
 }
 
 func (sh *Shell) openRedirectLocation(location *ast.Arg) (io.WriteCloser, error) {
@@ -513,7 +572,7 @@ func (sh *Shell) getCommand(c *ast.CommandNode) (Runner, bool, error) {
 		sh.logf("Ignoring error\n")
 	}
 
-	cmd, err = NewCmd(cmdName, sh)
+	cmd, err = NewCmd(cmdName)
 
 	if err != nil {
 		type NotFound interface {
@@ -573,7 +632,7 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 		goto cmdError
 	}
 
-	err = cmd.SetArgs(c.Args())
+	err = cmd.SetArgs(c.Args(), sh)
 
 	if err != nil {
 		goto cmdError
@@ -610,13 +669,7 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 	return nil
 
 cmdError:
-	if exiterr, ok := err.(*exec.ExitError); ok {
-		if statusObj, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			status = statusObj.ExitStatus()
-		}
-	}
-
-	sh.Setvar("status", NewStrObj(strconv.Itoa(status)))
+	sh.Setvar("status", NewStrObj(getErrStatus(err, status)))
 
 	if ignoreError {
 		return newErrIgnore(err.Error())
@@ -638,7 +691,7 @@ func (sh *Shell) evalVariable(a *ast.Arg) (*Obj, error) {
 	varName := a.Value()
 
 	if v, ok = sh.GetVar(varName[1:]); !ok {
-		return nil, fmt.Errorf("Variable %s not set", varName)
+		return nil, fmt.Errorf("Variable %s not set on shell %s", varName, sh.name)
 	}
 
 	if a.Index() != nil {
@@ -743,7 +796,7 @@ func (sh *Shell) executeSetAssignment(v *ast.SetAssignmentNode) error {
 	varName := v.Identifier()
 
 	if varValue, ok = sh.GetVar(varName); !ok {
-		return fmt.Errorf("Variable '%s' not set", varName)
+		return fmt.Errorf("Variable '%s' not set on shell %s", varName, sh.name)
 	}
 
 	sh.Setenv(varName, varValue)
@@ -889,7 +942,7 @@ func (sh *Shell) executeBuiltinCd(cd *ast.CdNode) error {
 	pwd, ok := sh.GetVar("PWD")
 
 	if !ok {
-		return fmt.Errorf("Variable $PWD is not set")
+		return fmt.Errorf("Variable $PWD is not set on shell %s", sh.name)
 	}
 
 	cpwd := NewStrObj(pathStr)
@@ -991,7 +1044,7 @@ func (sh *Shell) executeIfNotEqual(n *ast.IfNode) error {
 }
 
 func (sh *Shell) executeFn(fn *Shell, args []*ast.Arg) (*Obj, error) {
-	err := fn.SetArgs(args)
+	err := fn.SetArgs(args, sh)
 
 	if err != nil {
 		return nil, err
@@ -1031,7 +1084,12 @@ func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 		}
 	}
 
-	fn.SetArgs(n.Args())
+	err := fn.SetArgs(n.Args(), sh)
+
+	if err != nil {
+		return nil, err
+	}
+
 	return fn.Execute()
 }
 

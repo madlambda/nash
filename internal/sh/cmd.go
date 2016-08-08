@@ -16,8 +16,6 @@ type (
 	// This can be used to pipe execution of Cmd commands.
 	Cmd struct {
 		*exec.Cmd
-
-		sh *Shell
 	}
 
 	// errCmdNotFound is an error indicating the command wasn't found.
@@ -38,23 +36,19 @@ func (e *errCmdNotFound) NotFound() bool {
 	return true
 }
 
-func NewCmd(name string, sh *Shell) (*Cmd, error) {
+func NewCmd(name string) (*Cmd, error) {
 	var (
 		err     error
 		cmdPath = name
 	)
 
-	cmd := Cmd{
-		sh: sh,
-	}
+	cmd := Cmd{}
 
 	if name[0] != '/' {
 		cmdPath, err = exec.LookPath(name)
 
 		if err != nil {
-			return nil, newCmdNotFound("Command '%s' not found on PATH: %s",
-				name,
-				err.Error())
+			return nil, newCmdNotFound(err.Error())
 		}
 	}
 
@@ -73,7 +67,7 @@ func (c *Cmd) SetStdin(in io.Reader)   { c.Cmd.Stdin = in }
 func (c *Cmd) SetStdout(out io.Writer) { c.Cmd.Stdout = out }
 func (c *Cmd) SetStderr(err io.Writer) { c.Cmd.Stderr = err }
 
-func (c *Cmd) processArgs(cmd string, nodeArgs []*ast.Arg) ([]string, error) {
+func (c *Cmd) processArgs(cmd string, nodeArgs []*ast.Arg, envShell *Shell) ([]string, error) {
 	args := make([]string, len(nodeArgs)+1)
 	args[0] = cmd
 
@@ -82,7 +76,7 @@ func (c *Cmd) processArgs(cmd string, nodeArgs []*ast.Arg) ([]string, error) {
 
 		carg := nodeArgs[i]
 
-		obj, err := c.sh.evalArg(carg)
+		obj, err := envShell.evalArg(carg)
 
 		if err != nil {
 			return nil, err
@@ -104,8 +98,8 @@ func (c *Cmd) processArgs(cmd string, nodeArgs []*ast.Arg) ([]string, error) {
 	return args, nil
 }
 
-func (c *Cmd) SetArgs(nodeArgs []*ast.Arg) error {
-	args, err := c.processArgs(c.Path, nodeArgs)
+func (c *Cmd) SetArgs(nodeArgs []*ast.Arg, envShell *Shell) error {
+	args, err := c.processArgs(c.Path, nodeArgs, envShell)
 
 	if err != nil {
 		return err

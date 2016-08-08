@@ -57,7 +57,7 @@ func TestExecuteErrorSuppression(t *testing.T) {
 	err = sh.ExecuteString("-input-", `echo lalala | -grep lelele`)
 
 	if err != nil {
-		t.Errorf("Expected to not fail...:%s", err.Error())
+		t.Errorf("Expected to not fail...:(%s)", err.Error())
 		return
 	}
 }
