@@ -855,7 +855,22 @@ pipeError:
 	}
 
 	err = errors.NewError(strings.Join(errs, "|"))
-	sh.Setvar("status", NewStrObj(strings.Join(cods, "|")))
+
+	// verify if all status codes are the same
+	uniqCodes := make(map[string]struct{})
+	var uniqCode string
+
+	for i := 0; i < len(cods); i++ {
+		uniqCodes[cods[i]] = struct{}{}
+		uniqCode = cods[i]
+	}
+
+	if len(uniqCodes) == 1 {
+		// if all status are the same
+		sh.Setvar("status", NewStrObj(uniqCode))
+	} else {
+		sh.Setvar("status", NewStrObj(strings.Join(cods, "|")))
+	}
 
 	if igns[errIndex] {
 		return nil
