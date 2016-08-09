@@ -19,7 +19,7 @@ type (
 
 		list []string
 		str  string
-		fn   *Shell
+		fn   *Fn
 	}
 )
 
@@ -41,7 +41,7 @@ func NewListObj(val []string) *Obj {
 	}
 }
 
-func NewFnObj(val *Shell) *Obj {
+func NewFnObj(val *Fn) *Obj {
 	return &Obj{
 		fn:      val,
 		objType: FnType,
@@ -49,7 +49,7 @@ func NewFnObj(val *Shell) *Obj {
 }
 
 func (o Obj) Str() string    { return o.str }
-func (o Obj) Fn() *Shell     { return o.fn }
+func (o Obj) Fn() *Fn        { return o.fn }
 func (o Obj) List() []string { return o.list }
 
 func (o Obj) String() string {

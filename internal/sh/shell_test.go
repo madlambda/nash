@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -557,7 +558,7 @@ func TestExecuteShowEnv(t *testing.T) {
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	sh.SetEnviron(make(Env)) // zero'ing the env
+	sh.SetEnviron([]string{}) // zero'ing the env
 
 	err = sh.ExecuteString("test showenv", "showenv")
 
@@ -1474,7 +1475,7 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 	}()
 
 	err = sh.ExecuteString("simple loop", `for {
-        echo "infinite loop"
+        echo "infinite loop" >[1=]
 }`)
 
 	if err == nil {
@@ -1698,4 +1699,59 @@ builtin cd $oldpwd`)
 	}
 
 	out.Reset()
+}
+
+func TestExecuteErrorSuppressionAll(t *testing.T) {
+	sh, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = sh.ExecuteString("-input-", `-command-not-exists`)
+
+	if err != nil {
+		t.Errorf("Expected to not fail...: %s", err.Error())
+		return
+	}
+
+	scode, ok := sh.GetVar("status")
+
+	if !ok || scode.Type() != StringType || scode.String() != strconv.Itoa(ENotFound) {
+		t.Errorf("Invalid status code %s", scode.String())
+		return
+	}
+
+	err = sh.ExecuteString("-input-", `echo works >[1=]`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	scode, ok = sh.GetVar("status")
+
+	if !ok || scode.Type() != StringType || scode.String() != "0" {
+		t.Errorf("Invalid status code %s", scode)
+		return
+	}
+
+	err = sh.ExecuteString("-input-", `echo works | cmd-does-not-exists`)
+
+	if err == nil {
+		t.Errorf("Must fail")
+		return
+	}
+
+	if err.Error() != "not started|exec: \"cmd-does-not-exists\": executable file not found in $PATH" {
+		t.Errorf("Unexpected error: %s", err.Error())
+		return
+	}
+
+	scode, ok = sh.GetVar("status")
+
+	if !ok || scode.Type() != StringType || scode.String() != "255|127" {
+		t.Errorf("Invalid status code %s", scode)
+		return
+	}
 }

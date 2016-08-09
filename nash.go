@@ -1,3 +1,5 @@
+// Package nash provides a library to embed the `nash` scripting language
+// within your program or create your own nash cli.
 package nash
 
 import (
@@ -6,11 +8,13 @@ import (
 )
 
 type (
+	// Shell is the execution engine of the scripting language.
 	Shell struct {
 		interp *sh.Shell
 	}
 )
 
+// New creates a new `nash.Shell` instance.
 func New() (*Shell, error) {
 	interp, err := sh.NewShell()
 
@@ -25,16 +29,21 @@ func New() (*Shell, error) {
 	return &nash, nil
 }
 
+// SetDebug enable some logging for debug purposes.
 func (nash *Shell) SetDebug(b bool) {
 	nash.interp.SetDebug(b)
 }
 
+// SetDotDir sets the NASHPATH environment variable. The NASHPATH variable
+// points to the location where nash will lookup for the init script and
+// libraries installed.
 func (nash *Shell) SetDotDir(path string) {
 	obj := sh.NewStrObj(path)
 	nash.interp.Setenv("NASHPATH", obj)
 	nash.interp.Setvar("NASHPATH", obj)
 }
 
+// DotDir returns the value of the NASHPATH environment variable
 func (nash *Shell) DotDir() string {
 	if obj, ok := nash.interp.Getenv("NASHPATH"); ok {
 		if obj.Type() != sh.StringType {
@@ -47,6 +56,7 @@ func (nash *Shell) DotDir() string {
 	return ""
 }
 
+// Environ returns the set of environment variables in the shell
 func (nash *Shell) Environ() sh.Env {
 	return nash.interp.Environ()
 }
@@ -62,7 +72,8 @@ func (nash *Shell) Prompt() string {
 	return "<no prompt> "
 }
 
-// ExecuteString executes the commands specified by string content
+// ExecuteString executes the code specified by string content.
+// The `path` is only used for error line reporting.
 func (nash *Shell) ExecuteString(path, content string) error {
 	return nash.interp.ExecuteString(path, content)
 }

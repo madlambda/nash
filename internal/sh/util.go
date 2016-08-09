@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"os"
+	"os/exec"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -52,4 +56,30 @@ func printVar(out io.Writer, name string, val *Obj) {
 
 func printEnv(out io.Writer, name string) {
 	fmt.Fprintf(out, "setenv %s\n", name)
+}
+
+func getErrStatus(err error, def int) string {
+	status := def
+
+	if exiterr, ok := err.(*exec.ExitError); ok {
+		if statusObj, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+			status = statusObj.ExitStatus()
+		}
+	}
+
+	return strconv.Itoa(status)
+}
+
+func nashdAutoDiscover() string {
+	path, err := os.Readlink("/proc/self/exe")
+
+	if err != nil {
+		path = os.Args[0]
+
+		if _, err := os.Stat(path); err != nil {
+			return ""
+		}
+	}
+
+	return path
 }
