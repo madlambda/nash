@@ -3,6 +3,8 @@
 package nash
 
 import (
+	"io"
+
 	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/internal/sh"
 )
@@ -72,6 +74,11 @@ func (nash *Shell) Prompt() string {
 	return "<no prompt> "
 }
 
+// SetNashdPath sets an alternativa path to nashd
+func (sh *Shell) SetNashdPath(path string) {
+	sh.interp.SetNashdPath(path)
+}
+
 // ExecuteString executes the code specified by string content.
 // The `path` is only used for error line reporting.
 func (nash *Shell) ExecuteString(path, content string) error {
@@ -86,4 +93,16 @@ func (nash *Shell) ExecuteFile(path string) error {
 // ExecuteTree evaluates the given tree
 func (nash *Shell) ExecuteTree(tr *ast.Tree) (*sh.Obj, error) {
 	return nash.interp.ExecuteTree(tr)
+}
+
+func (nash *Shell) SetStdout(out io.Writer) {
+	nash.interp.SetStdout(out)
+}
+
+func (nash *Shell) SetStderr(err io.Writer) {
+	nash.interp.SetStderr(err)
+}
+
+func (nash *Shell) SetStdin(in io.Reader) {
+	nash.interp.SetStdin(in)
 }
