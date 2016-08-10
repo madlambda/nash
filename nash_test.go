@@ -42,6 +42,8 @@ func TestExecuteFile(t *testing.T) {
 
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
+	sh.SetStderr(os.Stderr)
+	sh.SetStdin(os.Stdin)
 
 	err = sh.ExecuteFile(testfile)
 
@@ -80,4 +82,57 @@ func TestExecuteString(t *testing.T) {
 		return
 	}
 
+	out.Reset()
+
+	err = sh.ExecuteString("-input-", `
+        PROMPT="humpback> "
+        setenv PROMPT
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	prompt := sh.Prompt()
+
+	if prompt != "humpback> " {
+		t.Errorf("Invalid prompt = %s", prompt)
+		return
+	}
+
+}
+
+func TestSetDotDir(t *testing.T) {
+	sh, err := New()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	sh.SetDotDir("/tmp")
+
+	dotDir := sh.DotDir()
+
+	if dotDir != "/tmp" {
+		t.Errorf("Invalid .nash = %s", dotDir)
+		return
+	}
+
+	err = sh.ExecuteString("-ínput-", "echo -n $NASHPATH")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "/tmp" {
+		t.Errorf("Unexpected '%s'", string(out.Bytes()))
+		return
+	}
 }
