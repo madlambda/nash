@@ -827,6 +827,38 @@ echo -n $INSIDE
 		t.Error("Must fail")
 		return
 	}
+
+	out.Reset()
+
+	// test variables shadow the global ones
+	err = sh.ExecuteString("test shadow", `path="AAA"
+fn test(path) {
+echo -n $path
+}
+        test("BBB")
+`)
+
+	if string(out.Bytes()) != "BBB" {
+		t.Errorf("String differs: '%s' != '%s'", string(out.Bytes()), "BBB")
+		return
+	}
+
+	out.Reset()
+
+	err = sh.ExecuteString("test shadow", `
+fn test(path) {
+echo -n $path
+}
+
+path="AAA"
+        test("BBB")
+`)
+
+	if string(out.Bytes()) != "BBB" {
+		t.Errorf("String differs: '%s' != '%s'", string(out.Bytes()), "BBB")
+		return
+	}
+
 }
 
 func TestExecuteFnInvOthers(t *testing.T) {

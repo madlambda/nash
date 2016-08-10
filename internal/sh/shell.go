@@ -739,6 +739,8 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 
 	last := len(nodeCommands) - 1
 
+	envVars := buildenv(sh.Environ())
+
 	// Create all commands
 	for i := 0; i < len(nodeCommands); i++ {
 		var (
@@ -758,6 +760,10 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 			goto pipeError
 		}
 
+		// SetEnviron must be called before SetArgs
+		// otherwise the subshell will have the arguments
+		// shadowed by parent env
+		cmd.SetEnviron(envVars)
 		err = cmd.SetArgs(nodeCmd.Args(), sh)
 
 		if err != nil {
@@ -1122,15 +1128,17 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 		goto cmdError
 	}
 
+	// SetEnviron must be called before SetArgs
+	// otherwise the subshell will have the arguments
+	// shadowed by parent env
+	envVars = buildenv(sh.Environ())
+	cmd.SetEnviron(envVars)
+
 	err = cmd.SetArgs(c.Args(), sh)
 
 	if err != nil {
 		goto cmdError
 	}
-
-	envVars = buildenv(sh.Environ())
-
-	cmd.SetEnviron(envVars)
 
 	cmd.SetStdin(sh.stdin)
 	cmd.SetStdout(sh.stdout)
