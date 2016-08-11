@@ -352,23 +352,6 @@ func lexIdentifier(l *Lexer) stateFn {
 	case "else":
 		l.emit(token.Else)
 		return lexInsideElse
-	case "showenv":
-		l.emit(token.ShowEnv)
-
-		ignoreSpaces(l)
-
-		r := l.next()
-
-		if !isEndOfLine(r) && r != eof {
-			pos := l.pos
-
-			l.backup()
-			return l.errorf("Unexpected character %q at pos %d. Showenv doesn't have arguments.",
-				r, pos)
-		}
-
-		l.backup()
-		return lexStart
 	case "bindfn":
 		l.emit(token.BindFn)
 

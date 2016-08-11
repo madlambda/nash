@@ -45,7 +45,6 @@ func NewParser(name, content string) *Parser {
 		token.FnInv:   p.parseFnInv,
 		token.Return:  p.parseReturn,
 		token.Import:  p.parseImport,
-		token.ShowEnv: p.parseShowEnv,
 		token.SetEnv:  p.parseSet,
 		token.Rfork:   p.parseRfork,
 		token.BindFn:  p.parseBindFn,
@@ -362,12 +361,6 @@ func (p *Parser) parseImport() (ast.Node, error) {
 	}
 
 	return n, nil
-}
-
-func (p *Parser) parseShowEnv() (ast.Node, error) {
-	it := p.next()
-
-	return ast.NewShowEnvNode(it.Pos()), nil
 }
 
 func (p *Parser) parseCd() (ast.Node, error) {

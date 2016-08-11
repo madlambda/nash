@@ -4,9 +4,9 @@ package ast
 
 import "fmt"
 
-const _NodeType_name = "NodeSetAssignmentNodeShowEnvNodeAssignmentNodeCmdAssignmentNodeImportNodeCommandNodePipeNodeArgNodeStringNodeRforkNodeCdNodeRforkFlagsNodeIfNodeCommentNodeFnDeclNodeReturnNodeFnInvNodeBindFnNodeDumpNodeForNodeBuiltin"
+const _NodeType_name = "NodeSetAssignmentNodeAssignmentNodeCmdAssignmentNodeImportNodeCommandNodePipeNodeArgNodeStringNodeRforkNodeCdNodeRforkFlagsNodeIfNodeCommentNodeFnDeclNodeReturnNodeFnInvNodeBindFnNodeDumpNodeForNodeBuiltin"
 
-var _NodeType_index = [...]uint8{0, 17, 28, 42, 59, 69, 80, 88, 95, 105, 114, 120, 134, 140, 151, 161, 171, 180, 190, 198, 205, 216}
+var _NodeType_index = [...]uint8{0, 17, 31, 48, 58, 69, 77, 84, 94, 103, 109, 123, 129, 140, 150, 160, 169, 179, 187, 194, 205}
 
 func (i NodeType) String() string {
 	i -= 1

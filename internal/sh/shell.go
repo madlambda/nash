@@ -533,8 +533,6 @@ func (sh *Shell) executeNode(node ast.Node, builtin bool) (*Obj, error) {
 		err = sh.executeBuiltin(node.(*ast.BuiltinNode))
 	case ast.NodeImport:
 		err = sh.executeImport(node.(*ast.ImportNode))
-	case ast.NodeShowEnv:
-		err = sh.executeShowEnv(node.(*ast.ShowEnvNode))
 	case ast.NodeComment:
 		// ignore
 	case ast.NodeSetAssignment:
@@ -689,15 +687,6 @@ func (sh *Shell) executeImport(node *ast.ImportNode) error {
 	return errors.NewError("Failed to import path '%s'. The locations below have been tried:\n \"%s\"",
 		fname,
 		strings.Join(tries, `", "`))
-}
-
-func (sh *Shell) executeShowEnv(node *ast.ShowEnvNode) error {
-	envVars := buildenv(sh.Environ())
-	for _, e := range envVars {
-		fmt.Fprintf(sh.stdout, "%s\n", e)
-	}
-
-	return nil
 }
 
 // executePipe executes a pipe of ast.Command's. Each command can be

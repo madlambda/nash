@@ -25,7 +25,7 @@ redirect    = ( ">" ( filename | uri | variable ) |
 
 /* Builtin */
 builtin = builtinDecl | importDecl | rforkDecl | cdDecl | ifDecl |
-          forDecl | setenvDecl | showenvDecl |
+          forDecl | setenvDecl |
           fnDecl | fnInv | bindfn | dump .
 
 /* builtin only supported for "cd" by now.. */
@@ -71,9 +71,6 @@ dump = "dump" [ filename ] .
 
 /* Set environment variable */
 setenvDecl = "setenv" identifier .
-
-/* Show environment variables */
-showenvDecl = "showenv" .
 
 /* Comment */
 comment = "#" { unicode_char } .

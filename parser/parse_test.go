@@ -48,17 +48,6 @@ But got:
 	}
 }
 
-func TestParseShowEnv(t *testing.T) {
-	expected := ast.NewTree("parse showenv")
-	ln := ast.NewListNode()
-	showenv := ast.NewShowEnvNode(0)
-	ln.Push(showenv)
-
-	expected.Root = ln
-
-	parserTestTable("parse showenv", `showenv`, expected, t, true)
-}
-
 func TestParseSimple(t *testing.T) {
 	expected := ast.NewTree("parser simple")
 	ln := ast.NewListNode()

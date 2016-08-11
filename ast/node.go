@@ -33,24 +33,22 @@ type (
 	ListNode struct {
 		NodeType
 		token.Pos
+
 		Nodes []Node
 	}
 
 	ImportNode struct {
 		NodeType
 		token.Pos
-		path *Arg
+
+		path *Arg // Import path
 	}
 
 	SetAssignmentNode struct {
 		NodeType
 		token.Pos
-		varName string
-	}
 
-	ShowEnvNode struct {
-		NodeType
-		token.Pos
+		varName string
 	}
 
 	// AssignmentNode is a node for variable assignments
@@ -198,9 +196,6 @@ const (
 	// NodeSetAssignment is the type for "setenv" builtin keyword
 	NodeSetAssignment NodeType = iota + 1
 
-	// NodeShowEnv is the type for "showenv" builtin keyword
-	NodeShowEnv
-
 	// NodeAssignment is the type for simple variable assignment
 	NodeAssignment
 
@@ -324,17 +319,6 @@ func (n *SetAssignmentNode) Identifier() string { return n.varName }
 func (n *SetAssignmentNode) String() string {
 	return "setenv " + n.varName
 }
-
-// NewShowEnvNode creates a new showenv node
-func NewShowEnvNode(pos token.Pos) *ShowEnvNode {
-	return &ShowEnvNode{
-		NodeType: NodeShowEnv,
-		Pos:      pos,
-	}
-}
-
-// String returns the string representation of showenv statement
-func (n *ShowEnvNode) String() string { return "showenv" }
 
 // NewAssignmentNode creates a new assignment
 func NewAssignmentNode(pos token.Pos) *AssignmentNode {
