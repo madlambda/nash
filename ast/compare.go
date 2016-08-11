@@ -7,7 +7,7 @@ import (
 	"github.com/NeowayLabs/nash/token"
 )
 
-func comparePosition(expected token.Pos, value token.Pos) (bool, error) {
+func cmpPosition(expected token.Pos, value token.Pos) (bool, error) {
 	if expected != value {
 		return false, fmt.Errorf("Position mismatch: %d != %d", expected, value)
 	}
@@ -15,40 +15,69 @@ func comparePosition(expected token.Pos, value token.Pos) (bool, error) {
 	return true, nil
 }
 
-func compareArg(expected *Arg, value *Arg) (bool, error) {
-	if expected == nil && value == nil {
+func cmpCommon(expected, value Node) (bool, error) {
+	if expected == value {
 		return true, nil
 	}
 
-	if (expected == nil) != (value == nil) {
-		return false, fmt.Errorf("Value differ: %v != %v", expected, value)
+	if ok, err := cmpPosition(expected.Position(), value.Position()); !ok {
+		return ok, fmt.Errorf(" CompareIfNode (%v, %v) -> %s", expected, value, err.Error())
+	}
+
+	return true, nil
+}
+
+func cmpExpr(expected Expr, value Expr) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
+		return ok, err
 	}
 
 	if expected.Type() != value.Type() {
-		return false, fmt.Errorf("Type differs: %d != %d", expected.Type(), value.Type())
-	}
-
-	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
-		return ok, fmt.Errorf(" CompareArgs(%v, %v) -> %s", expected, value, err.Error())
+		return false, fmt.Errorf("  Type differs: %d != %d", expected.Type(), value.Type())
 	}
 
 	if expected.Value() != value.Value() {
-		return false, fmt.Errorf("Argument value differs: '%s' != '%s'", expected.Value(), value.Value())
+		return false, fmt.Errorf("  Argument value differs: '%s' != '%s'", expected.Value(), value.Value())
 	}
 
 	ev := expected
 	vv := value
 
-	if ev.IsQuoted() != vv.IsQuoted() {
-		return false, fmt.Errorf("Variable differs in IsQuoted: (%v, %v)", ev.IsQuoted(), vv.IsQuoted())
+	if ev.Type() != vv.Type() {
+		return false, fmt.Errorf("  ArgType differs: %v != %v", ev.Type(), vv.Type())
 	}
 
-	if ev.IsConcat() != vv.IsConcat() ||
-		ev.IsVariable() != vv.IsVariable() ||
-		ev.IsList() != vv.IsList() {
-		return false, fmt.Errorf("Variable differs in isConcat(%v, %v) || isVariable(%v, %v) || isList(%v, %v)\nExpected Node(%s) = %v\nParsed node(%s): %v", ev.IsConcat(), vv.IsConcat(), ev.IsVariable(), vv.IsVariable(),
-			ev.IsList(), vv.IsList(), ev.ArgType(), ev, vv.ArgType(), vv)
+
+	eitype := reflect.TypeOf(expected)
+	vitype := reflect.TypeOf(value)
+
+	if eitype.Kind() != vitype.Kind() {
+		return false, fmt.Errorf("Node type differs: %v != %v", eitype.Kind(), vitype.Kind())
 	}
+
+	switch v := expected.(type) {
+	case *StringExpr:
+		ok, err = cmpStringExpr(expected.(*StringExpr), value.(*StringExpr))
+	case *VarExpr:
+		ok, err = cmpVarExpr(expected.(*VarExpr), value.(*VarExpr))
+	case *IndexExpr:
+		ok, err = cmpIndexExpr(expected.(*IndexExpr), value.(*IndexExpr))
+	case *ListExpr:
+		ok, err = cmpListExpr(expected.(*ListExpr), value.(*ListExpr))
+	case *ConcatExpr:
+		ok, err = cmpConcatExpr(expected.(*ConcatExpr), value.(*ConcatExpr))
+	default:
+		return false, fmt.Errorf("Unexpected node: %s", expected)
+	}
+
+	if !ok {
+		return ok, err
+	}
+
+	return true, nil
+}
+
+func cmpConcat
 
 	if len(ev.Concat()) != len(vv.Concat()) {
 		return false, fmt.Errorf("Variable list concats length differs (%v, %v). %d != %d", ev, vv, len(ev.Concat()), len(vv.Concat()))
@@ -91,48 +120,32 @@ func compareArg(expected *Arg, value *Arg) (bool, error) {
 	return true, nil
 }
 
-func compareImportNode(expected, value *ImportNode) (bool, error) {
-	if expected == nil && value == nil {
-		return true, nil
+func cmpImport(expected, value *ImportNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
+		return ok, err
 	}
 
-	if (expected == nil) != (value == nil) {
-		return false, fmt.Errorf("One of the nodecommand are nil")
-	}
-
-	if ok, err := compareArg(expected.Path(), value.Path()); !ok {
+	if ok, err := cmpArg(expected.Path(), value.Path()); !ok {
 		return false, err
-	}
-
-	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
-		return ok, fmt.Errorf(" CompareImportNode (%v, %v)-> %s", expected, value, err.Error())
 	}
 
 	return true, nil
 }
 
-func compareCdNode(expected, value *CdNode) (bool, error) {
-	if expected == nil && value == nil {
-		return true, nil
+func cmpCd(expected, value *CdNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
+		return ok, err
 	}
 
-	if (expected == nil) != (value == nil) {
-		return false, fmt.Errorf("One of the nodecommand are nil")
-	}
-
-	if ok, err := compareArg(expected.Dir(), value.Dir()); !ok {
+	if ok, err := cmpArg(expected.Dir(), value.Dir()); !ok {
 		return false, err
-	}
-
-	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
-		return ok, fmt.Errorf(" CompareCdNode (%v, %v)-> %s", expected, value, err.Error())
 	}
 
 	return true, nil
 }
 
-func comparePipeNode(expected, value *PipeNode) (bool, error) {
-	if ok, err := compareDefault(expected, value); !ok {
+func cmpPipe(expected, value *PipeNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
 		return ok, err
 	}
 
@@ -161,13 +174,9 @@ func comparePipeNode(expected, value *PipeNode) (bool, error) {
 	return true, nil
 }
 
-func compareCommandNode(expected, value *CommandNode) (bool, error) {
-	if expected == nil && value == nil {
-		return true, nil
-	}
-
-	if (expected == nil) != (value == nil) {
-		return false, fmt.Errorf("One of the nodecommand are nil")
+func cmpCommand(expected, value *CommandNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
+		return ok, err
 	}
 
 	ename := expected.Name()
@@ -176,10 +185,6 @@ func compareCommandNode(expected, value *CommandNode) (bool, error) {
 	if ename != vname {
 		return false, fmt.Errorf("CommandNode: expected.name('%s') != value.name('%s')",
 			ename, vname)
-	}
-
-	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
-		return ok, fmt.Errorf(" CompareCommandNode (%v, %v)-> %s", expected, value, err.Error())
 	}
 
 	eargs := expected.Args()
@@ -193,7 +198,7 @@ func compareCommandNode(expected, value *CommandNode) (bool, error) {
 		ea := eargs[i]
 		va := vargs[i]
 
-		valid, err := compareArg(ea, va)
+		valid, err := cmpArg(ea, va)
 
 		if !valid {
 			return valid, err
@@ -203,13 +208,9 @@ func compareCommandNode(expected, value *CommandNode) (bool, error) {
 	return true, nil
 }
 
-func compareCommentNode(expected, value *CommentNode) (bool, error) {
-	if expected == nil && value == nil {
-		return true, nil
-	}
-
-	if (expected == nil) != (value == nil) {
-		return false, fmt.Errorf("Only one of the nodes are nil. %v != %v", expected, value)
+func cmpComment(expected, value *CommentNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
+		return ok, err
 	}
 
 	if expected.String() != value.String() {
@@ -219,17 +220,9 @@ func compareCommentNode(expected, value *CommentNode) (bool, error) {
 	return true, nil
 }
 
-func compareSetAssignmentNode(expected, value *SetAssignmentNode) (bool, error) {
-	if expected == nil && value == nil {
-		return true, nil
-	}
-
-	if (expected == nil) != (value == nil) {
-		return false, fmt.Errorf("Only one of the nodes are nil. %v != %v", expected, value)
-	}
-
-	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
-		return ok, fmt.Errorf(" CompareRforkNode (%v, %v) -> %s", expected, value, err.Error())
+func cmpSetenv(expected, value *SetenvNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
+		return ok, err
 	}
 
 	if expected.Identifier() != value.Identifier() {
@@ -239,13 +232,9 @@ func compareSetAssignmentNode(expected, value *SetAssignmentNode) (bool, error) 
 	return true, nil
 }
 
-func compareAssignmentNode(expected, value *AssignmentNode) (bool, error) {
-	if expected == nil && value == nil {
-		return true, nil
-	}
-
-	if (expected == nil) != (value == nil) {
-		return false, fmt.Errorf("Only one of the nodes are nil. %v != %v", expected, value)
+func cmpAssignment(expected, value *AssignmentNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
+		return ok, err
 	}
 
 	if expected.Identifier() != value.Identifier() {
@@ -259,17 +248,9 @@ func compareAssignmentNode(expected, value *AssignmentNode) (bool, error) {
 	return true, nil
 }
 
-func compareRforkNode(expected, value *RforkNode) (bool, error) {
-	if expected == nil && value == nil {
-		return true, nil
-	}
-
-	if (expected == nil) != (value == nil) {
-		return false, fmt.Errorf("Only one of the nodes are nil. %v != %v", expected, value)
-	}
-
-	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
-		return ok, fmt.Errorf(" CompareRforkNode (%v, %v) -> %s", expected, value, err.Error())
+func cmpRfork(expected, value *RforkNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
+		return ok, err
 	}
 
 	if ok, err := compareArg(expected.Arg(), value.Arg()); !ok {
@@ -282,24 +263,8 @@ func compareRforkNode(expected, value *RforkNode) (bool, error) {
 	return Compare(expectedTree, valueTree)
 }
 
-func compareDefault(expected, value Node) (bool, error) {
-	if expected == nil && value == nil {
-		return true, nil
-	}
-
-	if (expected == nil) != (value == nil) {
-		return false, fmt.Errorf("Only one of the nodes are nil. %v != %v", expected, value)
-	}
-
-	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
-		return ok, fmt.Errorf(" CompareIfNode (%v, %v) -> %s", expected, value, err.Error())
-	}
-
-	return true, nil
-}
-
-func compareFnInvNode(expected, value *FnInvNode) (bool, error) {
-	if ok, err := compareDefault(expected, value); !ok {
+func cmpFnInv(expected, value *FnInvNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
 		return ok, err
 	}
 
@@ -318,8 +283,8 @@ func compareFnInvNode(expected, value *FnInvNode) (bool, error) {
 	return true, nil
 }
 
-func compareFnDeclNode(expected, value *FnDeclNode) (bool, error) {
-	if ok, err := compareDefault(expected, value); !ok {
+func cmpFnDecl(expected, value *FnDeclNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
 		return ok, err
 	}
 
@@ -349,11 +314,11 @@ func compareFnDeclNode(expected, value *FnDeclNode) (bool, error) {
 		}
 	}
 
-	return Compare(expected.Tree(), value.Tree())
+	return Cmp(expected.Tree(), value.Tree())
 }
 
-func compareForNode(expected, value *ForNode) (bool, error) {
-	if ok, err := compareDefault(expected, value); !ok {
+func cmpFor(expected, value *ForNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
 		return ok, err
 	}
 
@@ -371,37 +336,37 @@ func compareForNode(expected, value *ForNode) (bool, error) {
 		return false, fmt.Errorf("for in variable differ. '%s' != '%s'", evar, vvar)
 	}
 
-	return Compare(expected.Tree(), value.Tree())
+	return Cmp(expected.Tree(), value.Tree())
 }
 
-func compareReturnNode(expected, value *ReturnNode) (bool, error) {
-	if ok, err := compareDefault(expected, value); !ok {
+func cmpReturn(expected, value *ReturnNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
 		return ok, err
 	}
 
 	erets := expected.Return()
 	vrets := value.Return()
 
-	if ok, err := compareArg(erets, vrets); !ok {
+	if ok, err := cmpArg(erets, vrets); !ok {
 		return false, err
 	}
 
 	return true, nil
 }
 
-func compareDumpNode(expected, value *DumpNode) (bool, error) {
-	if ok, err := compareDefault(expected, value); !ok {
+func cmpDump(expected, value *DumpNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
 		return ok, err
 	}
 
 	efname := expected.Filename()
 	vfname := value.Filename()
 
-	return compareArg(efname, vfname)
+	return cmpArg(efname, vfname)
 }
 
-func compareBindFnNode(expected, value *BindFnNode) (bool, error) {
-	if ok, err := compareDefault(expected, value); !ok {
+func cmpBindFn(expected, value *BindFnNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
 		return ok, err
 	}
 
@@ -409,21 +374,23 @@ func compareBindFnNode(expected, value *BindFnNode) (bool, error) {
 	vname := value.Name()
 
 	if ename != vname {
-		return false, fmt.Errorf(" CompareBindFnNode (%v, %v) -> '%s' != '%s'", expected, value, ename, vname)
+		return false, fmt.Errorf(" CompareBindFnNode (%v, %v) -> '%s' != '%s'", expected,
+			value, ename, vname)
 	}
 
 	cmdename := expected.CmdName()
 	cmdvname := value.CmdName()
 
 	if cmdename != cmdvname {
-		return false, fmt.Errorf(" CompareBindFnNode (%v, %v) -> '%s' != '%s'", expected, value, cmdename, cmdvname)
+		return false, fmt.Errorf(" CompareBindFnNode (%v, %v) -> '%s' != '%s'", expected,
+			value, cmdename, cmdvname)
 	}
 
 	return true, nil
 }
 
-func compareCmdAssignmentNode(expected, value *CmdAssignmentNode) (bool, error) {
-	if ok, err := compareDefault(expected, value); !ok {
+func cmpCmdAssignment(expected, value *CmdAssignmentNode) (bool, error) {
+	if ok, err := cmpCommon(expected, value); !ok {
 		return ok, err
 	}
 
@@ -431,7 +398,8 @@ func compareCmdAssignmentNode(expected, value *CmdAssignmentNode) (bool, error) 
 	vname := value.Name()
 
 	if ename != vname {
-		return false, fmt.Errorf(" CompareCmdAssignmentnode (%v, %v) -> '%s' != '%s'", expected, value, ename, vname)
+		return false, fmt.Errorf(" CompareCmdAssignmentnode (%v, %v) -> '%s' != '%s'",
+			expected, value, ename, vname)
 	}
 
 	ecmd := expected.Command()
@@ -443,67 +411,24 @@ func compareCmdAssignmentNode(expected, value *CmdAssignmentNode) (bool, error) 
 
 	switch ecmd.Type() {
 	case NodeCommand:
-		return compareCommandNode(ecmd.(*CommandNode), vcmd.(*CommandNode))
+		return cmpCommand(ecmd.(*CommandNode), vcmd.(*CommandNode))
 	case NodePipe:
-		return comparePipeNode(ecmd.(*PipeNode), vcmd.(*PipeNode))
+		return cmpPipe(ecmd.(*PipeNode), vcmd.(*PipeNode))
+	case NodeFnInv:
+		return cmpFnInv(ecmd.(*FnInvNode), vcmd.(*FnInvNode))
 	}
 
 	return false, fmt.Errorf("Unexpected type %s", ecmd.Type())
 }
 
-func compareIfNode(expected, value *IfNode) (bool, error) {
-	if ok, err := compareDefault(expected, value); !ok {
-		return ok, err
-	}
-
-	elvalue := expected.Lvalue()
-	ervalue := expected.Rvalue()
-	vlvalue := value.Lvalue()
-	vrvalue := value.Rvalue()
-
-	if ok, err := compareArg(elvalue, vlvalue); !ok {
-		return ok, fmt.Errorf("CompareIfNode (%v, %v) -> %s", expected, value, err.Error())
-	}
-
-	if ok, err := compareArg(ervalue, vrvalue); !ok {
-		return ok, fmt.Errorf("CompareIfNode (%v, %v) -> %s", expected, value, err.Error())
-	}
-
-	if expected.Op() != value.Op() {
-		return false, fmt.Errorf("CompareIfNode (%v, %v) -> Operation differ: %s != %s", expected, value, expected.Op(), value.Op())
-	}
-
-	expectedTree := expected.IfTree()
-	valueTree := value.IfTree()
-
-	ok, err := Compare(expectedTree, valueTree)
-
-	if !ok {
-		return ok, err
-	}
-
-	expectedTree = expected.ElseTree()
-	valueTree = expected.ElseTree()
-
-	return Compare(expectedTree, valueTree)
-}
-
-func CompareNodes(expected Node, value Node) (bool, error) {
+func CmpNode(expected Node, value Node) (bool, error) {
 	var (
 		valid = true
 		err   error
 	)
 
-	if expected == nil && value == nil {
-		return true, nil
-	}
-
-	if (expected == nil) != (value == nil) {
-		return false, fmt.Errorf("Only one of the nodes are nil. %v != %v", expected, value)
-	}
-
-	if valid, err = comparePosition(expected.Position(), value.Position()); !valid {
-		return valid, fmt.Errorf(" CompareNodes (%v, %v)-> %s", expected, value, err.Error())
+	if ok, err := cmpCommon(expected, value); !ok {
+		return ok, err
 	}
 
 	etype := expected.Type()
@@ -525,69 +450,69 @@ func CompareNodes(expected Node, value Node) (bool, error) {
 		ec := expected.(*ImportNode)
 		vc := value.(*ImportNode)
 
-		valid, err = compareImportNode(ec, vc)
+		valid, err = cmpImport(ec, vc)
 	case *SetAssignmentNode:
 		ec := expected.(*SetAssignmentNode)
 		vc := value.(*SetAssignmentNode)
 
-		valid, err = compareSetAssignmentNode(ec, vc)
+		valid, err = cmpSetenv(ec, vc)
 	case *AssignmentNode:
 		ec := expected.(*AssignmentNode)
 		vc := value.(*AssignmentNode)
-		valid, err = compareAssignmentNode(ec, vc)
+		valid, err = cmpAssignment(ec, vc)
 	case *CdNode:
 		ec := expected.(*CdNode)
 		vc := value.(*CdNode)
-		valid, err = compareCdNode(ec, vc)
+		valid, err = cmpCd(ec, vc)
 	case *CommandNode:
 		ec := expected.(*CommandNode)
 		vc := value.(*CommandNode)
-		valid, err = compareCommandNode(ec, vc)
+		valid, err = cmpCommand(ec, vc)
 	case *PipeNode:
 		ec := expected.(*PipeNode)
 		vc := value.(*PipeNode)
-		valid, err = comparePipeNode(ec, vc)
+		valid, err = cmpPipe(ec, vc)
 	case *CommentNode:
 		ec := expected.(*CommentNode)
 		vc := value.(*CommentNode)
-		valid, err = compareCommentNode(ec, vc)
+		valid, err = cmpComment(ec, vc)
 	case *RforkNode:
 		er := expected.(*RforkNode)
 		vr := value.(*RforkNode)
-		valid, err = compareRforkNode(er, vr)
+		valid, err = cmpRfork(er, vr)
 	case *IfNode:
 		ec := expected.(*IfNode)
 		vc := value.(*IfNode)
-		valid, err = compareIfNode(ec, vc)
+		valid, err = cmpIf(ec, vc)
 	case *FnDeclNode:
 		ec := expected.(*FnDeclNode)
 		vc := value.(*FnDeclNode)
-		valid, err = compareFnDeclNode(ec, vc)
+		valid, err = cmpFnDecl(ec, vc)
 	case *FnInvNode:
 		ec := expected.(*FnInvNode)
 		vc := value.(*FnInvNode)
-		valid, err = compareFnInvNode(ec, vc)
+		valid, err = cmpFnInv(ec, vc)
 	case *CmdAssignmentNode:
 		ec := expected.(*CmdAssignmentNode)
 		vc := value.(*CmdAssignmentNode)
-		valid, err = compareCmdAssignmentNode(ec, vc)
+		valid, err = cmpCmdAssignment(ec, vc)
 	case *BindFnNode:
 		ec := expected.(*BindFnNode)
 		vc := value.(*BindFnNode)
-		valid, err = compareBindFnNode(ec, vc)
+		valid, err = cmpBindFn(ec, vc)
 
 	case *DumpNode:
 		ec := expected.(*DumpNode)
 		vc := value.(*DumpNode)
-		valid, err = compareDumpNode(ec, vc)
+		valid, err = cmpDump(ec, vc)
 	case *ReturnNode:
 		ec := expected.(*ReturnNode)
 		vc := value.(*ReturnNode)
-		valid, err = compareReturnNode(ec, vc)
+		valid, err = cmpReturn(ec, vc)
 	case *ForNode:
 		ec := expected.(*ForNode)
 		vc := value.(*ForNode)
-		valid, err = compareForNode(ec, vc)
+		valid, err = cmpFor(ec, vc)
 	default:
 		return false, fmt.Errorf("Type %v not comparable yet", v)
 	}
@@ -599,13 +524,9 @@ func CompareNodes(expected Node, value Node) (bool, error) {
 	return true, nil
 }
 
-func Compare(expected *Tree, tr *Tree) (bool, error) {
-	if expected == nil && tr == nil {
+func Cmp(expected *Tree, tr *Tree) (bool, error) {
+	if expected == tr {
 		return true, nil
-	}
-
-	if (expected == nil) != (tr == nil) {
-		return false, fmt.Errorf("only one of the expected and tree are nil (%v, %v)", expected, tr)
 	}
 
 	en := expected.Name
@@ -619,12 +540,8 @@ func Compare(expected *Tree, tr *Tree) (bool, error) {
 	eroot := expected.Root
 	troot := tr.Root
 
-	if eroot == nil && troot == nil {
+	if eroot == troot {
 		return true, nil
-	}
-
-	if (eroot == nil) != (troot == nil) {
-		return false, fmt.Errorf("Only one of the expected.Root and tr.Root is nil")
 	}
 
 	if len(eroot.Nodes) != len(troot.Nodes) {
@@ -636,7 +553,7 @@ func Compare(expected *Tree, tr *Tree) (bool, error) {
 		e := eroot.Nodes[i]
 		t := troot.Nodes[i]
 
-		valid, err := CompareNodes(e, t)
+		valid, err := CmpNode(e, t)
 
 		if !valid {
 			return valid, err

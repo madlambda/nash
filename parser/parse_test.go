@@ -23,7 +23,7 @@ func parserTestTable(name, content string, expected *ast.Tree, t *testing.T, ena
 	}
 
 	if ok, err := ast.Compare(expected, tr); !ok {
-		fmt.Printf("Expected: %s\n\nResult: %s\n", expected.String(), tr.String())
+		fmt.Printf("Expected: %s\n\nResult: %s\n", expected, tr)
 		t.Error(err)
 		return
 	}

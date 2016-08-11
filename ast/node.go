@@ -1,11 +1,9 @@
 package ast
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/NeowayLabs/nash/scanner"
 	"github.com/NeowayLabs/nash/token"
 )
 
@@ -20,7 +18,10 @@ type (
 		Type() NodeType
 		Position() token.Pos
 		String() string
+		IsEqual(Node)
 	}
+
+	Expr Node
 
 	// NodeType is the types of grammar
 	NodeType int
@@ -44,7 +45,7 @@ type (
 		path *Arg // Import path
 	}
 
-	SetAssignmentNode struct {
+	SetenvNode struct {
 		NodeType
 		token.Pos
 
@@ -55,6 +56,7 @@ type (
 	AssignmentNode struct {
 		NodeType
 		token.Pos
+
 		name string
 		val  *Arg
 	}
@@ -62,6 +64,7 @@ type (
 	CmdAssignmentNode struct {
 		NodeType
 		token.Pos
+
 		name string
 		cmd  Node
 	}
@@ -70,6 +73,7 @@ type (
 	CommandNode struct {
 		NodeType
 		token.Pos
+
 		name   string
 		args   []*Arg
 		redirs []*RedirectNode
@@ -78,19 +82,49 @@ type (
 	PipeNode struct {
 		NodeType
 		token.Pos
+
 		cmds []*CommandNode
 	}
 
-	// Arg is a command or fn argument
-	Arg struct {
+	// ArgString is a string argument
+	ArgString struct {
 		NodeType
 		token.Pos
 
-		argType ArgType
-		str     string
-		list    []*Arg
-		concat  []*Arg
-		index   *Arg
+		str    string
+		quoted bool
+	}
+
+	// ArgList is a list argument
+	ArgList struct {
+		NodeType
+		token.Pos
+
+		list []*Arg
+	}
+
+	// ArgConcat is a concatenation of arguments
+	ArgConcat struct {
+		NodeType
+		token.Pos
+
+		concat []*Arg
+	}
+
+	// ArgVariable is a variable argument
+	ArgVariable struct {
+		NodeType
+		token.Pos
+
+		name string
+	}
+
+	// ArgIndex is a indexed variable
+	ArgIndex struct {
+		NodeType
+		token.Pos
+		variable *ArgVariable
+		index    *Arg
 	}
 
 	// RedirectNode represents the output redirection part of a command
@@ -193,8 +227,8 @@ type (
 //go:generate stringer -type=NodeType
 
 const (
-	// NodeSetAssignment is the type for "setenv" builtin keyword
-	NodeSetAssignment NodeType = iota + 1
+	// NodeSetenv the type for "setenv" builtin keyword
+	NodeSetenv NodeType = iota + 1
 
 	// NodeAssignment is the type for simple variable assignment
 	NodeAssignment
@@ -304,19 +338,19 @@ func (n *ImportNode) String() string {
 	return `import ` + n.path.String()
 }
 
-// NewSetAssignmentNode creates a new assignment node
-func NewSetAssignmentNode(pos token.Pos, name string) *SetAssignmentNode {
-	return &SetAssignmentNode{
-		NodeType: NodeSetAssignment,
+// NewSetenvNode creates a new assignment node
+func NewSetenvNode(pos token.Pos, name string) *SetenvNode {
+	return &SetenvNode{
+		NodeType: NodeSetenv,
 		Pos:      pos,
 		varName:  name,
 	}
 }
 
-func (n *SetAssignmentNode) Identifier() string { return n.varName }
+func (n *SetenvNode) Identifier() string { return n.varName }
 
 // String returns the string representation of assignment
-func (n *SetAssignmentNode) String() string {
+func (n *SetenvNode) String() string {
 	return "setenv " + n.varName
 }
 
@@ -617,135 +651,6 @@ func (n *CdNode) String() string {
 	return "cd " + dir.String()
 }
 
-// NewArg creates a new argument
-func NewArg(pos token.Pos, argType ArgType) *Arg {
-	return &Arg{
-		NodeType: NodeArg,
-		Pos:      pos,
-		argType:  argType,
-	}
-}
-
-// SetArgType set the type of argument (ArgQuoted, ArgUnquoted, ArgVariable, ArgList)
-func (n *Arg) SetArgType(t ArgType) {
-	n.argType = t
-}
-
-// ArgType returns the argument type
-func (n *Arg) ArgType() ArgType { return n.argType }
-
-// SetString set the argument string value
-func (n *Arg) SetString(name string) {
-	n.str = name
-}
-
-// SetIndex set the variable index
-func (n *Arg) SetIndex(index *Arg) {
-	n.index = index
-}
-
-// Index return the variable index
-func (n *Arg) Index() *Arg { return n.index }
-
-// Value returns the argument string value
-func (n *Arg) Value() string {
-	return n.str
-}
-
-// List returns the argument list
-func (n *Arg) List() []*Arg {
-	return n.list
-}
-
-// SetConcat set the concatenation parts
-func (n *Arg) SetConcat(v []*Arg) {
-	n.concat = v
-}
-
-func (n *Arg) Concat() []*Arg { return n.concat }
-
-func (n *Arg) SetList(v []*Arg) {
-	n.list = v
-}
-
-// SetItem is a helper to set an argument based on the lexer itemType
-func (n *Arg) SetItem(val scanner.Token) error {
-	if val.Type() == token.Arg {
-		n.SetArgType(ArgUnquoted)
-		n.SetString(val.Value())
-	} else if val.Type() == token.String {
-		n.SetArgType(ArgQuoted)
-		n.SetString(val.Value())
-	} else if val.Type() == token.Variable {
-		n.SetArgType(ArgVariable)
-		n.SetString(val.Value())
-	} else {
-		return fmt.Errorf("Arg doesn't support type %v", val)
-	}
-
-	return nil
-}
-
-// IsQuoted returns true if arg is a quoted string
-func (n *Arg) IsQuoted() bool { return n.argType == ArgQuoted }
-
-// IsUnquoted returns true if argument is an unquoted string
-func (n *Arg) IsUnquoted() bool { return n.argType == ArgUnquoted }
-
-// IsVariable returns true if argument is a variable
-func (n *Arg) IsVariable() bool { return n.argType == ArgVariable }
-
-// IsConcat returns true if argument is a concatenation
-func (n *Arg) IsConcat() bool { return n.argType == ArgConcat }
-
-// IsList returns if argument is a list
-func (n *Arg) IsList() bool { return n.argType == ArgList }
-
-// String returns the string representation of argument
-func (n Arg) String() string {
-	if n.IsQuoted() {
-		return "\"" + stringify(n.str) + "\""
-	} else if n.IsConcat() {
-		ret := ""
-
-		for i := 0; i < len(n.concat); i++ {
-			a := n.concat[i]
-
-			if a.IsQuoted() {
-				ret += `"` + a.Value() + `"`
-			} else {
-				ret += a.Value()
-			}
-
-			if i < (len(n.concat) - 1) {
-				ret += "+"
-			}
-		}
-
-		return ret
-	} else if n.IsList() {
-		l := n.List()
-
-		elems := make([]string, len(l))
-		linecount := 0
-
-		for i := 0; i < len(l); i++ {
-			elems[i] = l[i].String()
-			linecount += len(elems[i])
-		}
-
-		if linecount+len(l) > 50 {
-			return "(\n\t" + strings.Join(elems, "\n\t") + "\n)"
-		}
-
-		return "(" + strings.Join(elems, " ") + ")"
-	} else if n.Index() != nil {
-		return n.Value() + "[" + n.Index().String() + "]"
-	}
-
-	return n.Value()
-}
-
 // NewCommentNode creates a new node for comments
 func NewCommentNode(pos token.Pos, val string) *CommentNode {
 	return &CommentNode{
@@ -870,6 +775,41 @@ func (n *IfNode) String() string {
 	}
 
 	return ifStr
+}
+
+func (n *IfNode) IsEqual(value *IfNode) bool {
+	if ok := cmpCommon(n, value); !ok {
+		return false
+	}
+
+	elvalue := n.Lvalue()
+	ervalue := n.Rvalue()
+	vlvalue := value.Lvalue()
+	vrvalue := value.Rvalue()
+
+	if !elvalue.IsEqual(vlvalue) {
+		return false
+	}
+
+	if !ervalue.IsEqual(vrvalue) {
+		return false
+	}
+
+	if expected.Op() != value.Op() {
+		return false
+	}
+
+	expectedTree := n.IfTree()
+	valueTree := value.IfTree()
+
+	if !expectedTree.IsEqual(valueTree) {
+		return false
+	}
+
+	expectedTree = expected.ElseTree()
+	valueTree = expected.ElseTree()
+
+	return Cmp(expectedTree, valueTree)
 }
 
 // NewFnDeclNode creates a new function declaration
