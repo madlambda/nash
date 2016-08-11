@@ -106,36 +106,6 @@ func TestLexerShebangOnly(t *testing.T) {
 	testTable("testShebangonly", "#!/bin/nash\n", expected, t)
 }
 
-func TestLexerShowEnv(t *testing.T) {
-	expected := []Token{
-		{
-			typ: token.ShowEnv,
-			val: "showenv",
-		},
-		{
-			typ: token.EOF,
-		},
-	}
-
-	testTable("testShowEnv", `showenv`, expected, t)
-
-	expected = []Token{
-		{
-			typ: token.ShowEnv,
-			val: "showenv",
-		},
-		{
-			typ: token.Illegal,
-			val: "Unexpected character 'a' at pos 9. Showenv doesn't have arguments.",
-		},
-		{
-			typ: token.EOF,
-		},
-	}
-
-	testTable("testShowEnv", `showenv a`, expected, t)
-}
-
 func TestLexerSimpleSetAssignment(t *testing.T) {
 	expected := []Token{
 		{

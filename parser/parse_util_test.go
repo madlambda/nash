@@ -92,22 +92,6 @@ func compareArg(expected *ast.Arg, value *ast.Arg) (bool, error) {
 	return true, nil
 }
 
-func compareShowEnvNode(expected, value *ast.ShowEnvNode) (bool, error) {
-	if expected == nil && value == nil {
-		return true, nil
-	}
-
-	if (expected == nil) != (value == nil) {
-		return false, fmt.Errorf("One of the ShowEnvNode are nil")
-	}
-
-	if ok, err := comparePosition(expected.Position(), value.Position()); !ok {
-		return ok, fmt.Errorf(" CompareShowEnvNode (%v, %v)-> %s", expected, value, err.Error())
-	}
-
-	return true, nil
-}
-
 func compareImportNode(expected, value *ast.ImportNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
@@ -543,11 +527,6 @@ func compareNodes(expected ast.Node, value ast.Node) (bool, error) {
 		vc := value.(*ast.ImportNode)
 
 		valid, err = compareImportNode(ec, vc)
-	case *ast.ShowEnvNode:
-		ec := expected.(*ast.ShowEnvNode)
-		vc := value.(*ast.ShowEnvNode)
-
-		valid, err = compareShowEnvNode(ec, vc)
 	case *ast.SetAssignmentNode:
 		ec := expected.(*ast.SetAssignmentNode)
 		vc := value.(*ast.SetAssignmentNode)
