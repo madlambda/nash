@@ -1,10 +1,9 @@
-package parser
+package ast
 
 import (
 	"fmt"
 	"reflect"
 
-	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/token"
 )
 
@@ -16,7 +15,7 @@ func comparePosition(expected token.Pos, value token.Pos) (bool, error) {
 	return true, nil
 }
 
-func compareArg(expected *ast.Arg, value *ast.Arg) (bool, error) {
+func compareArg(expected *Arg, value *Arg) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -92,7 +91,7 @@ func compareArg(expected *ast.Arg, value *ast.Arg) (bool, error) {
 	return true, nil
 }
 
-func compareImportNode(expected, value *ast.ImportNode) (bool, error) {
+func compareImportNode(expected, value *ImportNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -112,7 +111,7 @@ func compareImportNode(expected, value *ast.ImportNode) (bool, error) {
 	return true, nil
 }
 
-func compareCdNode(expected, value *ast.CdNode) (bool, error) {
+func compareCdNode(expected, value *CdNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -132,7 +131,7 @@ func compareCdNode(expected, value *ast.CdNode) (bool, error) {
 	return true, nil
 }
 
-func comparePipeNode(expected, value *ast.PipeNode) (bool, error) {
+func comparePipeNode(expected, value *PipeNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
 	}
@@ -162,7 +161,7 @@ func comparePipeNode(expected, value *ast.PipeNode) (bool, error) {
 	return true, nil
 }
 
-func compareCommandNode(expected, value *ast.CommandNode) (bool, error) {
+func compareCommandNode(expected, value *CommandNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -204,7 +203,7 @@ func compareCommandNode(expected, value *ast.CommandNode) (bool, error) {
 	return true, nil
 }
 
-func compareCommentNode(expected, value *ast.CommentNode) (bool, error) {
+func compareCommentNode(expected, value *CommentNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -220,7 +219,7 @@ func compareCommentNode(expected, value *ast.CommentNode) (bool, error) {
 	return true, nil
 }
 
-func compareSetAssignmentNode(expected, value *ast.SetAssignmentNode) (bool, error) {
+func compareSetAssignmentNode(expected, value *SetAssignmentNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -240,7 +239,7 @@ func compareSetAssignmentNode(expected, value *ast.SetAssignmentNode) (bool, err
 	return true, nil
 }
 
-func compareAssignmentNode(expected, value *ast.AssignmentNode) (bool, error) {
+func compareAssignmentNode(expected, value *AssignmentNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -260,7 +259,7 @@ func compareAssignmentNode(expected, value *ast.AssignmentNode) (bool, error) {
 	return true, nil
 }
 
-func compareRforkNode(expected, value *ast.RforkNode) (bool, error) {
+func compareRforkNode(expected, value *RforkNode) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -280,10 +279,10 @@ func compareRforkNode(expected, value *ast.RforkNode) (bool, error) {
 	expectedTree := expected.Tree()
 	valueTree := value.Tree()
 
-	return compare(expectedTree, valueTree)
+	return Compare(expectedTree, valueTree)
 }
 
-func compareDefault(expected, value ast.Node) (bool, error) {
+func compareDefault(expected, value Node) (bool, error) {
 	if expected == nil && value == nil {
 		return true, nil
 	}
@@ -299,7 +298,7 @@ func compareDefault(expected, value ast.Node) (bool, error) {
 	return true, nil
 }
 
-func compareFnInvNode(expected, value *ast.FnInvNode) (bool, error) {
+func compareFnInvNode(expected, value *FnInvNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
 	}
@@ -319,7 +318,7 @@ func compareFnInvNode(expected, value *ast.FnInvNode) (bool, error) {
 	return true, nil
 }
 
-func compareFnDeclNode(expected, value *ast.FnDeclNode) (bool, error) {
+func compareFnDeclNode(expected, value *FnDeclNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
 	}
@@ -350,10 +349,10 @@ func compareFnDeclNode(expected, value *ast.FnDeclNode) (bool, error) {
 		}
 	}
 
-	return compare(expected.Tree(), value.Tree())
+	return Compare(expected.Tree(), value.Tree())
 }
 
-func compareForNode(expected, value *ast.ForNode) (bool, error) {
+func compareForNode(expected, value *ForNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
 	}
@@ -372,10 +371,10 @@ func compareForNode(expected, value *ast.ForNode) (bool, error) {
 		return false, fmt.Errorf("for in variable differ. '%s' != '%s'", evar, vvar)
 	}
 
-	return compare(expected.Tree(), value.Tree())
+	return Compare(expected.Tree(), value.Tree())
 }
 
-func compareReturnNode(expected, value *ast.ReturnNode) (bool, error) {
+func compareReturnNode(expected, value *ReturnNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
 	}
@@ -390,7 +389,7 @@ func compareReturnNode(expected, value *ast.ReturnNode) (bool, error) {
 	return true, nil
 }
 
-func compareDumpNode(expected, value *ast.DumpNode) (bool, error) {
+func compareDumpNode(expected, value *DumpNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
 	}
@@ -401,7 +400,7 @@ func compareDumpNode(expected, value *ast.DumpNode) (bool, error) {
 	return compareArg(efname, vfname)
 }
 
-func compareBindFnNode(expected, value *ast.BindFnNode) (bool, error) {
+func compareBindFnNode(expected, value *BindFnNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
 	}
@@ -423,7 +422,7 @@ func compareBindFnNode(expected, value *ast.BindFnNode) (bool, error) {
 	return true, nil
 }
 
-func compareCmdAssignmentNode(expected, value *ast.CmdAssignmentNode) (bool, error) {
+func compareCmdAssignmentNode(expected, value *CmdAssignmentNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
 	}
@@ -443,16 +442,16 @@ func compareCmdAssignmentNode(expected, value *ast.CmdAssignmentNode) (bool, err
 	}
 
 	switch ecmd.Type() {
-	case ast.NodeCommand:
-		return compareCommandNode(ecmd.(*ast.CommandNode), vcmd.(*ast.CommandNode))
-	case ast.NodePipe:
-		return comparePipeNode(ecmd.(*ast.PipeNode), vcmd.(*ast.PipeNode))
+	case NodeCommand:
+		return compareCommandNode(ecmd.(*CommandNode), vcmd.(*CommandNode))
+	case NodePipe:
+		return comparePipeNode(ecmd.(*PipeNode), vcmd.(*PipeNode))
 	}
 
 	return false, fmt.Errorf("Unexpected type %s", ecmd.Type())
 }
 
-func compareIfNode(expected, value *ast.IfNode) (bool, error) {
+func compareIfNode(expected, value *IfNode) (bool, error) {
 	if ok, err := compareDefault(expected, value); !ok {
 		return ok, err
 	}
@@ -477,7 +476,7 @@ func compareIfNode(expected, value *ast.IfNode) (bool, error) {
 	expectedTree := expected.IfTree()
 	valueTree := value.IfTree()
 
-	ok, err := compare(expectedTree, valueTree)
+	ok, err := Compare(expectedTree, valueTree)
 
 	if !ok {
 		return ok, err
@@ -486,10 +485,10 @@ func compareIfNode(expected, value *ast.IfNode) (bool, error) {
 	expectedTree = expected.ElseTree()
 	valueTree = expected.ElseTree()
 
-	return compare(expectedTree, valueTree)
+	return Compare(expectedTree, valueTree)
 }
 
-func compareNodes(expected ast.Node, value ast.Node) (bool, error) {
+func CompareNodes(expected Node, value Node) (bool, error) {
 	var (
 		valid = true
 		err   error
@@ -522,72 +521,72 @@ func compareNodes(expected ast.Node, value ast.Node) (bool, error) {
 	}
 
 	switch v := expected.(type) {
-	case *ast.ImportNode:
-		ec := expected.(*ast.ImportNode)
-		vc := value.(*ast.ImportNode)
+	case *ImportNode:
+		ec := expected.(*ImportNode)
+		vc := value.(*ImportNode)
 
 		valid, err = compareImportNode(ec, vc)
-	case *ast.SetAssignmentNode:
-		ec := expected.(*ast.SetAssignmentNode)
-		vc := value.(*ast.SetAssignmentNode)
+	case *SetAssignmentNode:
+		ec := expected.(*SetAssignmentNode)
+		vc := value.(*SetAssignmentNode)
 
 		valid, err = compareSetAssignmentNode(ec, vc)
-	case *ast.AssignmentNode:
-		ec := expected.(*ast.AssignmentNode)
-		vc := value.(*ast.AssignmentNode)
+	case *AssignmentNode:
+		ec := expected.(*AssignmentNode)
+		vc := value.(*AssignmentNode)
 		valid, err = compareAssignmentNode(ec, vc)
-	case *ast.CdNode:
-		ec := expected.(*ast.CdNode)
-		vc := value.(*ast.CdNode)
+	case *CdNode:
+		ec := expected.(*CdNode)
+		vc := value.(*CdNode)
 		valid, err = compareCdNode(ec, vc)
-	case *ast.CommandNode:
-		ec := expected.(*ast.CommandNode)
-		vc := value.(*ast.CommandNode)
+	case *CommandNode:
+		ec := expected.(*CommandNode)
+		vc := value.(*CommandNode)
 		valid, err = compareCommandNode(ec, vc)
-	case *ast.PipeNode:
-		ec := expected.(*ast.PipeNode)
-		vc := value.(*ast.PipeNode)
+	case *PipeNode:
+		ec := expected.(*PipeNode)
+		vc := value.(*PipeNode)
 		valid, err = comparePipeNode(ec, vc)
-	case *ast.CommentNode:
-		ec := expected.(*ast.CommentNode)
-		vc := value.(*ast.CommentNode)
+	case *CommentNode:
+		ec := expected.(*CommentNode)
+		vc := value.(*CommentNode)
 		valid, err = compareCommentNode(ec, vc)
-	case *ast.RforkNode:
-		er := expected.(*ast.RforkNode)
-		vr := value.(*ast.RforkNode)
+	case *RforkNode:
+		er := expected.(*RforkNode)
+		vr := value.(*RforkNode)
 		valid, err = compareRforkNode(er, vr)
-	case *ast.IfNode:
-		ec := expected.(*ast.IfNode)
-		vc := value.(*ast.IfNode)
+	case *IfNode:
+		ec := expected.(*IfNode)
+		vc := value.(*IfNode)
 		valid, err = compareIfNode(ec, vc)
-	case *ast.FnDeclNode:
-		ec := expected.(*ast.FnDeclNode)
-		vc := value.(*ast.FnDeclNode)
+	case *FnDeclNode:
+		ec := expected.(*FnDeclNode)
+		vc := value.(*FnDeclNode)
 		valid, err = compareFnDeclNode(ec, vc)
-	case *ast.FnInvNode:
-		ec := expected.(*ast.FnInvNode)
-		vc := value.(*ast.FnInvNode)
+	case *FnInvNode:
+		ec := expected.(*FnInvNode)
+		vc := value.(*FnInvNode)
 		valid, err = compareFnInvNode(ec, vc)
-	case *ast.CmdAssignmentNode:
-		ec := expected.(*ast.CmdAssignmentNode)
-		vc := value.(*ast.CmdAssignmentNode)
+	case *CmdAssignmentNode:
+		ec := expected.(*CmdAssignmentNode)
+		vc := value.(*CmdAssignmentNode)
 		valid, err = compareCmdAssignmentNode(ec, vc)
-	case *ast.BindFnNode:
-		ec := expected.(*ast.BindFnNode)
-		vc := value.(*ast.BindFnNode)
+	case *BindFnNode:
+		ec := expected.(*BindFnNode)
+		vc := value.(*BindFnNode)
 		valid, err = compareBindFnNode(ec, vc)
 
-	case *ast.DumpNode:
-		ec := expected.(*ast.DumpNode)
-		vc := value.(*ast.DumpNode)
+	case *DumpNode:
+		ec := expected.(*DumpNode)
+		vc := value.(*DumpNode)
 		valid, err = compareDumpNode(ec, vc)
-	case *ast.ReturnNode:
-		ec := expected.(*ast.ReturnNode)
-		vc := value.(*ast.ReturnNode)
+	case *ReturnNode:
+		ec := expected.(*ReturnNode)
+		vc := value.(*ReturnNode)
 		valid, err = compareReturnNode(ec, vc)
-	case *ast.ForNode:
-		ec := expected.(*ast.ForNode)
-		vc := value.(*ast.ForNode)
+	case *ForNode:
+		ec := expected.(*ForNode)
+		vc := value.(*ForNode)
 		valid, err = compareForNode(ec, vc)
 	default:
 		return false, fmt.Errorf("Type %v not comparable yet", v)
@@ -600,7 +599,7 @@ func compareNodes(expected ast.Node, value ast.Node) (bool, error) {
 	return true, nil
 }
 
-func compare(expected *ast.Tree, tr *ast.Tree) (bool, error) {
+func Compare(expected *Tree, tr *Tree) (bool, error) {
 	if expected == nil && tr == nil {
 		return true, nil
 	}
@@ -637,7 +636,7 @@ func compare(expected *ast.Tree, tr *ast.Tree) (bool, error) {
 		e := eroot.Nodes[i]
 		t := troot.Nodes[i]
 
-		valid, err := compareNodes(e, t)
+		valid, err := CompareNodes(e, t)
 
 		if !valid {
 			return valid, err
