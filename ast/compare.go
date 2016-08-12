@@ -1,32 +1,20 @@
 package ast
 
-import (
-	"fmt"
-	"reflect"
+import "github.com/NeowayLabs/nash/token"
 
-	"github.com/NeowayLabs/nash/token"
-)
-
-func cmpPosition(expected token.Pos, value token.Pos) (bool, error) {
-	if expected != value {
-		return false, fmt.Errorf("Position mismatch: %d != %d", expected, value)
-	}
-
-	return true, nil
-}
-
-func cmpCommon(expected, value Node) (bool, error) {
+func cmpCommon(expected, value Node) bool {
 	if expected == value {
-		return true, nil
+		return true
 	}
 
-	if ok, err := cmpPosition(expected.Position(), value.Position()); !ok {
-		return ok, fmt.Errorf(" CompareIfNode (%v, %v) -> %s", expected, value, err.Error())
-	}
-
-	return true, nil
+	return cmpPosition(expected.Position(), value.Position())
 }
 
+func cmpPosition(expected token.Pos, value token.Pos) bool {
+	return expected == value
+}
+
+/*
 func cmpExpr(expected Expr, value Expr) (bool, error) {
 	if ok, err := cmpCommon(expected, value); !ok {
 		return ok, err
@@ -562,3 +550,5 @@ func Cmp(expected *Tree, tr *Tree) (bool, error) {
 
 	return true, nil
 }
+
+*/

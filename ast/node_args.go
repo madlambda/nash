@@ -12,14 +12,14 @@ import (
 func ExprFromToken(val scanner.Token) (Expr, error) {
 	switch val.Type() {
 	case token.Arg:
-		return NewArgString(val.Pos, val.Value(), false), nil
+		return NewStringExpr(val.Pos(), val.Value(), false), nil
 	case token.String:
-		return NewArgString(val.Pos, val.Value(), true), nil
+		return NewStringExpr(val.Pos(), val.Value(), true), nil
 	case token.Variable:
-		return NewArgVariable(val.Pos, val.Value()), nil
+		return NewVarExpr(val.Pos(), val.Value()), nil
 	}
 
-	return fmt.Errorf("argFromToken doesn't support type %v", val), nil
+	return nil, fmt.Errorf("argFromToken doesn't support type %v", val)
 }
 
 // NewArgString creates a new string argument
@@ -46,6 +46,49 @@ func (s *StringExpr) String() string {
 	return s.str
 }
 
+func (s *StringExpr) IsEqual(other Node) bool {
+	if s == other {
+		return true
+	}
+
+	value, ok := other.(*StringExpr)
+
+	if !ok {
+		return false
+	}
+
+	if s.quoted != value.quoted {
+		return false
+	}
+
+	return s.str == value.str
+}
+
+func NewIntExpr(pos token.Pos, val int) *IntExpr {
+	return &IntExpr{
+		NodeType: NodeIntExpr,
+		Pos:      pos,
+
+		val: val,
+	}
+}
+
+func (i *IntExpr) Value() int     { return i.val }
+func (i *IntExpr) String() string { return string(i.val) }
+func (i *IntExpr) IsEqual(other Node) bool {
+	if i == other {
+		return true
+	}
+
+	o, ok := other.(*IntExpr)
+
+	if !ok {
+		return false
+	}
+
+	return i.val == o.val
+}
+
 func NewListExpr(pos token.Pos) *ListExpr {
 	return &ListExpr{
 		NodeType: NodeListExpr,
@@ -58,20 +101,20 @@ func (l *ListExpr) PushExpr(a Expr) {
 	l.list = append(l.list, a)
 }
 
-func (l *ListElem) SetList(a []Expr) {
+func (l *ListExpr) SetList(a []Expr) {
 	l.list = a
 }
 
-func (l *ListElem) String() string {
+func (l *ListExpr) String() string {
 	elems := make([]string, len(l.list))
-	linecount := 0
+	columnCount := 0
 
 	for i := 0; i < len(l.list); i++ {
 		elems[i] = l.list[i].String()
-		linecount += len(elems[i])
+		columnCount += len(elems[i])
 	}
 
-	if linecount+len(l) > 50 {
+	if columnCount+len(elems) > 50 {
 		return "(\n\t" + strings.Join(elems, "\n\t") + "\n)"
 	}
 
@@ -103,7 +146,7 @@ func (c *ConcatExpr) String() string {
 	for i := 0; i < len(c.concat); i++ {
 		ret += c.concat[i].String()
 
-		if i < (len(n.concat) - 1) {
+		if i < (len(c.concat) - 1) {
 			ret += "+"
 		}
 	}
@@ -117,6 +160,22 @@ func NewVarExpr(pos token.Pos, name string) *VarExpr {
 		Pos:      pos,
 		name:     name,
 	}
+}
+
+func (v *VarExpr) Name() string { return v.name }
+
+func (v *VarExpr) IsEqual(other Node) bool {
+	if v == other {
+		return true
+	}
+
+	o, ok := other.(*VarExpr)
+
+	if ok {
+		return true
+	}
+
+	return v.name == o.name
 }
 
 func (v *VarExpr) String() string {
@@ -135,4 +194,17 @@ func NewIndexExpr(pos token.Pos, variable *VarExpr, index Expr) *IndexExpr {
 
 func (i *IndexExpr) String() string {
 	return i.variable.String() + "[" + i.index.String() + "]"
+}
+func (i *IndexExpr) IsEqual(other Node) bool {
+	if i == other {
+		return true
+	}
+
+	o, ok := other.(*IndexExpr)
+
+	if !ok {
+		return false
+	}
+
+	return i.variable.IsEqual(o.variable) && i.index.IsEqual(o.index)
 }

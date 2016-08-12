@@ -11,8 +11,6 @@ func stringify(s string) string {
 		"\t", "\\t", -1)
 }
 
-func NewSimpleArg(pos token.Pos, n string, typ ArgType) *Arg {
-	arg := NewArg(pos, typ)
-	arg.SetString(n)
-	return arg
+func NewSimpleArg(pos token.Pos, n string, quoted bool) Expr {
+	return NewStringExpr(pos, n, quoted)
 }

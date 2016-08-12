@@ -18,17 +18,13 @@ type (
 		Type() NodeType
 		Position() token.Pos
 		String() string
-		IsEqual(Node)
+		IsEqual(Node) bool
 	}
 
 	Expr Node
 
 	// NodeType is the types of grammar
 	NodeType int
-
-	// ArgType is the types of arguments
-	// (quoted string, unquoted, variable and concat)
-	ArgType int
 
 	// ListNode is the block
 	ListNode struct {
@@ -42,7 +38,7 @@ type (
 		NodeType
 		token.Pos
 
-		path *Arg // Import path
+		path *StringExpr // Import path
 	}
 
 	SetenvNode struct {
@@ -58,7 +54,7 @@ type (
 		token.Pos
 
 		name string
-		val  *Arg
+		val  Expr
 	}
 
 	CmdAssignmentNode struct {
@@ -75,7 +71,7 @@ type (
 		token.Pos
 
 		name   string
-		args   []*Arg
+		args   []Expr
 		redirs []*RedirectNode
 	}
 
@@ -86,8 +82,8 @@ type (
 		cmds []*CommandNode
 	}
 
-	// ArgString is a string argument
-	ArgString struct {
+	// StringExpr is a string argument
+	StringExpr struct {
 		NodeType
 		token.Pos
 
@@ -95,36 +91,45 @@ type (
 		quoted bool
 	}
 
-	// ArgList is a list argument
-	ArgList struct {
+	// IntExpr is a integer used at indexing
+	IntExpr struct {
 		NodeType
 		token.Pos
 
-		list []*Arg
+		val int
 	}
 
-	// ArgConcat is a concatenation of arguments
-	ArgConcat struct {
+	// ListExpr is a list argument
+	ListExpr struct {
 		NodeType
 		token.Pos
 
-		concat []*Arg
+		list []Expr
 	}
 
-	// ArgVariable is a variable argument
-	ArgVariable struct {
+	// ConcatExpr is a concatenation of arguments
+	ConcatExpr struct {
+		NodeType
+		token.Pos
+
+		concat []Expr
+	}
+
+	// VarExpr is a variable argument
+	VarExpr struct {
 		NodeType
 		token.Pos
 
 		name string
 	}
 
-	// ArgIndex is a indexed variable
-	ArgIndex struct {
+	// IndexExpr is a indexed variable
+	IndexExpr struct {
 		NodeType
 		token.Pos
-		variable *ArgVariable
-		index    *Arg
+
+		variable *VarExpr
+		index    Expr
 	}
 
 	// RedirectNode represents the output redirection part of a command
@@ -132,14 +137,14 @@ type (
 		NodeType
 		token.Pos
 		rmap     RedirMap
-		location *Arg
+		location Expr
 	}
 
 	// RforkNode is a builtin node for rfork
 	RforkNode struct {
 		NodeType
 		token.Pos
-		arg  *Arg
+		arg  *StringExpr
 		tree *Tree
 	}
 
@@ -147,7 +152,7 @@ type (
 	CdNode struct {
 		NodeType
 		token.Pos
-		dir *Arg
+		dir Expr
 	}
 
 	// CommentNode is the node for comments
@@ -166,8 +171,8 @@ type (
 	IfNode struct {
 		NodeType
 		token.Pos
-		lvalue *Arg
-		rvalue *Arg
+		lvalue Expr
+		rvalue Expr
 		op     string
 		elseIf bool
 
@@ -187,13 +192,13 @@ type (
 		NodeType
 		token.Pos
 		name string
-		args []*Arg
+		args []Expr
 	}
 
 	ReturnNode struct {
 		NodeType
 		token.Pos
-		arg *Arg
+		arg Expr
 	}
 
 	BindFnNode struct {
@@ -206,7 +211,7 @@ type (
 	DumpNode struct {
 		NodeType
 		token.Pos
-		filename *Arg
+		filename Expr
 	}
 
 	ForNode struct {
@@ -245,8 +250,16 @@ const (
 	// NodePipe is the type for pipeline execution
 	NodePipe
 
-	// NodeArg are nodes for command arguments
-	NodeArg
+	expr_beg
+
+	NodeStringExpr
+	NodeIntExpr
+	NodeVarExpr
+	NodeListExpr
+	NodeIndexExpr
+	NodeConcatExpr
+
+	expr_end
 
 	// NodeString are nodes for argument strings
 	NodeString
@@ -288,19 +301,13 @@ const (
 	NodeBuiltin
 )
 
-//go:generate stringer -type=ArgType
-const (
-	ArgQuoted ArgType = iota + 1
-	ArgUnquoted
-	ArgVariable
-	ArgNumber
-	ArgList
-	ArgConcat
-)
-
 // Type returns the type of the node
 func (t NodeType) Type() NodeType {
 	return t
+}
+
+func (t NodeType) IsExpr() bool {
+	return t > expr_beg && t < expr_end
 }
 
 // NewListNode creates a new block
@@ -310,11 +317,35 @@ func NewListNode() *ListNode {
 
 // Push adds a new node for a block of nodes
 func (l *ListNode) Push(n Node) {
-	if l.Nodes == nil {
-		l.Nodes = make([]Node, 0, 1024)
+	l.Nodes = append(l.Nodes, n)
+}
+
+func (l *ListNode) String() string {
+	return "unimplemented"
+}
+
+func (l *ListNode) IsEqual(other Node) bool {
+	if l == other {
+		return true
 	}
 
-	l.Nodes = append(l.Nodes, n)
+	o, ok := other.(*ListNode)
+
+	if !ok {
+		return false
+	}
+
+	if len(l.Nodes) != len(o.Nodes) {
+		return false
+	}
+
+	for i := 0; i < len(l.Nodes); i++ {
+		if !l.Nodes[i].IsEqual(o.Nodes[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // NewImportNode creates a new ImportNode object
@@ -326,12 +357,12 @@ func NewImportNode(pos token.Pos) *ImportNode {
 }
 
 // SetPath of import statement
-func (n *ImportNode) SetPath(arg *Arg) {
+func (n *ImportNode) SetPath(arg *StringExpr) {
 	n.path = arg
 }
 
 // Path returns the path of import
-func (n *ImportNode) Path() *Arg { return n.path }
+func (n *ImportNode) Path() *StringExpr { return n.path }
 
 // String returns the string representation of the import
 func (n *ImportNode) String() string {
@@ -370,12 +401,12 @@ func (n *AssignmentNode) SetIdentifier(a string) {
 func (n *AssignmentNode) Identifier() string { return n.name }
 
 // SetValueList sets the value of the list
-func (n *AssignmentNode) SetValue(val *Arg) {
+func (n *AssignmentNode) SetValue(val Expr) {
 	n.val = val
 }
 
 // Value returns the assigned object
-func (n *AssignmentNode) Value() *Arg {
+func (n *AssignmentNode) Value() Expr {
 	return n.val
 }
 
@@ -383,11 +414,11 @@ func (n *AssignmentNode) Value() *Arg {
 func (n *AssignmentNode) String() string {
 	obj := n.val
 
-	if obj.ArgType() == 0 || obj.ArgType() == ArgUnquoted || obj.ArgType() > ArgConcat {
-		return "<unknown>"
+	if obj.Type().IsExpr() {
+		return n.name + " = " + obj.String()
 	}
 
-	return n.name + " = " + obj.String()
+	return "<unknown>"
 }
 
 // NewCmdAssignmentNode creates a new command assignment
@@ -430,21 +461,20 @@ func NewCommandNode(pos token.Pos, name string) *CommandNode {
 		NodeType: NodeCommand,
 		Pos:      pos,
 		name:     name,
-		args:     make([]*Arg, 0, 1024),
 	}
 }
 
 // AddArg adds a new argument to the command
-func (n *CommandNode) AddArg(a *Arg) {
+func (n *CommandNode) AddArg(a Expr) {
 	n.args = append(n.args, a)
 }
 
 // SetArgs sets an array of args to command
-func (n *CommandNode) SetArgs(args []*Arg) {
+func (n *CommandNode) SetArgs(args []Expr) {
 	n.args = args
 }
 
-func (n *CommandNode) Args() []*Arg { return n.args }
+func (n *CommandNode) Args() []Expr { return n.args }
 
 // AddRedirect adds a new redirect node to command
 func (n *CommandNode) AddRedirect(redir *RedirectNode) {
@@ -455,6 +485,40 @@ func (n *CommandNode) Redirects() []*RedirectNode { return n.redirs }
 
 // Name returns the program name
 func (n *CommandNode) Name() string { return n.name }
+
+func (n *CommandNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*CommandNode)
+
+	if !ok {
+		return false
+	}
+
+	if len(n.args) != len(o.args) {
+		return false
+	}
+
+	for i := 0; i < len(n.args); i++ {
+		if !n.args[i].IsEqual(o.args[i]) {
+			return false
+		}
+	}
+
+	if len(n.redirs) != len(o.redirs) {
+		return false
+	}
+
+	for i := 0; i < len(n.redirs); i++ {
+		if !n.redirs[i].IsEqual(o.redirs[i]) {
+			return false
+		}
+	}
+
+	return n.name == o.name
+}
 
 // String returns the string representation of command statement
 func (n *CommandNode) String() string {
@@ -482,7 +546,6 @@ func NewPipeNode(pos token.Pos) *PipeNode {
 	return &PipeNode{
 		NodeType: NodePipe,
 		Pos:      pos,
-		cmds:     make([]*CommandNode, 0, 16),
 	}
 }
 
@@ -518,8 +581,7 @@ func NewRedirectNode(pos token.Pos) *RedirectNode {
 			lfd: -1,
 			rfd: -1,
 		},
-		Pos:      pos,
-		location: nil,
+		Pos: pos,
 	}
 }
 
@@ -533,11 +595,15 @@ func (r *RedirectNode) LeftFD() int  { return r.rmap.lfd }
 func (r *RedirectNode) RightFD() int { return r.rmap.rfd }
 
 // SetLocation of the output
-func (r *RedirectNode) SetLocation(s *Arg) {
-	r.location = s
-}
+func (r *RedirectNode) SetLocation(s Expr) { r.location = s }
+func (r *RedirectNode) Location() Expr     { return r.location }
 
-func (r *RedirectNode) Location() *Arg { return r.location }
+func (r *RedirectNode) IsEqual(other Node) bool {
+	if r == other {
+		return true
+	}
+
+}
 
 // String returns the string representation of redirect
 func (r *RedirectNode) String() string {
@@ -574,12 +640,12 @@ func NewRforkNode(pos token.Pos) *RforkNode {
 	}
 }
 
-func (n *RforkNode) Arg() *Arg {
+func (n *RforkNode) Arg() *StringExpr {
 	return n.arg
 }
 
 // SetFlags sets the rfork flags
-func (n *RforkNode) SetFlags(a *Arg) {
+func (n *RforkNode) SetFlags(a *StringExpr) {
 	n.arg = a
 }
 
@@ -626,12 +692,12 @@ func NewCdNode(pos token.Pos) *CdNode {
 }
 
 // SetDir sets the cd directory to dir
-func (n *CdNode) SetDir(dir *Arg) {
+func (n *CdNode) SetDir(dir Expr) {
 	n.dir = dir
 }
 
 // Dir returns the directory of cd node
-func (n *CdNode) Dir() *Arg {
+func (n *CdNode) Dir() Expr {
 	return n.dir
 }
 
@@ -643,8 +709,7 @@ func (n *CdNode) String() string {
 		return "cd"
 	}
 
-	if dir.ArgType() != ArgQuoted && dir.ArgType() != ArgUnquoted &&
-		dir.ArgType() != ArgConcat && dir.ArgType() != ArgVariable {
+	if !dir.Type().IsExpr() {
 		return "cd <invalid path>"
 	}
 
@@ -674,22 +739,22 @@ func NewIfNode(pos token.Pos) *IfNode {
 }
 
 // Lvalue returns the lefthand part of condition
-func (n *IfNode) Lvalue() *Arg {
+func (n *IfNode) Lvalue() Expr {
 	return n.lvalue
 }
 
 // Rvalue returns the righthand side of condition
-func (n *IfNode) Rvalue() *Arg {
+func (n *IfNode) Rvalue() Expr {
 	return n.rvalue
 }
 
 // SetLvalue set the lefthand side of condition
-func (n *IfNode) SetLvalue(arg *Arg) {
+func (n *IfNode) SetLvalue(arg Expr) {
 	n.lvalue = arg
 }
 
 // SetRvalue set the righthand side of condition
-func (n *IfNode) SetRvalue(arg *Arg) {
+func (n *IfNode) SetRvalue(arg Expr) {
 	n.rvalue = arg
 }
 
@@ -777,8 +842,14 @@ func (n *IfNode) String() string {
 	return ifStr
 }
 
-func (n *IfNode) IsEqual(value *IfNode) bool {
-	if ok := cmpCommon(n, value); !ok {
+func (n *IfNode) IsEqual(other Node) bool {
+	value, ok := other.(*IfNode)
+
+	if !ok {
+		return false
+	}
+
+	if ok = cmpCommon(n, value); !ok {
 		return false
 	}
 
@@ -795,7 +866,7 @@ func (n *IfNode) IsEqual(value *IfNode) bool {
 		return false
 	}
 
-	if expected.Op() != value.Op() {
+	if n.Op() != value.Op() {
 		return false
 	}
 
@@ -806,10 +877,10 @@ func (n *IfNode) IsEqual(value *IfNode) bool {
 		return false
 	}
 
-	expectedTree = expected.ElseTree()
-	valueTree = expected.ElseTree()
+	expectedTree = n.ElseTree()
+	valueTree = value.ElseTree()
 
-	return Cmp(expectedTree, valueTree)
+	return expectedTree.IsEqual(valueTree)
 }
 
 // NewFnDeclNode creates a new function declaration
@@ -818,7 +889,6 @@ func NewFnDeclNode(pos token.Pos, name string) *FnDeclNode {
 		NodeType: NodeFnDecl,
 		Pos:      pos,
 		name:     name,
-		args:     make([]string, 0, 16),
 	}
 }
 
@@ -891,7 +961,6 @@ func NewFnInvNode(pos token.Pos, name string) *FnInvNode {
 		NodeType: NodeFnInv,
 		Pos:      pos,
 		name:     name,
-		args:     make([]*Arg, 0, 16),
 	}
 }
 
@@ -906,11 +975,11 @@ func (n *FnInvNode) Name() string {
 }
 
 // AddArg add another argument to end of argument list
-func (n *FnInvNode) AddArg(arg *Arg) {
+func (n *FnInvNode) AddArg(arg Expr) {
 	n.args = append(n.args, arg)
 }
 
-func (n *FnInvNode) Args() []*Arg { return n.args }
+func (n *FnInvNode) Args() []Expr { return n.args }
 
 // String returns the string representation of function invocation
 func (n *FnInvNode) String() string {
@@ -959,12 +1028,12 @@ func NewDumpNode(pos token.Pos) *DumpNode {
 }
 
 // Filename return the dump filename argument
-func (n *DumpNode) Filename() *Arg {
+func (n *DumpNode) Filename() Expr {
 	return n.filename
 }
 
 // SetFilename set the dump filename
-func (n *DumpNode) SetFilename(a *Arg) {
+func (n *DumpNode) SetFilename(a Expr) {
 	n.filename = a
 }
 
@@ -986,12 +1055,12 @@ func NewReturnNode(pos token.Pos) *ReturnNode {
 }
 
 // SetReturn set the arguments to return
-func (n *ReturnNode) SetReturn(a *Arg) {
+func (n *ReturnNode) SetReturn(a Expr) {
 	n.arg = a
 }
 
 // Return returns the argument being returned
-func (n *ReturnNode) Return() *Arg { return n.arg }
+func (n *ReturnNode) Return() Expr { return n.arg }
 
 // String returns the string representation of return statement
 func (n *ReturnNode) String() string {

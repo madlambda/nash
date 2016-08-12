@@ -112,15 +112,14 @@ func (p *Parser) peek() scanner.Token {
 	return i
 }
 
-func (p *Parser) parseVariable() (*ast.Arg, error) {
+func (p *Parser) parseVariable() (ast.Expr, error) {
 	it := p.next()
 
 	if it.Type() != token.Variable {
 		return nil, errors.NewError("Unexpected token %v. ", it)
 	}
 
-	arg := ast.NewArg(it.Pos(), ast.ArgVariable)
-	arg.SetString(it.Value())
+	variable := ast.NewVarExpr(it.Pos(), it.Value())
 
 	it = p.peek()
 
@@ -132,25 +131,31 @@ func (p *Parser) parseVariable() (*ast.Arg, error) {
 			return nil, errors.NewError("Expected number or variable in index. Found %v", it)
 		}
 
-		var index *ast.Arg
+		var index ast.Expr
 
 		if it.Type() == token.Number {
-			index = ast.NewArg(it.Pos(), ast.ArgNumber)
-		} else {
-			index = ast.NewArg(it.Pos(), ast.ArgVariable)
-		}
+			// only supports base10
+			intval, err := strconv.Atoi(it.Value())
 
-		index.SetString(it.Value())
-		arg.SetIndex(index)
+			if err != nil {
+				return nil, err
+			}
+
+			index = ast.NewIntExpr(it.Pos(), intval)
+		} else {
+			index = ast.NewVarExpr(it.Pos(), it.Value())
+		}
 
 		it = p.next()
 
 		if it.Type() != token.RBrack {
 			return nil, errors.NewError("Unexpected token %v. Expecting ']'", it)
 		}
+
+		return ast.NewIndexExpr(variable.Position(), variable, index), nil
 	}
 
-	return arg, nil
+	return variable, nil
 }
 
 func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
