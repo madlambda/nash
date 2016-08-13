@@ -349,20 +349,31 @@ func (l *ListNode) IsEqual(other Node) bool {
 }
 
 // NewImportNode creates a new ImportNode object
-func NewImportNode(pos token.Pos) *ImportNode {
+func NewImportNode(pos token.Pos, path *StringExpr) *ImportNode {
 	return &ImportNode{
 		NodeType: NodeImport,
 		Pos:      pos,
-	}
-}
 
-// SetPath of import statement
-func (n *ImportNode) SetPath(arg *StringExpr) {
-	n.path = arg
+		path: path,
+	}
 }
 
 // Path returns the path of import
 func (n *ImportNode) Path() *StringExpr { return n.path }
+
+func (n *ImportNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*ImportNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.path.IsEqual(o.path)
+}
 
 // String returns the string representation of the import
 func (n *ImportNode) String() string {
@@ -380,16 +391,33 @@ func NewSetenvNode(pos token.Pos, name string) *SetenvNode {
 
 func (n *SetenvNode) Identifier() string { return n.varName }
 
+func (n *SetenvNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*SetenvNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.varName == o.varName
+}
+
 // String returns the string representation of assignment
 func (n *SetenvNode) String() string {
 	return "setenv " + n.varName
 }
 
 // NewAssignmentNode creates a new assignment
-func NewAssignmentNode(pos token.Pos) *AssignmentNode {
+func NewAssignmentNode(pos token.Pos, ident string, value Expr) *AssignmentNode {
 	return &AssignmentNode{
 		NodeType: NodeAssignment,
 		Pos:      pos,
+
+		name: ident,
+		val:  value,
 	}
 }
 
@@ -408,6 +436,24 @@ func (n *AssignmentNode) SetValue(val Expr) {
 // Value returns the assigned object
 func (n *AssignmentNode) Value() Expr {
 	return n.val
+}
+
+func (n *AssignmentNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*AssignmentNode)
+
+	if !ok {
+		return false
+	}
+
+	if n.name != o.name {
+		return false
+	}
+
+	return n.val.IsEqual(o.val)
 }
 
 // String returns the string representation of assignment statement
@@ -559,6 +605,30 @@ func (n *PipeNode) Commands() []*CommandNode {
 	return n.cmds
 }
 
+func (n *PipeNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*PipeNode)
+
+	if !ok {
+		return false
+	}
+
+	if len(n.cmds) != len(o.cmds) {
+		return false
+	}
+
+	for i := 0; i < len(n.cmds); i++ {
+		if n.cmds[i].IsEqual(o.cmds[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // String returns the string representation of pipeline statement
 func (n *PipeNode) String() string {
 	ret := ""
@@ -603,6 +673,18 @@ func (r *RedirectNode) IsEqual(other Node) bool {
 		return true
 	}
 
+	o, ok := other.(*RedirectNode)
+
+	if !ok {
+		return false
+	}
+
+	if r.rmap.lfd != o.rmap.lfd ||
+		r.rmap.rfd != o.rmap.rfd {
+		return false
+	}
+
+	return r.location.IsEqual(o)
 }
 
 // String returns the string representation of redirect
@@ -684,21 +766,32 @@ func (n *RforkNode) String() string {
 }
 
 // NewCdNode creates a new node for changing directory
-func NewCdNode(pos token.Pos) *CdNode {
+func NewCdNode(pos token.Pos, dir Expr) *CdNode {
 	return &CdNode{
 		NodeType: NodeCd,
 		Pos:      pos,
-	}
-}
 
-// SetDir sets the cd directory to dir
-func (n *CdNode) SetDir(dir Expr) {
-	n.dir = dir
+		dir: dir,
+	}
 }
 
 // Dir returns the directory of cd node
 func (n *CdNode) Dir() Expr {
 	return n.dir
+}
+
+func (n *CdNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*CdNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.dir.IsEqual(o.dir)
 }
 
 // String returns the string representation of cd node
@@ -1129,10 +1222,24 @@ func NewBuiltinNode(pos token.Pos, n Node) *BuiltinNode {
 	}
 }
 
-func (n *BuiltinNode) String() string {
-	return "builtin " + n.stmt.String()
-}
-
 func (n *BuiltinNode) Stmt() Node {
 	return n.stmt
+}
+
+func (n *BuiltinNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*BuiltinNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.stmt.IsEqual(o.stmt)
+}
+
+func (n *BuiltinNode) String() string {
+	return "builtin " + n.stmt.String()
 }

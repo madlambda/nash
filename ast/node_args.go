@@ -89,10 +89,12 @@ func (i *IntExpr) IsEqual(other Node) bool {
 	return i.val == o.val
 }
 
-func NewListExpr(pos token.Pos) *ListExpr {
+func NewListExpr(pos token.Pos, values []Expr) *ListExpr {
 	return &ListExpr{
 		NodeType: NodeListExpr,
 		Pos:      pos,
+
+		list: values,
 	}
 }
 
@@ -101,8 +103,28 @@ func (l *ListExpr) PushExpr(a Expr) {
 	l.list = append(l.list, a)
 }
 
-func (l *ListExpr) SetList(a []Expr) {
-	l.list = a
+func (l *ListExpr) IsEqual(other Node) bool {
+	if other == l {
+		return true
+	}
+
+	o, ok := other.(*ListExpr)
+
+	if !ok {
+		return false
+	}
+
+	if len(l.list) != len(o.list) {
+		return false
+	}
+
+	for i := 0; i < len(l.list); i++ {
+		if !l.list[i].IsEqual(o.list[i]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (l *ListExpr) String() string {
@@ -121,10 +143,12 @@ func (l *ListExpr) String() string {
 	return "(" + strings.Join(elems, " ") + ")"
 }
 
-func NewConcatExpr(pos token.Pos) *ConcatExpr {
+func NewConcatExpr(pos token.Pos, parts []Expr) *ConcatExpr {
 	return &ConcatExpr{
 		NodeType: NodeConcatExpr,
 		Pos:      pos,
+
+		concat: parts,
 	}
 }
 
@@ -139,6 +163,30 @@ func (c *ConcatExpr) SetConcat(v []Expr) {
 }
 
 func (c *ConcatExpr) ConcatList() []Expr { return c.concat }
+
+func (c *ConcatExpr) IsEqual(other Node) bool {
+	if c == other {
+		return true
+	}
+
+	o, ok := other.(*ConcatExpr)
+
+	if !ok {
+		return false
+	}
+
+	if len(c.concat) != len(o.concat) {
+		return false
+	}
+
+	for i := 0; i < len(c.concat); i++ {
+		if !c.concat[i].IsEqual(o.concat[i]) {
+			return false
+		}
+	}
+
+	return true
+}
 
 func (c *ConcatExpr) String() string {
 	ret := ""

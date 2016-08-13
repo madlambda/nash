@@ -193,7 +193,7 @@ cmdLoop:
 
 		switch it.Type() {
 		case token.Arg, token.String, token.Variable:
-			arg, err := p.getArgument(true)
+			arg, err := p.getArgument(true, true)
 
 			if err != nil {
 				return nil, err
@@ -315,7 +315,7 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 		return nil, fmt.Errorf("Unexpected token '%v'", it)
 	}
 
-	arg, err := p.getArgument(true)
+	arg, err := p.getArgument(true, true)
 
 	if err != nil {
 		return nil, err
@@ -345,7 +345,7 @@ func (p *Parser) parseBuiltin() (ast.Node, error) {
 func (p *Parser) parseImport() (ast.Node, error) {
 	it := p.next()
 
-	n := ast.NewImportNode(it.Pos())
+	importToken := it
 
 	it = p.next()
 
@@ -353,42 +353,40 @@ func (p *Parser) parseImport() (ast.Node, error) {
 		return nil, fmt.Errorf("Unexpected token %v", it)
 	}
 
+	var arg *ast.StringExpr
+
 	if it.Type() == token.String {
-		arg := ast.NewArg(it.Pos(), ast.ArgQuoted)
-		arg.SetString(it.Value())
-		n.SetPath(arg)
+		arg = ast.NewStringExpr(it.Pos(), it.Value(), true)
 	} else if it.Type() == token.Arg {
-		arg := ast.NewArg(it.Pos(), ast.ArgUnquoted)
-		arg.SetString(it.Value())
-		n.SetPath(arg)
+		arg = ast.NewStringExpr(it.Pos(), it.Value(), false)
 	} else {
 		return nil, fmt.Errorf("Parser error: Invalid token '%v' for import path", it)
 	}
 
-	return n, nil
+	return ast.NewImportNode(importToken.Pos(), arg), nil
 }
 
 func (p *Parser) parseCd() (ast.Node, error) {
 	it := p.next()
 
-	n := ast.NewCdNode(it.Pos())
+	cdToken := it
 
 	it = p.peek()
 
 	if it.Type() != token.Arg && it.Type() != token.String && it.Type() != token.Variable && it.Type() != token.Concat {
 		p.backup(it)
-		return n, nil
+
+		return ast.NewCdNode(cdToken.Pos(), nil), nil
 	}
 
-	arg, err := p.getArgument(true)
+	arg, err := p.getArgument(true, true)
 
 	if err != nil {
 		return nil, err
 	}
 
-	n.SetDir(arg)
+	return ast.NewCdNode(cdToken.Pos(), arg), nil
 
-	return n, nil
 }
 
 func (p *Parser) parseSet() (ast.Node, error) {
@@ -402,12 +400,10 @@ func (p *Parser) parseSet() (ast.Node, error) {
 		return nil, fmt.Errorf("Unexpected token %v, expected variable", it)
 	}
 
-	n := ast.NewSetAssignmentNode(pos, it.Value())
-
-	return n, nil
+	return ast.NewSetenvNode(pos, it.Value()), nil
 }
 
-func (p *Parser) getArgument(allowArg bool) (*ast.Arg, error) {
+func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
 	var err error
 
 	it := p.next()
@@ -419,67 +415,44 @@ func (p *Parser) getArgument(allowArg bool) (*ast.Arg, error) {
 
 	firstToken := it
 
+	var arg ast.Expr
+
+	if firstToken.Type() == token.Variable {
+		p.backup(firstToken)
+
+		arg, err = p.parseVariable()
+
+		if err != nil {
+			return nil, err
+		}
+	} else if firstToken.Type() == token.String {
+		arg = ast.NewStringExpr(firstToken.Pos(), firstToken.Value(), true)
+	} else {
+		arg = ast.NewStringExpr(firstToken.Pos(), firstToken.Value(), false)
+	}
+
 	it = p.peek()
 
 	if it.Type() == token.Concat {
-		return p.getConcatArg(firstToken)
+		if !allowConcat {
+			return nil, fmt.Errorf("CONCAT isn't allowed at pos %d (%s)", it.Pos(), it.Value())
+		}
+
+		return p.getConcatArg(arg)
 	}
 
 	if firstToken.Type() == token.Arg && !allowArg {
 		return nil, fmt.Errorf("Unquoted string not allowed at pos %d (%s)", it.Pos(), it.Value())
 	}
 
-	arg := ast.NewArg(firstToken.Pos(), 0)
-
-	if firstToken.Type() == token.Variable {
-		arg.SetArgType(ast.ArgVariable)
-		arg.SetString(firstToken.Value())
-
-		if it.Type() == token.LBrack {
-			p.ignore()
-			it = p.next()
-
-			var indexArg *ast.Arg
-
-			if it.Type() == token.Number {
-				indexArg = ast.NewArg(it.Pos(), ast.ArgNumber)
-				indexArg.SetString(it.Value())
-			} else if it.Type() == token.Variable {
-				p.backup(it)
-				indexArg, err = p.getArgument(false)
-
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				return nil, errors.NewError("Invalid index type: %v", it)
-			}
-
-			arg.SetIndex(indexArg)
-
-			it = p.next()
-
-			if it.Type() != token.RBrack {
-				return nil, errors.NewError("Unexpected token %v. Expected ']'", it)
-			}
-		}
-	} else if firstToken.Type() == token.String {
-		arg.SetArgType(ast.ArgQuoted)
-		arg.SetString(firstToken.Value())
-	} else {
-		arg.SetArgType(ast.ArgUnquoted)
-		arg.SetString(firstToken.Value())
-	}
-
 	return arg, nil
 }
 
-func (p *Parser) getConcatArg(firstToken scanner.Token) (*ast.Arg, error) {
-	var it scanner.Token
-	parts := make([]*ast.Arg, 0, 4)
-
-	firstArg := ast.NewArg(firstToken.Pos(), 0)
-	firstArg.SetItem(firstToken)
+func (p *Parser) getConcatArg(firstArg ast.Expr) (ast.Expr, error) {
+	var (
+		it    scanner.Token
+		parts []ast.Expr
+	)
 
 	parts = append(parts, firstArg)
 
@@ -489,22 +462,17 @@ hasConcat:
 	if it.Type() == token.Concat {
 		p.ignore()
 
-		it = p.next()
+		arg, err := p.getArgument(true, false)
 
-		if it.Type() == token.String || it.Type() == token.Variable || it.Type() == token.Arg {
-			carg := ast.NewArg(it.Pos(), 0)
-			carg.SetItem(it)
-			parts = append(parts, carg)
-			goto hasConcat
-		} else {
-			return nil, fmt.Errorf("Unexpected token %v", it)
+		if err != nil {
+			return nil, err
 		}
+
+		parts = append(parts, arg)
+		goto hasConcat
 	}
 
-	arg := ast.NewArg(firstToken.Pos(), ast.ArgConcat)
-	arg.SetConcat(parts)
-
-	return arg, nil
+	return ast.NewConcatExpr(firstArg.Position(), parts), nil
 }
 
 func (p *Parser) parseAssignment() (ast.Node, error) {
@@ -524,27 +492,38 @@ func (p *Parser) parseAssignment() (ast.Node, error) {
 }
 
 func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
-	n := ast.NewAssignmentNode(name.Pos())
-	n.SetIdentifier(name.Value())
+	var err error
+
+	assignIdent := name
+
+	var value ast.Expr
 
 	it := p.peek()
 
 	if it.Type() == token.Variable || it.Type() == token.String {
-		arg, err := p.getArgument(false)
+		value, err = p.getArgument(false, true)
 
 		if err != nil {
 			return nil, err
 		}
 
-		n.SetValue(arg)
-	} else if it.Type() == token.LParen {
+	} else if it.Type() == token.LParen { // list
 		lit := p.next()
 
-		values := make([]*ast.Arg, 0, 128)
+		var values []ast.Expr
 
 		for it = p.next(); it.Type() == token.Arg || it.Type() == token.String || it.Type() == token.Variable; it = p.next() {
-			arg := ast.NewArg(it.Pos(), 0)
-			arg.SetItem(it)
+			var arg ast.Expr
+
+			switch it.Type() {
+			case token.Arg:
+				arg = ast.NewStringExpr(it.Pos(), it.Value(), false)
+			case token.String:
+				arg = ast.NewStringExpr(it.Pos(), it.Value(), true)
+			case token.Variable:
+				arg = ast.NewVarExpr(it.Pos(), it.Value())
+			}
+
 			values = append(values, arg)
 		}
 
@@ -552,15 +531,12 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 			return nil, errors.NewUnfinishedListError()
 		}
 
-		listArg := ast.NewArg(lit.Pos(), ast.ArgList)
-		listArg.SetList(values)
-
-		n.SetValue(listArg)
+		value = ast.NewListExpr(lit.Pos(), values)
 	} else {
 		return nil, fmt.Errorf("Unexpected token '%v'", it)
 	}
 
-	return n, nil
+	return ast.NewAssignmentNode(assignIdent.Pos(), assignIdent.Value(), value), nil
 }
 
 func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
