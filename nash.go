@@ -75,34 +75,61 @@ func (nash *Shell) Prompt() string {
 }
 
 // SetNashdPath sets an alternativa path to nashd
-func (sh *Shell) SetNashdPath(path string) {
-	sh.interp.SetNashdPath(path)
+func (nash *Shell) SetNashdPath(path string) {
+	nash.interp.SetNashdPath(path)
 }
 
-// ExecuteString executes the code specified by string content.
-// The `path` is only used for error line reporting.
+// Exec executes the code specified by string content.
+// By default, nash uses os.Stdin, os.Stdout and os.Stderr as input, output
+// and error file descriptors. You can change it with SetStdin, SetStdout and Stderr,
+// respectively.
+// The path is only used for error line reporting. If content represents a file, then
+// setting path to this filename should improve debugging (or no).
+func (nash *Shell) Exec(path, content string) error {
+	return nash.interp.Exec(path, content)
+}
+
+// ExecuteString executes the script content.
+// Deprecated: Use Exec instead.
 func (nash *Shell) ExecuteString(path, content string) error {
-	return nash.interp.ExecuteString(path, content)
+	return nash.interp.Exec(path, content)
 }
 
-// ExecuteFile execute the given path in the current shell environment
+// ExecFile executes the script content of the file specified by path.
+// See Exec for more information.
+func (nash *Shell) ExecFile(path string) error {
+	return nash.interp.ExecFile(path)
+}
+
+// ExecuteFile executes the given file.
+// Deprecated: Use ExecFile instead.
 func (nash *Shell) ExecuteFile(path string) error {
-	return nash.interp.ExecuteFile(path)
+	return nash.interp.ExecFile(path)
 }
 
-// ExecuteTree evaluates the given tree
+// ExecuteTree executes the given tree.
+// Deprecated: Use ExecTree instead.
 func (nash *Shell) ExecuteTree(tr *ast.Tree) (*sh.Obj, error) {
-	return nash.interp.ExecuteTree(tr)
+	return nash.interp.ExecTree(tr)
 }
 
+// ExecTree evaluates the given abstract syntax tree.
+// it returns the object result of eval or nil when not applied and error.
+func (nash *Shell) ExecTree(tree *ast.Tree) (*sh.Obj, error) {
+	return nash.interp.ExecTree(tree)
+}
+
+// SetStdout set the stdout of the nash engine.
 func (nash *Shell) SetStdout(out io.Writer) {
 	nash.interp.SetStdout(out)
 }
 
+// SetStderr set the stderr of nash engine
 func (nash *Shell) SetStderr(err io.Writer) {
 	nash.interp.SetStderr(err)
 }
 
+// SetStdin set the stdin of the nash engine
 func (nash *Shell) SetStdin(in io.Reader) {
 	nash.interp.SetStdin(in)
 }
