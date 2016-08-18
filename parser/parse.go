@@ -580,8 +580,7 @@ func (p *Parser) parseRfork() (ast.Node, error) {
 		return nil, fmt.Errorf("rfork requires one or more of the following flags: %s", scanner.RforkFlags)
 	}
 
-	arg := ast.NewArg(it.Pos(), ast.ArgUnquoted)
-	arg.SetString(it.Value())
+	arg := ast.NewStringExpr(it.Pos(), it.Value(), false)
 	n.SetFlags(arg)
 
 	it = p.peek()
@@ -618,8 +617,7 @@ func (p *Parser) parseIf() (ast.Node, error) {
 
 	if it.Type() == token.String {
 		p.next()
-		arg := ast.NewArg(it.Pos(), ast.ArgQuoted)
-		arg.SetString(it.Value())
+		arg := ast.NewStringExpr(it.Pos(), it.Value(), true)
 		n.SetLvalue(arg)
 	} else if it.Type() == token.Variable {
 		arg, err := p.parseVariable()
@@ -654,12 +652,10 @@ func (p *Parser) parseIf() (ast.Node, error) {
 	}
 
 	if it.Type() == token.String {
-		arg := ast.NewArg(it.Pos(), ast.ArgQuoted)
-		arg.SetString(it.Value())
+		arg := ast.NewStringExpr(it.Pos(), it.Value(), true)
 		n.SetRvalue(arg)
 	} else {
-		arg := ast.NewArg(it.Pos(), ast.ArgUnquoted)
-		arg.SetString(it.Value())
+		arg := ast.NewStringExpr(it.Pos(), it.Value(), false)
 		n.SetRvalue(arg)
 	}
 
@@ -787,7 +783,7 @@ func (p *Parser) parseFnInv() (ast.Node, error) {
 		it = p.peek()
 
 		if it.Type() == token.String || it.Type() == token.Variable {
-			arg, err := p.getArgument(false)
+			arg, err := p.getArgument(false, true)
 
 			if err != nil {
 				return nil, err

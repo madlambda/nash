@@ -496,6 +496,24 @@ func (n *CmdAssignmentNode) SetCommand(c Node) {
 	n.cmd = c
 }
 
+func (n *CmdAssignmentNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*CmdAssignmentNode)
+
+	if !ok {
+		return false
+	}
+
+	if n.name != o.name {
+		return false
+	}
+
+	return n.cmd.IsEqual(o.cmd)
+}
+
 // String returns the string representation of command assignment statement
 func (n *CmdAssignmentNode) String() string {
 	return n.name + " <= " + n.cmd.String()
@@ -731,11 +749,6 @@ func (n *RforkNode) SetFlags(a *StringExpr) {
 	n.arg = a
 }
 
-// SetBlock sets the sub block of rfork
-func (n *RforkNode) SetBlock(t *Tree) {
-	n.tree = t
-}
-
 // Tree returns the child tree of node
 func (n *RforkNode) Tree() *Tree {
 	return n.tree
@@ -743,6 +756,24 @@ func (n *RforkNode) Tree() *Tree {
 
 func (n *RforkNode) SetTree(t *Tree) {
 	n.tree = t
+}
+
+func (n *RforkNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*RforkNode)
+
+	if !ok {
+		return false
+	}
+
+	if !n.arg.IsEqual(o.arg) {
+		return false
+	}
+
+	return n.tree.IsEqual(o.tree)
 }
 
 // String returns the string representation of rfork statement
@@ -1013,6 +1044,30 @@ func (n *FnDeclNode) Tree() *Tree {
 // SetTree set the function tree
 func (n *FnDeclNode) SetTree(t *Tree) {
 	n.tree = t
+}
+
+func (n *FnDeclNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*FnDeclNode)
+
+	if !ok {
+		return false
+	}
+
+	if n.name != o.name || len(n.args) != len(o.args) {
+		return false
+	}
+
+	for i := 0; i < len(n.args); i++ {
+		if n.args[i] != o.args[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 // String returns the string representation of function declaration
