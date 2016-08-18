@@ -38,7 +38,7 @@ type (
 		Start() error
 		Wait() error
 
-		SetArgs([]*ast.Arg, *Shell) error
+		SetArgs([]ast.Expr, *Shell) error
 		SetEnviron([]string)
 		SetStdin(io.Reader)
 		SetStdout(io.Writer)
@@ -483,18 +483,24 @@ func (sh *Shell) ExecuteFile(path string) error {
 
 // evalConcat reveives the AST representation of a concatenation of objects and
 // returns the string representation, or error.
-func (sh *Shell) evalConcat(path *ast.Arg) (string, error) {
+func (sh *Shell) evalConcat(path ast.Expr) (string, error) {
 	var pathStr string
 
-	concat := path.Concat()
+	if path.Type() != ast.NodeConcatExpr {
+		return "", fmt.Errorf("Invalid node %+v", path)
+	}
+
+	concatExpr := path.(*ast.ConcatExpr)
+	concat := concatExpr.List()
 
 	for i := 0; i < len(concat); i++ {
 		part := concat[i]
 
-		switch {
-		case part.IsConcat():
+		switch part.Type() {
+
+		case ast.NodeConcatExpr:
 			return "", errors.NewError("Nested concat is not allowed")
-		case part.IsVariable():
+		case ast.NodeVarExpr:
 			partValues, err := sh.evalVariable(part)
 
 			if err != nil {
@@ -502,15 +508,15 @@ func (sh *Shell) evalConcat(path *ast.Arg) (string, error) {
 			}
 
 			if partValues.Type() == ListType {
-				return "", fmt.Errorf("Concat of list variables is not allowed: %s = %v", part.Value(), partValues)
-			} else if partValues.Type() != StringType {
+				return "", fmt.Errorf("Concat of list variables is not allowed: %v = %v", part, partValues)
+			} else if partValues.Type() != NodeStringExpr {
 				return "", fmt.Errorf("Invalid concat element: %v", partValues)
 			}
 
 			pathStr += partValues.Str()
-		case part.IsQuoted() || part.IsUnquoted():
+		case ast.NodeStringExpr:
 			pathStr += part.Value()
-		case part.IsList():
+		case ast.NodeListExpr:
 			return "", errors.NewError("Concat of lists is not allowed: %+v", part.List())
 		default:
 			return "", fmt.Errorf("Invalid argument: %+v", part)
@@ -874,7 +880,7 @@ pipeError:
 	return err
 }
 
-func (sh *Shell) openRedirectLocation(location *ast.Arg) (io.WriteCloser, error) {
+func (sh *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, error) {
 	var (
 		protocol, locationStr string
 	)
@@ -1165,7 +1171,7 @@ cmdError:
 	return err
 }
 
-func (sh *Shell) evalVariable(a *ast.Arg) (*Obj, error) {
+func (sh *Shell) evalVariable(a ast.Expr) (*Obj, error) {
 	var (
 		v  *Obj
 		ok bool

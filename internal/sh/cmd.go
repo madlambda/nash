@@ -67,7 +67,7 @@ func (c *Cmd) SetStdin(in io.Reader)   { c.Cmd.Stdin = in }
 func (c *Cmd) SetStdout(out io.Writer) { c.Cmd.Stdout = out }
 func (c *Cmd) SetStderr(err io.Writer) { c.Cmd.Stderr = err }
 
-func (c *Cmd) processArgs(cmd string, nodeArgs []*ast.Arg, envShell *Shell) ([]string, error) {
+func (c *Cmd) processArgs(cmd string, nodeArgs []ast.Expr, envShell *Shell) ([]string, error) {
 	args := make([]string, len(nodeArgs)+1)
 	args[0] = cmd
 
@@ -98,7 +98,7 @@ func (c *Cmd) processArgs(cmd string, nodeArgs []*ast.Arg, envShell *Shell) ([]s
 	return args, nil
 }
 
-func (c *Cmd) SetArgs(nodeArgs []*ast.Arg, envShell *Shell) error {
+func (c *Cmd) SetArgs(nodeArgs []ast.Expr, envShell *Shell) error {
 	args, err := c.processArgs(c.Path, nodeArgs, envShell)
 
 	if err != nil {

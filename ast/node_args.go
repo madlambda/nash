@@ -162,7 +162,7 @@ func (c *ConcatExpr) SetConcat(v []Expr) {
 	c.concat = v
 }
 
-func (c *ConcatExpr) ConcatList() []Expr { return c.concat }
+func (c *ConcatExpr) List() []Expr { return c.concat }
 
 func (c *ConcatExpr) IsEqual(other Node) bool {
 	if c == other {

@@ -44,7 +44,7 @@ func (fn *Fn) AddArgName(name string) {
 	fn.argNames = append(fn.argNames, name)
 }
 
-func (fn *Fn) SetArgs(nodeArgs []*ast.Arg, envShell *Shell) error {
+func (fn *Fn) SetArgs(nodeArgs []ast.Expr, envShell *Shell) error {
 	if len(fn.argNames) != len(nodeArgs) {
 		return errors.NewError("Wrong number of arguments for function %s. Expected %d but found %d",
 			fn.name, len(fn.argNames), len(nodeArgs))

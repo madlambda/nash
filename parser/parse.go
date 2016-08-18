@@ -540,8 +540,6 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 }
 
 func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
-	n := ast.NewCmdAssignmentNode(name.Pos(), name.Value())
-
 	it := p.peek()
 
 	if it.Type() != token.Command && it.Type() != token.FnInv {
@@ -555,8 +553,7 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 			return nil, err
 		}
 
-		n.SetCommand(cmd)
-		return n, nil
+		return ast.NewExecAssignNode(name.Pos(), name.Value(), cmd)
 	}
 
 	fn, err := p.parseFnInv()
@@ -565,8 +562,7 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 		return nil, err
 	}
 
-	n.SetCommand(fn)
-	return n, nil
+	return ast.NewExecAssignNode(name.Pos(), name.Value(), fn)
 }
 
 func (p *Parser) parseRfork() (ast.Node, error) {
@@ -691,7 +687,7 @@ func (p *Parser) parseIf() (ast.Node, error) {
 		elseTree := ast.NewTree("else tree")
 		elseTree.Root = elseBlock
 
-		n.SetElseIf(elseIf)
+		n.SetElseif(elseIf)
 		n.SetElseTree(elseTree)
 	}
 
@@ -860,14 +856,20 @@ func (p *Parser) parseDump() (ast.Node, error) {
 
 	fnameIt := p.peek()
 
-	if fnameIt.Type() != token.String && fnameIt.Type() != token.Variable && fnameIt.Type() != token.Arg {
-		return dump, nil
-	}
-
 	p.next()
 
-	arg := ast.NewArg(fnameIt.Pos(), 0)
-	arg.SetItem(fnameIt)
+	var arg ast.Expr
+
+	switch fnameIt.Type() {
+	case token.String:
+		arg = ast.NewStringExpr(fnameIt.Pos(), fnameIt.Value(), true)
+	case token.Arg:
+		arg = ast.NewStringExpr(fnameIt.Pos(), fnameIt.Value(), false)
+	case token.Variable:
+		arg = ast.NewVarExpr(fnameIt.Pos(), fnameIt.Value())
+	default:
+		return dump, nil
+	}
 
 	dump.SetFilename(arg)
 
@@ -881,20 +883,24 @@ func (p *Parser) parseReturn() (ast.Node, error) {
 
 	valueIt := p.peek()
 
-	if valueIt.Type() != token.String && valueIt.Type() != token.Variable && valueIt.Type() != token.LParen {
+	if valueIt.Type() != token.String &&
+		valueIt.Type() != token.Variable &&
+		valueIt.Type() != token.LParen {
 		return ret, nil
 	}
 
-	retIt = p.next()
-
-	retPos := retIt.Pos()
-
 	if valueIt.Type() == token.LParen {
-		values := make([]*ast.Arg, 0, 128)
+		var values []ast.Expr
 
-		for valueIt = p.next(); valueIt.Type() == token.Arg || valueIt.Type() == token.String || valueIt.Type() == token.Variable; valueIt = p.next() {
-			arg := ast.NewArg(valueIt.Pos(), 0)
-			arg.SetItem(valueIt)
+		p.next()
+
+		for valueIt = p.peek(); valueIt.Type() != token.RParen && valueIt.Type() != token.EOF; valueIt = p.peek() {
+			arg, err := p.getArgument(true, true)
+
+			if err != nil {
+				return nil, err
+			}
+
 			values = append(values, arg)
 		}
 
@@ -902,15 +908,16 @@ func (p *Parser) parseReturn() (ast.Node, error) {
 			return nil, errors.NewUnfinishedListError()
 		}
 
-		listArg := ast.NewArg(retPos, ast.ArgList)
-		listArg.SetList(values)
-
+		listArg := ast.NewListExpr(ret.Position(), values)
 		ret.SetReturn(listArg)
 		return ret, nil
 	}
 
-	arg := ast.NewArg(valueIt.Pos(), 0)
-	arg.SetItem(valueIt)
+	arg, err := p.getArgument(false, true)
+
+	if err != nil {
+		return nil, err
+	}
 
 	ret.SetReturn(arg)
 	return ret, nil
