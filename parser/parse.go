@@ -537,15 +537,25 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 
 		values := make([]*ast.Arg, 0, 128)
 
-		for it = p.next(); it.Type() == token.Arg || it.Type() == token.String || it.Type() == token.Variable; it = p.next() {
-			arg := ast.NewArg(it.Pos(), 0)
-			arg.SetItem(it)
+		it = p.peek()
+
+		for it.Type() == token.Arg || it.Type() == token.String || it.Type() == token.Variable {
+			arg, err := p.getArgument(true)
+
+			if err != nil {
+				return nil, err
+			}
+
+			it = p.peek()
+
 			values = append(values, arg)
 		}
 
 		if it.Type() != token.RParen {
 			return nil, errors.NewUnfinishedListError()
 		}
+
+		p.next()
 
 		listArg := ast.NewArg(lit.Pos(), ast.ArgList)
 		listArg.SetList(values)
