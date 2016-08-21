@@ -182,6 +182,11 @@ func (sh *Shell) initEnv(processEnv []string) error {
 		p := strings.Split(penv, "=")
 
 		if len(p) == 2 {
+			// TODO(i4k): handle lists correctly
+			if p[0] == "argv" {
+				continue
+			}
+
 			value = NewStrObj(p[1])
 
 			sh.Setvar(p[0], value)
