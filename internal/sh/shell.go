@@ -1359,7 +1359,7 @@ func (sh *Shell) executeCmdAssignment(v *ast.CmdAssignmentNode) error {
 
 	outStr := string(varOut.Bytes())
 
-	if ifs, ok := sh.GetVar("IFS"); ok && ifs.Type() == ListType {
+	if ifs, ok := sh.GetVar("IFS"); ok && ifs.Type() == ListType && len(ifs.List()) > 0 {
 		strelems = strings.FieldsFunc(outStr, func(r rune) bool {
 			for _, delim := range ifs.List() {
 				if len(delim) > 0 && rune(delim[0]) == r {
@@ -1489,7 +1489,7 @@ func (sh *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
 	}
 
 	if lobj.Type() != StringType {
-		return "", "", errors.NewError("lvalue is not comparable.")
+		return "", "", errors.NewError("lvalue is not comparable: (%v) -> %s.", lobj, lobj.Type())
 	}
 
 	if robj.Type() != StringType {
