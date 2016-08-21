@@ -5,5 +5,8 @@ VERSION=$(shell git rev-parse --abbrev-ref HEAD)
 build:
 	GO15VENDOREXPERIMENT=1 go build -v -ldflags "-X main.VersionString=$(VERSION)"
 
+build-static:
+	CGO_ENABLED=0 go build -v -ldflags "-X main.VersionString=$(VERSION)" -a -installsuffix cgo
+
 install:
 	GO15VENDOREXPERIMENT=1 go install -ldflags "-X main.VersionString=$(VERSION)"
