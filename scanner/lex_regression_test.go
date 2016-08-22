@@ -390,3 +390,15 @@ func TestLexerIssue68(t *testing.T) {
 
 	testTable("test issue #68", `cat PKGBUILD | sed "s#\\\\$pkgdir#/home/i4k/alt#g" > PKGBUILD2`, expected, t)
 }
+
+func TestLexerIssue85(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "a"},
+		{typ: token.AssignCmd, val: "<="},
+		{typ: token.Command, val: "-echo"},
+		{typ: token.Arg, val: "hello"},
+		{typ: token.EOF},
+	}
+
+	testTable("test issue 85", `a <= -echo hello`, expected, t)
+}
