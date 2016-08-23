@@ -54,7 +54,7 @@ func (fn *Fn) SetArgs(nodeArgs []ast.Expr, envShell *Shell) error {
 		arg := nodeArgs[i]
 		argName := fn.argNames[i]
 
-		obj, err := envShell.evalArg(arg)
+		obj, err := envShell.evalExpr(arg)
 
 		if err != nil {
 			return err

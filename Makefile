@@ -1,8 +1,8 @@
 all: build test install
 
 build:
-	cd cmd/nash && make -e build 2>&1 | sed "s#\.\./\.\./##g"
-	cd cmd/nashfmt && make -e build 2>&1 | sed "s#\.\./\.\./##g"
+	cd cmd/nash && make -e build
+	cd cmd/nashfmt && make -e build
 
 deps:
 	go get -v -t golang.org/x/exp/ebnf

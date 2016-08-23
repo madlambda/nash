@@ -110,13 +110,13 @@ func (nash *Shell) ExecuteFile(path string) error {
 // ExecuteTree executes the given tree.
 // Deprecated: Use ExecTree instead.
 func (nash *Shell) ExecuteTree(tr *ast.Tree) (*sh.Obj, error) {
-	return nash.interp.ExecTree(tr)
+	return nash.interp.ExecuteTree(tr)
 }
 
 // ExecTree evaluates the given abstract syntax tree.
 // it returns the object result of eval or nil when not applied and error.
 func (nash *Shell) ExecTree(tree *ast.Tree) (*sh.Obj, error) {
-	return nash.interp.ExecTree(tree)
+	return nash.interp.ExecuteTree(tree)
 }
 
 // SetStdout set the stdout of the nash engine.

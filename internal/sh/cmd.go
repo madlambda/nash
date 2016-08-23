@@ -76,7 +76,7 @@ func (c *Cmd) processArgs(cmd string, nodeArgs []ast.Expr, envShell *Shell) ([]s
 
 		carg := nodeArgs[i]
 
-		obj, err := envShell.evalArg(carg)
+		obj, err := envShell.evalExpr(carg)
 
 		if err != nil {
 			return nil, err
