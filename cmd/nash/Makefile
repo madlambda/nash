@@ -1,12 +1,9 @@
 all: build install
 
 VERSION=$(shell git rev-parse --abbrev-ref HEAD)
+BUILDARGS = -ldflags "-linkmode external -extldflags -static -X main.VersionString=$(VERSION)" -v
 
 build:
-	GO15VENDOREXPERIMENT=1 go build -v -ldflags "-X main.VersionString=$(VERSION)"
-
-build-static:
-	CGO_ENABLED=0 go build -v -ldflags "-X main.VersionString=$(VERSION)" -a -installsuffix cgo
-
+	GO15VENDOREXPERIMENT=1 go build $(BUILDARGS)
 install:
-	GO15VENDOREXPERIMENT=1 go install -ldflags "-X main.VersionString=$(VERSION)"
+	GO15VENDOREXPERIMENT=1 go install $(BUILDARGS)

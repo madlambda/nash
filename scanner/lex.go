@@ -306,7 +306,16 @@ func lexIdentifier(l *Lexer) stateFn {
 					word := l.input[l.start:l.pos]
 
 					if len(word) == 0 {
-						return l.errorf("Expected identifier")
+						r = l.peek()
+
+						if r != '-' {
+							return l.errorf("Expected identifier")
+						}
+
+						l.next()
+						absorbIdentifier(l)
+
+						word = l.input[l.start:l.pos]
 					}
 
 					r = l.peek()

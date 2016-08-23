@@ -38,7 +38,7 @@ type (
 		Start() error
 		Wait() error
 
-		SetArgs([]*ast.Arg, *Shell) error
+		SetArgs([]ast.Expr, *Shell) error
 		SetEnviron([]string)
 		SetStdin(io.Reader)
 		SetStdout(io.Writer)
@@ -454,8 +454,8 @@ func (sh *Shell) getIntr() bool {
 	return sh.interrupted
 }
 
-// ExecuteString executes the commands specified by string content
-func (sh *Shell) ExecuteString(path, content string) error {
+// Exec executes the commands specified by string content
+func (sh *Shell) Exec(path, content string) error {
 	p := parser.NewParser(path, content)
 
 	tr, err := p.Parse()
@@ -469,7 +469,7 @@ func (sh *Shell) ExecuteString(path, content string) error {
 }
 
 // Execute the nash file at given path
-func (sh *Shell) ExecuteFile(path string) error {
+func (sh *Shell) ExecFile(path string) error {
 	bkCurFile := sh.currentFile
 
 	content, err := ioutil.ReadFile(path)
@@ -484,23 +484,29 @@ func (sh *Shell) ExecuteFile(path string) error {
 		sh.currentFile = bkCurFile
 	}()
 
-	return sh.ExecuteString(path, string(content))
+	return sh.Exec(path, string(content))
 }
 
 // evalConcat reveives the AST representation of a concatenation of objects and
 // returns the string representation, or error.
-func (sh *Shell) evalConcat(path *ast.Arg) (string, error) {
+func (sh *Shell) evalConcat(path ast.Expr) (string, error) {
 	var pathStr string
 
-	concat := path.Concat()
+	if path.Type() != ast.NodeConcatExpr {
+		return "", fmt.Errorf("Invalid node %+v", path)
+	}
+
+	concatExpr := path.(*ast.ConcatExpr)
+	concat := concatExpr.List()
 
 	for i := 0; i < len(concat); i++ {
 		part := concat[i]
 
-		switch {
-		case part.IsConcat():
+		switch part.Type() {
+
+		case ast.NodeConcatExpr:
 			return "", errors.NewError("Nested concat is not allowed")
-		case part.IsVariable():
+		case ast.NodeVarExpr:
 			partValues, err := sh.evalVariable(part)
 
 			if err != nil {
@@ -508,16 +514,16 @@ func (sh *Shell) evalConcat(path *ast.Arg) (string, error) {
 			}
 
 			if partValues.Type() == ListType {
-				return "", fmt.Errorf("Concat of list variables is not allowed: %s = %v", part.Value(), partValues)
+				return "", fmt.Errorf("Concat of list variables is not allowed: %v = %v", part, partValues)
 			} else if partValues.Type() != StringType {
 				return "", fmt.Errorf("Invalid concat element: %v", partValues)
 			}
 
 			pathStr += partValues.Str()
-		case part.IsQuoted() || part.IsUnquoted():
-			pathStr += part.Value()
-		case part.IsList():
-			return "", errors.NewError("Concat of lists is not allowed: %+v", part.List())
+		case ast.NodeStringExpr:
+			pathStr += part.String()
+		case ast.NodeListExpr:
+			return "", errors.NewError("Concat of lists is not allowed: %+v", part.String())
 		default:
 			return "", fmt.Errorf("Invalid argument: %+v", part)
 		}
@@ -541,12 +547,12 @@ func (sh *Shell) executeNode(node ast.Node, builtin bool) (*Obj, error) {
 		err = sh.executeImport(node.(*ast.ImportNode))
 	case ast.NodeComment:
 		// ignore
-	case ast.NodeSetAssignment:
-		err = sh.executeSetAssignment(node.(*ast.SetAssignmentNode))
+	case ast.NodeSetenv:
+		err = sh.executeSetenv(node.(*ast.SetenvNode))
 	case ast.NodeAssignment:
 		err = sh.executeAssignment(node.(*ast.AssignmentNode))
-	case ast.NodeCmdAssignment:
-		err = sh.executeCmdAssignment(node.(*ast.CmdAssignmentNode))
+	case ast.NodeExecAssign:
+		err = sh.executeExecAssign(node.(*ast.ExecAssignNode))
 	case ast.NodeCommand:
 		err = sh.executeCommand(node.(*ast.CommandNode))
 	case ast.NodePipe:
@@ -626,7 +632,7 @@ func (sh *Shell) executeReturn(n *ast.ReturnNode) (*Obj, error) {
 		return nil, nil
 	}
 
-	return sh.evalArg(n.Return())
+	return sh.evalExpr(n.Return())
 }
 
 func (sh *Shell) executeBuiltin(node *ast.BuiltinNode) error {
@@ -638,7 +644,7 @@ func (sh *Shell) executeBuiltin(node *ast.BuiltinNode) error {
 func (sh *Shell) executeImport(node *ast.ImportNode) error {
 	arg := node.Path()
 
-	obj, err := sh.evalArg(arg)
+	obj, err := sh.evalExpr(arg)
 
 	if err != nil {
 		return err
@@ -653,7 +659,7 @@ func (sh *Shell) executeImport(node *ast.ImportNode) error {
 	sh.logf("Importing '%s'", fname)
 
 	if len(fname) > 0 && fname[0] == '/' {
-		return sh.ExecuteFile(fname)
+		return sh.ExecFile(fname)
 	}
 
 	tries := make([]string, 0, 4)
@@ -686,7 +692,7 @@ func (sh *Shell) executeImport(node *ast.ImportNode) error {
 		}
 
 		if m := d.Mode(); !m.IsDir() {
-			return sh.ExecuteFile(path)
+			return sh.ExecFile(path)
 		}
 	}
 
@@ -880,17 +886,18 @@ pipeError:
 	return err
 }
 
-func (sh *Shell) openRedirectLocation(location *ast.Arg) (io.WriteCloser, error) {
+func (sh *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, error) {
 	var (
 		protocol, locationStr string
 	)
 
-	if !location.IsVariable() && !location.IsQuoted() && !location.IsUnquoted() {
-		return nil, errors.NewError("Invalid argument of type %v in redirection", location.ArgType())
+	if location.Type() != ast.NodeVarExpr && location.Type() != ast.NodeStringExpr {
+		return nil, errors.NewError("Invalid argument of type %v in redirection", location.Type())
 	}
 
-	if location.IsQuoted() || location.IsUnquoted() {
-		locationStr = location.Value()
+	if location.Type() == ast.NodeStringExpr {
+		estr := location.(*ast.StringExpr)
+		locationStr = estr.Value()
 	} else {
 		obj, err := sh.evalVariable(location)
 
@@ -1086,7 +1093,9 @@ func (sh *Shell) getCommand(c *ast.CommandNode) (Runner, bool, error) {
 				}
 
 				for i := 0 + len(c.Args()); i < len(fn.argNames); i++ {
-					c.SetArgs(append(c.Args(), ast.NewArg(0, ast.ArgQuoted)))
+					// fill missing args with empty string
+					// safe?
+					c.SetArgs(append(c.Args(), ast.NewStringExpr(0, "", true)))
 				}
 
 				return fn, ignoreError, nil
@@ -1171,97 +1180,108 @@ cmdError:
 	return err
 }
 
-func (sh *Shell) evalVariable(a *ast.Arg) (*Obj, error) {
+func (sh *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (*Obj, error) {
+	var (
+		indexNum int
+	)
+
+	variable := indexVar.Var()
+	index := indexVar.Index()
+
+	v, err := sh.evalVariable(variable)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if v.Type() != ListType {
+		return nil, errors.NewError("Invalid indexing of non-list variable: %s", v.Type())
+	}
+
+	if index.Type() == ast.NodeIntExpr {
+		idxArg := index.(*ast.IntExpr)
+		indexNum = idxArg.Value()
+	} else if index.Type() == ast.NodeVarExpr {
+		idxObj, err := sh.evalVariable(index)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if idxObj.Type() != StringType {
+			return nil, errors.NewError("Invalid object type on index value: %s", idxObj.Type())
+		}
+
+		idxVal := idxObj.Str()
+		indexNum, err = strconv.Atoi(idxVal)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	values := v.List()
+
+	if indexNum < 0 || indexNum >= len(values) {
+		return nil, errors.NewError("Index out of bounds. len(%s) == %d, but given %d", variable.Name(), len(values), indexNum)
+	}
+
+	value := values[indexNum]
+	return NewStrObj(value), nil
+}
+
+func (sh *Shell) evalVariable(a ast.Expr) (*Obj, error) {
 	var (
 		v  *Obj
 		ok bool
 	)
 
-	if a.ArgType() != ast.ArgVariable {
+	if a.Type() == ast.NodeIndexExpr {
+		return sh.evalIndexedVar(a.(*ast.IndexExpr))
+	}
+
+	if a.Type() != ast.NodeVarExpr {
 		return nil, errors.NewError("Invalid eval of non variable argument: %s", a)
 	}
 
-	varName := a.Value()
+	vexpr := a.(*ast.VarExpr)
+	varName := vexpr.Name()
 
 	if v, ok = sh.GetVar(varName[1:]); !ok {
 		return nil, fmt.Errorf("Variable %s not set on shell %s", varName, sh.name)
 	}
 
-	if a.Index() != nil {
-		if v.Type() != ListType {
-			return nil, errors.NewError("Invalid indexing of non-list variable: %s", v.Type())
-		}
-
-		var (
-			indexNum int
-			err      error
-		)
-
-		idxArg := a.Index()
-
-		if idxArg.ArgType() == ast.ArgNumber {
-			indexNum, err = strconv.Atoi(idxArg.Value())
-
-			if err != nil {
-				return nil, err
-			}
-		} else if idxArg.ArgType() == ast.ArgVariable {
-			idxObj, err := sh.evalVariable(idxArg)
-
-			if err != nil {
-				return nil, err
-			}
-
-			if idxObj.Type() != StringType {
-				return nil, errors.NewError("Invalid object type on index value: %s", idxObj.Type())
-			}
-
-			idxVal := idxObj.Str()
-			indexNum, err = strconv.Atoi(idxVal)
-
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		values := v.List()
-
-		if indexNum < 0 || indexNum >= len(values) {
-			return nil, errors.NewError("Index out of bounds. len(%s) == %d, but given %d", varName, len(values), indexNum)
-		}
-
-		value := values[indexNum]
-		return NewStrObj(value), nil
-	}
-
 	return v, nil
 }
 
-func (sh *Shell) evalArg(arg *ast.Arg) (*Obj, error) {
-	if arg.IsQuoted() || arg.IsUnquoted() {
-		return NewStrObj(arg.Value()), nil
-	} else if arg.IsConcat() {
-		argVal, err := sh.evalConcat(arg)
+func (sh *Shell) evalExpr(expr ast.Expr) (*Obj, error) {
+	switch expr.Type() {
+	case ast.NodeStringExpr:
+		str := expr.(*ast.StringExpr)
+		return NewStrObj(str.Value()), nil
+	case ast.NodeConcatExpr:
+		concat := expr.(*ast.ConcatExpr)
+		argVal, err := sh.evalConcat(concat)
 
 		if err != nil {
 			return nil, err
 		}
 
 		return NewStrObj(argVal), nil
-	} else if arg.IsVariable() {
-		obj, err := sh.evalVariable(arg)
+	case ast.NodeVarExpr:
+		obj, err := sh.evalVariable(expr)
 
 		if err != nil {
 			return nil, err
 		}
 
 		return obj, nil
-	} else if arg.IsList() {
-		argList := arg.List()
-		values := make([]string, 0, len(argList))
+	case ast.NodeListExpr:
+		argList := expr.(*ast.ListExpr)
+		values := make([]string, 0, len(argList.List()))
 
-		for _, arg := range argList {
-			obj, err := sh.evalArg(arg)
+		for _, arg := range argList.List() {
+			obj, err := sh.evalExpr(arg)
 
 			if err != nil {
 				return nil, err
@@ -1277,10 +1297,10 @@ func (sh *Shell) evalArg(arg *ast.Arg) (*Obj, error) {
 		return NewListObj(values), nil
 	}
 
-	return nil, errors.NewError("Invalid argument type: %+v", arg)
+	return nil, errors.NewError("Invalid argument type: %+v", expr)
 }
 
-func (sh *Shell) executeSetAssignment(v *ast.SetAssignmentNode) error {
+func (sh *Shell) executeSetenv(v *ast.SetenvNode) error {
 	var (
 		varValue *Obj
 		ok       bool
@@ -1297,14 +1317,15 @@ func (sh *Shell) executeSetAssignment(v *ast.SetAssignmentNode) error {
 	return nil
 }
 
-func (sh *Shell) concatElements(elem *ast.Arg) (string, error) {
+func (sh *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 	value := ""
 
-	concat := elem.Concat()
-	for i := 0; i < len(concat); i++ {
-		ec := concat[i]
+	list := expr.List()
 
-		obj, err := sh.evalArg(ec)
+	for i := 0; i < len(list); i++ {
+		ec := list[i]
+
+		obj, err := sh.evalExpr(ec)
 
 		if err != nil {
 			return "", err
@@ -1320,7 +1341,7 @@ func (sh *Shell) concatElements(elem *ast.Arg) (string, error) {
 	return value, nil
 }
 
-func (sh *Shell) executeCmdAssignment(v *ast.CmdAssignmentNode) error {
+func (sh *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 	var (
 		varOut bytes.Buffer
 		err    error
@@ -1360,7 +1381,7 @@ func (sh *Shell) executeCmdAssignment(v *ast.CmdAssignmentNode) error {
 
 	outStr := string(varOut.Bytes())
 
-	if ifs, ok := sh.GetVar("IFS"); ok && ifs.Type() == ListType {
+	if ifs, ok := sh.GetVar("IFS"); ok && ifs.Type() == ListType && len(ifs.List()) > 0 {
 		strelems = strings.FieldsFunc(outStr, func(r rune) bool {
 			for _, delim := range ifs.List() {
 				if len(delim) > 0 && rune(delim[0]) == r {
@@ -1382,7 +1403,7 @@ func (sh *Shell) executeCmdAssignment(v *ast.CmdAssignmentNode) error {
 func (sh *Shell) executeAssignment(v *ast.AssignmentNode) error {
 	var err error
 
-	obj, err := sh.evalArg(v.Value())
+	obj, err := sh.evalExpr(v.Value())
 
 	if err != nil {
 		return err
@@ -1413,7 +1434,7 @@ func (sh *Shell) executeBuiltinCd(cd *ast.CdNode) error {
 
 		pathStr = pathobj.Str()
 	} else {
-		obj, err := sh.evalArg(path)
+		obj, err := sh.evalExpr(path)
 
 		if err != nil {
 			return err
@@ -1460,13 +1481,13 @@ func (sh *Shell) executeCd(cd *ast.CdNode, builtin bool) error {
 
 	path := cd.Dir()
 
-	args := make([]*ast.Arg, 0, 1)
+	args := make([]ast.Expr, 0, 1)
 
 	if path != nil {
 		args = append(args, path)
 	} else {
 		// empty arg
-		args = append(args, ast.NewArg(0, ast.ArgQuoted))
+		args = append(args, ast.NewStringExpr(0, "", true))
 	}
 
 	_, err := sh.executeFn(cdAlias, args)
@@ -1477,20 +1498,20 @@ func (sh *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
 	lvalue := n.Lvalue()
 	rvalue := n.Rvalue()
 
-	lobj, err := sh.evalArg(lvalue)
+	lobj, err := sh.evalExpr(lvalue)
 
 	if err != nil {
 		return "", "", err
 	}
 
-	robj, err := sh.evalArg(rvalue)
+	robj, err := sh.evalExpr(rvalue)
 
 	if err != nil {
 		return "", "", err
 	}
 
 	if lobj.Type() != StringType {
-		return "", "", errors.NewError("lvalue is not comparable.")
+		return "", "", errors.NewError("lvalue is not comparable: (%v) -> %s.", lobj, lobj.Type())
 	}
 
 	if robj.Type() != StringType {
@@ -1536,7 +1557,7 @@ func (sh *Shell) executeIfNotEqual(n *ast.IfNode) error {
 	return nil
 }
 
-func (sh *Shell) executeFn(fn *Fn, args []*ast.Arg) (*Obj, error) {
+func (sh *Shell) executeFn(fn *Fn, args []ast.Expr) (*Obj, error) {
 	err := fn.SetArgs(args, sh)
 
 	if err != nil {
@@ -1555,8 +1576,7 @@ func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 	fnName := n.Name()
 
 	if len(fnName) > 0 && fnName[0] == '$' {
-		argVar := ast.NewArg(n.Position(), ast.ArgVariable)
-		argVar.SetString(fnName)
+		argVar := ast.NewVarExpr(n.Position(), fnName)
 
 		obj, err := sh.evalVariable(argVar)
 
@@ -1643,8 +1663,7 @@ func (sh *Shell) executeFor(n *ast.ForNode) error {
 	id := n.Identifier()
 	inVar := n.InVar()
 
-	argVar := ast.NewArg(n.Position(), ast.ArgVariable)
-	argVar.SetString(inVar)
+	argVar := ast.NewVarExpr(n.Position(), inVar)
 
 	obj, err := sh.evalVariable(argVar)
 
@@ -1764,7 +1783,7 @@ func (sh *Shell) executeDump(n *ast.DumpNode) error {
 		goto execDump
 	}
 
-	obj, err = sh.evalArg(fnameArg)
+	obj, err = sh.evalExpr(fnameArg)
 
 	if err != nil {
 		return err

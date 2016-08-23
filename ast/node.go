@@ -260,11 +260,18 @@ const (
 	// NodeImport is the type for "import" builtin keyword
 	NodeImport
 
+	execBegin
+
 	// NodeCommand is the type for command execution
 	NodeCommand
 
 	// NodePipe is the type for pipeline execution
 	NodePipe
+
+	// NodeFnInv is the type for function invocation
+	NodeFnInv
+
+	execEnd
 
 	expressionBegin
 
@@ -312,9 +319,6 @@ const (
 	// NodeReturn is the type for return statement
 	NodeReturn
 
-	// NodeFnInv is the type for function invocation
-	NodeFnInv
-
 	// NodeBindFn is the type for bindfn statements
 	NodeBindFn
 
@@ -336,6 +340,11 @@ func (t NodeType) Type() NodeType {
 // IsExpr returns if the node is an expression.
 func (t NodeType) IsExpr() bool {
 	return t > expressionBegin && t < expressionEnd
+}
+
+// IsExecutable returns if the node is executable
+func (t NodeType) IsExecutable() bool {
+	return t > execBegin && t < execEnd
 }
 
 // NewListNode creates a new block
@@ -505,18 +514,9 @@ func (n *AssignmentNode) String() string {
 // result on a new variable. The assignment could be made using an operating system
 // command, a pipe of commands or a function invocation.
 // It returns a *ExecAssignNode ready to be executed or error when n is not a valid
-// for execution.
+// node for execution.
 func NewExecAssignNode(pos token.Pos, name string, n Node) (*ExecAssignNode, error) {
-	var exec Node
-
-	switch n.(type) {
-	case *CommandNode:
-		fallthrough
-	case *PipeNode:
-		fallthrough
-	case *FnInvNode:
-		exec = n
-	default:
+	if !n.Type().IsExecutable() {
 		return nil, errors.New("NewExecAssignNode expects a CommandNode, or PipeNode or FninvNode")
 	}
 
@@ -525,7 +525,7 @@ func NewExecAssignNode(pos token.Pos, name string, n Node) (*ExecAssignNode, err
 		Pos:      pos,
 		name:     name,
 
-		cmd: exec,
+		cmd: n,
 	}, nil
 }
 
@@ -547,6 +547,24 @@ func (n *ExecAssignNode) SetName(name string) {
 // SetCommand set the command part (NodeCommand or NodeFnDecl)
 func (n *ExecAssignNode) SetCommand(c Node) {
 	n.cmd = c
+}
+
+func (n *ExecAssignNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*ExecAssignNode)
+
+	if !ok {
+		return false
+	}
+
+	if n.name != o.name {
+		return false
+	}
+
+	return n.cmd.IsEqual(o.cmd)
 }
 
 // String returns the string representation of command assignment statement
@@ -795,11 +813,6 @@ func (n *RforkNode) SetFlags(a *StringExpr) {
 	n.arg = a
 }
 
-// SetBlock sets the sub block of rfork
-func (n *RforkNode) SetBlock(t *Tree) {
-	n.tree = t
-}
-
 // Tree returns the child tree of node
 func (n *RforkNode) Tree() *Tree {
 	return n.tree
@@ -808,6 +821,24 @@ func (n *RforkNode) Tree() *Tree {
 // SetTree set the body of the rfork block.
 func (n *RforkNode) SetTree(t *Tree) {
 	n.tree = t
+}
+
+func (n *RforkNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*RforkNode)
+
+	if !ok {
+		return false
+	}
+
+	if !n.arg.IsEqual(o.arg) {
+		return false
+	}
+
+	return n.tree.IsEqual(o.tree)
 }
 
 // String returns the string representation of rfork statement
@@ -882,6 +913,24 @@ func NewCommentNode(pos token.Pos, val string) *CommentNode {
 		Pos:      pos,
 		val:      val,
 	}
+}
+
+func (n *CommentNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	if n.Type() != other.Type() {
+		return false
+	}
+
+	o, ok := other.(*CommentNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.val == o.val
 }
 
 // String returns the string representation of comment
@@ -1082,6 +1131,30 @@ func (n *FnDeclNode) SetTree(t *Tree) {
 	n.tree = t
 }
 
+func (n *FnDeclNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*FnDeclNode)
+
+	if !ok {
+		return false
+	}
+
+	if n.name != o.name || len(n.args) != len(o.args) {
+		return false
+	}
+
+	for i := 0; i < len(n.args); i++ {
+		if n.args[i] != o.args[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 // String returns the string representation of function declaration
 func (n *FnDeclNode) String() string {
 	fnStr := "fn"
@@ -1159,7 +1232,7 @@ func (n *FnInvNode) IsEqual(other Node) bool {
 	}
 
 	for i := 0; i < len(n.args); i++ {
-		if !n.args[i].IsEquak(o.args[i]) {
+		if !n.args[i].IsEqual(o.args[i]) {
 			return false
 		}
 	}
@@ -1200,6 +1273,20 @@ func (n *BindFnNode) Name() string { return n.name }
 // CmdName return the command name
 func (n *BindFnNode) CmdName() string { return n.cmdname }
 
+func (n *BindFnNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*BindFnNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.name == o.name && n.cmdname == o.cmdname
+}
+
 // String returns the string representation of bindfn
 func (n *BindFnNode) String() string {
 	return "bindfn " + n.name + " " + n.cmdname
@@ -1221,6 +1308,24 @@ func (n *DumpNode) Filename() Expr {
 // SetFilename set the dump filename
 func (n *DumpNode) SetFilename(a Expr) {
 	n.filename = a
+}
+
+func (n *DumpNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	if n.Type() != other.Type() {
+		return false
+	}
+
+	o, ok := other.(*DumpNode)
+
+	if !ok {
+		return ok
+	}
+
+	return n.filename == o.filename
 }
 
 // String returns the string representation of dump node
@@ -1247,6 +1352,24 @@ func (n *ReturnNode) SetReturn(a Expr) {
 
 // Return returns the argument being returned
 func (n *ReturnNode) Return() Expr { return n.arg }
+
+func (n *ReturnNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	if n.Type() != other.Type() {
+		return false
+	}
+
+	o, ok := other.(*ReturnNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.arg.IsEqual(o.arg)
+}
 
 // String returns the string representation of return statement
 func (n *ReturnNode) String() string {
@@ -1286,6 +1409,25 @@ func (n *ForNode) SetTree(a *Tree) {
 
 // Tree return the for block
 func (n *ForNode) Tree() *Tree { return n.tree }
+
+func (n *ForNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	if n.Type() != other.Type() {
+		return false
+	}
+
+	o, ok := other.(*ForNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.identifier == o.identifier &&
+		n.inVar == o.inVar
+}
 
 // String returns the string representation of for statement
 func (n *ForNode) String() string {

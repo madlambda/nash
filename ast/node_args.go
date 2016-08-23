@@ -98,6 +98,8 @@ func NewListExpr(pos token.Pos, values []Expr) *ListExpr {
 	}
 }
 
+func (l *ListExpr) List() []Expr { return l.list }
+
 // PushExpr push an expression to end of the list
 func (l *ListExpr) PushExpr(a Expr) {
 	l.list = append(l.list, a)
@@ -162,7 +164,7 @@ func (c *ConcatExpr) SetConcat(v []Expr) {
 	c.concat = v
 }
 
-func (c *ConcatExpr) ConcatList() []Expr { return c.concat }
+func (c *ConcatExpr) List() []Expr { return c.concat }
 
 func (c *ConcatExpr) IsEqual(other Node) bool {
 	if c == other {
@@ -239,6 +241,9 @@ func NewIndexExpr(pos token.Pos, variable *VarExpr, index Expr) *IndexExpr {
 		index:    index,
 	}
 }
+
+func (i *IndexExpr) Var() *VarExpr { return i.variable }
+func (i *IndexExpr) Index() Expr   { return i.index }
 
 func (i *IndexExpr) String() string {
 	return i.variable.String() + "[" + i.index.String() + "]"
