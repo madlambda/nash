@@ -512,17 +512,16 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 
 		var values []ast.Expr
 
-		for it = p.next(); it.Type() == token.Arg || it.Type() == token.String || it.Type() == token.Variable; it = p.next() {
-			var arg ast.Expr
+		it = p.peek()
 
-			switch it.Type() {
-			case token.Arg:
-				arg = ast.NewStringExpr(it.Pos(), it.Value(), false)
-			case token.String:
-				arg = ast.NewStringExpr(it.Pos(), it.Value(), true)
-			case token.Variable:
-				arg = ast.NewVarExpr(it.Pos(), it.Value())
+		for it.Type() == token.Arg || it.Type() == token.String || it.Type() == token.Variable {
+			arg, err := p.getArgument(true, false)
+
+			if err != nil {
+				return nil, err
 			}
+
+			it = p.peek()
 
 			values = append(values, arg)
 		}
@@ -531,6 +530,7 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 			return nil, errors.NewUnfinishedListError()
 		}
 
+		p.next()
 		value = ast.NewListExpr(lit.Pos(), values)
 	} else {
 		return nil, fmt.Errorf("Unexpected token '%v'", it)
