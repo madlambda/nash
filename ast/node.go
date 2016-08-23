@@ -2,6 +2,7 @@ package ast
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -332,6 +333,16 @@ const (
 	NodeBuiltin
 )
 
+var (
+	DebugCmp bool
+)
+
+func debug(format string, args ...interface{}) {
+	if DebugCmp {
+		fmt.Printf(format+"\n", args...)
+	}
+}
+
 // Type returns the type of the node
 func (t NodeType) Type() NodeType {
 	return t
@@ -370,15 +381,18 @@ func (l *ListNode) IsEqual(other Node) bool {
 	o, ok := other.(*ListNode)
 
 	if !ok {
+		debug("Failed to cast other node to ListNode")
 		return false
 	}
 
 	if len(l.Nodes) != len(o.Nodes) {
+		debug("Nodes differs in length")
 		return false
 	}
 
 	for i := 0; i < len(l.Nodes); i++ {
 		if !l.Nodes[i].IsEqual(o.Nodes[i]) {
+			debug("List entry %d differ... '%s' != '%s'", i, l.Nodes[i], o.Nodes[i])
 			return false
 		}
 	}
@@ -408,10 +422,19 @@ func (n *ImportNode) IsEqual(other Node) bool {
 	o, ok := other.(*ImportNode)
 
 	if !ok {
+		debug("Failed to cast to ImportNode")
 		return false
 	}
 
-	return n.path.IsEqual(o.path)
+	if n.path == o.path {
+		return true
+	}
+
+	if n.path != nil {
+		return n.path.IsEqual(o.path)
+	}
+
+	return false
 }
 
 // String returns the string representation of the import
@@ -440,6 +463,7 @@ func (n *SetenvNode) IsEqual(other Node) bool {
 	o, ok := other.(*SetenvNode)
 
 	if !ok {
+		debug("Failed to convert to SetenvNode")
 		return false
 	}
 
@@ -489,14 +513,24 @@ func (n *AssignmentNode) IsEqual(other Node) bool {
 	o, ok := other.(*AssignmentNode)
 
 	if !ok {
+		debug("Failed to convert to AssignmentNode")
 		return false
 	}
 
 	if n.name != o.name {
+		debug("Assignment identifier doesn't match: '%s' != '%s'", n.name, o.name)
 		return false
 	}
 
-	return n.val.IsEqual(o.val)
+	if n.val == o.val {
+		return true
+	}
+
+	if n.val != nil {
+		return n.val.IsEqual(o.val)
+	}
+
+	return false
 }
 
 // String returns the string representation of assignment statement
@@ -557,14 +591,24 @@ func (n *ExecAssignNode) IsEqual(other Node) bool {
 	o, ok := other.(*ExecAssignNode)
 
 	if !ok {
+		debug("Failed to convert to ExecAssignNode")
 		return false
 	}
 
 	if n.name != o.name {
+		debug("Exec assignment name differs")
 		return false
 	}
 
-	return n.cmd.IsEqual(o.cmd)
+	if n.cmd == o.cmd {
+		return true
+	}
+
+	if n.cmd != nil {
+		return n.cmd.IsEqual(o.cmd)
+	}
+
+	return false
 }
 
 // String returns the string representation of command assignment statement
@@ -614,25 +658,30 @@ func (n *CommandNode) IsEqual(other Node) bool {
 	o, ok := other.(*CommandNode)
 
 	if !ok {
+		debug("Failed to convert to CommandNode")
 		return false
 	}
 
 	if len(n.args) != len(o.args) {
+		debug("Command argument length differs: %d != %d", len(n.args), len(o.args))
 		return false
 	}
 
 	for i := 0; i < len(n.args); i++ {
 		if !n.args[i].IsEqual(o.args[i]) {
+			debug("Argument %d differs. '%s' != '%s'", i, n.args[i], o.args[i])
 			return false
 		}
 	}
 
 	if len(n.redirs) != len(o.redirs) {
+		debug("Number of redirects differs. %d != %d", len(n.redirs), len(o.redirs))
 		return false
 	}
 
 	for i := 0; i < len(n.redirs); i++ {
 		if !n.redirs[i].IsEqual(o.redirs[i]) {
+			debug("Redirect differs... %s != %s", n.redirs[i], o.redirs[i])
 			return false
 		}
 	}
@@ -688,15 +737,18 @@ func (n *PipeNode) IsEqual(other Node) bool {
 	o, ok := other.(*PipeNode)
 
 	if !ok {
+		debug("Failed to convert to PipeNode")
 		return false
 	}
 
 	if len(n.cmds) != len(o.cmds) {
+		debug("Number of pipe commands differ: %d != %d", len(n.cmds), len(o.cmds))
 		return false
 	}
 
 	for i := 0; i < len(n.cmds); i++ {
-		if n.cmds[i].IsEqual(o.cmds[i]) {
+		if !n.cmds[i].IsEqual(o.cmds[i]) {
+			debug("Command differs. '%s' != '%s'", n.cmds[i], o.cmds[i])
 			return false
 		}
 	}
@@ -765,7 +817,15 @@ func (r *RedirectNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	return r.location.IsEqual(o)
+	if r.location == o.location {
+		return true
+	}
+
+	if r.location != nil {
+		return r.location.IsEqual(o.location)
+	}
+
+	return false
 }
 
 // String returns the string representation of redirect
@@ -888,7 +948,15 @@ func (n *CdNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	return n.dir.IsEqual(o.dir)
+	if n.dir == o.dir {
+		return true
+	}
+
+	if n.dir != nil {
+		return n.dir.IsEqual(o.dir)
+	}
+
+	return false
 }
 
 // String returns the string representation of cd node
@@ -1000,6 +1068,57 @@ func (n *IfNode) IfTree() *Tree { return n.ifTree }
 // ElseTree returns the else block
 func (n *IfNode) ElseTree() *Tree { return n.elseTree }
 
+// IsEqual returns if it is equal to the other node.
+func (n *IfNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*IfNode)
+
+	if !ok {
+		debug("Failed to convert to ifNode")
+		return false
+	}
+
+	if ok = cmpCommon(n, o); !ok {
+		return false
+	}
+
+	elvalue := n.Lvalue()
+	ervalue := n.Rvalue()
+	vlvalue := o.Lvalue()
+	vrvalue := o.Rvalue()
+
+	if !elvalue.IsEqual(vlvalue) {
+		debug("Lvalue differs: '%s' != '%s'", elvalue, vlvalue)
+		return false
+	}
+
+	if !ervalue.IsEqual(vrvalue) {
+		debug("Rvalue differs: '%s' != '%s'", ervalue, vrvalue)
+		return false
+	}
+
+	if n.Op() != o.Op() {
+		debug("Operation differs: %s != %s", n.Op(), o.Op())
+		return false
+	}
+
+	expectedTree := n.IfTree()
+	valueTree := o.IfTree()
+
+	if !expectedTree.IsEqual(valueTree) {
+		debug("If tree differs: '%s' != '%s'", expectedTree, valueTree)
+		return false
+	}
+
+	expectedTree = n.ElseTree()
+	valueTree = o.ElseTree()
+
+	return expectedTree.IsEqual(valueTree)
+}
+
 // String returns the string representation of if statement
 func (n *IfNode) String() string {
 	var lstr, rstr string
@@ -1048,48 +1167,6 @@ func (n *IfNode) String() string {
 	}
 
 	return ifStr
-}
-
-// IsEqual returns if it is equal to the other node.
-func (n *IfNode) IsEqual(other Node) bool {
-	value, ok := other.(*IfNode)
-
-	if !ok {
-		return false
-	}
-
-	if ok = cmpCommon(n, value); !ok {
-		return false
-	}
-
-	elvalue := n.Lvalue()
-	ervalue := n.Rvalue()
-	vlvalue := value.Lvalue()
-	vrvalue := value.Rvalue()
-
-	if !elvalue.IsEqual(vlvalue) {
-		return false
-	}
-
-	if !ervalue.IsEqual(vrvalue) {
-		return false
-	}
-
-	if n.Op() != value.Op() {
-		return false
-	}
-
-	expectedTree := n.IfTree()
-	valueTree := value.IfTree()
-
-	if !expectedTree.IsEqual(valueTree) {
-		return false
-	}
-
-	expectedTree = n.ElseTree()
-	valueTree = value.ElseTree()
-
-	return expectedTree.IsEqual(valueTree)
 }
 
 // NewFnDeclNode creates a new function declaration
@@ -1368,7 +1445,15 @@ func (n *ReturnNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	return n.arg.IsEqual(o.arg)
+	if n.arg == o.arg {
+		return true
+	}
+
+	if n.arg != nil {
+		return n.arg.IsEqual(o.arg)
+	}
+
+	return false
 }
 
 // String returns the string representation of return statement

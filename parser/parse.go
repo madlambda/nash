@@ -373,6 +373,8 @@ func (p *Parser) parseCd() (ast.Node, error) {
 
 	it = p.peek()
 
+	// TODO(i4k): this poor implementation allows:
+	// cd/ and cd. as valid commands
 	if it.Type() != token.Arg && it.Type() != token.String && it.Type() != token.Variable && it.Type() != token.Concat {
 		p.backup(it)
 
@@ -433,11 +435,7 @@ func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
 
 	it = p.peek()
 
-	if it.Type() == token.Concat {
-		if !allowConcat {
-			return nil, fmt.Errorf("CONCAT isn't allowed at pos %d (%s)", it.Pos(), it.Value())
-		}
-
+	if it.Type() == token.Concat && allowConcat {
 		return p.getConcatArg(arg)
 	}
 

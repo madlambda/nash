@@ -221,8 +221,8 @@ func (v *VarExpr) IsEqual(other Node) bool {
 
 	o, ok := other.(*VarExpr)
 
-	if ok {
-		return true
+	if !ok {
+		return false
 	}
 
 	return v.name == o.name

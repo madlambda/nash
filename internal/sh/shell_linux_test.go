@@ -60,7 +60,7 @@ func TestExecuteRforkUserNS(t *testing.T) {
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err = sh.ExecuteString("rfork test", `
+	err = sh.Exec("rfork test", `
         rfork u {
             id -u
         }
@@ -92,7 +92,7 @@ func TestExecuteRforkEnvVars(t *testing.T) {
 
 	sh.SetNashdPath(nashdPath)
 
-	err = sh.ExecuteString("test env", `abra = "cadabra"
+	err = sh.Exec("test env", `abra = "cadabra"
 setenv abra
 rfork up {
 	echo $abra
@@ -122,7 +122,7 @@ func TestExecuteRforkUserNSNested(t *testing.T) {
 	sh.SetNashdPath(nashdPath)
 	sh.SetStdout(&out)
 
-	err = sh.ExecuteString("rfork userns nested", `
+	err = sh.Exec("rfork userns nested", `
         rfork u {
             id -u
             rfork u {
