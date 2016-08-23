@@ -1081,10 +1081,6 @@ func (n *IfNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if ok = cmpCommon(n, o); !ok {
-		return false
-	}
-
 	elvalue := n.Lvalue()
 	ervalue := n.Rvalue()
 	vlvalue := o.Lvalue()
@@ -1392,17 +1388,22 @@ func (n *DumpNode) IsEqual(other Node) bool {
 		return true
 	}
 
-	if n.Type() != other.Type() {
-		return false
-	}
-
 	o, ok := other.(*DumpNode)
 
 	if !ok {
+		debug("Failed to convert to DumpNode")
 		return ok
 	}
 
-	return n.filename == o.filename
+	if n.filename == o.filename {
+		return true
+	}
+
+	if n.filename != nil {
+		return n.filename.IsEqual(o.filename)
+	}
+
+	return false
 }
 
 // String returns the string representation of dump node

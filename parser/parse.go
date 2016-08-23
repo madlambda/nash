@@ -906,6 +906,8 @@ func (p *Parser) parseReturn() (ast.Node, error) {
 			return nil, errors.NewUnfinishedListError()
 		}
 
+		p.next()
+
 		listArg := ast.NewListExpr(ret.Position(), values)
 		ret.SetReturn(listArg)
 		return ret, nil

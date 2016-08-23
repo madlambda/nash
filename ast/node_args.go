@@ -2,6 +2,7 @@ package ast
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/NeowayLabs/nash/scanner"
@@ -73,8 +74,11 @@ func NewIntExpr(pos token.Pos, val int) *IntExpr {
 	}
 }
 
-func (i *IntExpr) Value() int     { return i.val }
-func (i *IntExpr) String() string { return string(i.val) }
+func (i *IntExpr) Value() int { return i.val }
+func (i *IntExpr) String() string {
+	return strconv.Itoa(i.val)
+}
+
 func (i *IntExpr) IsEqual(other Node) bool {
 	if i == other {
 		return true
