@@ -1693,6 +1693,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 
 	if err != nil {
 		t.Error(err)
+		return
 	}
 
 	err = sh.Exec("-input-", `-command-not-exists`)
@@ -1739,6 +1740,29 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 
 	if !ok || scode.Type() != StringType || scode.String() != "255|127" {
 		t.Errorf("Invalid status code %s", scode)
+		return
+	}
+}
+
+func TestExecuteGracefullyError(t *testing.T) {
+	sh, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = sh.Exec("someinput.sh", "(")
+
+	if err == nil {
+		t.Errorf("Must fail...")
+		return
+	}
+
+	expectErr := "someinput.sh:1:0: Unexpected token parsing statement '('"
+
+	if err.Error() != expectErr {
+		t.Errorf("Expect error: %s, but got: %s", expectErr, err.Error())
 		return
 	}
 }
