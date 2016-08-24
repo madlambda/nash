@@ -113,6 +113,8 @@ func (p *Parser) peek() scanner.Token {
 }
 
 func (p *Parser) parseVariable() (ast.Expr, error) {
+	var err error
+	
 	it := p.next()
 
 	if it.Type() != token.Variable {
@@ -143,7 +145,13 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 
 			index = ast.NewIntExpr(it.Pos(), intval)
 		} else {
-			index = ast.NewVarExpr(it.Pos(), it.Value())
+			p.backup(it)
+
+			index, err = p.parseVariable()
+
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		it = p.next()
@@ -222,7 +230,7 @@ cmdLoop:
 		case token.EOF:
 			return n, nil
 		case token.Illegal:
-			return nil, fmt.Errorf("Syntax error: %s", it.Value())
+			return nil, fmt.Errorf("Syntax error: %s", it)
 		default:
 			break cmdLoop
 		}
@@ -1008,7 +1016,7 @@ func (p *Parser) parseBlock() (*ast.ListNode, error) {
 		case token.EOF:
 			goto finish
 		case token.Illegal:
-			return nil, fmt.Errorf("Syntax error: %s", it.Value())
+			return nil, fmt.Errorf("Syntax error: %s", it)
 		case token.LBrace:
 			p.ignore()
 

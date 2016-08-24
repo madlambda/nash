@@ -521,7 +521,13 @@ func (sh *Shell) evalConcat(path ast.Expr) (string, error) {
 
 			pathStr += partValues.Str()
 		case ast.NodeStringExpr:
-			pathStr += part.String()
+			str, ok := part.(*ast.StringExpr)
+
+			if !ok {
+				return "", fmt.Errorf("Failed to eval string.")
+			}
+			
+			pathStr += str.Value()
 		case ast.NodeListExpr:
 			return "", errors.NewError("Concat of lists is not allowed: %+v", part.String())
 		default:
@@ -1271,11 +1277,17 @@ func (sh *Shell) evalExpr(expr ast.Expr) (*Obj, error) {
 	case ast.NodeVarExpr:
 		obj, err := sh.evalVariable(expr)
 
-		if err != nil {
-			return nil, err
-		}
+		return obj, err
+	case ast.NodeIndexExpr:
+		indexedVar, ok := expr.(*ast.IndexExpr)
 
-		return obj, nil
+		if !ok {
+			return nil, errors.NewError("Failed to eval indexed variable")
+		}
+		
+		obj, err := sh.evalIndexedVar(indexedVar)
+
+		return obj, err
 	case ast.NodeListExpr:
 		argList := expr.(*ast.ListExpr)
 		values := make([]string, 0, len(argList.List()))

@@ -16,7 +16,7 @@ func TestTreeRawCreation(t *testing.T) {
 	tr := NewTree("creating a tree by hand")
 
 	ln := NewListNode()
-	rfarg := NewSimpleArg(6, "unp", ArgUnquoted)
+	rfarg := NewStringExpr(6, "unp", false)
 
 	r := NewRforkNode(0)
 	r.SetFlags(rfarg)
