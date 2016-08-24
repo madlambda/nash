@@ -8,7 +8,7 @@ type (
 )
 
 const (
-	Illegal Token = iota // error ocurred
+	Illegal Token = iota + 1 // error ocurred
 	EOF
 	Comment
 
@@ -126,7 +126,7 @@ func (p Pos) Position() Pos {
 
 func (tok Token) String() string {
 	s := ""
-	if 0 <= tok && tok < Token(len(tokens)) {
+	if 0 < tok && tok < Token(len(tokens)) {
 		s = tokens[tok]
 	}
 	if s == "" {

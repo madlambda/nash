@@ -114,7 +114,7 @@ func (p *Parser) peek() scanner.Token {
 
 func (p *Parser) parseVariable() (ast.Expr, error) {
 	var err error
-	
+
 	it := p.next()
 
 	if it.Type() != token.Variable {
@@ -862,8 +862,6 @@ func (p *Parser) parseDump() (ast.Node, error) {
 
 	fnameIt := p.peek()
 
-	p.next()
-
 	var arg ast.Expr
 
 	switch fnameIt.Type() {
@@ -876,6 +874,8 @@ func (p *Parser) parseDump() (ast.Node, error) {
 	default:
 		return dump, nil
 	}
+
+	p.next()
 
 	dump.SetFilename(arg)
 

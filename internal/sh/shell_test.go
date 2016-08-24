@@ -1230,7 +1230,7 @@ func TestExecuteDump(t *testing.T) {
 
 	sh.SetStdout(&out)
 
-	err = sh.Exec("", "dump")
+	err = sh.Exec("exec dump", "dump")
 
 	if err != nil {
 		t.Error(err)
