@@ -1,16 +1,18 @@
 package ast
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/NeowayLabs/nash/scanner"
 	"github.com/NeowayLabs/nash/token"
 )
 
 const (
+	// RedirMapNoValue indicates the pipe has not redirection
 	RedirMapNoValue = -1
+	// RedirMapSupress indicates the rhs of map was suppressed
 	RedirMapSupress = -2
 )
 
@@ -20,14 +22,14 @@ type (
 		Type() NodeType
 		Position() token.Pos
 		String() string
+		IsEqual(Node) bool
 	}
+
+	// Expr is the interface of expression nodes.
+	Expr Node
 
 	// NodeType is the types of grammar
 	NodeType int
-
-	// ArgType is the types of arguments
-	// (quoted string, unquoted, variable and concat)
-	ArgType int
 
 	// ListNode is the block
 	ListNode struct {
@@ -37,14 +39,16 @@ type (
 		Nodes []Node
 	}
 
+	// An ImportNode represents the node for an "import" keyword.
 	ImportNode struct {
 		NodeType
 		token.Pos
 
-		path *Arg // Import path
+		path *StringExpr // Import path
 	}
 
-	SetAssignmentNode struct {
+	// A SetenvNode represents the node for a "setenv" keyword.
+	SetenvNode struct {
 		NodeType
 		token.Pos
 
@@ -55,42 +59,86 @@ type (
 	AssignmentNode struct {
 		NodeType
 		token.Pos
+
 		name string
-		val  *Arg
+		val  Expr
 	}
 
-	CmdAssignmentNode struct {
+	// An ExecAssignNode represents the node for execution assignment.
+	ExecAssignNode struct {
 		NodeType
 		token.Pos
+
 		name string
 		cmd  Node
 	}
 
-	// CommandNode is a node for commands
+	// A CommandNode is a node for commands
 	CommandNode struct {
 		NodeType
 		token.Pos
+
 		name   string
-		args   []*Arg
+		args   []Expr
 		redirs []*RedirectNode
 	}
 
+	// PipeNode represents the node for a command pipeline.
 	PipeNode struct {
 		NodeType
 		token.Pos
+
 		cmds []*CommandNode
 	}
 
-	// Arg is a command or fn argument
-	Arg struct {
+	// StringExpr is a string argument
+	StringExpr struct {
 		NodeType
 		token.Pos
 
-		argType ArgType
-		str     string
-		list    []*Arg
-		concat  []*Arg
-		index   *Arg
+		str    string
+		quoted bool
+	}
+
+	// IntExpr is a integer used at indexing
+	IntExpr struct {
+		NodeType
+		token.Pos
+
+		val int
+	}
+
+	// ListExpr is a list argument
+	ListExpr struct {
+		NodeType
+		token.Pos
+
+		list []Expr
+	}
+
+	// ConcatExpr is a concatenation of arguments
+	ConcatExpr struct {
+		NodeType
+		token.Pos
+
+		concat []Expr
+	}
+
+	// VarExpr is a variable argument
+	VarExpr struct {
+		NodeType
+		token.Pos
+
+		name string
+	}
+
+	// IndexExpr is a indexed variable
+	IndexExpr struct {
+		NodeType
+		token.Pos
+
+		variable *VarExpr
+		index    Expr
 	}
 
 	// RedirectNode represents the output redirection part of a command
@@ -98,14 +146,14 @@ type (
 		NodeType
 		token.Pos
 		rmap     RedirMap
-		location *Arg
+		location Expr
 	}
 
 	// RforkNode is a builtin node for rfork
 	RforkNode struct {
 		NodeType
 		token.Pos
-		arg  *Arg
+		arg  *StringExpr
 		tree *Tree
 	}
 
@@ -113,7 +161,7 @@ type (
 	CdNode struct {
 		NodeType
 		token.Pos
-		dir *Arg
+		dir Expr
 	}
 
 	// CommentNode is the node for comments
@@ -129,11 +177,12 @@ type (
 		rfd int
 	}
 
+	// IfNode represents the node for the "if" keyword.
 	IfNode struct {
 		NodeType
 		token.Pos
-		lvalue *Arg
-		rvalue *Arg
+		lvalue Expr
+		rvalue Expr
 		op     string
 		elseIf bool
 
@@ -141,6 +190,7 @@ type (
 		elseTree *Tree
 	}
 
+	// A FnDeclNode represents a function declaration.
 	FnDeclNode struct {
 		NodeType
 		token.Pos
@@ -149,19 +199,22 @@ type (
 		tree *Tree
 	}
 
+	// A FnInvNode represents a function invocation statement.
 	FnInvNode struct {
 		NodeType
 		token.Pos
 		name string
-		args []*Arg
+		args []Expr
 	}
 
+	// A ReturnNode represents the "return" keyword.
 	ReturnNode struct {
 		NodeType
 		token.Pos
-		arg *Arg
+		arg Expr
 	}
 
+	// A BindFnNode represents the "bindfn" keyword.
 	BindFnNode struct {
 		NodeType
 		token.Pos
@@ -169,12 +222,14 @@ type (
 		cmdname string
 	}
 
+	// A DumpNode represents the "dump" keyword.
 	DumpNode struct {
 		NodeType
 		token.Pos
-		filename *Arg
+		filename Expr
 	}
 
+	// A ForNode represents the "for" keyword.
 	ForNode struct {
 		NodeType
 		token.Pos
@@ -183,6 +238,7 @@ type (
 		tree       *Tree
 	}
 
+	// A BuiltinNode represents the builtin keyword.
 	BuiltinNode struct {
 		NodeType
 		token.Pos
@@ -193,17 +249,19 @@ type (
 //go:generate stringer -type=NodeType
 
 const (
-	// NodeSetAssignment is the type for "setenv" builtin keyword
-	NodeSetAssignment NodeType = iota + 1
+	// NodeSetenv the type for "setenv" builtin keyword
+	NodeSetenv NodeType = iota + 1
 
 	// NodeAssignment is the type for simple variable assignment
 	NodeAssignment
 
-	// NodeCmdAssignment is the type for command or function assignment
-	NodeCmdAssignment
+	// NodeExecAssign is the type for command or function assignment
+	NodeExecAssign
 
 	// NodeImport is the type for "import" builtin keyword
 	NodeImport
+
+	execBegin
 
 	// NodeCommand is the type for command execution
 	NodeCommand
@@ -211,8 +269,32 @@ const (
 	// NodePipe is the type for pipeline execution
 	NodePipe
 
-	// NodeArg are nodes for command arguments
-	NodeArg
+	// NodeFnInv is the type for function invocation
+	NodeFnInv
+
+	execEnd
+
+	expressionBegin
+
+	// NodeStringExpr is the type of string expression (quoted or not).
+	NodeStringExpr
+
+	// NodeIntExpr is the type of integer expression (commonly list indexing)
+	NodeIntExpr
+
+	// NodeVarExpr is the type of variable expressions.
+	NodeVarExpr
+
+	// NodeListExpr is the type of list expression.
+	NodeListExpr
+
+	// NodeIndexExpr is the type of indexing expressions.
+	NodeIndexExpr
+
+	// NodeConcatExpr is the type of concatenation expressions.
+	NodeConcatExpr
+
+	expressionEnd
 
 	// NodeString are nodes for argument strings
 	NodeString
@@ -238,9 +320,6 @@ const (
 	// NodeReturn is the type for return statement
 	NodeReturn
 
-	// NodeFnInv is the type for function invocation
-	NodeFnInv
-
 	// NodeBindFn is the type for bindfn statements
 	NodeBindFn
 
@@ -250,23 +329,33 @@ const (
 	// NodeFor is the type for "for" statements
 	NodeFor
 
-	// NodeBuiltin
+	// NodeBuiltin is the type of "builtin" nodes.
 	NodeBuiltin
 )
 
-//go:generate stringer -type=ArgType
-const (
-	ArgQuoted ArgType = iota + 1
-	ArgUnquoted
-	ArgVariable
-	ArgNumber
-	ArgList
-	ArgConcat
+var (
+	DebugCmp bool
 )
+
+func debug(format string, args ...interface{}) {
+	if DebugCmp {
+		fmt.Printf(format+"\n", args...)
+	}
+}
 
 // Type returns the type of the node
 func (t NodeType) Type() NodeType {
 	return t
+}
+
+// IsExpr returns if the node is an expression.
+func (t NodeType) IsExpr() bool {
+	return t > expressionBegin && t < expressionEnd
+}
+
+// IsExecutable returns if the node is executable
+func (t NodeType) IsExecutable() bool {
+	return t > execBegin && t < execEnd
 }
 
 // NewListNode creates a new block
@@ -276,117 +365,254 @@ func NewListNode() *ListNode {
 
 // Push adds a new node for a block of nodes
 func (l *ListNode) Push(n Node) {
-	if l.Nodes == nil {
-		l.Nodes = make([]Node, 0, 1024)
-	}
-
 	l.Nodes = append(l.Nodes, n)
 }
 
+func (l *ListNode) String() string {
+	return "unimplemented"
+}
+
+// IsEqual returns if it is equal to the other node.
+func (l *ListNode) IsEqual(other Node) bool {
+	if l == other {
+		return true
+	}
+
+	o, ok := other.(*ListNode)
+
+	if !ok {
+		debug("Failed to cast other node to ListNode")
+		return false
+	}
+
+	if len(l.Nodes) != len(o.Nodes) {
+		debug("Nodes differs in length")
+		return false
+	}
+
+	for i := 0; i < len(l.Nodes); i++ {
+		if !l.Nodes[i].IsEqual(o.Nodes[i]) {
+			debug("List entry %d differ... '%s' != '%s'", i, l.Nodes[i], o.Nodes[i])
+			return false
+		}
+	}
+
+	return true
+}
+
 // NewImportNode creates a new ImportNode object
-func NewImportNode(pos token.Pos) *ImportNode {
+func NewImportNode(pos token.Pos, path *StringExpr) *ImportNode {
 	return &ImportNode{
 		NodeType: NodeImport,
 		Pos:      pos,
+
+		path: path,
 	}
 }
 
-// SetPath of import statement
-func (n *ImportNode) SetPath(arg *Arg) {
-	n.path = arg
-}
+// Path returns the path of import.
+func (n *ImportNode) Path() *StringExpr { return n.path }
 
-// Path returns the path of import
-func (n *ImportNode) Path() *Arg { return n.path }
+// IsEqual returns if it is equal to the other node.
+func (n *ImportNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*ImportNode)
+
+	if !ok {
+		debug("Failed to cast to ImportNode")
+		return false
+	}
+
+	if n.path == o.path {
+		return true
+	}
+
+	if n.path != nil {
+		return n.path.IsEqual(o.path)
+	}
+
+	return false
+}
 
 // String returns the string representation of the import
 func (n *ImportNode) String() string {
 	return `import ` + n.path.String()
 }
 
-// NewSetAssignmentNode creates a new assignment node
-func NewSetAssignmentNode(pos token.Pos, name string) *SetAssignmentNode {
-	return &SetAssignmentNode{
-		NodeType: NodeSetAssignment,
+// NewSetenvNode creates a new assignment node
+func NewSetenvNode(pos token.Pos, name string) *SetenvNode {
+	return &SetenvNode{
+		NodeType: NodeSetenv,
 		Pos:      pos,
 		varName:  name,
 	}
 }
 
-func (n *SetAssignmentNode) Identifier() string { return n.varName }
+// Identifier returns the environment name.
+func (n *SetenvNode) Identifier() string { return n.varName }
+
+// IsEqual returns if it is equal to the other node.
+func (n *SetenvNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*SetenvNode)
+
+	if !ok {
+		debug("Failed to convert to SetenvNode")
+		return false
+	}
+
+	return n.varName == o.varName
+}
 
 // String returns the string representation of assignment
-func (n *SetAssignmentNode) String() string {
+func (n *SetenvNode) String() string {
 	return "setenv " + n.varName
 }
 
 // NewAssignmentNode creates a new assignment
-func NewAssignmentNode(pos token.Pos) *AssignmentNode {
+func NewAssignmentNode(pos token.Pos, ident string, value Expr) *AssignmentNode {
 	return &AssignmentNode{
 		NodeType: NodeAssignment,
 		Pos:      pos,
+
+		name: ident,
+		val:  value,
 	}
 }
 
-// SetVarName sets the name of the variable
+// SetIdentifier sets the name of the variable
 func (n *AssignmentNode) SetIdentifier(a string) {
 	n.name = a
 }
 
+// Identifier return the name of the variable.
 func (n *AssignmentNode) Identifier() string { return n.name }
 
-// SetValueList sets the value of the list
-func (n *AssignmentNode) SetValue(val *Arg) {
+// SetValue sets the value of the list
+func (n *AssignmentNode) SetValue(val Expr) {
 	n.val = val
 }
 
 // Value returns the assigned object
-func (n *AssignmentNode) Value() *Arg {
+func (n *AssignmentNode) Value() Expr {
 	return n.val
+}
+
+// IsEqual returns if it is equal to the other node.
+func (n *AssignmentNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*AssignmentNode)
+
+	if !ok {
+		debug("Failed to convert to AssignmentNode")
+		return false
+	}
+
+	if n.name != o.name {
+		debug("Assignment identifier doesn't match: '%s' != '%s'", n.name, o.name)
+		return false
+	}
+
+	if n.val == o.val {
+		return true
+	}
+
+	if n.val != nil {
+		return n.val.IsEqual(o.val)
+	}
+
+	return false
 }
 
 // String returns the string representation of assignment statement
 func (n *AssignmentNode) String() string {
 	obj := n.val
 
-	if obj.ArgType() == 0 || obj.ArgType() == ArgUnquoted || obj.ArgType() > ArgConcat {
-		return "<unknown>"
+	if obj.Type().IsExpr() {
+		return n.name + " = " + obj.String()
 	}
 
-	return n.name + " = " + obj.String()
+	return "<unknown>"
 }
 
-// NewCmdAssignmentNode creates a new command assignment
-func NewCmdAssignmentNode(pos token.Pos, name string) *CmdAssignmentNode {
-	return &CmdAssignmentNode{
-		NodeType: NodeCmdAssignment,
+// NewExecAssignNode creates a new node for executing something and store the
+// result on a new variable. The assignment could be made using an operating system
+// command, a pipe of commands or a function invocation.
+// It returns a *ExecAssignNode ready to be executed or error when n is not a valid
+// node for execution.
+func NewExecAssignNode(pos token.Pos, name string, n Node) (*ExecAssignNode, error) {
+	if !n.Type().IsExecutable() {
+		return nil, errors.New("NewExecAssignNode expects a CommandNode, or PipeNode or FninvNode")
+	}
+
+	return &ExecAssignNode{
+		NodeType: NodeExecAssign,
 		Pos:      pos,
 		name:     name,
-	}
+
+		cmd: n,
+	}, nil
 }
 
 // Name returns the identifier (l-value)
-func (n *CmdAssignmentNode) Name() string {
+func (n *ExecAssignNode) Name() string {
 	return n.name
 }
 
 // Command returns the command (or r-value). Command could be a CommandNode or FnNode
-func (n *CmdAssignmentNode) Command() Node {
+func (n *ExecAssignNode) Command() Node {
 	return n.cmd
 }
 
 // SetName set the assignment identifier (l-value)
-func (n *CmdAssignmentNode) SetName(name string) {
+func (n *ExecAssignNode) SetName(name string) {
 	n.name = name
 }
 
 // SetCommand set the command part (NodeCommand or NodeFnDecl)
-func (n *CmdAssignmentNode) SetCommand(c Node) {
+func (n *ExecAssignNode) SetCommand(c Node) {
 	n.cmd = c
 }
 
+func (n *ExecAssignNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*ExecAssignNode)
+
+	if !ok {
+		debug("Failed to convert to ExecAssignNode")
+		return false
+	}
+
+	if n.name != o.name {
+		debug("Exec assignment name differs")
+		return false
+	}
+
+	if n.cmd == o.cmd {
+		return true
+	}
+
+	if n.cmd != nil {
+		return n.cmd.IsEqual(o.cmd)
+	}
+
+	return false
+}
+
 // String returns the string representation of command assignment statement
-func (n *CmdAssignmentNode) String() string {
+func (n *ExecAssignNode) String() string {
 	return n.name + " <= " + n.cmd.String()
 }
 
@@ -396,31 +622,72 @@ func NewCommandNode(pos token.Pos, name string) *CommandNode {
 		NodeType: NodeCommand,
 		Pos:      pos,
 		name:     name,
-		args:     make([]*Arg, 0, 1024),
 	}
 }
 
 // AddArg adds a new argument to the command
-func (n *CommandNode) AddArg(a *Arg) {
+func (n *CommandNode) AddArg(a Expr) {
 	n.args = append(n.args, a)
 }
 
 // SetArgs sets an array of args to command
-func (n *CommandNode) SetArgs(args []*Arg) {
+func (n *CommandNode) SetArgs(args []Expr) {
 	n.args = args
 }
 
-func (n *CommandNode) Args() []*Arg { return n.args }
+// Args returns the list of arguments supplied to command.
+func (n *CommandNode) Args() []Expr { return n.args }
 
 // AddRedirect adds a new redirect node to command
 func (n *CommandNode) AddRedirect(redir *RedirectNode) {
 	n.redirs = append(n.redirs, redir)
 }
 
+// Redirects return the list of redirect maps of the command.
 func (n *CommandNode) Redirects() []*RedirectNode { return n.redirs }
 
 // Name returns the program name
 func (n *CommandNode) Name() string { return n.name }
+
+// IsEqual returns if it is equal to the other node.
+func (n *CommandNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*CommandNode)
+
+	if !ok {
+		debug("Failed to convert to CommandNode")
+		return false
+	}
+
+	if len(n.args) != len(o.args) {
+		debug("Command argument length differs: %d != %d", len(n.args), len(o.args))
+		return false
+	}
+
+	for i := 0; i < len(n.args); i++ {
+		if !n.args[i].IsEqual(o.args[i]) {
+			debug("Argument %d differs. '%s' != '%s'", i, n.args[i], o.args[i])
+			return false
+		}
+	}
+
+	if len(n.redirs) != len(o.redirs) {
+		debug("Number of redirects differs. %d != %d", len(n.redirs), len(o.redirs))
+		return false
+	}
+
+	for i := 0; i < len(n.redirs); i++ {
+		if !n.redirs[i].IsEqual(o.redirs[i]) {
+			debug("Redirect differs... %s != %s", n.redirs[i], o.redirs[i])
+			return false
+		}
+	}
+
+	return n.name == o.name
+}
 
 // String returns the string representation of command statement
 func (n *CommandNode) String() string {
@@ -448,7 +715,6 @@ func NewPipeNode(pos token.Pos) *PipeNode {
 	return &PipeNode{
 		NodeType: NodePipe,
 		Pos:      pos,
-		cmds:     make([]*CommandNode, 0, 16),
 	}
 }
 
@@ -460,6 +726,34 @@ func (n *PipeNode) AddCmd(c *CommandNode) {
 // Commands returns the list of pipeline commands
 func (n *PipeNode) Commands() []*CommandNode {
 	return n.cmds
+}
+
+// IsEqual returns if it is equal to the other node.
+func (n *PipeNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*PipeNode)
+
+	if !ok {
+		debug("Failed to convert to PipeNode")
+		return false
+	}
+
+	if len(n.cmds) != len(o.cmds) {
+		debug("Number of pipe commands differ: %d != %d", len(n.cmds), len(o.cmds))
+		return false
+	}
+
+	for i := 0; i < len(n.cmds); i++ {
+		if !n.cmds[i].IsEqual(o.cmds[i]) {
+			debug("Command differs. '%s' != '%s'", n.cmds[i], o.cmds[i])
+			return false
+		}
+	}
+
+	return true
 }
 
 // String returns the string representation of pipeline statement
@@ -484,8 +778,7 @@ func NewRedirectNode(pos token.Pos) *RedirectNode {
 			lfd: -1,
 			rfd: -1,
 		},
-		Pos:      pos,
-		location: nil,
+		Pos: pos,
 	}
 }
 
@@ -495,15 +788,45 @@ func (r *RedirectNode) SetMap(lfd int, rfd int) {
 	r.rmap.rfd = rfd
 }
 
-func (r *RedirectNode) LeftFD() int  { return r.rmap.lfd }
+// LeftFD return the lhs of the redirection map.
+func (r *RedirectNode) LeftFD() int { return r.rmap.lfd }
+
+// RightFD return the rhs of the redirection map.
 func (r *RedirectNode) RightFD() int { return r.rmap.rfd }
 
 // SetLocation of the output
-func (r *RedirectNode) SetLocation(s *Arg) {
-	r.location = s
-}
+func (r *RedirectNode) SetLocation(s Expr) { r.location = s }
 
-func (r *RedirectNode) Location() *Arg { return r.location }
+// Location return the location of the redirection.
+func (r *RedirectNode) Location() Expr { return r.location }
+
+// IsEqual return if it is equal to the other node.
+func (r *RedirectNode) IsEqual(other Node) bool {
+	if r == other {
+		return true
+	}
+
+	o, ok := other.(*RedirectNode)
+
+	if !ok {
+		return false
+	}
+
+	if r.rmap.lfd != o.rmap.lfd ||
+		r.rmap.rfd != o.rmap.rfd {
+		return false
+	}
+
+	if r.location == o.location {
+		return true
+	}
+
+	if r.location != nil {
+		return r.location.IsEqual(o.location)
+	}
+
+	return false
+}
 
 // String returns the string representation of redirect
 func (r *RedirectNode) String() string {
@@ -540,18 +863,14 @@ func NewRforkNode(pos token.Pos) *RforkNode {
 	}
 }
 
-func (n *RforkNode) Arg() *Arg {
+// Arg return the string argument of the rfork.
+func (n *RforkNode) Arg() *StringExpr {
 	return n.arg
 }
 
 // SetFlags sets the rfork flags
-func (n *RforkNode) SetFlags(a *Arg) {
+func (n *RforkNode) SetFlags(a *StringExpr) {
 	n.arg = a
-}
-
-// SetBlock sets the sub block of rfork
-func (n *RforkNode) SetBlock(t *Tree) {
-	n.tree = t
 }
 
 // Tree returns the child tree of node
@@ -559,8 +878,27 @@ func (n *RforkNode) Tree() *Tree {
 	return n.tree
 }
 
+// SetTree set the body of the rfork block.
 func (n *RforkNode) SetTree(t *Tree) {
 	n.tree = t
+}
+
+func (n *RforkNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*RforkNode)
+
+	if !ok {
+		return false
+	}
+
+	if !n.arg.IsEqual(o.arg) {
+		return false
+	}
+
+	return n.tree.IsEqual(o.tree)
 }
 
 // String returns the string representation of rfork statement
@@ -584,21 +922,41 @@ func (n *RforkNode) String() string {
 }
 
 // NewCdNode creates a new node for changing directory
-func NewCdNode(pos token.Pos) *CdNode {
+func NewCdNode(pos token.Pos, dir Expr) *CdNode {
 	return &CdNode{
 		NodeType: NodeCd,
 		Pos:      pos,
+
+		dir: dir,
 	}
 }
 
-// SetDir sets the cd directory to dir
-func (n *CdNode) SetDir(dir *Arg) {
-	n.dir = dir
+// Dir returns the directory of cd node
+func (n *CdNode) Dir() Expr {
+	return n.dir
 }
 
-// Dir returns the directory of cd node
-func (n *CdNode) Dir() *Arg {
-	return n.dir
+// IsEqual returns if it is equal to other node.
+func (n *CdNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*CdNode)
+
+	if !ok {
+		return false
+	}
+
+	if n.dir == o.dir {
+		return true
+	}
+
+	if n.dir != nil {
+		return n.dir.IsEqual(o.dir)
+	}
+
+	return false
 }
 
 // String returns the string representation of cd node
@@ -609,141 +967,11 @@ func (n *CdNode) String() string {
 		return "cd"
 	}
 
-	if dir.ArgType() != ArgQuoted && dir.ArgType() != ArgUnquoted &&
-		dir.ArgType() != ArgConcat && dir.ArgType() != ArgVariable {
+	if !dir.Type().IsExpr() {
 		return "cd <invalid path>"
 	}
 
 	return "cd " + dir.String()
-}
-
-// NewArg creates a new argument
-func NewArg(pos token.Pos, argType ArgType) *Arg {
-	return &Arg{
-		NodeType: NodeArg,
-		Pos:      pos,
-		argType:  argType,
-	}
-}
-
-// SetArgType set the type of argument (ArgQuoted, ArgUnquoted, ArgVariable, ArgList)
-func (n *Arg) SetArgType(t ArgType) {
-	n.argType = t
-}
-
-// ArgType returns the argument type
-func (n *Arg) ArgType() ArgType { return n.argType }
-
-// SetString set the argument string value
-func (n *Arg) SetString(name string) {
-	n.str = name
-}
-
-// SetIndex set the variable index
-func (n *Arg) SetIndex(index *Arg) {
-	n.index = index
-}
-
-// Index return the variable index
-func (n *Arg) Index() *Arg { return n.index }
-
-// Value returns the argument string value
-func (n *Arg) Value() string {
-	return n.str
-}
-
-// List returns the argument list
-func (n *Arg) List() []*Arg {
-	return n.list
-}
-
-// SetConcat set the concatenation parts
-func (n *Arg) SetConcat(v []*Arg) {
-	n.concat = v
-}
-
-func (n *Arg) Concat() []*Arg { return n.concat }
-
-func (n *Arg) SetList(v []*Arg) {
-	n.list = v
-}
-
-// SetItem is a helper to set an argument based on the lexer itemType
-func (n *Arg) SetItem(val scanner.Token) error {
-	if val.Type() == token.Arg {
-		n.SetArgType(ArgUnquoted)
-		n.SetString(val.Value())
-	} else if val.Type() == token.String {
-		n.SetArgType(ArgQuoted)
-		n.SetString(val.Value())
-	} else if val.Type() == token.Variable {
-		n.SetArgType(ArgVariable)
-		n.SetString(val.Value())
-	} else {
-		return fmt.Errorf("Arg doesn't support type %v", val)
-	}
-
-	return nil
-}
-
-// IsQuoted returns true if arg is a quoted string
-func (n *Arg) IsQuoted() bool { return n.argType == ArgQuoted }
-
-// IsUnquoted returns true if argument is an unquoted string
-func (n *Arg) IsUnquoted() bool { return n.argType == ArgUnquoted }
-
-// IsVariable returns true if argument is a variable
-func (n *Arg) IsVariable() bool { return n.argType == ArgVariable }
-
-// IsConcat returns true if argument is a concatenation
-func (n *Arg) IsConcat() bool { return n.argType == ArgConcat }
-
-// IsList returns if argument is a list
-func (n *Arg) IsList() bool { return n.argType == ArgList }
-
-// String returns the string representation of argument
-func (n Arg) String() string {
-	if n.IsQuoted() {
-		return "\"" + stringify(n.str) + "\""
-	} else if n.IsConcat() {
-		ret := ""
-
-		for i := 0; i < len(n.concat); i++ {
-			a := n.concat[i]
-
-			if a.IsQuoted() {
-				ret += `"` + a.Value() + `"`
-			} else {
-				ret += a.Value()
-			}
-
-			if i < (len(n.concat) - 1) {
-				ret += "+"
-			}
-		}
-
-		return ret
-	} else if n.IsList() {
-		l := n.List()
-
-		elems := make([]string, len(l))
-		linecount := 0
-
-		for i := 0; i < len(l); i++ {
-			elems[i] = l[i].String()
-			linecount += len(elems[i])
-		}
-
-		if linecount+len(l) > 50 {
-			return "(\n\t" + strings.Join(elems, "\n\t") + "\n)"
-		}
-
-		return "(" + strings.Join(elems, " ") + ")"
-	} else if n.Index() != nil {
-		return n.Value() + "[" + n.Index().String() + "]"
-	}
-
-	return n.Value()
 }
 
 // NewCommentNode creates a new node for comments
@@ -753,6 +981,24 @@ func NewCommentNode(pos token.Pos, val string) *CommentNode {
 		Pos:      pos,
 		val:      val,
 	}
+}
+
+func (n *CommentNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	if n.Type() != other.Type() {
+		return false
+	}
+
+	o, ok := other.(*CommentNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.val == o.val
 }
 
 // String returns the string representation of comment
@@ -769,22 +1015,22 @@ func NewIfNode(pos token.Pos) *IfNode {
 }
 
 // Lvalue returns the lefthand part of condition
-func (n *IfNode) Lvalue() *Arg {
+func (n *IfNode) Lvalue() Expr {
 	return n.lvalue
 }
 
 // Rvalue returns the righthand side of condition
-func (n *IfNode) Rvalue() *Arg {
+func (n *IfNode) Rvalue() Expr {
 	return n.rvalue
 }
 
 // SetLvalue set the lefthand side of condition
-func (n *IfNode) SetLvalue(arg *Arg) {
+func (n *IfNode) SetLvalue(arg Expr) {
 	n.lvalue = arg
 }
 
 // SetRvalue set the righthand side of condition
-func (n *IfNode) SetRvalue(arg *Arg) {
+func (n *IfNode) SetRvalue(arg Expr) {
 	n.rvalue = arg
 }
 
@@ -802,7 +1048,7 @@ func (n *IfNode) IsElseIf() bool {
 }
 
 // SetElseif sets the else-if part
-func (n *IfNode) SetElseIf(b bool) {
+func (n *IfNode) SetElseif(b bool) {
 	n.elseIf = b
 }
 
@@ -821,6 +1067,53 @@ func (n *IfNode) IfTree() *Tree { return n.ifTree }
 
 // ElseTree returns the else block
 func (n *IfNode) ElseTree() *Tree { return n.elseTree }
+
+// IsEqual returns if it is equal to the other node.
+func (n *IfNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*IfNode)
+
+	if !ok {
+		debug("Failed to convert to ifNode")
+		return false
+	}
+
+	elvalue := n.Lvalue()
+	ervalue := n.Rvalue()
+	vlvalue := o.Lvalue()
+	vrvalue := o.Rvalue()
+
+	if !elvalue.IsEqual(vlvalue) {
+		debug("Lvalue differs: '%s' != '%s'", elvalue, vlvalue)
+		return false
+	}
+
+	if !ervalue.IsEqual(vrvalue) {
+		debug("Rvalue differs: '%s' != '%s'", ervalue, vrvalue)
+		return false
+	}
+
+	if n.Op() != o.Op() {
+		debug("Operation differs: %s != %s", n.Op(), o.Op())
+		return false
+	}
+
+	expectedTree := n.IfTree()
+	valueTree := o.IfTree()
+
+	if !expectedTree.IsEqual(valueTree) {
+		debug("If tree differs: '%s' != '%s'", expectedTree, valueTree)
+		return false
+	}
+
+	expectedTree = n.ElseTree()
+	valueTree = o.ElseTree()
+
+	return expectedTree.IsEqual(valueTree)
+}
 
 // String returns the string representation of if statement
 func (n *IfNode) String() string {
@@ -878,7 +1171,6 @@ func NewFnDeclNode(pos token.Pos, name string) *FnDeclNode {
 		NodeType: NodeFnDecl,
 		Pos:      pos,
 		name:     name,
-		args:     make([]string, 0, 16),
 	}
 }
 
@@ -910,6 +1202,30 @@ func (n *FnDeclNode) Tree() *Tree {
 // SetTree set the function tree
 func (n *FnDeclNode) SetTree(t *Tree) {
 	n.tree = t
+}
+
+func (n *FnDeclNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*FnDeclNode)
+
+	if !ok {
+		return false
+	}
+
+	if n.name != o.name || len(n.args) != len(o.args) {
+		return false
+	}
+
+	for i := 0; i < len(n.args); i++ {
+		if n.args[i] != o.args[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 // String returns the string representation of function declaration
@@ -951,7 +1267,6 @@ func NewFnInvNode(pos token.Pos, name string) *FnInvNode {
 		NodeType: NodeFnInv,
 		Pos:      pos,
 		name:     name,
-		args:     make([]*Arg, 0, 16),
 	}
 }
 
@@ -966,11 +1281,37 @@ func (n *FnInvNode) Name() string {
 }
 
 // AddArg add another argument to end of argument list
-func (n *FnInvNode) AddArg(arg *Arg) {
+func (n *FnInvNode) AddArg(arg Expr) {
 	n.args = append(n.args, arg)
 }
 
-func (n *FnInvNode) Args() []*Arg { return n.args }
+// Args return the invocation arguments.
+func (n *FnInvNode) Args() []Expr { return n.args }
+
+// IsEqual returns if it is equal to the other node.
+func (n *FnInvNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*FnInvNode)
+
+	if !ok {
+		return false
+	}
+
+	if len(n.args) != len(o.args) {
+		return false
+	}
+
+	for i := 0; i < len(n.args); i++ {
+		if !n.args[i].IsEqual(o.args[i]) {
+			return false
+		}
+	}
+
+	return true
+}
 
 // String returns the string representation of function invocation
 func (n *FnInvNode) String() string {
@@ -1005,6 +1346,20 @@ func (n *BindFnNode) Name() string { return n.name }
 // CmdName return the command name
 func (n *BindFnNode) CmdName() string { return n.cmdname }
 
+func (n *BindFnNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*BindFnNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.name == o.name && n.cmdname == o.cmdname
+}
+
 // String returns the string representation of bindfn
 func (n *BindFnNode) String() string {
 	return "bindfn " + n.name + " " + n.cmdname
@@ -1019,13 +1374,36 @@ func NewDumpNode(pos token.Pos) *DumpNode {
 }
 
 // Filename return the dump filename argument
-func (n *DumpNode) Filename() *Arg {
+func (n *DumpNode) Filename() Expr {
 	return n.filename
 }
 
 // SetFilename set the dump filename
-func (n *DumpNode) SetFilename(a *Arg) {
+func (n *DumpNode) SetFilename(a Expr) {
 	n.filename = a
+}
+
+func (n *DumpNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*DumpNode)
+
+	if !ok {
+		debug("Failed to convert to DumpNode")
+		return ok
+	}
+
+	if n.filename == o.filename {
+		return true
+	}
+
+	if n.filename != nil {
+		return n.filename.IsEqual(o.filename)
+	}
+
+	return false
 }
 
 // String returns the string representation of dump node
@@ -1046,12 +1424,38 @@ func NewReturnNode(pos token.Pos) *ReturnNode {
 }
 
 // SetReturn set the arguments to return
-func (n *ReturnNode) SetReturn(a *Arg) {
+func (n *ReturnNode) SetReturn(a Expr) {
 	n.arg = a
 }
 
 // Return returns the argument being returned
-func (n *ReturnNode) Return() *Arg { return n.arg }
+func (n *ReturnNode) Return() Expr { return n.arg }
+
+func (n *ReturnNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	if n.Type() != other.Type() {
+		return false
+	}
+
+	o, ok := other.(*ReturnNode)
+
+	if !ok {
+		return false
+	}
+
+	if n.arg == o.arg {
+		return true
+	}
+
+	if n.arg != nil {
+		return n.arg.IsEqual(o.arg)
+	}
+
+	return false
+}
 
 // String returns the string representation of return statement
 func (n *ReturnNode) String() string {
@@ -1092,6 +1496,25 @@ func (n *ForNode) SetTree(a *Tree) {
 // Tree return the for block
 func (n *ForNode) Tree() *Tree { return n.tree }
 
+func (n *ForNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	if n.Type() != other.Type() {
+		return false
+	}
+
+	o, ok := other.(*ForNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.identifier == o.identifier &&
+		n.inVar == o.inVar
+}
+
 // String returns the string representation of for statement
 func (n *ForNode) String() string {
 	ret := "for"
@@ -1120,10 +1543,26 @@ func NewBuiltinNode(pos token.Pos, n Node) *BuiltinNode {
 	}
 }
 
-func (n *BuiltinNode) String() string {
-	return "builtin " + n.stmt.String()
-}
-
+// Stmt returns the builtin statement.
 func (n *BuiltinNode) Stmt() Node {
 	return n.stmt
+}
+
+// IsEqual returns if it is equal to other Node.
+func (n *BuiltinNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*BuiltinNode)
+
+	if !ok {
+		return false
+	}
+
+	return n.stmt.IsEqual(o.stmt)
+}
+
+func (n *BuiltinNode) String() string {
+	return "builtin " + n.stmt.String()
 }

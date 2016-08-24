@@ -6,6 +6,10 @@ import (
 	"github.com/NeowayLabs/nash/ast"
 )
 
+func init() {
+	ast.DebugCmp = true
+}
+
 func TestParseIssue38(t *testing.T) {
 	expected := ast.NewTree("parse issue38")
 
@@ -13,24 +17,13 @@ func TestParseIssue38(t *testing.T) {
 
 	fnInv := ast.NewFnInvNode(0, "cd")
 
-	arg := ast.NewArg(0, ast.ArgConcat)
+	args := make([]ast.Expr, 3)
 
-	args := make([]*ast.Arg, 3)
+	args[0] = ast.NewVarExpr(3, "$GOPATH")
+	args[1] = ast.NewStringExpr(11, "/src/", true)
+	args[2] = ast.NewVarExpr(19, "$path")
 
-	arg1 := ast.NewArg(0, ast.ArgVariable)
-	arg1.SetString("$GOPATH")
-
-	arg2 := ast.NewArg(0, ast.ArgQuoted)
-	arg2.SetString("/src/")
-
-	arg3 := ast.NewArg(0, ast.ArgVariable)
-	arg3.SetString("$path")
-
-	args[0] = arg1
-	args[1] = arg2
-	args[2] = arg3
-
-	arg.SetConcat(args)
+	arg := ast.NewConcatExpr(0, args)
 
 	fnInv.AddArg(arg)
 
@@ -54,31 +47,22 @@ func TestParseIssue43(t *testing.T) {
 	fnTree := ast.NewTree("fn")
 	fnBlock := ast.NewListNode()
 
-	branchAssign := ast.NewCmdAssignmentNode(14, "branch")
 	gitRevParse := ast.NewCommandNode(24, "git")
-	arg1 := ast.NewArg(28, ast.ArgUnquoted)
-	arg1.SetString("rev-parse")
 
-	arg2 := ast.NewArg(38, ast.ArgUnquoted)
-	arg2.SetString("--abbrev-ref")
+	gitRevParse.AddArg(ast.NewStringExpr(28, "rev-parse", true))
+	gitRevParse.AddArg(ast.NewStringExpr(38, "--abbrev-ref", false))
+	gitRevParse.AddArg(ast.NewStringExpr(51, "HEAD", false))
 
-	arg3 := ast.NewArg(51, ast.ArgUnquoted)
-	arg3.SetString("HEAD")
+	branchAssign, err := ast.NewExecAssignNode(14, "branch", gitRevParse)
 
-	gitRevParse.AddArg(arg1)
-	gitRevParse.AddArg(arg2)
-	gitRevParse.AddArg(arg3)
+	if err != nil {
+		t.Error(err)
+		return
+	}
 
 	xargs := ast.NewCommandNode(58, "xargs")
-
-	xarg1 := ast.NewArg(64, ast.ArgUnquoted)
-	xarg1.SetString("echo")
-
-	xarg2 := ast.NewArg(69, ast.ArgUnquoted)
-	xarg2.SetString("-n")
-
-	xargs.AddArg(xarg1)
-	xargs.AddArg(xarg2)
+	xargs.AddArg(ast.NewStringExpr(64, "echo", false))
+	xargs.AddArg(ast.NewStringExpr(69, "-n", false))
 
 	pipe := ast.NewPipeNode(56)
 	pipe.AddCmd(gitRevParse)
@@ -90,18 +74,9 @@ func TestParseIssue43(t *testing.T) {
 
 	gitPull := ast.NewCommandNode(73, "git")
 
-	pullArg1 := ast.NewArg(77, ast.ArgUnquoted)
-	pullArg1.SetString("pull")
-
-	pullArg2 := ast.NewArg(82, ast.ArgUnquoted)
-	pullArg2.SetString("origin")
-
-	pullArg3 := ast.NewArg(89, ast.ArgVariable)
-	pullArg3.SetString("$branch")
-
-	gitPull.AddArg(pullArg1)
-	gitPull.AddArg(pullArg2)
-	gitPull.AddArg(pullArg3)
+	gitPull.AddArg(ast.NewStringExpr(77, "pull", false))
+	gitPull.AddArg(ast.NewStringExpr(82, "origin", false))
+	gitPull.AddArg(ast.NewVarExpr(89, "$branch"))
 
 	fnBlock.Push(gitPull)
 
@@ -122,18 +97,16 @@ func TestParseIssue68(t *testing.T) {
 	ln := ast.NewListNode()
 
 	catCmd := ast.NewCommandNode(0, "cat")
-	catArg := ast.NewArg(4, ast.ArgUnquoted)
-	catArg.SetString("PKGBUILD")
+
+	catArg := ast.NewStringExpr(4, "PKGBUILD", false)
 	catCmd.AddArg(catArg)
 
 	sedCmd := ast.NewCommandNode(15, "sed")
-	sedArg := ast.NewArg(20, ast.ArgQuoted)
-	sedArg.SetString(`s#\$pkgdir#/home/i4k/alt#g`)
+	sedArg := ast.NewStringExpr(20, `s#\$pkgdir#/home/i4k/alt#g`, true)
 	sedCmd.AddArg(sedArg)
 
 	sedRedir := ast.NewRedirectNode(0)
-	sedRedirArg := ast.NewArg(0, ast.ArgUnquoted)
-	sedRedirArg.SetString("PKGBUILD2")
+	sedRedirArg := ast.NewStringExpr(0, "PKGBUILD2", false)
 	sedRedir.SetLocation(sedRedirArg)
 	sedCmd.AddRedirect(sedRedir)
 

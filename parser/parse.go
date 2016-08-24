@@ -112,15 +112,16 @@ func (p *Parser) peek() scanner.Token {
 	return i
 }
 
-func (p *Parser) parseVariable() (*ast.Arg, error) {
+func (p *Parser) parseVariable() (ast.Expr, error) {
+	var err error
+
 	it := p.next()
 
 	if it.Type() != token.Variable {
 		return nil, errors.NewError("Unexpected token %v. ", it)
 	}
 
-	arg := ast.NewArg(it.Pos(), ast.ArgVariable)
-	arg.SetString(it.Value())
+	variable := ast.NewVarExpr(it.Pos(), it.Value())
 
 	it = p.peek()
 
@@ -132,25 +133,37 @@ func (p *Parser) parseVariable() (*ast.Arg, error) {
 			return nil, errors.NewError("Expected number or variable in index. Found %v", it)
 		}
 
-		var index *ast.Arg
+		var index ast.Expr
 
 		if it.Type() == token.Number {
-			index = ast.NewArg(it.Pos(), ast.ArgNumber)
-		} else {
-			index = ast.NewArg(it.Pos(), ast.ArgVariable)
-		}
+			// only supports base10
+			intval, err := strconv.Atoi(it.Value())
 
-		index.SetString(it.Value())
-		arg.SetIndex(index)
+			if err != nil {
+				return nil, err
+			}
+
+			index = ast.NewIntExpr(it.Pos(), intval)
+		} else {
+			p.backup(it)
+
+			index, err = p.parseVariable()
+
+			if err != nil {
+				return nil, err
+			}
+		}
 
 		it = p.next()
 
 		if it.Type() != token.RBrack {
 			return nil, errors.NewError("Unexpected token %v. Expecting ']'", it)
 		}
+
+		return ast.NewIndexExpr(variable.Position(), variable, index), nil
 	}
 
-	return arg, nil
+	return variable, nil
 }
 
 func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
@@ -188,7 +201,7 @@ cmdLoop:
 
 		switch it.Type() {
 		case token.Arg, token.String, token.Variable:
-			arg, err := p.getArgument(true)
+			arg, err := p.getArgument(true, true)
 
 			if err != nil {
 				return nil, err
@@ -217,7 +230,7 @@ cmdLoop:
 		case token.EOF:
 			return n, nil
 		case token.Illegal:
-			return nil, fmt.Errorf("Syntax error: %s", it.Value())
+			return nil, fmt.Errorf("Syntax error: %s", it)
 		default:
 			break cmdLoop
 		}
@@ -310,7 +323,7 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 		return nil, fmt.Errorf("Unexpected token '%v'", it)
 	}
 
-	arg, err := p.getArgument(true)
+	arg, err := p.getArgument(true, true)
 
 	if err != nil {
 		return nil, err
@@ -340,7 +353,7 @@ func (p *Parser) parseBuiltin() (ast.Node, error) {
 func (p *Parser) parseImport() (ast.Node, error) {
 	it := p.next()
 
-	n := ast.NewImportNode(it.Pos())
+	importToken := it
 
 	it = p.next()
 
@@ -348,42 +361,42 @@ func (p *Parser) parseImport() (ast.Node, error) {
 		return nil, fmt.Errorf("Unexpected token %v", it)
 	}
 
+	var arg *ast.StringExpr
+
 	if it.Type() == token.String {
-		arg := ast.NewArg(it.Pos(), ast.ArgQuoted)
-		arg.SetString(it.Value())
-		n.SetPath(arg)
+		arg = ast.NewStringExpr(it.Pos(), it.Value(), true)
 	} else if it.Type() == token.Arg {
-		arg := ast.NewArg(it.Pos(), ast.ArgUnquoted)
-		arg.SetString(it.Value())
-		n.SetPath(arg)
+		arg = ast.NewStringExpr(it.Pos(), it.Value(), false)
 	} else {
 		return nil, fmt.Errorf("Parser error: Invalid token '%v' for import path", it)
 	}
 
-	return n, nil
+	return ast.NewImportNode(importToken.Pos(), arg), nil
 }
 
 func (p *Parser) parseCd() (ast.Node, error) {
 	it := p.next()
 
-	n := ast.NewCdNode(it.Pos())
+	cdToken := it
 
 	it = p.peek()
 
+	// TODO(i4k): this poor implementation allows:
+	// cd/ and cd. as valid commands
 	if it.Type() != token.Arg && it.Type() != token.String && it.Type() != token.Variable && it.Type() != token.Concat {
 		p.backup(it)
-		return n, nil
+
+		return ast.NewCdNode(cdToken.Pos(), nil), nil
 	}
 
-	arg, err := p.getArgument(true)
+	arg, err := p.getArgument(true, true)
 
 	if err != nil {
 		return nil, err
 	}
 
-	n.SetDir(arg)
+	return ast.NewCdNode(cdToken.Pos(), arg), nil
 
-	return n, nil
 }
 
 func (p *Parser) parseSet() (ast.Node, error) {
@@ -397,12 +410,10 @@ func (p *Parser) parseSet() (ast.Node, error) {
 		return nil, fmt.Errorf("Unexpected token %v, expected variable", it)
 	}
 
-	n := ast.NewSetAssignmentNode(pos, it.Value())
-
-	return n, nil
+	return ast.NewSetenvNode(pos, it.Value()), nil
 }
 
-func (p *Parser) getArgument(allowArg bool) (*ast.Arg, error) {
+func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
 	var err error
 
 	it := p.next()
@@ -414,67 +425,40 @@ func (p *Parser) getArgument(allowArg bool) (*ast.Arg, error) {
 
 	firstToken := it
 
+	var arg ast.Expr
+
+	if firstToken.Type() == token.Variable {
+		p.backup(firstToken)
+
+		arg, err = p.parseVariable()
+
+		if err != nil {
+			return nil, err
+		}
+	} else if firstToken.Type() == token.String {
+		arg = ast.NewStringExpr(firstToken.Pos(), firstToken.Value(), true)
+	} else {
+		arg = ast.NewStringExpr(firstToken.Pos(), firstToken.Value(), false)
+	}
+
 	it = p.peek()
 
-	if it.Type() == token.Concat {
-		return p.getConcatArg(firstToken)
+	if it.Type() == token.Concat && allowConcat {
+		return p.getConcatArg(arg)
 	}
 
 	if firstToken.Type() == token.Arg && !allowArg {
 		return nil, fmt.Errorf("Unquoted string not allowed at pos %d (%s)", it.Pos(), it.Value())
 	}
 
-	arg := ast.NewArg(firstToken.Pos(), 0)
-
-	if firstToken.Type() == token.Variable {
-		arg.SetArgType(ast.ArgVariable)
-		arg.SetString(firstToken.Value())
-
-		if it.Type() == token.LBrack {
-			p.ignore()
-			it = p.next()
-
-			var indexArg *ast.Arg
-
-			if it.Type() == token.Number {
-				indexArg = ast.NewArg(it.Pos(), ast.ArgNumber)
-				indexArg.SetString(it.Value())
-			} else if it.Type() == token.Variable {
-				p.backup(it)
-				indexArg, err = p.getArgument(false)
-
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				return nil, errors.NewError("Invalid index type: %v", it)
-			}
-
-			arg.SetIndex(indexArg)
-
-			it = p.next()
-
-			if it.Type() != token.RBrack {
-				return nil, errors.NewError("Unexpected token %v. Expected ']'", it)
-			}
-		}
-	} else if firstToken.Type() == token.String {
-		arg.SetArgType(ast.ArgQuoted)
-		arg.SetString(firstToken.Value())
-	} else {
-		arg.SetArgType(ast.ArgUnquoted)
-		arg.SetString(firstToken.Value())
-	}
-
 	return arg, nil
 }
 
-func (p *Parser) getConcatArg(firstToken scanner.Token) (*ast.Arg, error) {
-	var it scanner.Token
-	parts := make([]*ast.Arg, 0, 4)
-
-	firstArg := ast.NewArg(firstToken.Pos(), 0)
-	firstArg.SetItem(firstToken)
+func (p *Parser) getConcatArg(firstArg ast.Expr) (ast.Expr, error) {
+	var (
+		it    scanner.Token
+		parts []ast.Expr
+	)
 
 	parts = append(parts, firstArg)
 
@@ -484,22 +468,17 @@ hasConcat:
 	if it.Type() == token.Concat {
 		p.ignore()
 
-		it = p.next()
+		arg, err := p.getArgument(true, false)
 
-		if it.Type() == token.String || it.Type() == token.Variable || it.Type() == token.Arg {
-			carg := ast.NewArg(it.Pos(), 0)
-			carg.SetItem(it)
-			parts = append(parts, carg)
-			goto hasConcat
-		} else {
-			return nil, fmt.Errorf("Unexpected token %v", it)
+		if err != nil {
+			return nil, err
 		}
+
+		parts = append(parts, arg)
+		goto hasConcat
 	}
 
-	arg := ast.NewArg(firstToken.Pos(), ast.ArgConcat)
-	arg.SetConcat(parts)
-
-	return arg, nil
+	return ast.NewConcatExpr(firstArg.Position(), parts), nil
 }
 
 func (p *Parser) parseAssignment() (ast.Node, error) {
@@ -519,28 +498,30 @@ func (p *Parser) parseAssignment() (ast.Node, error) {
 }
 
 func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
-	n := ast.NewAssignmentNode(name.Pos())
-	n.SetIdentifier(name.Value())
+	var err error
+
+	assignIdent := name
+
+	var value ast.Expr
 
 	it := p.peek()
 
 	if it.Type() == token.Variable || it.Type() == token.String {
-		arg, err := p.getArgument(false)
+		value, err = p.getArgument(false, true)
 
 		if err != nil {
 			return nil, err
 		}
 
-		n.SetValue(arg)
-	} else if it.Type() == token.LParen {
+	} else if it.Type() == token.LParen { // list
 		lit := p.next()
 
-		values := make([]*ast.Arg, 0, 128)
+		var values []ast.Expr
 
 		it = p.peek()
 
 		for it.Type() == token.Arg || it.Type() == token.String || it.Type() == token.Variable {
-			arg, err := p.getArgument(true)
+			arg, err := p.getArgument(true, false)
 
 			if err != nil {
 				return nil, err
@@ -556,21 +537,15 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 		}
 
 		p.next()
-
-		listArg := ast.NewArg(lit.Pos(), ast.ArgList)
-		listArg.SetList(values)
-
-		n.SetValue(listArg)
+		value = ast.NewListExpr(lit.Pos(), values)
 	} else {
 		return nil, fmt.Errorf("Unexpected token '%v'", it)
 	}
 
-	return n, nil
+	return ast.NewAssignmentNode(assignIdent.Pos(), assignIdent.Value(), value), nil
 }
 
 func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
-	n := ast.NewCmdAssignmentNode(name.Pos(), name.Value())
-
 	it := p.peek()
 
 	if it.Type() != token.Command && it.Type() != token.FnInv {
@@ -584,8 +559,7 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 			return nil, err
 		}
 
-		n.SetCommand(cmd)
-		return n, nil
+		return ast.NewExecAssignNode(name.Pos(), name.Value(), cmd)
 	}
 
 	fn, err := p.parseFnInv()
@@ -594,8 +568,7 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 		return nil, err
 	}
 
-	n.SetCommand(fn)
-	return n, nil
+	return ast.NewExecAssignNode(name.Pos(), name.Value(), fn)
 }
 
 func (p *Parser) parseRfork() (ast.Node, error) {
@@ -609,8 +582,7 @@ func (p *Parser) parseRfork() (ast.Node, error) {
 		return nil, fmt.Errorf("rfork requires one or more of the following flags: %s", scanner.RforkFlags)
 	}
 
-	arg := ast.NewArg(it.Pos(), ast.ArgUnquoted)
-	arg.SetString(it.Value())
+	arg := ast.NewStringExpr(it.Pos(), it.Value(), false)
 	n.SetFlags(arg)
 
 	it = p.peek()
@@ -647,8 +619,7 @@ func (p *Parser) parseIf() (ast.Node, error) {
 
 	if it.Type() == token.String {
 		p.next()
-		arg := ast.NewArg(it.Pos(), ast.ArgQuoted)
-		arg.SetString(it.Value())
+		arg := ast.NewStringExpr(it.Pos(), it.Value(), true)
 		n.SetLvalue(arg)
 	} else if it.Type() == token.Variable {
 		arg, err := p.parseVariable()
@@ -683,12 +654,10 @@ func (p *Parser) parseIf() (ast.Node, error) {
 	}
 
 	if it.Type() == token.String {
-		arg := ast.NewArg(it.Pos(), ast.ArgQuoted)
-		arg.SetString(it.Value())
+		arg := ast.NewStringExpr(it.Pos(), it.Value(), true)
 		n.SetRvalue(arg)
 	} else {
-		arg := ast.NewArg(it.Pos(), ast.ArgUnquoted)
-		arg.SetString(it.Value())
+		arg := ast.NewStringExpr(it.Pos(), it.Value(), false)
 		n.SetRvalue(arg)
 	}
 
@@ -724,7 +693,7 @@ func (p *Parser) parseIf() (ast.Node, error) {
 		elseTree := ast.NewTree("else tree")
 		elseTree.Root = elseBlock
 
-		n.SetElseIf(elseIf)
+		n.SetElseif(elseIf)
 		n.SetElseTree(elseTree)
 	}
 
@@ -816,7 +785,7 @@ func (p *Parser) parseFnInv() (ast.Node, error) {
 		it = p.peek()
 
 		if it.Type() == token.String || it.Type() == token.Variable {
-			arg, err := p.getArgument(false)
+			arg, err := p.getArgument(false, true)
 
 			if err != nil {
 				return nil, err
@@ -893,14 +862,20 @@ func (p *Parser) parseDump() (ast.Node, error) {
 
 	fnameIt := p.peek()
 
-	if fnameIt.Type() != token.String && fnameIt.Type() != token.Variable && fnameIt.Type() != token.Arg {
+	var arg ast.Expr
+
+	switch fnameIt.Type() {
+	case token.String:
+		arg = ast.NewStringExpr(fnameIt.Pos(), fnameIt.Value(), true)
+	case token.Arg:
+		arg = ast.NewStringExpr(fnameIt.Pos(), fnameIt.Value(), false)
+	case token.Variable:
+		arg = ast.NewVarExpr(fnameIt.Pos(), fnameIt.Value())
+	default:
 		return dump, nil
 	}
 
 	p.next()
-
-	arg := ast.NewArg(fnameIt.Pos(), 0)
-	arg.SetItem(fnameIt)
 
 	dump.SetFilename(arg)
 
@@ -914,20 +889,24 @@ func (p *Parser) parseReturn() (ast.Node, error) {
 
 	valueIt := p.peek()
 
-	if valueIt.Type() != token.String && valueIt.Type() != token.Variable && valueIt.Type() != token.LParen {
+	if valueIt.Type() != token.String &&
+		valueIt.Type() != token.Variable &&
+		valueIt.Type() != token.LParen {
 		return ret, nil
 	}
 
-	retIt = p.next()
-
-	retPos := retIt.Pos()
-
 	if valueIt.Type() == token.LParen {
-		values := make([]*ast.Arg, 0, 128)
+		var values []ast.Expr
 
-		for valueIt = p.next(); valueIt.Type() == token.Arg || valueIt.Type() == token.String || valueIt.Type() == token.Variable; valueIt = p.next() {
-			arg := ast.NewArg(valueIt.Pos(), 0)
-			arg.SetItem(valueIt)
+		p.next()
+
+		for valueIt = p.peek(); valueIt.Type() != token.RParen && valueIt.Type() != token.EOF; valueIt = p.peek() {
+			arg, err := p.getArgument(true, true)
+
+			if err != nil {
+				return nil, err
+			}
+
 			values = append(values, arg)
 		}
 
@@ -935,15 +914,18 @@ func (p *Parser) parseReturn() (ast.Node, error) {
 			return nil, errors.NewUnfinishedListError()
 		}
 
-		listArg := ast.NewArg(retPos, ast.ArgList)
-		listArg.SetList(values)
+		p.next()
 
+		listArg := ast.NewListExpr(ret.Position(), values)
 		ret.SetReturn(listArg)
 		return ret, nil
 	}
 
-	arg := ast.NewArg(valueIt.Pos(), 0)
-	arg.SetItem(valueIt)
+	arg, err := p.getArgument(false, true)
+
+	if err != nil {
+		return nil, err
+	}
 
 	ret.SetReturn(arg)
 	return ret, nil
@@ -1034,7 +1016,7 @@ func (p *Parser) parseBlock() (*ast.ListNode, error) {
 		case token.EOF:
 			goto finish
 		case token.Illegal:
-			return nil, fmt.Errorf("Syntax error: %s", it.Value())
+			return nil, fmt.Errorf("Syntax error: %s", it)
 		case token.LBrace:
 			p.ignore()
 

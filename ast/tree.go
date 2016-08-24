@@ -17,6 +17,14 @@ func NewTree(name string) *Tree {
 	}
 }
 
+func (t *Tree) IsEqual(other *Tree) bool {
+	if t == other {
+		return true
+	}
+
+	return t.Root.IsEqual(other.Root)
+}
+
 func (tree *Tree) String() string {
 	if tree.Root == nil {
 		return ""

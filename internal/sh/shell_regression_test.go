@@ -15,7 +15,7 @@ func TestExecuteIssue68(t *testing.T) {
 		return
 	}
 
-	err = sh.ExecuteString("-input-", `echo lalalala | grep la > /tmp/la`)
+	err = sh.Exec("-input-", `echo lalalala | grep la > /tmp/la`)
 
 	if err != nil {
 		t.Error(err)
@@ -46,7 +46,7 @@ func TestExecuteErrorSuppression(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = sh.ExecuteString("-input-", `-bllsdlfjlsd`)
+	err = sh.Exec("-input-", `-bllsdlfjlsd`)
 
 	if err != nil {
 		t.Errorf("Expected to not fail...: %s", err.Error())
@@ -54,7 +54,7 @@ func TestExecuteErrorSuppression(t *testing.T) {
 	}
 
 	// issue #72
-	err = sh.ExecuteString("-input-", `echo lalala | -grep lelele`)
+	err = sh.Exec("-input-", `echo lalala | -grep lelele`)
 
 	if err != nil {
 		t.Errorf("Expected to not fail...:(%s)", err.Error())
