@@ -26,14 +26,14 @@ func TestLexerIssue34(t *testing.T) {
 		},
 		{
 			typ: token.Illegal,
-			val: "Expected end of line or redirection, but found 'e'",
+			val: "test-issue-34:1:29: Expected end of line or redirection, but found 'e'",
 		},
 		{
 			typ: token.EOF,
 		},
 	}
 
-	testTable("test issue #34", `cat /etc/passwd > /dev/null echo "hello world"`, expected, t)
+	testTable("test-issue-34", `cat /etc/passwd > /dev/null echo "hello world"`, expected, t)
 }
 
 func TestLexerIssue21(t *testing.T) {

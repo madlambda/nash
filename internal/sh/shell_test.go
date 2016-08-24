@@ -1759,7 +1759,7 @@ func TestExecuteGracefullyError(t *testing.T) {
 		return
 	}
 
-	expectErr := "someinput.sh:1:0: Unexpected token parsing statement '('"
+	expectErr := "someinput.sh:1:1: Unexpected token parsing statement '('"
 
 	if err.Error() != expectErr {
 		t.Errorf("Expect error: %s, but got: %s", expectErr, err.Error())

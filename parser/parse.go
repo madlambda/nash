@@ -997,7 +997,7 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 		return fn()
 	}
 
-	return nil, fmt.Errorf("Unexpected token parsing statement '%+v'", it)
+	return nil, fmt.Errorf("%s:%d:%d: Unexpected token parsing statement '%+v'", p.name, it.Line(), it.Column(), it)
 }
 
 func (p *Parser) parseError() (ast.Node, error) {

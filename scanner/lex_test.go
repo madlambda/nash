@@ -42,13 +42,13 @@ func testTable(name, content string, expected []Token, t *testing.T) {
 
 	for i := 0; i < len(expected); i++ {
 		if expected[i].typ != result[i].typ {
-			t.Errorf("'%v' != '%v'", expected[i].typ, result[i].typ)
+			t.Errorf("'%s' != '%s'", expected[i].typ, result[i].typ)
 			fmt.Printf("Type: %d - %s\n", result[i].typ, result[i])
 			return
 		}
 
 		if expected[i].val != result[i].val {
-			t.Errorf("Parsing '%s':\n\terror: '%v' != '%v'", content, expected[i].val, result[i].val)
+			t.Errorf("Parsing '%s':\n\terror: '%s' != '%s'", content, expected[i].val, result[i].val)
 			return
 		}
 	}
@@ -77,7 +77,7 @@ func TestLexerTokenToString(t *testing.T) {
 		val: "echo",
 	}
 
-	if it.String() != "(COMMAND) - pos: 0, val: \"echo\"" {
+	if it.String() != "COMMAND" {
 		t.Errorf("wrong command name: %s", it.String())
 	}
 
@@ -87,7 +87,7 @@ func TestLexerTokenToString(t *testing.T) {
 	}
 
 	// test if long names are truncated
-	if it.String() != "(COMMAND) - pos: 0, val: \"echooooooo\"..." {
+	if it.String() != "COMMAND" {
 		t.Errorf("wrong command name: %s", it.String())
 	}
 }
@@ -462,7 +462,7 @@ func TestLexerInvalidAssignments(t *testing.T) {
 		},
 		{
 			typ: token.Illegal,
-			val: "Invalid assignment. Expected '+' or EOL, but found 'o' at pos '13'",
+			val: "testInvalidAssignments:1:13: Invalid assignment. Expected '+' or EOL, but found 'o'",
 		},
 		{
 			typ: token.EOF,
@@ -871,7 +871,7 @@ func TestLexerInvalidBlock(t *testing.T) {
 	expected := []Token{
 		{
 			typ: token.Illegal,
-			val: "Unexpected open block \"U+007B '{'\"",
+			val: "testInvalidBlock:1:1: Unexpected open block \"U+007B '{'\"",
 		},
 		{
 			typ: token.EOF,
@@ -889,7 +889,7 @@ func TestLexerQuotedStringNotFinished(t *testing.T) {
 		},
 		{
 			typ: token.Illegal,
-			val: "Quoted string not finished: hello world",
+			val: "testQuotedstringnotfinished:1:17: Quoted string not finished: hello world",
 		},
 		{
 			typ: token.EOF,
@@ -1004,7 +1004,7 @@ func TestLexerRforkInvalidArguments(t *testing.T) {
 		},
 		{
 			typ: token.Illegal,
-			val: "invalid rfork argument: x",
+			val: "testRfork:1:6: invalid rfork argument: x",
 		},
 		{
 			typ: token.EOF,
@@ -1176,7 +1176,7 @@ func TestLexerMinusAlone(t *testing.T) {
 	expected := []Token{
 		{
 			typ: token.Illegal,
-			val: "- requires a command",
+			val: "test minus:1:0: - requires a command",
 		},
 		{
 			typ: token.EOF,
@@ -2980,7 +2980,7 @@ func TestLexerListIndexing(t *testing.T) {
 		},
 		{
 			typ: token.Illegal,
-			val: "Expected number or variable on variable indexing. Found 'a'",
+			val: "test invalid number:1:16: Expected number or variable on variable indexing. Found 'a'",
 		},
 		{
 			typ: token.EOF,
@@ -3008,7 +3008,7 @@ func TestLexerListIndexing(t *testing.T) {
 		},
 		{
 			typ: token.Illegal,
-			val: "Expected number or variable on variable indexing. Found ']'",
+			val: "test invalid number:1:16: Expected number or variable on variable indexing. Found ']'",
 		},
 		{
 			typ: token.EOF,

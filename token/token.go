@@ -126,6 +126,7 @@ func (p Pos) Position() Pos {
 
 func (tok Token) String() string {
 	s := ""
+
 	if 0 < tok && tok < Token(len(tokens)) {
 		s = tokens[tok]
 	}

@@ -14,8 +14,8 @@ func Example() {
 	}
 
 	// Output:
-	// (COMMAND) - pos: 0, val: "echo"
-	// (STRING) - pos: 6, val: "hello worl"...
+	// COMMAND
+	// STRING
 	// EOF
 
 }
