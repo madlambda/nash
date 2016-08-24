@@ -118,7 +118,7 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 	it := p.next()
 
 	if it.Type() != token.Variable {
-		return nil, errors.NewError("Unexpected token %v. ", it)
+		return nil, errors.NewError("Unexpected token %v. Expected VARIABLE", it)
 	}
 
 	variable := ast.NewVarExpr(it.Pos(), it.Value())
@@ -209,7 +209,7 @@ cmdLoop:
 
 			n.AddArg(arg)
 		case token.Concat:
-			return nil, fmt.Errorf("Unexpected '+' at pos %d\n", it.Pos())
+			return nil, errors.NewError("%s:%d:%d: Unexpected '+'", p.name, it.Line(), it.Column())
 		case token.RedirRight:
 			p.next()
 			redir, err := p.parseRedirection(it)
@@ -230,7 +230,7 @@ cmdLoop:
 		case token.EOF:
 			return n, nil
 		case token.Illegal:
-			return nil, fmt.Errorf("Syntax error: %s", it)
+			return nil, errors.NewError(it.Value())
 		default:
 			break cmdLoop
 		}
@@ -254,7 +254,7 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 	it = p.peek()
 
 	if it.Type() != token.LBrack && it.Type() != token.String && it.Type() != token.Arg && it.Type() != token.Variable {
-		return nil, fmt.Errorf("Unexpected token: %v", it)
+		return nil, errors.NewError("%s:%d:%d: Unexpected token: %v", p.name, it.Line(), it.Column(), it)
 	}
 
 	// [
@@ -263,21 +263,26 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 		it = p.peek()
 
 		if it.Type() != token.RedirMapLSide {
-			return nil, fmt.Errorf("Expected lefthand side of redirection map, but found '%s'",
+			return nil, errors.NewError("%s:%d:%d: Expected lefthand side of redirection map, but found '%s'",
+				p.name,
+				it.Line(),
+				it.Column(),
 				it.Value())
 		}
 
 		lval, err = strconv.Atoi(it.Value())
 
 		if err != nil {
-			return nil, fmt.Errorf("Redirection map expects integers. Found: %s", it.Value())
+			return nil, errors.NewError("%s:%d:%d: Redirection map expects integers. Found: %s",
+				p.name, it.Line(), it.Column(), it.Value())
 		}
 
 		p.next()
 		it = p.peek()
 
 		if it.Type() != token.Assign && it.Type() != token.RBrack {
-			return nil, fmt.Errorf("Unexpected token '%v'", it)
+			return nil, errors.NewError("%s:%d:%d: Unexpected token %v. Expecting ASSIGN or ]",
+				p.name, it.Line(), it.Column(), it)
 		}
 
 		// [xxx=
@@ -286,14 +291,14 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 			it = p.peek()
 
 			if it.Type() != token.RedirMapRSide && it.Type() != token.RBrack {
-				return nil, fmt.Errorf("Unexpected token '%v'", it)
+				return nil, errors.NewError("%s:%d:%d: Unexpected token %v. Expecting REDIRMAPRSIDE or ]", it)
 			}
 
 			if it.Type() == token.RedirMapRSide {
 				rval, err = strconv.Atoi(it.Value())
 
 				if err != nil {
-					return nil, fmt.Errorf("Redirection map expects integers. Found: %s", it.Value())
+					return nil, newParserError(it, p.name, "Redirection map expects integers. Found: %s", it.Value())
 				}
 
 				p.next()
@@ -304,7 +309,7 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 		}
 
 		if it.Type() != token.RBrack {
-			return nil, fmt.Errorf("Unexpected token '%v'", it)
+			return nil, newParserError(it, p.name, "Unexpected token %v. Expecting ]", it)
 		}
 
 		// [xxx=yyy]
@@ -320,7 +325,7 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 			return redir, nil
 		}
 
-		return nil, fmt.Errorf("Unexpected token '%v'", it)
+		return nil, newParserError(it, p.name, "Unexpected token %v. Expecting STRING or ARG or VARIABLE", it)
 	}
 
 	arg, err := p.getArgument(true, true)
@@ -358,7 +363,7 @@ func (p *Parser) parseImport() (ast.Node, error) {
 	it = p.next()
 
 	if it.Type() != token.Arg && it.Type() != token.String {
-		return nil, fmt.Errorf("Unexpected token %v", it)
+		return nil, newParserError(it, p.name, "Unexpected token %v. Expecting ARG or STRING", it)
 	}
 
 	var arg *ast.StringExpr
@@ -368,7 +373,7 @@ func (p *Parser) parseImport() (ast.Node, error) {
 	} else if it.Type() == token.Arg {
 		arg = ast.NewStringExpr(it.Pos(), it.Value(), false)
 	} else {
-		return nil, fmt.Errorf("Parser error: Invalid token '%v' for import path", it)
+		return nil, newParserError(it, p.name, "Parser error: Invalid token '%v' for import path", it)
 	}
 
 	return ast.NewImportNode(importToken.Pos(), arg), nil
@@ -407,7 +412,7 @@ func (p *Parser) parseSet() (ast.Node, error) {
 	it = p.next()
 
 	if it.Type() != token.Ident {
-		return nil, fmt.Errorf("Unexpected token %v, expected variable", it)
+		return nil, newParserError(it, p.name, "Unexpected token %v, expected VARIABLE", it)
 	}
 
 	return ast.NewSetenvNode(pos, it.Value()), nil
@@ -419,7 +424,7 @@ func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
 	it := p.next()
 
 	if it.Type() != token.String && it.Type() != token.Variable && it.Type() != token.Arg {
-		return nil, fmt.Errorf("Unexpected token %v. Expected %s, %s or %s",
+		return nil, newParserError(it, p.name, "Unexpected token %v. Expected %s, %s or %s",
 			it, token.String, token.Variable, token.Arg)
 	}
 
@@ -448,7 +453,7 @@ func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
 	}
 
 	if firstToken.Type() == token.Arg && !allowArg {
-		return nil, fmt.Errorf("Unquoted string not allowed at pos %d (%s)", it.Pos(), it.Value())
+		return nil, newParserError(it, p.name, "Unquoted string not allowed at pos %d (%s)", it.Pos(), it.Value())
 	}
 
 	return arg, nil
@@ -539,7 +544,7 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 		p.next()
 		value = ast.NewListExpr(lit.Pos(), values)
 	} else {
-		return nil, fmt.Errorf("Unexpected token '%v'", it)
+		return nil, newParserError(it, p.name, "Unexpected token %v. Expecting VARIABLE or STRING or (", it)
 	}
 
 	return ast.NewAssignmentNode(assignIdent.Pos(), assignIdent.Value(), value), nil
@@ -579,7 +584,7 @@ func (p *Parser) parseRfork() (ast.Node, error) {
 	it = p.next()
 
 	if it.Type() != token.String {
-		return nil, fmt.Errorf("rfork requires one or more of the following flags: %s", scanner.RforkFlags)
+		return nil, newParserError(it, p.name, "rfork requires one or more of the following flags: %s", scanner.RforkFlags)
 	}
 
 	arg := ast.NewStringExpr(it.Pos(), it.Value(), false)
@@ -614,7 +619,7 @@ func (p *Parser) parseIf() (ast.Node, error) {
 	it = p.peek()
 
 	if it.Type() != token.String && it.Type() != token.Variable {
-		return nil, fmt.Errorf("if requires an lvalue of type string or variable. Found %v", it)
+		return nil, newParserError(it, p.name, "if requires an lvalue of type string or variable. Found %v", it)
 	}
 
 	if it.Type() == token.String {
@@ -637,11 +642,11 @@ func (p *Parser) parseIf() (ast.Node, error) {
 	it = p.next()
 
 	if it.Type() != token.Equal && it.Type() != token.NotEqual {
-		return nil, fmt.Errorf("Expected comparison, but found %v", it)
+		return nil, newParserError(it, p.name, "Expected comparison, but found %v", it)
 	}
 
 	if it.Value() != "==" && it.Value() != "!=" {
-		return nil, fmt.Errorf("Invalid if operator '%s'. Valid comparison operators are '==' and '!='",
+		return nil, newParserError(it, p.name, "Invalid if operator '%s'. Valid comparison operators are '==' and '!='",
 			it.Value())
 	}
 
@@ -650,7 +655,7 @@ func (p *Parser) parseIf() (ast.Node, error) {
 	it = p.next()
 
 	if it.Type() != token.String && it.Type() != token.Variable {
-		return nil, fmt.Errorf("if requires an rvalue of type string or variable. Found %v", it)
+		return nil, newParserError(it, p.name, "if requires an rvalue of type string or variable. Found %v", it)
 	}
 
 	if it.Type() == token.String {
@@ -664,7 +669,7 @@ func (p *Parser) parseIf() (ast.Node, error) {
 	it = p.next()
 
 	if it.Type() != token.LBrace {
-		return nil, fmt.Errorf("Expected '{' but found %v", it)
+		return nil, newParserError(it, p.name, "Expected '{' but found %v", it)
 	}
 
 	p.openblocks++
@@ -711,7 +716,7 @@ func (p *Parser) parseFnArgs() ([]string, error) {
 		} else if it.Type() == token.Ident {
 			args = append(args, it.Value())
 		} else {
-			return nil, fmt.Errorf("Unexpected token %v. Expected identifier or ')'", it)
+			return nil, newParserError(it, p.name, "Unexpected token %v. Expected identifier or ')'", it)
 		}
 
 	}
@@ -796,7 +801,7 @@ func (p *Parser) parseFnInv() (ast.Node, error) {
 			p.next()
 			break
 		} else {
-			return nil, errors.NewError("Unexpected token %v", it)
+			return nil, errors.NewError("Unexpected token %v. Expecting STRING or VARIABLE or )", it)
 		}
 	}
 
@@ -833,7 +838,7 @@ func (p *Parser) parseElse() (*ast.ListNode, bool, error) {
 		return block, true, nil
 	}
 
-	return nil, false, fmt.Errorf("Unexpected token: %v", it)
+	return nil, false, newParserError(it, p.name, "Unexpected token: %v", it)
 }
 
 func (p *Parser) parseBindFn() (ast.Node, error) {
@@ -997,7 +1002,7 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 		return fn()
 	}
 
-	return nil, fmt.Errorf("%s:%d:%d: Unexpected token parsing statement '%+v'", p.name, it.Line(), it.Column(), it)
+	return nil, errors.NewError("%s:%d:%d: Unexpected token parsing statement '%+v'", p.name, it.Line(), it.Column(), it)
 }
 
 func (p *Parser) parseError() (ast.Node, error) {
@@ -1015,8 +1020,6 @@ func (p *Parser) parseBlock() (*ast.ListNode, error) {
 		switch it.Type() {
 		case token.EOF:
 			goto finish
-		case token.Illegal:
-			return nil, fmt.Errorf("Syntax error: %s", it)
 		case token.LBrace:
 			p.ignore()
 
@@ -1047,4 +1050,15 @@ finish:
 	}
 
 	return ln, nil
+}
+
+func newParserError(item scanner.Token, name, format string, args ...interface{}) error {
+	if item.Type() == token.Illegal {
+		// scanner error
+		return errors.NewError(item.Value())
+	}
+
+	errstr := fmt.Sprintf(format, args...)
+
+	return errors.NewError("%s:%d:%d: %s", name, item.Line(), item.Column, errstr)
 }
