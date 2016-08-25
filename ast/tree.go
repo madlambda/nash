@@ -38,9 +38,31 @@ func (tree *Tree) String() string {
 
 	content := make([]string, 0, 8192)
 
+	isAssigns := false
+
 	for i := 0; i < len(nodes); i++ {
 		node := nodes[i]
+
 		nodebytes := node.String()
+
+		if i == 0 && node.Type() == NodeComment {
+			nodebytes += "\n"
+		}
+
+		if i < (len(nodes) - 1) {
+			nextNode := nodes[i+1]
+
+			switch nextNode.Type() {
+			case NodeAssignment:
+				isAssigns = true
+			default:
+				if isAssigns {
+					nodebytes += "\n"
+				}
+
+				isAssigns = false
+			}
+		}
 
 		content = append(content, nodebytes)
 	}

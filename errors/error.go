@@ -1,6 +1,10 @@
 package errors
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/NeowayLabs/nash/scanner"
+)
 
 type (
 	NashError struct {
@@ -29,17 +33,17 @@ func (e *NashError) SetReason(format string, arg ...interface{}) {
 
 func (e *NashError) Error() string { return e.reason }
 
-func NewUnfinishedBlockError() error {
+func NewUnfinishedBlockError(name string, it scanner.Token) error {
 	return &unfinishedBlockError{
-		NashError: NewError("Statement's block '{' not finished"),
+		NashError: NewError("%s:%d:%d: Statement's block '{' not finished", name, it.Line(), it.Column()),
 	}
 }
 
 func (e *unfinishedBlockError) Unfinished() bool { return true }
 
-func NewUnfinishedListError() error {
+func NewUnfinishedListError(name string, it scanner.Token) error {
 	return &unfinishedListError{
-		NashError: NewError("List assignment not finished"),
+		NashError: NewError("%s:%d:%d: List assignment not finished", name, it.Line(), it.Column()),
 	}
 }
 

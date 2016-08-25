@@ -88,3 +88,31 @@ testb = "b"`},
 
 	testFmtTable(testTable, t)
 }
+
+func TestFmtGroupVariables(t *testing.T) {
+	testTable := []fmtTestTable{
+		{
+			`test = "a"
+
+test2 = "b"
+
+fn cd() { echo "hello" }`,
+			`test = "a"
+test2 = "b"
+
+fn cd() {
+	echo "hello"
+}
+`,
+		},
+		{
+			`#!/usr/bin/env nash
+echo "hello"`,
+			`#!/usr/bin/env nash
+
+echo "hello"`,
+		},
+	}
+
+	testFmtTable(testTable, t)
+}

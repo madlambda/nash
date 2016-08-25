@@ -555,7 +555,7 @@ func lexInsideListVariable(l *Lexer) stateFn {
 		return lexStart
 	}
 
-	return l.errorf("Unexpected '%q'. Expected elements or ')'", r)
+	return lexStart
 }
 
 func lexInsideCommonVariable(l *Lexer, nextConcatFn stateFn, nextFn stateFn) stateFn {

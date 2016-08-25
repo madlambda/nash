@@ -37,6 +37,12 @@ func testTable(name, content string, expected []Token, t *testing.T) {
 			fmt.Printf("parsed: %+v\n", res)
 		}
 
+		fmt.Printf("\n")
+
+		for _, exp := range expected {
+			fmt.Printf("expect: %+v\n", exp)
+		}
+
 		return
 	}
 

@@ -545,7 +545,7 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 		it = p.peek()
 
 		for it.Type() == token.Arg || it.Type() == token.String || it.Type() == token.Variable {
-			arg, err := p.getArgument(true, false)
+			arg, err := p.getArgument(true, true)
 
 			if err != nil {
 				return nil, err
@@ -557,7 +557,7 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 		}
 
 		if it.Type() != token.RParen {
-			return nil, errors.NewUnfinishedListError()
+			return nil, errors.NewUnfinishedListError(p.name, it)
 		}
 
 		p.next()
@@ -935,7 +935,7 @@ func (p *Parser) parseReturn() (ast.Node, error) {
 		}
 
 		if valueIt.Type() != token.RParen {
-			return nil, errors.NewUnfinishedListError()
+			return nil, errors.NewUnfinishedListError(p.name, valueIt)
 		}
 
 		p.next()
@@ -1065,7 +1065,7 @@ func (p *Parser) parseBlock() (*ast.ListNode, error) {
 
 finish:
 	if p.openblocks != 0 {
-		return nil, errors.NewUnfinishedBlockError()
+		return nil, errors.NewUnfinishedBlockError(p.name, p.peek())
 	}
 
 	return ln, nil

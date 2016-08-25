@@ -232,6 +232,7 @@ func TestParseWithShebang(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("parser shebang", `#!/bin/nash
+
 echo bleh
 `, expected, t, true)
 }
