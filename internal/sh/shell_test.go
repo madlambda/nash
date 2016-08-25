@@ -1765,4 +1765,17 @@ func TestExecuteGracefullyError(t *testing.T) {
 		t.Errorf("Expect error: %s, but got: %s", expectErr, err.Error())
 		return
 	}
+
+	err = sh.Exec("input", "echo(")
+
+	if err == nil {
+		t.Errorf("Must fail...")
+		return
+	}
+
+	if err.Error() != "Unexpected token EOF. Expecting STRING, VARIABLE or )" {
+		t.Errorf("Unexpected error: %s", err.Error())
+		return
+	}
+
 }

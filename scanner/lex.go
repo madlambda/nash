@@ -43,6 +43,33 @@ const (
 	RforkFlags = "cnsmifup"
 )
 
+var (
+	keywordScanners map[string]struct {
+		tok token.Token
+		fn  stateFn
+	}
+)
+
+func init() {
+	keywordScanners = map[string]struct {
+		tok token.Token
+		fn  stateFn
+	}{
+		"builtin": {token.Builtin, lexStart},
+		"import":  {token.Import, lexInsideImport},
+		"rfork":   {token.Rfork, lexInsideRforkArgs},
+		"cd":      {token.Cd, lexInsideCd},
+		"setenv":  {token.SetEnv, lexInsideSetenv},
+		"if":      {token.If, lexInsideIf},
+		"fn":      {token.FnDecl, lexInsideFnDecl},
+		"else":    {token.Else, lexInsideElse},
+		"bindfn":  {token.BindFn, lexInsideBindFn},
+		"dump":    {token.Dump, lexInsideDump},
+		"return":  {token.Return, lexInsideReturn},
+		"for":     {token.For, lexInsideFor},
+	}
+}
+
 func (i Token) Type() token.Token { return i.typ }
 func (i Token) Value() string     { return i.val }
 func (i Token) Pos() token.Pos    { return i.pos }
@@ -265,6 +292,11 @@ func absorbIdentifier(l *Lexer) {
 	l.backup() // pos is now ahead of the alphanum
 }
 
+func isKeyword(str string) bool {
+	_, ok := keywordScanners[str]
+	return ok
+}
+
 func lexIdentifier(l *Lexer) stateFn {
 	absorbIdentifier(l)
 
@@ -284,7 +316,7 @@ func lexIdentifier(l *Lexer) stateFn {
 	}
 
 	if len(word) > 0 && r == '-' {
-		for r == '-' {
+		for isSafePath(r) {
 			l.next()
 
 			absorbIdentifier(l)
@@ -376,44 +408,9 @@ func lexIdentifier(l *Lexer) stateFn {
 		}
 	}
 
-	switch word {
-	case "builtin":
-		l.emit(token.Builtin)
-		return lexStart
-	case "import":
-		l.emit(token.Import)
-		return lexInsideImport
-	case "rfork":
-		l.emit(token.Rfork)
-		return lexInsideRforkArgs
-	case "cd":
-		l.emit(token.Cd)
-		return lexInsideCd
-	case "setenv":
-		l.emit(token.SetEnv)
-		return lexInsideSetenv
-	case "if":
-		l.emit(token.If)
-		return lexInsideIf
-	case "fn":
-		l.emit(token.FnDecl)
-		return lexInsideFnDecl
-	case "else":
-		l.emit(token.Else)
-		return lexInsideElse
-	case "bindfn":
-		l.emit(token.BindFn)
-
-		return lexInsideBindFn
-	case "dump":
-		l.emit(token.Dump)
-		return lexInsideDump
-	case "return":
-		l.emit(token.Return)
-		return lexInsideReturn
-	case "for":
-		l.emit(token.For)
-		return lexInsideFor
+	if scan, ok := keywordScanners[word]; ok && (isSpace(r) || isEndOfLine(r) || r == eof) {
+		l.emit(scan.tok)
+		return scan.fn
 	}
 
 commandName:
@@ -963,20 +960,22 @@ func lexInsideFnInv(l *Lexer) stateFn {
 
 	r = l.peek()
 
-	if r == '"' {
+	switch r {
+	case eof:
+		return nil
+	case '$':
+		return lexInsideCommonVariable(l, lexInsideFnInv, lexMoreFnArgs)
+	case '"':
 		l.next()
 		l.ignore()
 		return lexQuote(l, lexInsideFnInv, lexMoreFnArgs)
-	} else if r == '$' {
-		return lexInsideCommonVariable(l, lexInsideFnInv, lexMoreFnArgs)
-
-	} else if r == ')' {
+	case ')':
 		l.next()
 		l.emit(token.RParen)
 		return lexStart
 	}
 
-	return l.errorf("Unexpected symbol %q. Expected quoted string or variable", r)
+	return l.errorf("Unexpected symbol %s. Expected quoted string or variable", r)
 }
 
 func lexInsideElse(l *Lexer) stateFn {

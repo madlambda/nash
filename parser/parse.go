@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"runtime"
 
 	"strconv"
 
@@ -60,14 +61,26 @@ func NewParser(name, content string) *Parser {
 }
 
 // Parse starts the parsing.
-func (p *Parser) Parse() (*ast.Tree, error) {
-	root, err := p.parseBlock()
+func (p *Parser) Parse() (tr *ast.Tree, err error) {
+	var root *ast.ListNode
+
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(runtime.Error); ok {
+				panic(r)
+			}
+
+			err = r.(error)
+		}
+	}()
+
+	root, err = p.parseBlock()
 
 	if err != nil {
 		return nil, err
 	}
 
-	tr := ast.NewTree(p.name)
+	tr = ast.NewTree(p.name)
 	tr.Root = root
 
 	return tr, nil
@@ -82,7 +95,13 @@ func (p *Parser) next() scanner.Token {
 		return *t
 	}
 
-	return <-p.l.Tokens
+	tok := <-p.l.Tokens
+
+	if tok.Type() == token.Illegal {
+		panic(errors.NewError(tok.Value()))
+	}
+
+	return tok
 }
 
 // backup puts the item into the lookahead buffer
@@ -801,7 +820,7 @@ func (p *Parser) parseFnInv() (ast.Node, error) {
 			p.next()
 			break
 		} else {
-			return nil, errors.NewError("Unexpected token %v. Expecting STRING or VARIABLE or )", it)
+			return nil, errors.NewError("Unexpected token %v. Expecting STRING, VARIABLE or )", it)
 		}
 	}
 
