@@ -339,7 +339,7 @@ var (
 
 func debug(format string, args ...interface{}) {
 	if DebugCmp {
-		fmt.Printf(format+"\n", args...)
+		fmt.Printf("[debug] "+format+"\n", args...)
 	}
 }
 
@@ -945,6 +945,7 @@ func (n *CdNode) IsEqual(other Node) bool {
 	o, ok := other.(*CdNode)
 
 	if !ok {
+		debug("other node is not CdNode")
 		return false
 	}
 

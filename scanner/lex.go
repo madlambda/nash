@@ -12,9 +12,11 @@ import (
 
 type (
 	Token struct {
-		typ token.Token
-		pos token.Pos // start position of this token
-		val string
+		typ    token.Token
+		pos    token.Pos // start position of this token
+		line   int       // line of token
+		column int       // column of token in the line
+		val    string
 	}
 
 	stateFn func(*Lexer) stateFn
@@ -28,7 +30,9 @@ type (
 		width  int        // width of last rune read
 		Tokens chan Token // channel of scanned tokens
 
-		lastNode Token
+		linenum    int
+		column     int
+		prevColumn int
 	}
 )
 
@@ -39,9 +43,38 @@ const (
 	RforkFlags = "cnsmifup"
 )
 
+var (
+	keywordScanners map[string]struct {
+		tok token.Token
+		fn  stateFn
+	}
+)
+
+func init() {
+	keywordScanners = map[string]struct {
+		tok token.Token
+		fn  stateFn
+	}{
+		"builtin": {token.Builtin, lexStart},
+		"import":  {token.Import, lexInsideImport},
+		"rfork":   {token.Rfork, lexInsideRforkArgs},
+		"cd":      {token.Cd, lexInsideCd},
+		"setenv":  {token.SetEnv, lexInsideSetenv},
+		"if":      {token.If, lexInsideIf},
+		"fn":      {token.FnDecl, lexInsideFnDecl},
+		"else":    {token.Else, lexInsideElse},
+		"bindfn":  {token.BindFn, lexInsideBindFn},
+		"dump":    {token.Dump, lexInsideDump},
+		"return":  {token.Return, lexInsideReturn},
+		"for":     {token.For, lexInsideFor},
+	}
+}
+
 func (i Token) Type() token.Token { return i.typ }
 func (i Token) Value() string     { return i.val }
 func (i Token) Pos() token.Pos    { return i.pos }
+func (i Token) Line() int         { return i.line }
+func (i Token) Column() int       { return i.column }
 
 func (i Token) String() string {
 	switch i.typ {
@@ -51,15 +84,18 @@ func (i Token) String() string {
 		return "EOF"
 	}
 
-	if len(i.val) > 10 {
-		return fmt.Sprintf("(%v) - pos: %d, val: %.10q...", i.typ, i.pos, i.val)
+	if len(i.typ.String()) > 10 {
+		return fmt.Sprintf("%s...", i.typ.String()[0:10])
 	}
 
-	return fmt.Sprintf("(%v) - pos: %d, val: %q", i.typ, i.pos, i.val)
+	return fmt.Sprintf("%s", i.typ)
 }
 
 // run lexes the input by executing state functions until the state is nil
 func (l *Lexer) run() {
+	l.linenum = 1
+	l.column = 0
+
 	for state := lexStart; state != nil; {
 		state = state(l)
 	}
@@ -80,9 +116,11 @@ func (l *Lexer) emitVal(t token.Token, val string) {
 
 func (l *Lexer) emit(t token.Token) {
 	l.Tokens <- Token{
-		typ: t,
-		val: l.input[l.start:l.pos],
-		pos: token.Pos(l.start),
+		typ:    t,
+		val:    l.input[l.start:l.pos],
+		pos:    token.Pos(l.start),
+		line:   l.linenum,
+		column: l.column,
 	}
 
 	l.start = l.pos
@@ -99,6 +137,15 @@ func (l *Lexer) next() rune {
 	r, l.width = utf8.DecodeRuneInString(l.input[l.pos:])
 
 	l.pos += l.width
+	l.prevColumn = l.column
+
+	if r == '\n' {
+		l.linenum++
+		l.column = 0
+	} else {
+		l.column++
+	}
+
 	return r
 }
 
@@ -110,6 +157,14 @@ func (l *Lexer) ignore() {
 // backup steps back one rune
 func (l *Lexer) backup() {
 	l.pos -= l.width
+
+	r, _ := utf8.DecodeRuneInString(l.input[l.pos:])
+
+	l.column = l.prevColumn
+
+	if r == '\n' {
+		l.linenum--
+	}
 }
 
 // peek returns but does not consume the next rune
@@ -140,10 +195,23 @@ func (l *Lexer) acceptRun(valid string) {
 
 // errorf returns an error token
 func (l *Lexer) errorf(format string, args ...interface{}) stateFn {
+	fname := l.name
+
+	if fname == "" {
+		fname = "<none>"
+	}
+
+	errMsg := fmt.Sprintf(format, args...)
+
+	arguments := make([]interface{}, 0, len(args)+2)
+	arguments = append(arguments, fname, l.linenum, l.column, errMsg)
+
 	l.Tokens <- Token{
-		typ: token.Illegal,
-		val: fmt.Sprintf(format, args...),
-		pos: token.Pos(l.start),
+		typ:    token.Illegal,
+		val:    fmt.Sprintf("%s:%d:%d: %s", arguments...),
+		pos:    token.Pos(l.start),
+		line:   l.linenum,
+		column: l.column,
 	}
 
 	l.start = len(l.input)
@@ -207,7 +275,7 @@ func lexStart(l *Lexer) stateFn {
 		return lexStart
 	}
 
-	return l.errorf("Unrecognized character in action: %#U at pos %d", r, l.pos)
+	return l.errorf("Unrecognized character in action: %#U", r, l.pos)
 }
 
 func absorbIdentifier(l *Lexer) {
@@ -222,6 +290,11 @@ func absorbIdentifier(l *Lexer) {
 	}
 
 	l.backup() // pos is now ahead of the alphanum
+}
+
+func isKeyword(str string) bool {
+	_, ok := keywordScanners[str]
+	return ok
 }
 
 func lexIdentifier(l *Lexer) stateFn {
@@ -239,12 +312,11 @@ func lexIdentifier(l *Lexer) stateFn {
 	}
 
 	if word[0] == '$' {
-		return l.errorf("Unexpected '$' at pos %d. Variable can only start a statement if it's a function invocation",
-			l.pos)
+		return l.errorf("Unexpected '$'. Variable can only start a statement if it's a function invocation")
 	}
 
 	if len(word) > 0 && r == '-' {
-		for r == '-' {
+		for isSafePath(r) {
 			l.next()
 
 			absorbIdentifier(l)
@@ -336,44 +408,9 @@ func lexIdentifier(l *Lexer) stateFn {
 		}
 	}
 
-	switch word {
-	case "builtin":
-		l.emit(token.Builtin)
-		return lexStart
-	case "import":
-		l.emit(token.Import)
-		return lexInsideImport
-	case "rfork":
-		l.emit(token.Rfork)
-		return lexInsideRforkArgs
-	case "cd":
-		l.emit(token.Cd)
-		return lexInsideCd
-	case "setenv":
-		l.emit(token.SetEnv)
-		return lexInsideSetenv
-	case "if":
-		l.emit(token.If)
-		return lexInsideIf
-	case "fn":
-		l.emit(token.FnDecl)
-		return lexInsideFnDecl
-	case "else":
-		l.emit(token.Else)
-		return lexInsideElse
-	case "bindfn":
-		l.emit(token.BindFn)
-
-		return lexInsideBindFn
-	case "dump":
-		l.emit(token.Dump)
-		return lexInsideDump
-	case "return":
-		l.emit(token.Return)
-		return lexInsideReturn
-	case "for":
-		l.emit(token.For)
-		return lexInsideFor
+	if scan, ok := keywordScanners[word]; ok && (isSpace(r) || isEndOfLine(r) || r == eof) {
+		l.emit(scan.tok)
+		return scan.fn
 	}
 
 commandName:
@@ -480,7 +517,7 @@ func lexInsideAssignment(l *Lexer) stateFn {
 				r := l.peek()
 
 				if !isEndOfLine(r) && r != eof {
-					return l.errorf("Invalid assignment. Expected '+' or EOL, but found '%c' at pos '%d'", r, l.pos)
+					return l.errorf("Invalid assignment. Expected '+' or EOL, but found '%c'", r)
 				}
 
 				return lexStart
@@ -640,7 +677,7 @@ func lexInsideCd(l *Lexer) stateFn {
 		}
 
 		if !isEndOfLine(r) && r != eof {
-			return l.errorf("Expected end of line, but found %c at pos %d", r, l.pos)
+			return l.errorf("Expected end of line, but found %c", r)
 		}
 
 		return lexStart
@@ -684,7 +721,7 @@ func lexIfLRValue(l *Lexer) stateFn {
 		return nil
 	}
 
-	return l.errorf("Unexpected char %q at pos %d. IfDecl expects string or variable", r, l.pos)
+	return l.errorf("Unexpected char %q. IfDecl expects string or variable", r)
 }
 
 func lexInsideIf(l *Lexer) stateFn {
@@ -731,7 +768,7 @@ func lexInsideIf(l *Lexer) stateFn {
 	r := l.next()
 
 	if r != '{' {
-		return l.errorf("Unexpected %q at pos %d. Expected '{'", r, l.pos)
+		return l.errorf("Unexpected %q. Expected '{'", r)
 	}
 
 	l.emit(token.LBrace)
@@ -923,20 +960,22 @@ func lexInsideFnInv(l *Lexer) stateFn {
 
 	r = l.peek()
 
-	if r == '"' {
+	switch r {
+	case eof:
+		return nil
+	case '$':
+		return lexInsideCommonVariable(l, lexInsideFnInv, lexMoreFnArgs)
+	case '"':
 		l.next()
 		l.ignore()
 		return lexQuote(l, lexInsideFnInv, lexMoreFnArgs)
-	} else if r == '$' {
-		return lexInsideCommonVariable(l, lexInsideFnInv, lexMoreFnArgs)
-
-	} else if r == ')' {
+	case ')':
 		l.next()
 		l.emit(token.RParen)
 		return lexStart
 	}
 
-	return l.errorf("Unexpected symbol %q. Expected quoted string or variable", r)
+	return l.errorf("Unexpected symbol %s. Expected quoted string or variable", r)
 }
 
 func lexInsideElse(l *Lexer) stateFn {
@@ -966,7 +1005,7 @@ func lexInsideElse(l *Lexer) stateFn {
 		return lexInsideIf
 	}
 
-	return l.errorf("Unexpected word '%s' at pos %d", word, l.pos)
+	return l.errorf("Unexpected word '%s'", word)
 }
 
 // Rfork flags:
@@ -1112,7 +1151,7 @@ func lexInsideCommand(l *Lexer) stateFn {
 	case isSafeArg(r):
 		break
 	default:
-		return l.errorf("Invalid char %q at pos %d. String: %.10s", r, l.pos, l.input[l.pos:])
+		return l.errorf("Invalid char %q. String: %.10s", r, l.input[l.pos:])
 	}
 
 	return func(l *Lexer) stateFn {
@@ -1187,7 +1226,7 @@ func lexQuote(l *Lexer, concatFn, nextFn stateFn) stateFn {
 	switch {
 	case r == '+':
 		if concatFn == nil {
-			return l.errorf("Concatenation is not allowed at pos %d", l.pos)
+			return l.errorf("Concatenation is not allowed")
 		}
 
 		l.next()
@@ -1245,7 +1284,7 @@ func lexInsideRedirect(l *Lexer) stateFn {
 		l.emit(token.LBrack)
 		return lexInsideRedirMapLeftSide
 	case r == ']':
-		return l.errorf("Unexpected ']' at pos %d", l.pos)
+		return l.errorf("Unexpected ']'")
 	case r == '"':
 		l.ignore()
 
@@ -1319,7 +1358,7 @@ func lexInsideRedirMapLeftSide(l *Lexer) stateFn {
 
 		if !unicode.IsDigit(r) {
 			if len(l.input[l.start:l.pos]) == 0 {
-				return l.errorf("Unexpected %c at pos %d", r, l.pos)
+				return l.errorf("Unexpected %c", r, l.pos)
 			}
 
 			if r == ']' {
@@ -1396,7 +1435,7 @@ func lexInsideRedirMapRightSide(l *Lexer) stateFn {
 					return lexStart
 				}
 
-				return l.errorf("Unexpected %c at pos %d", r, l.pos)
+				return l.errorf("Unexpected %c", r, l.pos)
 			}
 
 			l.emit(token.RedirMapRSide)
