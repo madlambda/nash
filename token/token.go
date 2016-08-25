@@ -18,6 +18,7 @@ const (
 	String // "<string>"
 	Number // [0-9]+
 	Arg
+	Path
 
 	literal_end
 
@@ -27,7 +28,10 @@ const (
 	AssignCmd // <=
 	Equal     // ==
 	NotEqual  // !=
-	Concat    // +
+	Plus      // +
+	Minus     // -
+	Gt        // >
+	Lt        // <
 
 	operator_end
 
@@ -37,19 +41,11 @@ const (
 	RParen // )
 	LBrack // [
 	RBrack // ]
-
-	Variable
-	ListElem
-	Command // alphanumeric identifier that's not a keyword
 	Pipe
 
-	redirect_beg
+	Comma
 
-	RedirRight // >
-	RedirMapLSide
-	RedirMapRSide
-
-	redirect_end
+	Variable
 
 	keyword_beg
 
@@ -66,8 +62,9 @@ const (
 	ForIn
 	Rfork
 	Cd
-	FnDecl
-	FnInv // <identifier>(<args>)
+	Fn
+
+	keyword_end
 )
 
 var tokens = [...]string{
@@ -79,12 +76,16 @@ var tokens = [...]string{
 	String: "STRING",
 	Number: "NUMBER",
 	Arg:    "ARG",
+	Path:   "PATH",
 
 	Assign:    "=",
 	AssignCmd: "<=",
 	Equal:     "==",
 	NotEqual:  "!=",
-	Concat:    "+",
+	Plus:      "+",
+	Minus:     "-",
+	Gt:        ">",
+	Lt:        "<",
 
 	LBrace: "{",
 	RBrace: "}",
@@ -92,15 +93,11 @@ var tokens = [...]string{
 	RParen: ")",
 	LBrack: "[",
 	RBrack: "]",
+	Pipe:   "|",
+
+	Comma: ",",
 
 	Variable: "VARIABLE",
-	ListElem: "LIST-ELEM",
-	Command:  "COMMAND",
-	Pipe:     "|",
-
-	RedirRight:    ">",
-	RedirMapLSide: "MAP-LSIDE",
-	RedirMapRSide: "MAP-RSIDE",
 
 	Builtin: "BUILTIN",
 	Import:  "IMPORT",
@@ -115,8 +112,24 @@ var tokens = [...]string{
 	ForIn:   "FOR-IN",
 	Rfork:   "RFORK",
 	Cd:      "CD",
-	FnDecl:  "FN",
-	FnInv:   "FN-INV",
+	Fn:      "FN",
+}
+
+var keywords map[string]Token
+
+func init() {
+	keywords = make(map[string]Token)
+	for i := keyword_beg + 1; i < keyword_end; i++ {
+		keywords[tokens[i]] = i
+	}
+}
+
+func Lookup(ident string) Token {
+	if tok, isKeyword := keywords[ident]; isKeyword {
+		return tok
+	}
+
+	return Ident
 }
 
 // token.Position returns the position of the node in file

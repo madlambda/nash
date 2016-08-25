@@ -43,33 +43,6 @@ const (
 	RforkFlags = "cnsmifup"
 )
 
-var (
-	keywordScanners map[string]struct {
-		tok token.Token
-		fn  stateFn
-	}
-)
-
-func init() {
-	keywordScanners = map[string]struct {
-		tok token.Token
-		fn  stateFn
-	}{
-		"builtin": {token.Builtin, lexStart},
-		"import":  {token.Import, lexInsideImport},
-		"rfork":   {token.Rfork, lexInsideRforkArgs},
-		"cd":      {token.Cd, lexInsideCd},
-		"setenv":  {token.SetEnv, lexInsideSetenv},
-		"if":      {token.If, lexInsideIf},
-		"fn":      {token.FnDecl, lexInsideFnDecl},
-		"else":    {token.Else, lexInsideElse},
-		"bindfn":  {token.BindFn, lexInsideBindFn},
-		"dump":    {token.Dump, lexInsideDump},
-		"return":  {token.Return, lexInsideReturn},
-		"for":     {token.For, lexInsideFor},
-	}
-}
-
 func (i Token) Type() token.Token { return i.typ }
 func (i Token) Value() string     { return i.val }
 func (i Token) Pos() token.Pos    { return i.pos }
@@ -238,40 +211,78 @@ func Lex(name, input string) *Lexer {
 }
 
 func lexStart(l *Lexer) stateFn {
+
 	r := l.next()
 
 	switch {
 	case r == eof:
 		return nil
 
+	case 'a' <= r && r <= 'z':
+		// nash literals are lowecase
+		lit := scanIdentifier(l)
+
+		if len(lit) > 1 {
+			l.emit(token.Lookup(lit))
+		}
+
+		l.emit(token.Ident)
+
+		return lexStart
+	case 'A' <= r && r <= 'Z':
+		absorbIdentifier(l)
+		l.emit(token.Ident)
+
+		return lexStart
+	case '0' <= r && r <= '9':
+		return lexNumber
 	case isSpace(r):
 		return lexSpace
 
 	case isEndOfLine(r):
 		l.ignore()
-		return lexStart
 
+		return lexStart
+	case r == '"':
+		l.ignore()
+
+		return lexQuote
 	case r == '#':
 		return lexComment
+	case r == '+':
+		l.emit(token.Plus)
+		return lexStart
+	case r == '-':
+		l.emit(token.Minus)
+		return lexStart
+	case r == '$':
+		r = l.next()
 
-	case isIdentifier(r) || r == '$':
-		return lexIdentifier
+		if !isIdentifier(r) {
+			return l.errorf("Expected identifier, but found %q", r)
+		}
 
+		absorbIdentifier(l)
+		l.emit(token.Variable)
+		return lexStart
 	case isSafePath(r):
-		return lexInsideCommandName
-
+		absorbPath(l)
+		l.emit(token.Path)
+		return lexStart
 	case r == '{':
-		l.ignore()
-		return l.errorf("Unexpected open block \"%#U\"", r)
-
+		l.emit(token.LBrace)
+		return lexStart
 	case r == '}':
 		l.emit(token.RBrace)
 		return lexStart
 	case r == '(':
 		l.emit(token.LParen)
-		return lexInsideFnInv
+		return lexStart
 	case r == ')':
 		l.emit(token.RParen)
+		return lexStart
+	case r == ',':
+		l.emit(token.Comma)
 		return lexStart
 	}
 
@@ -292,753 +303,20 @@ func absorbIdentifier(l *Lexer) {
 	l.backup() // pos is now ahead of the alphanum
 }
 
-func isKeyword(str string) bool {
-	_, ok := keywordScanners[str]
-	return ok
-}
+func lexNumber(l *Lexer) stateFn {
+	digits := "0123456789"
 
-func lexIdentifier(l *Lexer) stateFn {
-	absorbIdentifier(l)
-
-	word := l.input[l.start:l.pos]
-
-	r := l.peek()
-
-	if r == '(' {
-		l.emit(token.FnInv)
-		l.next()
-		l.emit(token.LParen)
-		return lexInsideFnInv
+	if !l.accept(digits) {
+		return l.errorf("Expected number or variable on variable indexing. Found %q", l.peek())
 	}
 
-	if word[0] == '$' {
-		return l.errorf("Unexpected '$'. Variable can only start a statement if it's a function invocation")
-	}
+	l.acceptRun(digits)
 
-	if len(word) > 0 && r == '-' {
-		for isSafePath(r) {
-			l.next()
-
-			absorbIdentifier(l)
-
-			r = l.peek()
-		}
-
-		goto commandName
-	}
-
-	// name=val
-	if isSpace(r) || r == '=' {
-		// lookahead by hand, to avoid more complex Lexer API
-		for i := l.pos; i < len(l.input); i++ {
-			r, _ := utf8.DecodeRuneInString(l.input[i:])
-
-			if !isSpace(r) {
-				if r == '=' {
-					l.emit(token.Ident)
-
-					ignoreSpaces(l)
-					l.next()
-					l.emit(token.Assign)
-					return lexInsideAssignment
-				}
-
-				break
-			}
-		}
-	}
-
-	// name <= cmd
-	if isSpace(r) || r == '<' {
-		// lookahead by hand, to avoid more complex Lexer API
-		for i := l.pos; i < len(l.input); i++ {
-			r, _ := utf8.DecodeRuneInString(l.input[i:])
-
-			if !isSpace(r) {
-				if r == '<' {
-					r, _ := utf8.DecodeRuneInString(l.input[i+1:])
-
-					if r != '=' {
-						return l.errorf("Unexpected token '%v'. Expected '='", r)
-					}
-
-					l.emit(token.Ident)
-
-					ignoreSpaces(l)
-
-					l.next()
-					l.next()
-
-					l.emit(token.AssignCmd)
-
-					ignoreSpaces(l)
-
-					absorbIdentifier(l)
-
-					word := l.input[l.start:l.pos]
-
-					if len(word) == 0 {
-						r = l.peek()
-
-						if r != '-' {
-							return l.errorf("Expected identifier")
-						}
-
-						l.next()
-						absorbIdentifier(l)
-
-						word = l.input[l.start:l.pos]
-					}
-
-					r = l.peek()
-
-					if r == '(' {
-						l.emit(token.FnInv)
-						l.next()
-						l.emit(token.LParen)
-						return lexInsideFnInv
-					}
-
-					l.emit(token.Command)
-					return lexInsideCommand
-				}
-
-				break
-			}
-		}
-	}
-
-	if scan, ok := keywordScanners[word]; ok && (isSpace(r) || isEndOfLine(r) || r == eof) {
-		l.emit(scan.tok)
-		return scan.fn
-	}
-
-commandName:
-	l.emit(token.Command)
-	return lexInsideCommand
-}
-
-func lexInsideDump(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	r := l.peek()
-
-	if r == '"' {
-		l.next()
-		l.ignore()
-		return func(l *Lexer) stateFn {
-			return lexQuote(l, lexInsideDump, lexStart)
-		}
-	}
-
-	if isIdentifier(r) || isSafePath(r) {
-		l.next()
-		// parse as normal argument
-		return func(l *Lexer) stateFn {
-			return lexArg(l, lexInsideDump, lexStart)
-		}
-	}
-
-	if r == '$' {
-		return lexInsideCommonVariable(l, lexInsideDump, lexStart)
-	}
-
+	l.emit(token.Number)
 	return lexStart
 }
 
-func lexInsideImport(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	r := l.next()
-
-	if r == '"' {
-		l.ignore()
-		return func(l *Lexer) stateFn {
-			return lexQuote(l, lexInsideImport, lexStart)
-		}
-	}
-
-	if isIdentifier(r) || isSafePath(r) {
-		// parse as normal argument
-		return func(l *Lexer) stateFn {
-			return lexArg(l, lexInsideImport, lexStart)
-		}
-	}
-
-	l.backup()
-	return lexStart
-}
-
-func lexInsideSetenv(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	for {
-		r := l.next()
-
-		if isIdentifier(r) {
-			continue // absorb
-		}
-
-		break
-	}
-
-	l.backup() // pos is now ahead of the alphanum
-
-	word := l.input[l.start:l.pos]
-
-	if len(word) == 0 {
-		// sanity check
-		return l.errorf("internal error")
-	}
-
-	l.emit(token.Ident)
-	return lexStart
-}
-
-func lexInsideAssignment(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	r := l.peek()
-
-	switch {
-	case r == '(':
-		l.next()
-		l.emit(token.LParen)
-
-		return lexInsideListVariable
-	case r == '"':
-		l.next()
-		l.ignore()
-
-		return func(l *Lexer) stateFn {
-			return lexQuote(l, lexInsideAssignment, func(l *Lexer) stateFn {
-				ignoreSpaces(l)
-
-				r := l.peek()
-
-				if !isEndOfLine(r) && r != eof {
-					return l.errorf("Invalid assignment. Expected '+' or EOL, but found '%c'", r)
-				}
-
-				return lexStart
-			})
-		}
-
-	case r == '$':
-		return lexInsideCommonVariable(l, lexInsideAssignment, lexStart)
-	}
-
-	return l.errorf("Unexpected variable value '%c'. Expected '\"' for quoted string or '$' for variable.", r)
-}
-
-func lexInsideListVariable(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	r := l.peek()
-
-	switch {
-	case isEndOfLine(r):
-		l.next()
-		l.ignore()
-		return lexInsideListVariable
-	case isSafeArg(r):
-		return lexArg(l, lexInsideListVariable, lexInsideListVariable)
-	case r == '"':
-		l.next()
-		l.ignore()
-		return lexQuote(l, lexInsideListVariable, lexInsideListVariable)
-	case r == '$':
-		return lexInsideCommonVariable(l, lexInsideListVariable, lexInsideListVariable)
-	case r == ')':
-		l.next()
-		l.emit(token.RParen)
-		return lexStart
-	}
-
-	return lexStart
-}
-
-func lexInsideCommonVariable(l *Lexer, nextConcatFn stateFn, nextFn stateFn) stateFn {
-	var r rune
-
-	r = l.next()
-
-	if r != '$' {
-		return l.errorf("Invalid variable. Unexpected '%c'", r)
-	}
-
-	for {
-		r = l.next()
-
-		if !isIdentifier(r) {
-			break
-		}
-	}
-
-	l.backup()
-
-	if r == '"' {
-		l.ignore()
-		return l.errorf("Invalid quote inside variable name")
-	}
-
-	l.emit(token.Variable)
-
-	r = l.peek()
-
-	if r == '[' {
-		l.next()
-		l.emit(token.LBrack)
-
-		r = l.peek()
-
-		if r == '$' {
-			for state := func(l *Lexer) stateFn {
-				return lexInsideCommonVariable(l, nextConcatFn, nil)
-			}; state != nil; {
-				state = state(l)
-			}
-		} else {
-			digits := "0123456789"
-
-			if !l.accept(digits) {
-				return l.errorf("Expected number or variable on variable indexing. Found %q", l.peek())
-			}
-
-			l.accept(digits)
-			l.acceptRun(digits)
-			l.emit(token.Number)
-		}
-
-		r = l.next()
-
-		if r != ']' {
-			return l.errorf("Unexpected %q. Expecting ']'", r)
-		}
-
-		l.emit(token.RBrack)
-	}
-
-	ignoreSpaces(l)
-
-	r = l.peek()
-
-	switch {
-	case r == '+':
-		l.next()
-		l.emit(token.Concat)
-
-		return nextConcatFn
-	}
-
-	return nextFn
-}
-
-func lexInsideCd(l *Lexer) stateFn {
-	// parse the cd directory
-	ignoreSpaces(l)
-
-	r := l.next()
-
-	if r == '"' {
-		l.ignore()
-		return func(l *Lexer) stateFn {
-			return lexQuote(l, lexInsideCd, lexInsideCd)
-		}
-	}
-
-	if r == '$' {
-		for {
-			r = l.next()
-
-			if !isIdentifier(r) {
-				break
-			}
-		}
-
-		l.backup()
-
-		if r == '"' {
-			l.ignore()
-			return l.errorf("Invalid quote inside variable name")
-		}
-
-		l.emit(token.Variable)
-
-		ignoreSpaces(l)
-
-		r = l.peek()
-
-		switch {
-		case r == '+':
-			l.next()
-			l.emit(token.Concat)
-			return lexInsideCd
-		}
-
-		if !isEndOfLine(r) && r != eof {
-			return l.errorf("Expected end of line, but found %c", r)
-		}
-
-		return lexStart
-	}
-
-	if isIdentifier(r) || isSafePath(r) {
-		// parse as normal argument
-		return func(l *Lexer) stateFn {
-			return lexArg(l, lexInsideCd, lexStart)
-		}
-	}
-
-	l.backup()
-	return lexStart
-}
-
-func lexIfLRValue(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	r := l.next()
-
-	switch {
-	case r == '"':
-		l.ignore()
-		for state := func(l *Lexer) stateFn {
-			return lexQuote(l, lexIfLRValue, nil)
-		}; state != nil; {
-			state = state(l)
-		}
-
-		return nil
-	case r == '$':
-		l.backup()
-
-		for state := func(l *Lexer) stateFn {
-			return lexInsideCommonVariable(l, lexIfLRValue, nil)
-		}; state != nil; {
-			state = state(l)
-		}
-
-		return nil
-	}
-
-	return l.errorf("Unexpected char %q. IfDecl expects string or variable", r)
-}
-
-func lexInsideIf(l *Lexer) stateFn {
-	errState := lexIfLRValue(l)
-
-	if errState != nil {
-		return errState
-	}
-
-	ignoreSpaces(l)
-
-	// get first char of operator. Eg.: '!'
-	if !l.accept("=!") {
-		l.errorf("Unexpected char %q inside if statement", l.peek())
-		return nil
-	}
-
-	// get second char. Eg.: '='
-	if !l.accept("=!") {
-		l.errorf("Unexpected char %q inside if statement", l.peek())
-		return nil
-	}
-
-	word := l.input[l.start:l.pos]
-
-	if word != "==" && word != "!=" {
-		return l.errorf("Invalid comparison operator '%s'", word)
-	}
-
-	if word == "==" {
-		l.emit(token.Equal)
-	} else {
-		l.emit(token.NotEqual)
-	}
-
-	errState = lexIfLRValue(l)
-
-	if errState != nil {
-		return errState
-	}
-
-	ignoreSpaces(l)
-
-	r := l.next()
-
-	if r != '{' {
-		return l.errorf("Unexpected %q. Expected '{'", r)
-	}
-
-	l.emit(token.LBrace)
-
-	return lexStart
-}
-
-func lexForEnd(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	r := l.next()
-
-	if r != '{' {
-		return l.errorf("Unexpected %q. Expected '{'", r)
-	}
-
-	l.emit(token.LBrace)
-	return lexStart
-}
-
-func lexInsideForIn(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	r := l.next()
-
-	switch {
-	case r == '$':
-		l.backup()
-		return lexInsideCommonVariable(l, lexInsideForIn, lexForEnd)
-	}
-
-	return l.errorf("Unexpected %q on for in clause", r)
-}
-
-func lexInsideFor(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	for {
-		r := l.peek()
-
-		if !isIdentifier(r) {
-			break
-		}
-
-		l.next()
-	}
-
-	word := l.input[l.start:l.pos]
-
-	if len(word) > 0 {
-		l.emit(token.Ident)
-
-		ignoreSpaces(l)
-
-		ri := l.next()
-		rn := l.next()
-
-		if ri != 'i' && rn != 'n' {
-			return l.errorf("Unexpected %q. Expected 'in'", ri)
-		}
-
-		l.emit(token.ForIn)
-		return lexInsideForIn
-	}
-
-	return lexForEnd
-}
-
-func lexInsideFnDecl(l *Lexer) stateFn {
-	var (
-		r       rune
-		argName string
-	)
-
-	ignoreSpaces(l)
-
-	for {
-		r = l.next()
-
-		if isIdentifier(r) {
-			continue
-		}
-
-		break
-	}
-
-	l.backup()
-
-	l.emit(token.Ident)
-
-	r = l.next()
-
-	if r != '(' {
-		return l.errorf("Unexpected symbol %q. Expected '('", r)
-	}
-
-	l.emit(token.LParen)
-
-getnextarg:
-	ignoreSpaces(l)
-
-	for {
-		r = l.next()
-
-		if isIdentifier(r) {
-			continue
-		}
-
-		break
-	}
-
-	l.backup()
-
-	argName = l.input[l.start:l.pos]
-
-	if len(argName) > 0 {
-		l.emit(token.Ident)
-
-		r = l.peek()
-
-		if r == ',' {
-			l.next()
-			goto getnextarg
-		} else if r != ')' {
-			return l.errorf("Unexpected symbol %q. Expected ',' or ')'", r)
-		}
-	}
-
-	l.next()
-	l.emit(token.RParen)
-
-	ignoreSpaces(l)
-
-	r = l.next()
-
-	if r != '{' {
-		return l.errorf("Unexpected symbol %q. Expected '{'", r)
-	}
-
-	l.emit(token.LBrace)
-
-	return lexStart
-}
-
-func lexInsideReturn(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	r := l.peek()
-
-	switch {
-	case r == '(':
-		l.next()
-		l.emit(token.LParen)
-		return lexInsideListVariable
-	case r == '"':
-		l.next()
-		l.ignore()
-
-		return lexQuote(l, lexInsideReturn, lexStart)
-	case r == '$':
-		return lexInsideCommonVariable(l, lexInsideReturn, lexStart)
-	}
-
-	return lexStart
-}
-
-func lexMoreFnArgs(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	r := l.peek()
-
-	if r == ',' {
-		l.next()
-		l.ignore()
-		return lexInsideFnInv
-	}
-
-	if r == ')' {
-		return lexStart
-	}
-
-	return l.errorf("Unexpected symbol %q. Expecting ',' or ')'", r)
-}
-
-func lexInsideFnInv(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	var r rune
-
-	r = l.peek()
-
-	switch r {
-	case eof:
-		return nil
-	case '$':
-		return lexInsideCommonVariable(l, lexInsideFnInv, lexMoreFnArgs)
-	case '"':
-		l.next()
-		l.ignore()
-		return lexQuote(l, lexInsideFnInv, lexMoreFnArgs)
-	case ')':
-		l.next()
-		l.emit(token.RParen)
-		return lexStart
-	}
-
-	return l.errorf("Unexpected symbol %s. Expected quoted string or variable", r)
-}
-
-func lexInsideElse(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	r := l.next()
-
-	if r == '{' {
-		l.emit(token.LBrace)
-		return lexStart
-	}
-
-	for {
-		r = l.next()
-
-		if !isIdentifier(r) {
-			break
-		}
-	}
-
-	l.backup()
-
-	word := l.input[l.start:l.pos]
-
-	if word == "if" {
-		l.emit(token.If)
-		return lexInsideIf
-	}
-
-	return l.errorf("Unexpected word '%s'", word)
-}
-
-// Rfork flags:
-// c = stands for container (c == upnsmi)
-// u = user namespace
-// p = pid namespace
-// n = network namespace
-// s = uts namespace
-// m = mount namespace
-// i = ipc namespace
-func lexInsideRforkArgs(l *Lexer) stateFn {
-	// parse the rfork parameters
-
-	ignoreSpaces(l)
-
-	if !l.accept(RforkFlags) {
-		return l.errorf("invalid rfork argument: %s", string(l.peek()))
-	}
-
-	l.acceptRun(RforkFlags)
-
-	l.emit(token.String)
-
-	ignoreSpaces(l)
-
-	if l.accept("{") {
-		l.emit(token.LBrace)
-	}
-
-	return lexStart
-}
-
-func lexInsideCommandName(l *Lexer) stateFn {
+func absorbPath(l *Lexer) {
 	for {
 		r := l.next()
 
@@ -1049,117 +327,16 @@ func lexInsideCommandName(l *Lexer) stateFn {
 		break
 	}
 
-	l.backup() // pos is now ahead of the alphanum
-
-	word := l.input[l.start:l.pos]
-
-	if len(word) == 0 {
-		// sanity check
-		return l.errorf("internal error")
-	}
-
-	if len(word) == 1 && word == "-" {
-		l.ignore()
-		return l.errorf("- requires a command")
-	}
-
-	l.emit(token.Command)
-	return lexInsideCommand
-}
-
-func lexInsideBindFn(l *Lexer) stateFn {
-	var r rune
-
-	ignoreSpaces(l)
-
-	for {
-		r = l.next()
-
-		if isIdentifier(r) {
-			continue
-		}
-
-		break
-	}
-
 	l.backup()
-
-	word := l.input[l.start:l.pos]
-
-	if len(word) == 0 {
-		return l.errorf("Unexpected %q, expected identifier.", r)
-	}
-
-	l.emit(token.Ident)
-
-	ignoreSpaces(l)
-
-	for {
-		r = l.next()
-
-		if isIdentifier(r) || r == '-' {
-			continue
-		}
-
-		break
-	}
-
-	l.backup()
-
-	word = l.input[l.start:l.pos]
-
-	if len(word) == 0 {
-		return l.errorf("Unexpected %q, expected identifier.", r)
-	}
-
-	l.emit(token.Ident)
-
-	return lexStart
 }
 
-func lexInsideCommand(l *Lexer) stateFn {
-	ignoreSpaces(l)
+func scanIdentifier(l *Lexer) string {
+	absorbIdentifier(l)
 
-	r := l.next()
-
-	switch {
-	case r == eof:
-		return nil
-	case isEndOfLine(r):
-		l.ignore()
-		return lexStart
-	case r == '#':
-		return lexComment
-	case r == '"':
-		l.ignore()
-		return func(l *Lexer) stateFn {
-			return lexQuote(l, lexInsideCommand, lexInsideCommand)
-		}
-	case r == '}':
-		l.emit(token.RBrace)
-		return lexStart
-
-	case r == '>':
-		l.emit(token.RedirRight)
-		return lexInsideRedirect
-	case r == '|':
-		l.emit(token.Pipe)
-		return lexStart
-	case r == '$':
-		l.backup()
-		return lexInsideCommonVariable(l, lexInsideCommand, lexInsideCommand)
-	case isSafeArg(r):
-		break
-	default:
-		return l.errorf("Invalid char %q. String: %.10s", r, l.input[l.pos:])
-	}
-
-	return func(l *Lexer) stateFn {
-		return lexArg(l, lexInsideCommand, lexInsideCommand)
-	}
+	return l.input[l.start:l.pos]
 }
 
-func lexQuote(l *Lexer, concatFn, nextFn stateFn) stateFn {
+func lexQuote(l *Lexer) stateFn {
 	var data []rune
 
 	data = make([]rune, 0, 256)
@@ -1219,254 +396,6 @@ func lexQuote(l *Lexer, concatFn, nextFn stateFn) stateFn {
 		break
 	}
 
-	ignoreSpaces(l)
-
-	r := l.peek()
-
-	switch {
-	case r == '+':
-		if concatFn == nil {
-			return l.errorf("Concatenation is not allowed")
-		}
-
-		l.next()
-		l.emit(token.Concat)
-
-		return concatFn
-	}
-
-	return nextFn
-}
-
-func lexArg(l *Lexer, concatFn, nextFn stateFn) stateFn {
-	for {
-		r := l.next()
-
-		if r == eof {
-			if l.pos > l.start {
-				l.emit(token.Arg)
-			}
-
-			return nil
-		}
-
-		if isIdentifier(r) || isSafeArg(r) {
-			continue
-		}
-
-		l.backup()
-		l.emit(token.Arg)
-		break
-	}
-
-	ignoreSpaces(l)
-
-	r := l.peek()
-
-	switch {
-	case r == '+':
-		l.next()
-		l.emit(token.Concat)
-
-		return concatFn
-	}
-
-	return nextFn
-}
-
-func lexInsideRedirect(l *Lexer) stateFn {
-	ignoreSpaces(l)
-
-	r := l.next()
-
-	switch {
-	case r == '[':
-		l.emit(token.LBrack)
-		return lexInsideRedirMapLeftSide
-	case r == ']':
-		return l.errorf("Unexpected ']'")
-	case r == '"':
-		l.ignore()
-
-		for {
-			r := l.next()
-
-			if r != '"' && r != eof {
-				continue
-			}
-
-			if r == eof {
-				return l.errorf("Quoted string not finished: %s", l.input[l.start:])
-			}
-
-			l.backup()
-
-			break
-		}
-
-		l.emit(token.String)
-
-		l.next() // get last '"' again
-		l.ignore()
-	case r == '$':
-		l.backup()
-		return lexInsideCommonVariable(l, lexInsideRedirect, lexStart)
-	case isSafePath(r):
-		for {
-			r = l.next()
-
-			if !isSafePath(r) {
-				l.backup()
-				break
-			}
-		}
-
-		l.emit(token.Arg)
-	default:
-		return l.errorf("Unexpected redirect identifier: %s", l.input[l.start:l.pos])
-	}
-
-	// verify if have more redirects
-
-	ignoreSpaces(l)
-
-	r = l.next()
-
-	if r == '>' {
-		l.emit(token.RedirRight)
-		return lexInsideRedirect
-	}
-
-	if r == '|' {
-		l.emit(token.Pipe)
-		return lexStart
-	}
-
-	if !isEndOfLine(r) && r != eof {
-		return l.errorf("Expected end of line or redirection, but found '%c'", r)
-	}
-
-	l.backup()
-	return lexStart
-}
-
-func lexInsideRedirMapLeftSide(l *Lexer) stateFn {
-	var r rune
-
-	for {
-		r = l.peek()
-
-		if !unicode.IsDigit(r) {
-			if len(l.input[l.start:l.pos]) == 0 {
-				return l.errorf("Unexpected %c", r, l.pos)
-			}
-
-			if r == ']' {
-				// [xxx]
-				l.emit(token.RedirMapLSide)
-				l.next()
-				l.emit(token.RBrack)
-
-				ignoreSpaces(l)
-
-				r = l.peek()
-
-				if isSafePath(r) || r == '"' {
-					return lexInsideRedirect
-				}
-
-				if r == '>' {
-					l.next()
-					l.emit(token.RedirRight)
-					return lexInsideRedirect
-				}
-
-				if r == '|' {
-					l.next()
-					l.emit(token.Pipe)
-				}
-
-				return lexStart
-			}
-
-			if r != '=' {
-				return l.errorf("Expected '=' but found '%c' at por %d", r, l.pos)
-			}
-
-			// [xxx=
-			l.emit(token.RedirMapLSide)
-			l.next()
-			l.emit(token.Assign)
-
-			return lexInsideRedirMapRightSide
-		}
-
-		r = l.next()
-	}
-}
-
-func lexInsideRedirMapRightSide(l *Lexer) stateFn {
-	var r rune
-
-	// [xxx=yyy]
-	for {
-		r = l.peek()
-
-		if !unicode.IsDigit(r) {
-			if len(l.input[l.start:l.pos]) == 0 {
-				if r == ']' {
-					l.next()
-					l.emit(token.RBrack)
-
-					ignoreSpaces(l)
-
-					r = l.peek()
-
-					if isSafePath(r) || r == '"' {
-						return lexInsideRedirect
-					}
-
-					if r == '>' {
-						l.next()
-						l.emit(token.RedirRight)
-						return lexInsideRedirect
-					}
-
-					return lexStart
-				}
-
-				return l.errorf("Unexpected %c", r, l.pos)
-			}
-
-			l.emit(token.RedirMapRSide)
-			l.next()
-			l.emit(token.RBrack)
-
-			ignoreSpaces(l)
-
-			r = l.peek()
-
-			if isSafePath(r) || r == '"' {
-				return lexInsideRedirect
-			}
-
-			if r == '>' {
-				l.next()
-				l.emit(token.RedirRight)
-				return lexInsideRedirect
-			}
-
-			if r == '|' {
-				l.next()
-				l.emit(token.Pipe)
-			}
-
-			break
-		}
-
-		r = l.next()
-	}
-
 	return lexStart
 }
 
@@ -1489,11 +418,6 @@ func lexComment(l *Lexer) stateFn {
 	}
 
 	return lexStart
-}
-
-func lexSpaceArg(l *Lexer) stateFn {
-	ignoreSpaces(l)
-	return lexInsideCommand
 }
 
 func lexSpace(l *Lexer) stateFn {

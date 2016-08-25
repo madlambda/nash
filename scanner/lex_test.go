@@ -704,7 +704,7 @@ func TestLexerPipe(t *testing.T) {
 			val: "-h",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -712,7 +712,7 @@ func TestLexerPipe(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "2",
 		},
 		{
@@ -720,7 +720,7 @@ func TestLexerPipe(t *testing.T) {
 			val: "=",
 		},
 		{
-			typ: token.RedirMapRSide,
+			typ: token.Number,
 			val: "1",
 		},
 		{
@@ -764,7 +764,7 @@ func TestLexerPipe(t *testing.T) {
 			val: "-h",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1199,7 +1199,7 @@ func TestLexerRedirectSimple(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1219,7 +1219,7 @@ func TestLexerRedirectSimple(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1239,7 +1239,7 @@ func TestLexerRedirectSimple(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1259,7 +1259,7 @@ func TestLexerRedirectSimple(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1284,7 +1284,7 @@ func TestLexerRedirectMap(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1292,7 +1292,7 @@ func TestLexerRedirectMap(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "2",
 		},
 		{
@@ -1317,7 +1317,7 @@ func TestLexerRedirectMap(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1325,7 +1325,7 @@ func TestLexerRedirectMap(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "2",
 		},
 		{
@@ -1333,7 +1333,7 @@ func TestLexerRedirectMap(t *testing.T) {
 			val: "=",
 		},
 		{
-			typ: token.RedirMapRSide,
+			typ: token.Number,
 			val: "1",
 		},
 		{
@@ -1356,7 +1356,7 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1364,7 +1364,7 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "2",
 		},
 		{
@@ -1393,7 +1393,7 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1401,7 +1401,7 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "2",
 		},
 		{
@@ -1409,7 +1409,7 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "=",
 		},
 		{
-			typ: token.RedirMapRSide,
+			typ: token.Number,
 			val: "1",
 		},
 		{
@@ -1433,7 +1433,7 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1441,7 +1441,7 @@ func TestLexerRedirectMapToLocation(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "2",
 		},
 		{
@@ -1467,7 +1467,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1475,7 +1475,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "1",
 		},
 		{
@@ -1487,7 +1487,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "file.out",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1495,7 +1495,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "2",
 		},
 		{
@@ -1519,7 +1519,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1527,7 +1527,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "2",
 		},
 		{
@@ -1535,7 +1535,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "=",
 		},
 		{
-			typ: token.RedirMapRSide,
+			typ: token.Number,
 			val: "1",
 		},
 		{
@@ -1543,7 +1543,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "]",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1551,7 +1551,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "1",
 		},
 		{
@@ -1575,7 +1575,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1583,7 +1583,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "1",
 		},
 		{
@@ -1591,7 +1591,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "=",
 		},
 		{
-			typ: token.RedirMapRSide,
+			typ: token.Number,
 			val: "2",
 		},
 		{
@@ -1599,7 +1599,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "]",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -1607,7 +1607,7 @@ func TestLexerRedirectMultipleMaps(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "2",
 		},
 		{
@@ -2413,7 +2413,7 @@ func TestLexerRedirectionNetwork(t *testing.T) {
 			val: "hello world",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -2421,7 +2421,7 @@ func TestLexerRedirectionNetwork(t *testing.T) {
 			val: "[",
 		},
 		{
-			typ: token.RedirMapLSide,
+			typ: token.Number,
 			val: "1",
 		},
 		{

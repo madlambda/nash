@@ -17,7 +17,7 @@ func TestLexerIssue34(t *testing.T) {
 			val: "/etc/passwd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -43,7 +43,7 @@ func TestLexerIssue21(t *testing.T) {
 			val: "cmd",
 		},
 		{
-			typ: token.RedirRight,
+			typ: token.Gt,
 			val: ">",
 		},
 		{
@@ -383,7 +383,7 @@ func TestLexerIssue68(t *testing.T) {
 		{typ: token.Pipe, val: "|"},
 		{typ: token.Command, val: "sed"},
 		{typ: token.String, val: "s#\\\\$pkgdir#/home/i4k/alt#g"},
-		{typ: token.RedirRight, val: ">"},
+		{typ: token.Gt, val: ">"},
 		{typ: token.Arg, val: "PKGBUILD2"},
 		{typ: token.EOF},
 	}

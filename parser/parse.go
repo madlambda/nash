@@ -42,17 +42,13 @@ func NewParser(name, content string) *Parser {
 		token.Cd:      p.parseCd,
 		token.For:     p.parseFor,
 		token.If:      p.parseIf,
-		token.FnDecl:  p.parseFnDecl,
-		token.FnInv:   p.parseFnInv,
+		token.Fn:      p.parseFnDecl,
 		token.Return:  p.parseReturn,
 		token.Import:  p.parseImport,
 		token.SetEnv:  p.parseSet,
 		token.Rfork:   p.parseRfork,
 		token.BindFn:  p.parseBindFn,
 		token.Dump:    p.parseDump,
-		token.Assign:  p.parseAssignment,
-		token.Ident:   p.parseAssignment,
-		token.Command: p.parseCommand,
 		token.Comment: p.parseComment,
 		token.Illegal: p.parseError,
 	}
@@ -229,7 +225,7 @@ cmdLoop:
 			n.AddArg(arg)
 		case token.Concat:
 			return nil, errors.NewError("%s:%d:%d: Unexpected '+'", p.name, it.Line(), it.Column())
-		case token.RedirRight:
+		case token.Gt:
 			p.next()
 			redir, err := p.parseRedirection(it)
 
@@ -281,7 +277,7 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 		p.next()
 		it = p.peek()
 
-		if it.Type() != token.RedirMapLSide {
+		if it.Type() != token.Number {
 			return nil, errors.NewError("%s:%d:%d: Expected lefthand side of redirection map, but found '%s'",
 				p.name,
 				it.Line(),
@@ -309,11 +305,11 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 			p.next()
 			it = p.peek()
 
-			if it.Type() != token.RedirMapRSide && it.Type() != token.RBrack {
+			if it.Type() != token.Number && it.Type() != token.RBrack {
 				return nil, errors.NewError("%s:%d:%d: Unexpected token %v. Expecting REDIRMAPRSIDE or ]", it)
 			}
 
-			if it.Type() == token.RedirMapRSide {
+			if it.Type() == token.Number {
 				rval, err = strconv.Atoi(it.Value())
 
 				if err != nil {
@@ -572,7 +568,7 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 	it := p.peek()
 
-	if it.Type() != token.Command && it.Type() != token.FnInv {
+	if it.Type() != token.Command && it.Type() != token.Ident {
 		return nil, errors.NewError("Invalid token %v. Expected command or function invocation", it)
 	}
 
@@ -795,14 +791,14 @@ func (p *Parser) parseFnDecl() (ast.Node, error) {
 }
 
 func (p *Parser) parseFnInv() (ast.Node, error) {
-	it := p.next()
+	it := p.next() // ident
 
 	n := ast.NewFnInvNode(it.Pos(), it.Value())
 
 	it = p.next()
 
 	if it.Type() != token.LParen {
-		return nil, errors.NewError("Invalid token %v. Expected '('", it)
+		return nil, newParserError(it, p.name, "Invalid token %v. Expected '('", it)
 	}
 
 	for {
@@ -1019,6 +1015,15 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 
 	if fn, ok := p.keywordParsers[it.Type()]; ok {
 		return fn()
+	}
+
+	if it.Type() == token.Ident {
+		// statement starting with ident:
+		// - variable assignment
+		// - variable exec assignment
+		// - fn invocation
+		// - Command
+		return p.parseIdent()
 	}
 
 	return nil, errors.NewError("%s:%d:%d: Unexpected token parsing statement '%+v'", p.name, it.Line(), it.Column(), it)
