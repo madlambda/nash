@@ -119,3 +119,26 @@ func TestParseIssue68(t *testing.T) {
 
 	parserTestTable("parse issue #68", `cat PKGBUILD | sed "s#\\$pkgdir#/home/i4k/alt#g" > PKGBUILD2`, expected, t, false)
 }
+
+func TestParseIssue69(t *testing.T) {
+	expected := ast.NewTree("parse-issue-69")
+	ln := ast.NewListNode()
+
+	parts := make([]ast.Expr, 2)
+
+	parts[0] = ast.NewVarExpr(0, "$a")
+	parts[1] = ast.NewStringExpr(0, "b", true)
+
+	concat := ast.NewConcatExpr(0, parts)
+
+	listValues := make([]ast.Expr, 1)
+	listValues[0] = concat
+
+	list := ast.NewListExpr(0, listValues)
+
+	assign := ast.NewAssignmentNode(0, "a", list)
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTestTable("parse-issue-69", `a = ($a+"b")`, expected, t, true)
+}

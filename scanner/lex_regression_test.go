@@ -402,3 +402,19 @@ func TestLexerIssue85(t *testing.T) {
 
 	testTable("test issue 85", `a <= -echo hello`, expected, t)
 }
+
+func TestLexerIssue69(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "a"},
+		{typ: token.Assign, val: "="},
+		{typ: token.LParen, val: "("},
+		{typ: token.Variable, val: "$a"},
+		{typ: token.Concat, val: "+"},
+		{typ: token.String, val: "b"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.EOF},
+	}
+
+	testTable("test69", `a = ($a + "b")`, expected, t)
+
+}
