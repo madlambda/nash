@@ -38,30 +38,27 @@ func (tree *Tree) String() string {
 
 	content := make([]string, 0, 8192)
 
-	isAssigns := false
-
 	for i := 0; i < len(nodes); i++ {
+		addEOL := false
 		node := nodes[i]
 
 		nodebytes := node.String()
 
-		if i == 0 && node.Type() == NodeComment {
+		if i == 0 && node.Type() == NodeComment && strings.HasPrefix(node.String(), "#!") {
 			nodebytes += "\n"
 		}
 
-		if i < (len(nodes) - 1) {
+		if (node.Type() == NodeAssignment) && i < (len(nodes)-1) {
 			nextNode := nodes[i+1]
 
 			switch nextNode.Type() {
-			case NodeAssignment:
-				isAssigns = true
-			default:
-				if isAssigns {
-					nodebytes += "\n"
-				}
-
-				isAssigns = false
+			case NodeComment, NodeFnDecl:
+				addEOL = true
 			}
+		}
+
+		if addEOL {
+			nodebytes += "\n"
 		}
 
 		content = append(content, nodebytes)

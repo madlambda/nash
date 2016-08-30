@@ -116,3 +116,34 @@ echo "hello"`,
 
 	testFmtTable(testTable, t)
 }
+
+func TestFmtFn(t *testing.T) {
+	testTable := []fmtTestTable{
+		{
+			`fn lala() { echo hello }
+fn lele() { echo lele }`,
+			`fn lala() {
+	echo hello
+}
+
+fn lele() {
+	echo lele
+}
+`,
+		},
+		{
+			`vv = ""
+fn t() {
+	echo t
+}`,
+			`vv = ""
+
+fn t() {
+	echo t
+}
+`,
+		},
+	}
+
+	testFmtTable(testTable, t)
+}
