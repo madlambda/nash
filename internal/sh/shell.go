@@ -526,7 +526,7 @@ func (sh *Shell) evalConcat(path ast.Expr) (string, error) {
 			if !ok {
 				return "", fmt.Errorf("Failed to eval string.")
 			}
-			
+
 			pathStr += str.Value()
 		case ast.NodeListExpr:
 			return "", errors.NewError("Concat of lists is not allowed: %+v", part.String())
@@ -1076,6 +1076,10 @@ func (sh *Shell) getCommand(c *ast.CommandNode) (Runner, bool, error) {
 		sh.logf("Ignoring error\n")
 	}
 
+	if cmdName == "" {
+		return nil, false, errors.NewError("Empty command name...") // TODO: add context to error
+	}
+
 	cmd, err = NewCmd(cmdName)
 
 	if err != nil {
@@ -1284,7 +1288,7 @@ func (sh *Shell) evalExpr(expr ast.Expr) (*Obj, error) {
 		if !ok {
 			return nil, errors.NewError("Failed to eval indexed variable")
 		}
-		
+
 		obj, err := sh.evalIndexedVar(indexedVar)
 
 		return obj, err

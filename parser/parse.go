@@ -188,8 +188,9 @@ func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
 
 	n.AddCmd(first)
 
-	for it = p.peek(); it.Type() == token.Command; it = p.peek() {
-		cmd, err := p.parseCommand()
+	for it = p.peek(); it.Type() == token.Ident; it = p.peek() {
+		p.next()
+		cmd, err := p.parseCommand(it)
 
 		if err != nil {
 			return nil, err
@@ -205,7 +206,7 @@ func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
 	return n, nil
 }
 
-func (p *Parser) parseCommand() (ast.Node, error) {
+func (p *Parser) parseCommand(ident scanner.Token) (ast.Node, error) {
 	it := p.next()
 
 	n := ast.NewCommandNode(it.Pos(), it.Value())
@@ -223,7 +224,7 @@ cmdLoop:
 			}
 
 			n.AddArg(arg)
-		case token.Concat:
+		case token.Plus:
 			return nil, errors.NewError("%s:%d:%d: Unexpected '+'", p.name, it.Line(), it.Column())
 		case token.Gt:
 			p.next()
@@ -403,7 +404,7 @@ func (p *Parser) parseCd() (ast.Node, error) {
 
 	// TODO(i4k): this poor implementation allows:
 	// cd/ and cd. as valid commands
-	if it.Type() != token.Arg && it.Type() != token.String && it.Type() != token.Variable && it.Type() != token.Concat {
+	if it.Type() != token.Arg && it.Type() != token.String && it.Type() != token.Variable && it.Type() != token.Plus {
 		p.backup(it)
 
 		return ast.NewCdNode(cdToken.Pos(), nil), nil
@@ -463,7 +464,7 @@ func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
 
 	it = p.peek()
 
-	if it.Type() == token.Concat && allowConcat {
+	if it.Type() == token.Plus && allowConcat {
 		return p.getConcatArg(arg)
 	}
 
@@ -485,7 +486,7 @@ func (p *Parser) getConcatArg(firstArg ast.Expr) (ast.Expr, error) {
 hasConcat:
 	it = p.peek()
 
-	if it.Type() == token.Concat {
+	if it.Type() == token.Plus {
 		p.ignore()
 
 		arg, err := p.getArgument(true, false)
@@ -501,9 +502,7 @@ hasConcat:
 	return ast.NewConcatExpr(firstArg.Position(), parts), nil
 }
 
-func (p *Parser) parseAssignment() (ast.Node, error) {
-	varIt := p.next()
-
+func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
 	it := p.next()
 
 	if it.Type() != token.Assign && it.Type() != token.AssignCmd {
@@ -511,10 +510,10 @@ func (p *Parser) parseAssignment() (ast.Node, error) {
 	}
 
 	if it.Type() == token.Assign {
-		return p.parseAssignValue(varIt)
+		return p.parseAssignValue(ident)
 	}
 
-	return p.parseAssignCmdOut(varIt)
+	return p.parseAssignCmdOut(ident)
 }
 
 func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
@@ -566,14 +565,16 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 }
 
 func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
-	it := p.peek()
+	it := p.next()
 
-	if it.Type() != token.Command && it.Type() != token.Ident {
+	if it.Type() != token.Ident {
 		return nil, errors.NewError("Invalid token %v. Expected command or function invocation", it)
 	}
 
-	if it.Type() == token.Command {
-		cmd, err := p.parseCommand()
+	nextIt := p.peek()
+
+	if nextIt.Type() != token.LParen {
+		cmd, err := p.parseCommand(it)
 
 		if err != nil {
 			return nil, err
@@ -582,7 +583,7 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 		return ast.NewExecAssignNode(name.Pos(), name.Value(), cmd)
 	}
 
-	fn, err := p.parseFnInv()
+	fn, err := p.parseFnInv(it)
 
 	if err != nil {
 		return nil, err
@@ -790,12 +791,10 @@ func (p *Parser) parseFnDecl() (ast.Node, error) {
 
 }
 
-func (p *Parser) parseFnInv() (ast.Node, error) {
-	it := p.next() // ident
+func (p *Parser) parseFnInv(ident scanner.Token) (ast.Node, error) {
+	n := ast.NewFnInvNode(ident.Pos(), ident.Value())
 
-	n := ast.NewFnInvNode(it.Pos(), it.Value())
-
-	it = p.next()
+	it := p.next()
 
 	if it.Type() != token.LParen {
 		return nil, newParserError(it, p.name, "Invalid token %v. Expected '('", it)
@@ -1027,6 +1026,20 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 	}
 
 	return nil, errors.NewError("%s:%d:%d: Unexpected token parsing statement '%+v'", p.name, it.Line(), it.Column(), it)
+}
+
+func (p *Parser) parseIdent() (ast.Node, error) {
+	ident := p.next()
+	next := p.peek()
+
+	switch next.Type() {
+	case token.Assign, token.AssignCmd:
+		return p.parseAssignment(ident)
+	case token.LParen:
+		return p.parseFnInv(ident)
+	}
+
+	return p.parseCommand(ident)
 }
 
 func (p *Parser) parseError() (ast.Node, error) {

@@ -33,14 +33,15 @@ type (
 		linenum    int
 		column     int
 		prevColumn int
+
+		openParens int
+
+		addSemicolon bool
 	}
 )
 
 const (
-	eof        = -1
-	spaceChars = " \t\r\n"
-
-	RforkFlags = "cnsmifup"
+	eof = -1
 )
 
 func (i Token) Type() token.Token { return i.typ }
@@ -216,24 +217,13 @@ func lexStart(l *Lexer) stateFn {
 
 	switch {
 	case r == eof:
-		return nil
-
-	case 'a' <= r && r <= 'z':
-		// nash literals are lowecase
-		lit := scanIdentifier(l)
-
-		if len(lit) > 1 {
-			l.emit(token.Lookup(lit))
+		if l.addSemicolon {
+			l.emitVal(token.Semicolon, ";")
 		}
 
-		l.emit(token.Ident)
+		l.addSemicolon = false
 
-		return lexStart
-	case 'A' <= r && r <= 'Z':
-		absorbIdentifier(l)
-		l.emit(token.Ident)
-
-		return lexStart
+		return nil
 	case '0' <= r && r <= '9':
 		return lexNumber
 	case isSpace(r):
@@ -241,6 +231,12 @@ func lexStart(l *Lexer) stateFn {
 
 	case isEndOfLine(r):
 		l.ignore()
+
+		if l.addSemicolon && l.openParens == 0 {
+			l.emitVal(token.Semicolon, ";")
+		}
+
+		l.addSemicolon = false
 
 		return lexStart
 	case r == '"':
@@ -252,8 +248,11 @@ func lexStart(l *Lexer) stateFn {
 	case r == '+':
 		l.emit(token.Plus)
 		return lexStart
-	case r == '-':
-		l.emit(token.Minus)
+	case r == '>':
+		l.emit(token.Gt)
+		return lexStart
+	case r == '|':
+		l.emit(token.Pipe)
 		return lexStart
 	case r == '$':
 		r = l.next()
@@ -265,24 +264,78 @@ func lexStart(l *Lexer) stateFn {
 		absorbIdentifier(l)
 		l.emit(token.Variable)
 		return lexStart
-	case isSafePath(r):
-		absorbPath(l)
-		l.emit(token.Path)
+	case r == '=':
+		if l.peek() == '=' {
+			l.next()
+			l.emit(token.Equal)
+		} else {
+			l.emit(token.Assign)
+		}
+
+		return lexStart
+	case r == '<':
+		if l.peek() == '=' {
+			l.next()
+			l.emit(token.AssignCmd)
+		} else {
+			l.emit(token.Lt)
+		}
+
 		return lexStart
 	case r == '{':
+		l.addSemicolon = false
 		l.emit(token.LBrace)
 		return lexStart
 	case r == '}':
 		l.emit(token.RBrace)
 		return lexStart
+	case r == '[':
+		l.emit(token.LBrack)
+		return lexStart
+	case r == ']':
+		l.emit(token.RBrack)
+		return lexStart
 	case r == '(':
+		l.openParens++
+
 		l.emit(token.LParen)
+		l.addSemicolon = false
 		return lexStart
 	case r == ')':
+		l.openParens--
+
 		l.emit(token.RParen)
+		l.addSemicolon = true
 		return lexStart
 	case r == ',':
 		l.emit(token.Comma)
+		return lexStart
+	case isIdentifier(r):
+		// nash literals are lowercase
+		absorbIdentifier(l)
+
+		next := l.peek()
+
+		if isEndOfLine(next) || isSpace(next) || next == '=' || next == '(' || next == ')' || next == eof {
+			lit := scanIdentifier(l)
+
+			if len(lit) > 1 && r >= 'a' && r <= 'z' {
+				l.emit(token.Lookup(lit))
+			} else {
+				l.emit(token.Ident)
+			}
+		} else {
+			absorbArgument(l)
+			l.emit(token.Arg)
+		}
+
+		l.addSemicolon = true
+
+		return lexStart
+	case isArgument(r):
+		absorbArgument(l)
+		l.emit(token.Arg)
+		l.addSemicolon = true
 		return lexStart
 	}
 
@@ -303,31 +356,27 @@ func absorbIdentifier(l *Lexer) {
 	l.backup() // pos is now ahead of the alphanum
 }
 
-func lexNumber(l *Lexer) stateFn {
-	digits := "0123456789"
-
-	if !l.accept(digits) {
-		return l.errorf("Expected number or variable on variable indexing. Found %q", l.peek())
-	}
-
-	l.acceptRun(digits)
-
-	l.emit(token.Number)
-	return lexStart
-}
-
-func absorbPath(l *Lexer) {
+func absorbArgument(l *Lexer) {
 	for {
 		r := l.next()
 
-		if isSafePath(r) {
+		if isArgument(r) {
 			continue // absorb
 		}
 
 		break
 	}
 
-	l.backup()
+	l.backup() // pos is now ahead of the alphanum
+}
+
+func lexNumber(l *Lexer) stateFn {
+	digits := "0123456789"
+
+	l.acceptRun(digits)
+
+	l.emit(token.Number)
+	return lexStart
 }
 
 func scanIdentifier(l *Lexer) string {
@@ -430,20 +479,21 @@ func isSpace(r rune) bool {
 	return r == ' ' || r == '\t'
 }
 
-func isSafePath(r rune) bool {
-	isId := isIdentifier(r)
-	return isId || r == '_' || r == '-' || r == '/' || r == '.'
+func isArgument(r rune) bool {
+	isId := isAlpha(r)
+
+	return isId || (r != eof && !isEndOfLine(r) && !isSpace(r) &&
+		r != '{' && r != '}' && r != '(' &&
+		r != ')' && r != '>' && r != '"')
 }
 
-func isSafeArg(r rune) bool {
-	isPath := isSafePath(r)
-
-	return isPath || r == '=' || r == ':'
+func isIdentifier(r rune) bool {
+	return isAlpha(r) || r == '_'
 }
 
 // isIdentifier reports whether r is a valid identifier
-func isIdentifier(r rune) bool {
-	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+func isAlpha(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 // isEndOfLine reports whether r is an end-of-line character.

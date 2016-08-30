@@ -18,7 +18,6 @@ const (
 	String // "<string>"
 	Number // [0-9]+
 	Arg
-	Path
 
 	literal_end
 
@@ -32,6 +31,9 @@ const (
 	Minus     // -
 	Gt        // >
 	Lt        // <
+
+	Colon     // ,
+	Semicolon // ;
 
 	operator_end
 
@@ -59,7 +61,6 @@ const (
 	If
 	Else
 	For
-	ForIn
 	Rfork
 	Cd
 	Fn
@@ -76,7 +77,6 @@ var tokens = [...]string{
 	String: "STRING",
 	Number: "NUMBER",
 	Arg:    "ARG",
-	Path:   "PATH",
 
 	Assign:    "=",
 	AssignCmd: "<=",
@@ -86,6 +86,9 @@ var tokens = [...]string{
 	Minus:     "-",
 	Gt:        ">",
 	Lt:        "<",
+
+	Colon:     ",",
+	Semicolon: ";",
 
 	LBrace: "{",
 	RBrace: "}",
@@ -99,20 +102,19 @@ var tokens = [...]string{
 
 	Variable: "VARIABLE",
 
-	Builtin: "BUILTIN",
-	Import:  "IMPORT",
-	SetEnv:  "SETENV",
-	ShowEnv: "SHOWENV",
-	BindFn:  "BINDFN",
-	Dump:    "DUMP",
-	Return:  "RETURN",
-	If:      "IF",
-	Else:    "ELSE",
-	For:     "FOR",
-	ForIn:   "FOR-IN",
-	Rfork:   "RFORK",
-	Cd:      "CD",
-	Fn:      "FN",
+	Builtin: "builtin",
+	Import:  "import",
+	SetEnv:  "setenv",
+	ShowEnv: "showenv",
+	BindFn:  "bindfn",
+	Dump:    "dump",
+	Return:  "return",
+	If:      "if",
+	Else:    "else",
+	For:     "for",
+	Rfork:   "rfork",
+	Cd:      "cd",
+	Fn:      "fn",
 }
 
 var keywords map[string]Token
