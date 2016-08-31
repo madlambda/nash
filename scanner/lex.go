@@ -316,7 +316,7 @@ func lexStart(l *Lexer) stateFn {
 
 		next := l.peek()
 
-		if isEndOfLine(next) || isSpace(next) || next == '=' || next == '(' || next == ')' || next == eof {
+		if isEndOfLine(next) || isSpace(next) || next == '=' || next == '(' || next == ')' || next == ',' || next == eof {
 			lit := scanIdentifier(l)
 
 			if len(lit) > 1 && r >= 'a' && r <= 'z' {
@@ -484,7 +484,7 @@ func isArgument(r rune) bool {
 
 	return isId || (r != eof && !isEndOfLine(r) && !isSpace(r) &&
 		r != '{' && r != '}' && r != '(' &&
-		r != ')' && r != '>' && r != '"')
+		r != ')' && r != '>' && r != '"' && r != ',' && r != ';')
 }
 
 func isIdentifier(r rune) bool {

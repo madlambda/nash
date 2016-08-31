@@ -14,8 +14,9 @@ func Example() {
 	}
 
 	// Output:
-	// COMMAND
+	// IDENT
 	// STRING
+	// ;
 	// EOF
 
 }

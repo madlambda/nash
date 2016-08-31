@@ -600,7 +600,7 @@ func (p *Parser) parseRfork() (ast.Node, error) {
 	it = p.next()
 
 	if it.Type() != token.String {
-		return nil, newParserError(it, p.name, "rfork requires one or more of the following flags: %s", scanner.RforkFlags)
+		return nil, newParserError(it, p.name, "rfork requires one or more of the following flags: %s", ast.RforkFlags)
 	}
 
 	arg := ast.NewStringExpr(it.Pos(), it.Value(), false)
@@ -967,7 +967,7 @@ func (p *Parser) parseFor() (ast.Node, error) {
 
 	it = p.next()
 
-	if it.Type() != token.ForIn {
+	if it.Type() != token.Ident || it.Value() != "in" {
 		return nil, errors.NewError("Expected 'in' but found %q", it)
 	}
 

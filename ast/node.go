@@ -14,6 +14,8 @@ const (
 	RedirMapNoValue = -1
 	// RedirMapSupress indicates the rhs of map was suppressed
 	RedirMapSupress = -2
+
+	RforkFlags = "umnips"
 )
 
 type (
