@@ -39,7 +39,6 @@ func NewParser(name, content string) *Parser {
 
 	p.keywordParsers = map[token.Token]parserFn{
 		token.Builtin: p.parseBuiltin,
-		token.Cd:      p.parseCd,
 		token.For:     p.parseFor,
 		token.If:      p.parseIf,
 		token.Fn:      p.parseFnDecl,
@@ -402,12 +401,13 @@ func (p *Parser) parseCd() (ast.Node, error) {
 
 	it = p.peek()
 
-	// TODO(i4k): this poor implementation allows:
-	// cd/ and cd. as valid commands
-	if it.Type() != token.Arg && it.Type() != token.String && it.Type() != token.Variable && it.Type() != token.Plus {
-		p.backup(it)
-
+	// statement finalizers
+	if it.Type() == token.Semicolon || it.Type() == token.RBrace || it.Type() == token.RParen {
 		return ast.NewCdNode(cdToken.Pos(), nil), nil
+	}
+
+	if !isValidArgument(it) {
+		return nil, newParserError(it, p.name, "Parser error: Invalid token '%v' for cd", it)
 	}
 
 	arg, err := p.getArgument(true, true)
@@ -1010,18 +1010,30 @@ func (p *Parser) parseComment() (ast.Node, error) {
 }
 
 func (p *Parser) parseStatement() (ast.Node, error) {
-	it := p.peek()
+	it := p.next()
+	next := p.peek()
 
 	if fn, ok := p.keywordParsers[it.Type()]; ok {
 		return fn()
 	}
 
-	if it.Type() == token.Ident {
-		// statement starting with ident:
-		// - variable assignment
-		// - variable exec assignment
-		// - fn invocation
-		// - Command
+	// statement starting with ident:
+	// - fn invocation
+	// - variable assignment
+	// - variable exec assignment
+	// - Command
+
+	if (it.Type() == token.Ident || it.Type() == token.Variable) && next.Type() == token.RParen {
+		return p.parseFnInv(it)
+	}
+
+	if it.Type() == token.Ident && (next.Type() == token.Assign || next.Type() == token.AssignCmd) {
+		switch next.Type() {
+		case token.Assign, token.AssignCmd:
+			return p.parseAssignment(ident)
+		}
+
+		return p.parseCommand(ident)
 		return p.parseIdent()
 	}
 
@@ -1032,14 +1044,6 @@ func (p *Parser) parseIdent() (ast.Node, error) {
 	ident := p.next()
 	next := p.peek()
 
-	switch next.Type() {
-	case token.Assign, token.AssignCmd:
-		return p.parseAssignment(ident)
-	case token.LParen:
-		return p.parseFnInv(ident)
-	}
-
-	return p.parseCommand(ident)
 }
 
 func (p *Parser) parseError() (ast.Node, error) {
@@ -1098,4 +1102,15 @@ func newParserError(item scanner.Token, name, format string, args ...interface{}
 	errstr := fmt.Sprintf(format, args...)
 
 	return errors.NewError("%s:%d:%d: %s", name, item.Line(), item.Column, errstr)
+}
+
+func isValidArgument(t scanner.Token) bool {
+	if t.Type() == token.String ||
+		t.Type() == token.Arg ||
+		token.IsIdent(t.Type()) ||
+		t.Type() == token.Variable {
+		return true
+	}
+
+	return false
 }

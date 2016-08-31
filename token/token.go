@@ -62,7 +62,6 @@ const (
 	Else
 	For
 	Rfork
-	Cd
 	Fn
 
 	keyword_end
@@ -113,7 +112,6 @@ var tokens = [...]string{
 	Else:    "else",
 	For:     "for",
 	Rfork:   "rfork",
-	Cd:      "cd",
 	Fn:      "fn",
 }
 
@@ -132,6 +130,14 @@ func Lookup(ident string) Token {
 	}
 
 	return Ident
+}
+
+func IsKeyword(t Token) bool {
+	if t > keyword_beg && t < keyword_end {
+		return true
+	}
+
+	return false
 }
 
 // token.Position returns the position of the node in file
