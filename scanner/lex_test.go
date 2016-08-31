@@ -560,7 +560,6 @@ func TestLexerSomethingIdontcareanymore(t *testing.T) {
 		{typ: token.LBrace, val: "{"},
 		{typ: token.Ident, val: "ls"},
 		{typ: token.RBrace, val: "}"},
-		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
 	}
 
@@ -930,11 +929,12 @@ func TestLexerIfElseIf(t *testing.T) {
 		{typ: token.Variable, val: "$var"},
 		{typ: token.LBrace, val: "{"},
 		{typ: token.Ident, val: "pwd"},
+		{typ: token.Semicolon, val: ";"},
 		{typ: token.RBrace, val: "}"},
 		{typ: token.Else, val: "else"},
 		{typ: token.LBrace, val: "{"},
 		{typ: token.Ident, val: "exit"},
-		{typ: token.Arg, val: "1"},
+		{typ: token.Number, val: "1"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.RBrace, val: "}"},
 		{typ: token.EOF},
@@ -952,7 +952,7 @@ func TestLexerIfElseIf(t *testing.T) {
 
 func TestLexerFnBasic(t *testing.T) {
 	expected := []Token{
-		{typ: token.Ident, val: "fn"},
+		{typ: token.Fn, val: "fn"},
 		{typ: token.Ident, val: "build"},
 		{typ: token.LParen, val: "("},
 		{typ: token.RParen, val: ")"},
@@ -965,12 +965,11 @@ func TestLexerFnBasic(t *testing.T) {
 
 	// lambda
 	expected = []Token{
-		{typ: token.Ident, val: "fn"},
+		{typ: token.Fn, val: "fn"},
 		{typ: token.LParen, val: "("},
 		{typ: token.RParen, val: ")"},
 		{typ: token.LBrace, val: "{"},
 		{typ: token.RBrace, val: "}"},
-		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
 	}
 
@@ -978,7 +977,7 @@ func TestLexerFnBasic(t *testing.T) {
 
 	// IIFE
 	expected = []Token{
-		{typ: token.Ident, val: "fn"},
+		{typ: token.Fn, val: "fn"},
 		{typ: token.LParen, val: "("},
 		{typ: token.RParen, val: ")"},
 		{typ: token.LBrace, val: "{"},
@@ -992,25 +991,26 @@ func TestLexerFnBasic(t *testing.T) {
 	testTable("test empty fn", `fn () {}()`, expected, t)
 
 	expected = []Token{
-		{typ: token.Ident, val: "fn"},
+		{typ: token.Fn, val: "fn"},
 		{typ: token.Ident, val: "build"},
 		{typ: token.LParen, val: "("},
 		{typ: token.Ident, val: "image"},
+		{typ: token.Comma, val: ","},
 		{typ: token.Ident, val: "debug"},
 		{typ: token.RParen, val: ")"},
 		{typ: token.LBrace, val: "{"},
 		{typ: token.RBrace, val: "}"},
-		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
 	}
 
 	testTable("test empty fn with args", `fn build(image, debug) {}`, expected, t)
 
 	expected = []Token{
-		{typ: token.Ident, val: "fn"},
+		{typ: token.Fn, val: "fn"},
 		{typ: token.Ident, val: "build"},
 		{typ: token.LParen, val: "("},
 		{typ: token.Ident, val: "image"},
+		{typ: token.Comma, val: ","},
 		{typ: token.Ident, val: "debug"},
 		{typ: token.RParen, val: ")"},
 		{typ: token.LBrace, val: "{"},
@@ -1019,7 +1019,6 @@ func TestLexerFnBasic(t *testing.T) {
 		{typ: token.Ident, val: "tar"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.RBrace, val: "}"},
-		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
 	}
 
@@ -1029,8 +1028,8 @@ func TestLexerFnBasic(t *testing.T) {
         }`, expected, t)
 
 	expected = []Token{
-		{typ: token.Ident, val: "fn"},
-		{typ: token.Ident, val: "cd"},
+		{typ: token.Fn, val: "fn"},
+		{typ: token.Cd, val: "cd"},
 		{typ: token.LParen, val: "("},
 		{typ: token.Ident, val: "path"},
 		{typ: token.RParen, val: ")"},
@@ -1052,7 +1051,6 @@ func TestLexerFnBasic(t *testing.T) {
 		{typ: token.Ident, val: "PROMPT"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.RBrace, val: "}"},
-		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
 	}
 
@@ -1089,6 +1087,7 @@ func TestLexerFnInvocation(t *testing.T) {
 		{typ: token.Ident, val: "build"},
 		{typ: token.LParen, val: "("},
 		{typ: token.String, val: "ubuntu"},
+		{typ: token.Comma, val: ","},
 		{typ: token.Variable, val: "$debug"},
 
 		{typ: token.RParen, val: ")"},
@@ -1126,7 +1125,7 @@ func TestLexerAssignCmdOut(t *testing.T) {
 func TestLexerBindFn(t *testing.T) {
 	expected := []Token{
 		{typ: token.BindFn, val: "bindfn"},
-		{typ: token.Ident, val: "cd"},
+		{typ: token.Cd, val: "cd"},
 		{typ: token.Ident, val: "cd2"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
@@ -1163,7 +1162,7 @@ func TestLexerDump(t *testing.T) {
 
 	expected = []Token{
 		{typ: token.Dump, val: "dump"},
-		{typ: token.Arg, val: "out"},
+		{typ: token.Ident, val: "out"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
 	}
@@ -1190,7 +1189,7 @@ func TestLexerReturn(t *testing.T) {
 	testTable("test return", "return", expected, t)
 
 	expected = []Token{
-		{typ: token.Ident, val: "fn"},
+		{typ: token.Fn, val: "fn"},
 		{typ: token.Ident, val: "test"},
 		{typ: token.LParen, val: "("},
 		{typ: token.RParen, val: ")"},
@@ -1201,15 +1200,25 @@ func TestLexerReturn(t *testing.T) {
 	}
 
 	testTable("test return", "fn test() { return }", expected, t)
-	testTable("test return", `fn test() {
- return
-}`, expected, t)
+
+	expected = []Token{
+		{typ: token.Fn, val: "fn"},
+		{typ: token.Ident, val: "test"},
+		{typ: token.LParen, val: "("},
+		{typ: token.RParen, val: ")"},
+		{typ: token.LBrace, val: "{"},
+		{typ: token.Return, val: "return"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.RBrace, val: "}"},
+		{typ: token.EOF},
+	}
+
 	testTable("test return", `fn test() {
 	return
 }`, expected, t)
 
 	expected = []Token{
-		{typ: token.Ident, val: "fn"},
+		{typ: token.Fn, val: "fn"},
 		{typ: token.Ident, val: "test"},
 		{typ: token.LParen, val: "("},
 		{typ: token.RParen, val: ")"},
@@ -1221,12 +1230,26 @@ func TestLexerReturn(t *testing.T) {
 	}
 
 	testTable("test return", `fn test() { return "some value"}`, expected, t)
+
+	expected = []Token{
+		{typ: token.Fn, val: "fn"},
+		{typ: token.Ident, val: "test"},
+		{typ: token.LParen, val: "("},
+		{typ: token.RParen, val: ")"},
+		{typ: token.LBrace, val: "{"},
+		{typ: token.Return, val: "return"},
+		{typ: token.String, val: "some value"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.RBrace, val: "}"},
+		{typ: token.EOF},
+	}
+
 	testTable("test return", `fn test() {
 	return "some value"
 }`, expected, t)
 
 	expected = []Token{
-		{typ: token.Ident, val: "fn"},
+		{typ: token.Fn, val: "fn"},
 		{typ: token.Ident, val: "test"},
 		{typ: token.LParen, val: "("},
 		{typ: token.RParen, val: ")"},
@@ -1248,7 +1271,7 @@ func TestLexerReturn(t *testing.T) {
 }`, expected, t)
 
 	expected = []Token{
-		{typ: token.Ident, val: "fn"},
+		{typ: token.Fn, val: "fn"},
 		{typ: token.Ident, val: "test"},
 		{typ: token.LParen, val: "("},
 		{typ: token.RParen, val: ")"},
@@ -1268,7 +1291,7 @@ func TestLexerReturn(t *testing.T) {
 }`, expected, t)
 
 	expected = []Token{
-		{typ: token.Ident, val: "fn"},
+		{typ: token.Fn, val: "fn"},
 		{typ: token.Ident, val: "test"},
 		{typ: token.LParen, val: "("},
 		{typ: token.RParen, val: ")"},
@@ -1388,7 +1411,8 @@ func TestLexerListIndexing(t *testing.T) {
 		{typ: token.Assign, val: "="},
 		{typ: token.Variable, val: "$commands"},
 		{typ: token.LBrack, val: "["},
-		{typ: token.Arg, val: "a]"},
+		{typ: token.Arg, val: "a"},
+		{typ: token.RBrack, val: "]"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
 	}
@@ -1400,7 +1424,7 @@ func TestLexerListIndexing(t *testing.T) {
 		{typ: token.Assign, val: "="},
 		{typ: token.Variable, val: "$commands"},
 		{typ: token.LBrack, val: "["},
-		{typ: token.Illegal, val: "test invalid number:1:16: Expected number or variable on variable indexing. Found ']'"},
+		{typ: token.RBrack, val: "]"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
 	}
@@ -1409,7 +1433,7 @@ func TestLexerListIndexing(t *testing.T) {
 
 	expected = []Token{
 		{typ: token.Ident, val: "echo"},
-		{typ: token.Arg, val: "test"},
+		{typ: token.Ident, val: "test"},
 		{typ: token.Variable, val: "$names"},
 		{typ: token.LBrack, val: "["},
 		{typ: token.Number, val: "666"},
@@ -1432,7 +1456,6 @@ func TestLexerListIndexing(t *testing.T) {
 		{typ: token.Ident, val: "echo"},
 		{typ: token.String, val: ":D"},
 		{typ: token.RBrace, val: "}"},
-		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
 	}
 

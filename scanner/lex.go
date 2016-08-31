@@ -225,7 +225,32 @@ func lexStart(l *Lexer) stateFn {
 
 		return nil
 	case '0' <= r && r <= '9':
-		return lexNumber
+		digits := "0123456789"
+
+		l.acceptRun(digits)
+
+		next := l.peek()
+
+		// >[2=]
+		// cmd[2]
+		if next == '=' || next == ']' || (!isIdentifier(l.peek()) && !isArgument(l.peek())) {
+			l.emit(token.Number)
+		} else if isIdentifier(l.peek()) {
+			absorbIdentifier(l)
+
+			if isArgument(l.peek()) {
+				absorbArgument(l)
+
+				l.emit(token.Arg)
+			} else {
+				l.emit(token.Ident)
+			}
+		} else if isArgument(l.peek()) {
+			absorbArgument(l)
+			l.emit(token.Arg)
+		}
+
+		return lexStart
 	case isSpace(r):
 		return lexSpace
 
@@ -273,6 +298,15 @@ func lexStart(l *Lexer) stateFn {
 		}
 
 		return lexStart
+	case r == '!':
+		if l.peek() == '=' {
+			l.next()
+			l.emit(token.NotEqual)
+		} else {
+			l.emit(token.Arg)
+		}
+
+		return lexStart
 	case r == '<':
 		if l.peek() == '=' {
 			l.next()
@@ -288,6 +322,7 @@ func lexStart(l *Lexer) stateFn {
 		return lexStart
 	case r == '}':
 		l.emit(token.RBrace)
+		l.addSemicolon = false
 		return lexStart
 	case r == '[':
 		l.emit(token.LBrack)
@@ -368,15 +403,6 @@ func absorbArgument(l *Lexer) {
 	}
 
 	l.backup() // pos is now ahead of the alphanum
-}
-
-func lexNumber(l *Lexer) stateFn {
-	digits := "0123456789"
-
-	l.acceptRun(digits)
-
-	l.emit(token.Number)
-	return lexStart
 }
 
 func scanIdentifier(l *Lexer) string {
@@ -483,7 +509,7 @@ func isArgument(r rune) bool {
 	isId := isAlpha(r)
 
 	return isId || (r != eof && !isEndOfLine(r) && !isSpace(r) &&
-		r != '{' && r != '}' && r != '(' &&
+		r != '{' && r != '}' && r != '(' && r != ']' && r != '[' &&
 		r != ')' && r != '>' && r != '"' && r != ',' && r != ';')
 }
 
