@@ -1030,20 +1030,13 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 	if it.Type() == token.Ident && (next.Type() == token.Assign || next.Type() == token.AssignCmd) {
 		switch next.Type() {
 		case token.Assign, token.AssignCmd:
-			return p.parseAssignment(ident)
+			return p.parseAssignment(it)
 		}
 
-		return p.parseCommand(ident)
-		return p.parseIdent()
+		return p.parseCommand(it)
 	}
 
-	return nil, errors.NewError("%s:%d:%d: Unexpected token parsing statement '%+v'", p.name, it.Line(), it.Column(), it)
-}
-
-func (p *Parser) parseIdent() (ast.Node, error) {
-	ident := p.next()
-	next := p.peek()
-
+	return nil, newParserError(it, p.name, "Unexpected token parsing statement '%+v (%s)'", it, it.Value())
 }
 
 func (p *Parser) parseError() (ast.Node, error) {
@@ -1107,7 +1100,8 @@ func newParserError(item scanner.Token, name, format string, args ...interface{}
 func isValidArgument(t scanner.Token) bool {
 	if t.Type() == token.String ||
 		t.Type() == token.Arg ||
-		token.IsIdent(t.Type()) ||
+		t.Type() == token.Ident ||
+		token.IsKeyword(t.Type()) ||
 		t.Type() == token.Variable {
 		return true
 	}
