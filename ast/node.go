@@ -665,7 +665,7 @@ func (n *CommandNode) IsEqual(other Node) bool {
 	}
 
 	if len(n.args) != len(o.args) {
-		debug("Command argument length differs: %d != %d", len(n.args), len(o.args))
+		debug("Command argument length differs: %d (%+v) != %d (%+v)", len(n.args), n.args, len(o.args), o.args)
 		return false
 	}
 

@@ -46,13 +46,13 @@ func TestLexerIssue22(t *testing.T) {
 		{typ: token.Equal, val: "=="},
 		{typ: token.String, val: ""},
 		{typ: token.LBrace, val: "{"},
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.Variable, val: "$GOPATH"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.RBrace, val: "}"},
 		{typ: token.Else, val: "else"},
 		{typ: token.LBrace, val: "{"},
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.Variable, val: "$GOPATH"},
 		{typ: token.Plus, val: "+"},
 		{typ: token.String, val: "/src/"},
@@ -98,7 +98,7 @@ canonName <= echo -n $version | sed "s/\\.//g"`
 
 func TestLexerIssue38(t *testing.T) {
 	expected := []Token{
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.LParen, val: "("},
 		{typ: token.Variable, val: "$GOPATH"},
 		{typ: token.Plus, val: "+"},

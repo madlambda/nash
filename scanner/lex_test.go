@@ -59,6 +59,21 @@ func testTable(name, content string, expected []Token, t *testing.T) {
 	}
 }
 
+func TestLexerCommandStringArgs(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "echo"},
+		{typ: token.Ident, val: "hello"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.Ident, val: "echo"},
+		{typ: token.String, val: "hello"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test args", `echo hello
+echo "hello"`, expected, t)
+}
+
 func TestLexerTokenToString(t *testing.T) {
 	it := Token{
 		typ: token.EOF,
@@ -568,7 +583,7 @@ func TestLexerSomethingIdontcareanymore(t *testing.T) {
 
 func TestLexerBuiltinCd(t *testing.T) {
 	expected := []Token{
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.String, val: "some place"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
@@ -577,7 +592,7 @@ func TestLexerBuiltinCd(t *testing.T) {
 	testTable("testBuiltinCd", `cd "some place"`, expected, t)
 
 	expected = []Token{
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.Arg, val: "/proc"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
@@ -586,7 +601,7 @@ func TestLexerBuiltinCd(t *testing.T) {
 	testTable("testBuiltinCdNoQuote", `cd /proc`, expected, t)
 
 	expected = []Token{
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
 	}
@@ -601,7 +616,7 @@ func TestLexerBuiltinCd(t *testing.T) {
 		{typ: token.SetEnv, val: "setenv"},
 		{typ: token.Ident, val: "HOME"},
 		{typ: token.Semicolon, val: ";"},
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.Ident, val: "pwd"},
 		{typ: token.Semicolon, val: ";"},
@@ -616,7 +631,7 @@ func TestLexerBuiltinCd(t *testing.T) {
 	           `, expected, t)
 
 	expected = []Token{
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.Variable, val: "$GOPATH"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
@@ -625,7 +640,7 @@ func TestLexerBuiltinCd(t *testing.T) {
 	testTable("test builtin cd into variable", `cd $GOPATH`, expected, t)
 
 	expected = []Token{
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.Variable, val: "$GOPATH"},
 		{typ: token.Plus, val: "+"},
 		{typ: token.String, val: "/src/github.com"},
@@ -1029,12 +1044,12 @@ func TestLexerFnBasic(t *testing.T) {
 
 	expected = []Token{
 		{typ: token.Fn, val: "fn"},
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.LParen, val: "("},
 		{typ: token.Ident, val: "path"},
 		{typ: token.RParen, val: ")"},
 		{typ: token.LBrace, val: "{"},
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.Variable, val: "$path"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.Ident, val: "PROMPT"},
@@ -1125,7 +1140,7 @@ func TestLexerAssignCmdOut(t *testing.T) {
 func TestLexerBindFn(t *testing.T) {
 	expected := []Token{
 		{typ: token.BindFn, val: "bindfn"},
-		{typ: token.Cd, val: "cd"},
+		{typ: token.Ident, val: "cd"},
 		{typ: token.Ident, val: "cd2"},
 		{typ: token.Semicolon, val: ";"},
 		{typ: token.EOF},
