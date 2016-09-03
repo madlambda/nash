@@ -239,13 +239,6 @@ type (
 		inVar      string
 		tree       *Tree
 	}
-
-	// A BuiltinNode represents the builtin keyword.
-	BuiltinNode struct {
-		NodeType
-		token.Pos
-		stmt Node
-	}
 )
 
 //go:generate stringer -type=NodeType
@@ -330,9 +323,6 @@ const (
 
 	// NodeFor is the type for "for" statements
 	NodeFor
-
-	// NodeBuiltin is the type of "builtin" nodes.
-	NodeBuiltin
 )
 
 var (
@@ -1535,37 +1525,4 @@ func (n *ForNode) String() string {
 	ret += "}"
 
 	return ret
-}
-
-// NewBuiltinNode creates a new "builtin" node
-func NewBuiltinNode(pos token.Pos, n Node) *BuiltinNode {
-	return &BuiltinNode{
-		NodeType: NodeBuiltin,
-		Pos:      pos,
-		stmt:     n,
-	}
-}
-
-// Stmt returns the builtin statement.
-func (n *BuiltinNode) Stmt() Node {
-	return n.stmt
-}
-
-// IsEqual returns if it is equal to other Node.
-func (n *BuiltinNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
-	}
-
-	o, ok := other.(*BuiltinNode)
-
-	if !ok {
-		return false
-	}
-
-	return n.stmt.IsEqual(o.stmt)
-}
-
-func (n *BuiltinNode) String() string {
-	return "builtin " + n.stmt.String()
 }

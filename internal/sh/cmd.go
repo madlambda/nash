@@ -16,6 +16,8 @@ type (
 	// This can be used to pipe execution of Cmd commands.
 	Cmd struct {
 		*exec.Cmd
+
+		argExprs []ast.Expr
 	}
 
 	// errCmdNotFound is an error indicating the command wasn't found.
@@ -117,6 +119,8 @@ func (c *Cmd) SetArgs(nodeArgs []ast.Expr, envShell *Shell) error {
 	return nil
 }
 
+func (c *Cmd) Args() []ast.Expr { return c.argExprs }
+
 func (c *Cmd) SetEnviron(env []string) {
 	c.Cmd.Env = env
 }
@@ -140,3 +144,5 @@ func (c *Cmd) Start() error {
 
 	return nil
 }
+
+func (c *Cmd) Results() *Obj { return nil }

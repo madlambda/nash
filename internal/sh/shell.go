@@ -29,14 +29,15 @@ type (
 	// Env is the environment map of lists
 	Env map[string]*Obj
 	Var Env
-	Fns map[string]*Fn
-	Bns Fns
+	Fns map[string]Fn
+	Bns map[string]Fn // Builtins
 
 	StatusCode uint8
 
 	Runner interface {
 		Start() error
 		Wait() error
+		Results() *Obj
 
 		SetArgs([]ast.Expr, *Shell) error
 		SetEnviron([]string)
@@ -49,6 +50,15 @@ type (
 		Stdin() io.Reader
 		Stdout() io.Writer
 		Stderr() io.Writer
+	}
+
+	Fn interface {
+		Name() string
+		ArgNames() []string
+
+		Runner
+
+		String() string
 	}
 
 	// Shell is the core data structure.
@@ -68,10 +78,12 @@ type (
 		stdout io.Writer
 		stderr io.Writer
 
-		env   Env
-		vars  Var
-		fns   Fns
-		binds Fns
+		env  Env
+		vars Var
+		fns  Fns
+
+		builtins Bns
+		binds    Bns
 
 		root   *ast.Tree
 		parent *Shell
@@ -127,7 +139,8 @@ func NewShell() (*Shell, error) {
 		env:       make(Env),
 		vars:      make(Var),
 		fns:       make(Fns),
-		binds:     make(Fns),
+		builtins:  make(Bns),
+		binds:     make(Bns),
 		Mutex:     &sync.Mutex{},
 	}
 
@@ -163,7 +176,8 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 		env:       make(Env),
 		vars:      make(Var),
 		fns:       make(Fns),
-		binds:     make(Fns),
+		binds:     make(Bns),
+		builtins:  nil, // subshell does not have builtins
 		Mutex:     parent.Mutex,
 	}
 
@@ -224,7 +238,7 @@ func (sh *Shell) Reset() {
 	sh.fns = make(Fns)
 	sh.vars = make(Var)
 	sh.env = make(Env)
-	sh.binds = make(Fns)
+	sh.binds = make(Bns)
 }
 
 // SetDebug enable/disable debug in the shell
@@ -298,7 +312,21 @@ func (sh *Shell) GetVar(name string) (*Obj, bool) {
 	return nil, false
 }
 
-func (sh *Shell) GetFn(name string) (*Fn, bool) {
+func (sh *Shell) GetBuiltin(name string) (Fn, bool) {
+	sh.logf("Looking for builtin '%s' on shell '%s'\n", name, sh.name)
+
+	if sh.parent != nil {
+		return sh.parent.GetBuiltin(name)
+	}
+
+	if fn, ok := sh.builtins[name]; ok {
+		return fn, true
+	}
+
+	return nil, false
+}
+
+func (sh *Shell) GetFn(name string) (Fn, bool) {
 	sh.logf("Looking for function '%s' on shell '%s'\n", name, sh.name)
 
 	if fn, ok := sh.fns[name]; ok {
@@ -312,11 +340,11 @@ func (sh *Shell) GetFn(name string) (*Fn, bool) {
 	return nil, false
 }
 
-func (sh *Shell) Setbindfn(name string, value *Fn) {
+func (sh *Shell) Setbindfn(name string, value Fn) {
 	sh.binds[name] = value
 }
 
-func (sh *Shell) Getbindfn(cmdName string) (*Fn, bool) {
+func (sh *Shell) Getbindfn(cmdName string) (Fn, bool) {
 	if fn, ok := sh.binds[cmdName]; ok {
 		return fn, true
 	}
@@ -380,6 +408,26 @@ func (sh *Shell) String() string {
 	return string(out.Bytes())
 }
 
+func (sh *Shell) setupBuiltin() error {
+	sh.builtins["chdir"] = NewChdir(sh)
+
+	err := sh.Exec(sh.name, `fn nash_builtin_cd(path) {
+            if $path == "" {
+                    path = $HOME
+            }
+
+            chdir($path)
+        }
+
+        bindfn nash_builtin_cd cd`)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (sh *Shell) setup() error {
 	err := sh.initEnv(os.Environ())
 
@@ -393,7 +441,7 @@ func (sh *Shell) setup() error {
 		sh.Setvar("PROMPT", pobj)
 	}
 
-	return nil
+	return sh.setupBuiltin()
 }
 
 func (sh *Shell) setupSignals() {
@@ -547,8 +595,6 @@ func (sh *Shell) executeNode(node ast.Node, builtin bool) (*Obj, error) {
 	sh.logf("Executing node: %v\n", node)
 
 	switch node.Type() {
-	case ast.NodeBuiltin:
-		err = sh.executeBuiltin(node.(*ast.BuiltinNode))
 	case ast.NodeImport:
 		err = sh.executeImport(node.(*ast.ImportNode))
 	case ast.NodeComment:
@@ -565,8 +611,6 @@ func (sh *Shell) executeNode(node ast.Node, builtin bool) (*Obj, error) {
 		err = sh.executePipe(node.(*ast.PipeNode))
 	case ast.NodeRfork:
 		err = sh.executeRfork(node.(*ast.RforkNode))
-	case ast.NodeCd:
-		err = sh.executeCd(node.(*ast.CdNode), builtin)
 	case ast.NodeIf:
 		err = sh.executeIf(node.(*ast.IfNode))
 	case ast.NodeFnDecl:
@@ -639,12 +683,6 @@ func (sh *Shell) executeReturn(n *ast.ReturnNode) (*Obj, error) {
 	}
 
 	return sh.evalExpr(n.Return())
-}
-
-func (sh *Shell) executeBuiltin(node *ast.BuiltinNode) error {
-	// cd and for does not return data
-	_, err := sh.executeNode(node.Stmt(), true)
-	return err
 }
 
 func (sh *Shell) executeImport(node *ast.ImportNode) error {
@@ -1092,17 +1130,18 @@ func (sh *Shell) getCommand(c *ast.CommandNode) (Runner, bool, error) {
 		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
 			if fn, ok := sh.Getbindfn(cmdName); ok {
 				sh.logf("Executing bind %s", cmdName)
+				sh.logf("%s bind to %s", cmdName, fn)
 
-				if len(c.Args()) > len(fn.argNames) {
+				if len(c.Args()) > len(fn.ArgNames()) {
 					err = errors.NewError("Too much arguments for"+
 						" function '%s'. It expects %d args, but given %d. Arguments: %q",
-						fn.name,
-						len(fn.argNames),
+						fn.Name(),
+						len(fn.ArgNames()),
 						len(c.Args()), c.Args())
 					return nil, ignoreError, err
 				}
 
-				for i := 0 + len(c.Args()); i < len(fn.argNames); i++ {
+				for i := 0 + len(c.Args()); i < len(fn.ArgNames()); i++ {
 					// fill missing args with empty string
 					// safe?
 					c.SetArgs(append(c.Args(), ast.NewStringExpr(0, "", true)))
@@ -1139,6 +1178,7 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 	cmd, ignoreError, err = sh.getCommand(c)
 
 	if err != nil {
+		sh.logf("FAILED here ...%s", cmd)
 		goto cmdError
 	}
 
@@ -1429,87 +1469,6 @@ func (sh *Shell) executeAssignment(v *ast.AssignmentNode) error {
 	return nil
 }
 
-func (sh *Shell) executeBuiltinCd(cd *ast.CdNode) error {
-	var (
-		pathlist []string
-		pathStr  string
-	)
-
-	path := cd.Dir()
-
-	if path == nil {
-		pathobj, ok := sh.Getenv("HOME")
-
-		if !ok {
-			return errors.NewError("Nash don't know where to cd. No variable $HOME set")
-		}
-
-		if pathobj.Type() != StringType {
-			return fmt.Errorf("Invalid $HOME value: %v", pathlist)
-		}
-
-		pathStr = pathobj.Str()
-	} else {
-		obj, err := sh.evalExpr(path)
-
-		if err != nil {
-			return err
-		}
-
-		if obj.Type() != StringType {
-			return errors.NewError("HOME variable has invalid type: %s", obj.Type())
-		}
-
-		pathStr = obj.Str()
-	}
-
-	err := os.Chdir(pathStr)
-
-	if err != nil {
-		return err
-	}
-
-	pwd, ok := sh.GetVar("PWD")
-
-	if !ok {
-		return fmt.Errorf("Variable $PWD is not set on shell %s", sh.name)
-	}
-
-	cpwd := NewStrObj(pathStr)
-
-	sh.Setvar("OLDPWD", pwd)
-	sh.Setvar("PWD", cpwd)
-	sh.Setenv("OLDPWD", pwd)
-	sh.Setenv("PWD", cpwd)
-
-	return nil
-}
-
-func (sh *Shell) executeCd(cd *ast.CdNode, builtin bool) error {
-	var (
-		cdAlias  *Fn
-		hasAlias bool
-	)
-
-	if cdAlias, hasAlias = sh.Getbindfn("cd"); !hasAlias || builtin {
-		return sh.executeBuiltinCd(cd)
-	}
-
-	path := cd.Dir()
-
-	args := make([]ast.Expr, 0, 1)
-
-	if path != nil {
-		args = append(args, path)
-	} else {
-		// empty arg
-		args = append(args, ast.NewStringExpr(0, "", true))
-	}
-
-	_, err := sh.executeFn(cdAlias, args)
-	return err
-}
-
 func (sh *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
 	lvalue := n.Lvalue()
 	rvalue := n.Rvalue()
@@ -1573,25 +1532,37 @@ func (sh *Shell) executeIfNotEqual(n *ast.IfNode) error {
 	return nil
 }
 
-func (sh *Shell) executeFn(fn *Fn, args []ast.Expr) (*Obj, error) {
+func (sh *Shell) executeFn(fn Fn, args []ast.Expr) (*Obj, error) {
 	err := fn.SetArgs(args, sh)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return fn.Execute()
+	err = fn.Start()
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = fn.Wait()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return fn.Results(), nil
 }
 
 func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 	var (
-		fn *Fn
+		fn Runner
 		ok bool
 	)
 
 	fnName := n.Name()
 
-	if len(fnName) > 0 && fnName[0] == '$' {
+	if len(fnName) > 1 && fnName[0] == '$' {
 		argVar := ast.NewVarExpr(n.Position(), fnName)
 
 		obj, err := sh.evalVariable(argVar)
@@ -1606,10 +1577,14 @@ func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 
 		fn = obj.Fn()
 	} else {
-		fn, ok = sh.GetFn(fnName)
+		fn, ok = sh.GetBuiltin(fnName)
 
 		if !ok {
-			return nil, errors.NewError("no such function '%s'", fnName)
+			fn, ok = sh.GetFn(fnName)
+
+			if !ok {
+				return nil, errors.NewError("no such function '%s'", fnName)
+			}
 		}
 	}
 
@@ -1619,7 +1594,19 @@ func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 		return nil, err
 	}
 
-	return fn.Execute()
+	err = fn.Start()
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = fn.Wait()
+
+	if err != nil {
+		return nil, err
+	}
+
+	return fn.Results(), nil
 }
 
 func (sh *Shell) executeInfLoop(tr *ast.Tree) error {
@@ -1728,7 +1715,7 @@ func (sh *Shell) executeFor(n *ast.ForNode) error {
 }
 
 func (sh *Shell) executeFnDecl(n *ast.FnDeclNode) error {
-	fn, err := NewFn(n.Name(), sh)
+	fn, err := NewUserFn(n.Name(), sh)
 
 	if err != nil {
 		return err

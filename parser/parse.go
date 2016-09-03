@@ -38,7 +38,6 @@ func NewParser(name, content string) *Parser {
 	}
 
 	p.keywordParsers = map[token.Token]parserFn{
-		token.Builtin: p.parseBuiltin,
 		token.For:     p.parseFor,
 		token.If:      p.parseIf,
 		token.Fn:      p.parseFnDecl,
@@ -356,20 +355,6 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 	redir.SetLocation(arg)
 
 	return redir, nil
-}
-
-func (p *Parser) parseBuiltin(it scanner.Token) (ast.Node, error) {
-	node, err := p.parseStatement()
-
-	if err != nil {
-		return nil, err
-	}
-
-	if node.Type() != ast.NodeCd {
-		return nil, errors.NewError("'builtin' must be used only with 'cd' keyword")
-	}
-
-	return ast.NewBuiltinNode(it.Pos(), node), nil
 }
 
 func (p *Parser) parseImport(importToken scanner.Token) (ast.Node, error) {
@@ -901,6 +886,7 @@ func (p *Parser) parseDump(dumpIt scanner.Token) (ast.Node, error) {
 	switch fnameIt.Type() {
 	case token.Semicolon:
 		p.ignore()
+		return dump, nil
 	case token.String:
 		arg = ast.NewStringExpr(fnameIt.Pos(), fnameIt.Value(), true)
 	case token.Arg:
@@ -944,6 +930,10 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 
 	if valueIt.Type() == token.Semicolon {
 		p.ignore()
+		return ret, nil
+	}
+
+	if valueIt.Type() == token.RBrace {
 		return ret, nil
 	}
 
@@ -1075,7 +1065,7 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 		return p.parseCommand(it)
 	}
 
-	return nil, newParserError(it, p.name, "Unexpected token parsing statement '%+v (%s)'", it, it.Value())
+	return nil, newParserError(it, p.name, "Unexpected token parsing statement '%+v'", it)
 }
 
 func (p *Parser) parseError(it scanner.Token) (ast.Node, error) {
@@ -1131,7 +1121,7 @@ func newParserError(item scanner.Token, name, format string, args ...interface{}
 
 	errstr := fmt.Sprintf(format, args...)
 
-	return errors.NewError("%s:%d:%d: %s", name, item.Line(), item.Column, errstr)
+	return errors.NewError("%s:%d:%d: %s", name, item.Line(), item.Column(), errstr)
 }
 
 func isValidArgument(t scanner.Token) bool {

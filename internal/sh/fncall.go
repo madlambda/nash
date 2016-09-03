@@ -10,9 +10,10 @@ import (
 )
 
 type (
-	Fn struct {
+	UserFn struct {
 		argNames []string   // argNames store parameter name
 		done     chan error // for async execution
+		results  *Obj
 
 		closeAfterWait []io.Closer
 
@@ -20,8 +21,8 @@ type (
 	}
 )
 
-func NewFn(name string, parent *Shell) (*Fn, error) {
-	fn := Fn{
+func NewUserFn(name string, parent *Shell) (*UserFn, error) {
+	fn := UserFn{
 		done: make(chan error),
 	}
 
@@ -40,11 +41,13 @@ func NewFn(name string, parent *Shell) (*Fn, error) {
 	return &fn, nil
 }
 
-func (fn *Fn) AddArgName(name string) {
+func (fn *UserFn) ArgNames() []string { return fn.argNames }
+
+func (fn *UserFn) AddArgName(name string) {
 	fn.argNames = append(fn.argNames, name)
 }
 
-func (fn *Fn) SetArgs(nodeArgs []ast.Expr, envShell *Shell) error {
+func (fn *UserFn) SetArgs(nodeArgs []ast.Expr, envShell *Shell) error {
 	if len(fn.argNames) != len(nodeArgs) {
 		return errors.NewError("Wrong number of arguments for function %s. Expected %d but found %d",
 			fn.name, len(fn.argNames), len(nodeArgs))
@@ -66,13 +69,13 @@ func (fn *Fn) SetArgs(nodeArgs []ast.Expr, envShell *Shell) error {
 	return nil
 }
 
-func (fn *Fn) closeDescriptors(closers []io.Closer) {
+func (fn *UserFn) closeDescriptors(closers []io.Closer) {
 	for _, fd := range closers {
 		fd.Close()
 	}
 }
 
-func (fn *Fn) Execute() (*Obj, error) {
+func (fn *UserFn) execute() (*Obj, error) {
 	if fn.root != nil {
 		return fn.ExecuteTree(fn.root)
 	}
@@ -80,25 +83,28 @@ func (fn *Fn) Execute() (*Obj, error) {
 	return nil, fmt.Errorf("fn not properly created")
 }
 
-func (fn *Fn) Start() error {
+func (fn *UserFn) Start() error {
 	// TODO: what we'll do with fn return values in case of pipes?
 
 	go func() {
-		_, err := fn.Execute()
+		var err error
+		fn.results, err = fn.execute()
 		fn.done <- err
 	}()
 
 	return nil
 }
 
-func (fn *Fn) Wait() error {
+func (fn *UserFn) Results() *Obj { return fn.results }
+
+func (fn *UserFn) Wait() error {
 	err := <-fn.done
 
 	fn.closeDescriptors(fn.closeAfterWait)
 	return err
 }
 
-func (fn *Fn) StdoutPipe() (io.ReadCloser, error) {
+func (fn *UserFn) StdoutPipe() (io.ReadCloser, error) {
 	pr, pw, err := os.Pipe()
 
 	if err != nil {

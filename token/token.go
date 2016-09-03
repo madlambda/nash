@@ -51,7 +51,6 @@ const (
 
 	keyword_beg
 
-	Builtin
 	Import
 	SetEnv
 	ShowEnv
@@ -101,7 +100,6 @@ var tokens = [...]string{
 
 	Variable: "VARIABLE",
 
-	Builtin: "builtin",
 	Import:  "import",
 	SetEnv:  "setenv",
 	ShowEnv: "showenv",

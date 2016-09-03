@@ -1633,61 +1633,6 @@ for i in $seq {}`)
 	}
 }
 
-func TestExecuteBuiltin(t *testing.T) {
-	sh, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	var out bytes.Buffer
-
-	sh.SetStdout(&out)
-
-	err = sh.Exec("test builtin", `oldpwd <= pwd | xargs echo -n
-builtin cd /
-pwd
-builtin cd $oldpwd`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	output := strings.TrimSpace(string(out.Bytes()))
-
-	if output != "/" {
-		t.Errorf("Output differs: '%s' != '%s'", output, "/")
-		return
-	}
-
-	out.Reset()
-
-	err = sh.Exec("test builtin", `oldpwd <= pwd | xargs echo -n
-fn cd(path) {
-echo "going to " + $path
-builtin cd $path
-}
-
-cd("/")
-builtin cd $oldpwd`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	output = strings.TrimSpace(string(out.Bytes()))
-
-	if output != "going to /" {
-		t.Errorf("Output differs: '%s' != '%s'", output, "going to /")
-		return
-	}
-
-	out.Reset()
-}
-
 func TestExecuteErrorSuppressionAll(t *testing.T) {
 	sh, err := NewShell()
 

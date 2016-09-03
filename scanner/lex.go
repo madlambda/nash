@@ -78,11 +78,13 @@ func (l *Lexer) run() {
 	close(l.Tokens) // No more tokens will be delivered
 }
 
-func (l *Lexer) emitVal(t token.Token, val string) {
+func (l *Lexer) emitVal(t token.Token, val string, line, column int) {
 	l.Tokens <- Token{
-		typ: t,
-		val: val,
-		pos: token.Pos(l.start),
+		typ:    t,
+		val:    val,
+		pos:    token.Pos(l.start),
+		line:   line,
+		column: column,
 	}
 
 	l.start = l.pos
@@ -98,6 +100,13 @@ func (l *Lexer) emit(t token.Token) {
 	}
 
 	l.start = l.pos
+}
+
+// peek returns but does not consume the next rune
+func (l *Lexer) peek() rune {
+	rune := l.next()
+	l.backup()
+	return rune
 }
 
 func (l *Lexer) next() rune {
@@ -139,13 +148,6 @@ func (l *Lexer) backup() {
 	if r == '\n' {
 		l.linenum--
 	}
-}
-
-// peek returns but does not consume the next rune
-func (l *Lexer) peek() rune {
-	rune := l.next()
-	l.backup()
-	return rune
 }
 
 // accept consumes the next rune if it's from the valid set
@@ -218,7 +220,7 @@ func lexStart(l *Lexer) stateFn {
 	switch {
 	case r == eof:
 		if l.addSemicolon {
-			l.emitVal(token.Semicolon, ";")
+			l.emitVal(token.Semicolon, ";", l.linenum, l.column)
 		}
 
 		l.addSemicolon = false
@@ -258,7 +260,7 @@ func lexStart(l *Lexer) stateFn {
 		l.ignore()
 
 		if l.addSemicolon && l.openParens == 0 {
-			l.emitVal(token.Semicolon, ";")
+			l.emitVal(token.Semicolon, ";", l.linenum, l.column)
 		}
 
 		l.addSemicolon = false
@@ -465,7 +467,7 @@ func lexQuote(l *Lexer) stateFn {
 			return l.errorf("Quoted string not finished: %s", l.input[l.start:])
 		}
 
-		l.emitVal(token.String, string(data))
+		l.emitVal(token.String, string(data), l.linenum, l.column)
 
 		l.ignore() // ignores last quote
 		break
