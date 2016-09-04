@@ -30,7 +30,6 @@ type (
 	Env map[string]*Obj
 	Var Env
 	Fns map[string]Fn
-	Bns map[string]Fn // Builtins
 
 	StatusCode uint8
 
@@ -82,8 +81,8 @@ type (
 		vars Var
 		fns  Fns
 
-		builtins Bns
-		binds    Bns
+		builtins Fns
+		binds    Fns
 
 		root   *ast.Tree
 		parent *Shell
@@ -139,8 +138,8 @@ func NewShell() (*Shell, error) {
 		env:       make(Env),
 		vars:      make(Var),
 		fns:       make(Fns),
-		builtins:  make(Bns),
-		binds:     make(Bns),
+		builtins:  make(Fns),
+		binds:     make(Fns),
 		Mutex:     &sync.Mutex{},
 	}
 
@@ -176,7 +175,7 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 		env:       make(Env),
 		vars:      make(Var),
 		fns:       make(Fns),
-		binds:     make(Bns),
+		binds:     make(Fns),
 		builtins:  nil, // subshell does not have builtins
 		Mutex:     parent.Mutex,
 	}
@@ -238,7 +237,7 @@ func (sh *Shell) Reset() {
 	sh.fns = make(Fns)
 	sh.vars = make(Var)
 	sh.env = make(Env)
-	sh.binds = make(Bns)
+	sh.binds = make(Fns)
 }
 
 // SetDebug enable/disable debug in the shell
@@ -409,8 +408,12 @@ func (sh *Shell) String() string {
 }
 
 func (sh *Shell) setupBuiltin() error {
-	sh.builtins["chdir"] = NewChdir(sh)
+	chdir := NewChdir(sh)
 
+	sh.builtins["chdir"] = chdir
+	sh.Setvar("chdir", NewFnObj(chdir))
+
+	// only one builtin fn... no need for advanced machinery yet
 	err := sh.Exec(sh.name, `fn nash_builtin_cd(path) {
             if $path == "" {
                     path = $HOME
@@ -421,11 +424,7 @@ func (sh *Shell) setupBuiltin() error {
 
         bindfn nash_builtin_cd cd`)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (sh *Shell) setup() error {
