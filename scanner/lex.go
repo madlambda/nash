@@ -491,6 +491,19 @@ func lexSpace(l *Lexer) stateFn {
 	return lexStart
 }
 
+func ignoreSpaces(l *Lexer) {
+	for {
+		r := l.next()
+
+		if !isSpace(r) {
+			break
+		}
+	}
+
+	l.backup()
+	l.ignore()
+}
+
 // isSpace reports whether r is a space character.
 func isSpace(r rune) bool {
 	return r == ' ' || r == '\t'
@@ -516,17 +529,4 @@ func isAlpha(r rune) bool {
 // isEndOfLine reports whether r is an end-of-line character.
 func isEndOfLine(r rune) bool {
 	return r == '\r' || r == '\n'
-}
-
-func ignoreSpaces(l *Lexer) {
-	for {
-		r := l.next()
-
-		if !isSpace(r) {
-			break
-		}
-	}
-
-	l.backup()
-	l.ignore()
 }
