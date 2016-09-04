@@ -5,13 +5,13 @@
 Nash is a system shell that attempts to be more safe and give
 more power to user. It's safe in the sense of it's far more hard to
 shoot yourself in the foot. It gives power to user in the sense
-that you really can use `nash` to script deploys taking advantage 
+that you really can use `nash` to script deploys taking advantage
 of namespaces (on linux and plan9) in an idiomatic way.
 
 It's more safe for scripts because it doesn't have the unsafe
 features of all former shells and it aim to have a very simple, safe
 and frozen syntax specification. Every shell feature considered
-harmful was left behind, but some needed features are still missing.
+harmful was left behind.
 
 Nash is inspired by Plan 9 `rc` shell, but with very different syntax
 and purpose.
@@ -65,7 +65,7 @@ below:
 fullpath <= realpath $path | xargs -n echo
 echo $fullpath
 ```
-The symbol '<=' redirects the stdout of the command or function invocation in the 
+The symbol '<=' redirects the stdout of the command or function invocation in the
 right-hand side to the variable name specified.
 
 If you want the command output splited into an array, use the IFS
@@ -109,7 +109,7 @@ Functions can be declared with "fn" keyword:
 ```sh
 fn cd(path) {
     fullpath <= realpath $path | xargs echo -n
-    cd $path
+    chdir($path)
     PROMPT="[" + $fullpath + "]> "
     setenv PROMPT
 }

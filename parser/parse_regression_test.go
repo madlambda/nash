@@ -10,6 +10,67 @@ func init() {
 	ast.DebugCmp = true
 }
 
+func TestParseIssue22(t *testing.T) {
+	expected := ast.NewTree("issue 22")
+	ln := ast.NewListNode()
+
+	fn := ast.NewFnDeclNode(0, "gocd")
+	fn.AddArg("path")
+
+	fnTree := ast.NewTree("fn")
+	fnBlock := ast.NewListNode()
+
+	ifDecl := ast.NewIfNode(17)
+	ifDecl.SetLvalue(ast.NewVarExpr(20, "$path"))
+	ifDecl.SetOp("==")
+
+	ifDecl.SetRvalue(ast.NewStringExpr(30, "", true))
+
+	ifTree := ast.NewTree("if")
+	ifBlock := ast.NewListNode()
+
+	cdNode := ast.NewCommandNode(36, "cd")
+	arg := ast.NewVarExpr(39, "$GOPATH")
+	cdNode.AddArg(arg)
+
+	ifBlock.Push(cdNode)
+	ifTree.Root = ifBlock
+	ifDecl.SetIfTree(ifTree)
+
+	elseTree := ast.NewTree("else")
+	elseBlock := ast.NewListNode()
+
+	args := make([]ast.Expr, 3)
+	args[0] = ast.NewVarExpr(0, "$GOPATH")
+	args[1] = ast.NewStringExpr(0, "/src/", true)
+	args[2] = ast.NewVarExpr(0, "$path")
+
+	cdNodeElse := ast.NewCommandNode(0, "cd")
+	carg := ast.NewConcatExpr(0, args)
+	cdNodeElse.AddArg(carg)
+
+	elseBlock.Push(cdNodeElse)
+	elseTree.Root = elseBlock
+
+	ifDecl.SetElseTree(elseTree)
+
+	fnBlock.Push(ifDecl)
+	fnTree.Root = fnBlock
+	fn.SetTree(fnTree)
+
+	ln.Push(fn)
+	expected.Root = ln
+
+	parserTestTable("issue 22", `fn gocd(path) {
+	if $path == "" {
+		cd $GOPATH
+	} else {
+		cd $GOPATH+"/src/"+$path
+	}
+}`, expected, t, true)
+
+}
+
 func TestParseIssue38(t *testing.T) {
 	expected := ast.NewTree("parse issue38")
 

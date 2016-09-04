@@ -43,7 +43,7 @@ func (e *unfinishedBlockError) Unfinished() bool { return true }
 
 func NewUnfinishedListError(name string, it scanner.Token) error {
 	return &unfinishedListError{
-		NashError: NewError("%s:%d:%d: List assignment not finished", name, it.Line(), it.Column()),
+		NashError: NewError("%s:%d:%d: List assignment not finished. Found %v", name, it.Line(), it.Column(), it),
 	}
 }
 

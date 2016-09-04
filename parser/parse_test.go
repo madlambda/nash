@@ -57,6 +57,18 @@ func TestParseSimple(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("parser simple", `echo "hello world"`, expected, t, true)
+
+	cmd1 := ast.NewCommandNode(0, "cat")
+	arg1 := ast.NewStringExpr(4, "/etc/resolv.conf", false)
+	arg2 := ast.NewStringExpr(12, "/etc/hosts", false)
+	cmd1.AddArg(arg1)
+	cmd1.AddArg(arg2)
+
+	ln = ast.NewListNode()
+	ln.Push(cmd1)
+	expected.Root = ln
+
+	parserTestTable("parser simple", `cat /etc/resolv.conf /etc/hosts`, expected, t, true)
 }
 
 func TestParseReverseGetSame(t *testing.T) {
@@ -348,7 +360,9 @@ func TestParseStringNotFinished(t *testing.T) {
 func TestParseCd(t *testing.T) {
 	expected := ast.NewTree("test cd")
 	ln := ast.NewListNode()
-	cd := ast.NewCdNode(0, ast.NewStringExpr(3, "/tmp", false))
+	cd := ast.NewCommandNode(0, "cd")
+	arg := ast.NewStringExpr(3, "/tmp", false)
+	cd.AddArg(arg)
 	ln.Push(cd)
 	expected.Root = ln
 
@@ -357,7 +371,7 @@ func TestParseCd(t *testing.T) {
 	// test cd into home
 	expected = ast.NewTree("test cd into home")
 	ln = ast.NewListNode()
-	cd = ast.NewCdNode(0, nil)
+	cd = ast.NewCommandNode(0, "cd")
 	ln.Push(cd)
 	expected.Root = ln
 
@@ -369,7 +383,7 @@ func TestParseCd(t *testing.T) {
 	assign := ast.NewAssignmentNode(0, "HOME", ast.NewStringExpr(8, "/", true))
 
 	set := ast.NewSetenvNode(11, "HOME")
-	cd = ast.NewCdNode(23, nil)
+	cd = ast.NewCommandNode(23, "cd")
 	pwd := ast.NewCommandNode(26, "pwd")
 
 	ln.Push(assign)
@@ -388,10 +402,12 @@ pwd`, expected, t, true)
 	expected = ast.NewTree("cd into variable value")
 	ln = ast.NewListNode()
 
-	arg := ast.NewStringExpr(10, "/home/i4k/gopath", true)
+	arg = ast.NewStringExpr(10, "/home/i4k/gopath", true)
 
 	assign = ast.NewAssignmentNode(0, "GOPATH", arg)
-	cd = ast.NewCdNode(28, ast.NewVarExpr(31, "$GOPATH"))
+	cd = ast.NewCommandNode(28, "cd")
+	arg2 := ast.NewVarExpr(31, "$GOPATH")
+	cd.AddArg(arg2)
 
 	ln.Push(assign)
 	ln.Push(cd)
@@ -413,7 +429,9 @@ cd $GOPATH`, expected, t, true)
 	concat = append(concat, ast.NewVarExpr(31, "$GOPATH"))
 	concat = append(concat, ast.NewStringExpr(40, "/src/github.com", true))
 
-	cd = ast.NewCdNode(28, ast.NewConcatExpr(31, concat))
+	cd = ast.NewCommandNode(28, "cd")
+	carg := ast.NewConcatExpr(31, concat)
+	cd.AddArg(carg)
 
 	ln.Push(assign)
 	ln.Push(cd)
@@ -775,63 +793,6 @@ func TestParseRedirectionVariable(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("redir var", `cmd > $outFname`, expected, t, true)
-}
-
-func TestParseIssue22(t *testing.T) {
-	expected := ast.NewTree("issue 22")
-	ln := ast.NewListNode()
-
-	fn := ast.NewFnDeclNode(0, "gocd")
-	fn.AddArg("path")
-
-	fnTree := ast.NewTree("fn")
-	fnBlock := ast.NewListNode()
-
-	ifDecl := ast.NewIfNode(17)
-	ifDecl.SetLvalue(ast.NewVarExpr(20, "$path"))
-	ifDecl.SetOp("==")
-
-	ifDecl.SetRvalue(ast.NewStringExpr(30, "", true))
-
-	ifTree := ast.NewTree("if")
-	ifBlock := ast.NewListNode()
-
-	cdNode := ast.NewCdNode(36, ast.NewVarExpr(39, "$GOPATH"))
-
-	ifBlock.Push(cdNode)
-	ifTree.Root = ifBlock
-	ifDecl.SetIfTree(ifTree)
-
-	elseTree := ast.NewTree("else")
-	elseBlock := ast.NewListNode()
-
-	args := make([]ast.Expr, 3)
-	args[0] = ast.NewVarExpr(0, "$GOPATH")
-	args[1] = ast.NewStringExpr(0, "/src/", true)
-	args[2] = ast.NewVarExpr(0, "$path")
-
-	cdNodeElse := ast.NewCdNode(0, ast.NewConcatExpr(0, args))
-
-	elseBlock.Push(cdNodeElse)
-	elseTree.Root = elseBlock
-
-	ifDecl.SetElseTree(elseTree)
-
-	fnBlock.Push(ifDecl)
-	fnTree.Root = fnBlock
-	fn.SetTree(fnTree)
-
-	ln.Push(fn)
-	expected.Root = ln
-
-	parserTestTable("issue 22", `fn gocd(path) {
-	if $path == "" {
-		cd $GOPATH
-	} else {
-		cd $GOPATH+"/src/"+$path
-	}
-}`, expected, t, true)
-
 }
 
 func TestParseDump(t *testing.T) {

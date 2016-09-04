@@ -27,7 +27,13 @@ const (
 	AssignCmd // <=
 	Equal     // ==
 	NotEqual  // !=
-	Concat    // +
+	Plus      // +
+	Minus     // -
+	Gt        // >
+	Lt        // <
+
+	Colon     // ,
+	Semicolon // ;
 
 	operator_end
 
@@ -37,23 +43,14 @@ const (
 	RParen // )
 	LBrack // [
 	RBrack // ]
-
-	Variable
-	ListElem
-	Command // alphanumeric identifier that's not a keyword
 	Pipe
 
-	redirect_beg
+	Comma
 
-	RedirRight // >
-	RedirMapLSide
-	RedirMapRSide
-
-	redirect_end
+	Variable
 
 	keyword_beg
 
-	Builtin
 	Import
 	SetEnv
 	ShowEnv
@@ -63,11 +60,10 @@ const (
 	If
 	Else
 	For
-	ForIn
 	Rfork
-	Cd
-	FnDecl
-	FnInv // <identifier>(<args>)
+	Fn
+
+	keyword_end
 )
 
 var tokens = [...]string{
@@ -84,7 +80,13 @@ var tokens = [...]string{
 	AssignCmd: "<=",
 	Equal:     "==",
 	NotEqual:  "!=",
-	Concat:    "+",
+	Plus:      "+",
+	Minus:     "-",
+	Gt:        ">",
+	Lt:        "<",
+
+	Colon:     ",",
+	Semicolon: ";",
 
 	LBrace: "{",
 	RBrace: "}",
@@ -92,31 +94,48 @@ var tokens = [...]string{
 	RParen: ")",
 	LBrack: "[",
 	RBrack: "]",
+	Pipe:   "|",
+
+	Comma: ",",
 
 	Variable: "VARIABLE",
-	ListElem: "LIST-ELEM",
-	Command:  "COMMAND",
-	Pipe:     "|",
 
-	RedirRight:    ">",
-	RedirMapLSide: "MAP-LSIDE",
-	RedirMapRSide: "MAP-RSIDE",
+	Import:  "import",
+	SetEnv:  "setenv",
+	ShowEnv: "showenv",
+	BindFn:  "bindfn",
+	Dump:    "dump",
+	Return:  "return",
+	If:      "if",
+	Else:    "else",
+	For:     "for",
+	Rfork:   "rfork",
+	Fn:      "fn",
+}
 
-	Builtin: "BUILTIN",
-	Import:  "IMPORT",
-	SetEnv:  "SETENV",
-	ShowEnv: "SHOWENV",
-	BindFn:  "BINDFN",
-	Dump:    "DUMP",
-	Return:  "RETURN",
-	If:      "IF",
-	Else:    "ELSE",
-	For:     "FOR",
-	ForIn:   "FOR-IN",
-	Rfork:   "RFORK",
-	Cd:      "CD",
-	FnDecl:  "FN",
-	FnInv:   "FN-INV",
+var keywords map[string]Token
+
+func init() {
+	keywords = make(map[string]Token)
+	for i := keyword_beg + 1; i < keyword_end; i++ {
+		keywords[tokens[i]] = i
+	}
+}
+
+func Lookup(ident string) Token {
+	if tok, isKeyword := keywords[ident]; isKeyword {
+		return tok
+	}
+
+	return Ident
+}
+
+func IsKeyword(t Token) bool {
+	if t > keyword_beg && t < keyword_end {
+		return true
+	}
+
+	return false
 }
 
 // token.Position returns the position of the node in file

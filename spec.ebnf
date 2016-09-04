@@ -2,7 +2,7 @@
 program = { statement } .
 
 /* Statement */
-statement = varDecl | command | builtin | comment .
+statement = varDecl | command | fnInv | builtin | comment .
 
 /* Variable declaration */
 varDecl      = assignValue | assignCmdOut .
@@ -24,12 +24,8 @@ redirect    = ( ">" ( filename | uri | variable ) |
                ">" "[" unicode_digit "=" "]" ) .
 
 /* Builtin */
-builtin = builtinDecl | importDecl | rforkDecl | cdDecl | ifDecl |
-          forDecl | setenvDecl |
-          fnDecl | fnInv | bindfn | dump .
-
-/* builtin only supported for "cd" by now.. */
-builtinDecl = "builtin" cdDecl .
+builtin = importDecl | rforkDecl | ifDecl | forDecl | setenvDecl |
+          fnDecl | bindfn | dump .
 
 /* Import statement */
 importDecl = "import" ( filename | string_lit ) .
@@ -37,9 +33,6 @@ importDecl = "import" ( filename | string_lit ) .
 /* Rfork scope */
 rforkDecl   = "rfork" rforkFlags "{" program "}" .
 rforkFlags  = { identifier } .
-
-/* Cd <path> */
-cdDecl = "cd" [ filename ] .
 
 /* If-else-if */
 ifDecl = "if" ( identifier | varValue ) comparison

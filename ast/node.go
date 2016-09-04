@@ -14,6 +14,8 @@ const (
 	RedirMapNoValue = -1
 	// RedirMapSupress indicates the rhs of map was suppressed
 	RedirMapSupress = -2
+
+	RforkFlags = "umnips"
 )
 
 type (
@@ -157,13 +159,6 @@ type (
 		tree *Tree
 	}
 
-	// CdNode is a builtin node for change directories
-	CdNode struct {
-		NodeType
-		token.Pos
-		dir Expr
-	}
-
 	// CommentNode is the node for comments
 	CommentNode struct {
 		NodeType
@@ -237,13 +232,6 @@ type (
 		inVar      string
 		tree       *Tree
 	}
-
-	// A BuiltinNode represents the builtin keyword.
-	BuiltinNode struct {
-		NodeType
-		token.Pos
-		stmt Node
-	}
 )
 
 //go:generate stringer -type=NodeType
@@ -302,9 +290,6 @@ const (
 	// NodeRfork is the type for rfork statement
 	NodeRfork
 
-	// NodeCd is the type for builtin cd
-	NodeCd
-
 	// NodeRforkFlags are nodes for rfork flags
 	NodeRforkFlags
 
@@ -328,9 +313,6 @@ const (
 
 	// NodeFor is the type for "for" statements
 	NodeFor
-
-	// NodeBuiltin is the type of "builtin" nodes.
-	NodeBuiltin
 )
 
 var (
@@ -663,7 +645,7 @@ func (n *CommandNode) IsEqual(other Node) bool {
 	}
 
 	if len(n.args) != len(o.args) {
-		debug("Command argument length differs: %d != %d", len(n.args), len(o.args))
+		debug("Command argument length differs: %d (%+v) != %d (%+v)", len(n.args), n.args, len(o.args), o.args)
 		return false
 	}
 
@@ -919,60 +901,6 @@ func (n *RforkNode) String() string {
 	}
 
 	return rforkstr
-}
-
-// NewCdNode creates a new node for changing directory
-func NewCdNode(pos token.Pos, dir Expr) *CdNode {
-	return &CdNode{
-		NodeType: NodeCd,
-		Pos:      pos,
-
-		dir: dir,
-	}
-}
-
-// Dir returns the directory of cd node
-func (n *CdNode) Dir() Expr {
-	return n.dir
-}
-
-// IsEqual returns if it is equal to other node.
-func (n *CdNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
-	}
-
-	o, ok := other.(*CdNode)
-
-	if !ok {
-		debug("other node is not CdNode")
-		return false
-	}
-
-	if n.dir == o.dir {
-		return true
-	}
-
-	if n.dir != nil {
-		return n.dir.IsEqual(o.dir)
-	}
-
-	return false
-}
-
-// String returns the string representation of cd node
-func (n *CdNode) String() string {
-	dir := n.dir
-
-	if dir == nil {
-		return "cd"
-	}
-
-	if !dir.Type().IsExpr() {
-		return "cd <invalid path>"
-	}
-
-	return "cd " + dir.String()
 }
 
 // NewCommentNode creates a new node for comments
@@ -1533,37 +1461,4 @@ func (n *ForNode) String() string {
 	ret += "}"
 
 	return ret
-}
-
-// NewBuiltinNode creates a new "builtin" node
-func NewBuiltinNode(pos token.Pos, n Node) *BuiltinNode {
-	return &BuiltinNode{
-		NodeType: NodeBuiltin,
-		Pos:      pos,
-		stmt:     n,
-	}
-}
-
-// Stmt returns the builtin statement.
-func (n *BuiltinNode) Stmt() Node {
-	return n.stmt
-}
-
-// IsEqual returns if it is equal to other Node.
-func (n *BuiltinNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
-	}
-
-	o, ok := other.(*BuiltinNode)
-
-	if !ok {
-		return false
-	}
-
-	return n.stmt.IsEqual(o.stmt)
-}
-
-func (n *BuiltinNode) String() string {
-	return "builtin " + n.stmt.String()
 }

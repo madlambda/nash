@@ -19,25 +19,29 @@ setenv PROMPT
 # cd overrides built-in cd
 # Add the current branch before prompt (if current directory is a git repo)
 fn cd(path) {
-        builtin cd $path
+	if $path == "" {
+		path = $HOME
+	}
 
-        -test -d ./.git
+	chdir($path)
 
-        if $status != "0" {
-                PROMPT = $DEFPROMPT
-        } else {
-                branch <= git rev-parse --abbrev-ref HEAD | xargs echo -n
-                PROMPT = "(" + $GREEN + $branch + $RESET + ")" + $DEFPROMPT
-        }
+	-test -d ./.git
 
-        setenv PROMPT
+	if $status != "0" {
+		PROMPT = $DEFPROMPT
+	} else {
+		branch <= git rev-parse --abbrev-ref HEAD | xargs echo -n
+		PROMPT = "(" + $GREEN + $branch + $RESET + ")" + $DEFPROMPT
+	}
+
+	setenv PROMPT
 }
 
 bindfn cd cd
 
 # syntax sugar to cd into go project
 fn gocd(path) {
-    cd $GOPATH + "/src/" + $path
+	cd $GOPATH + "/src/" + $path
 }
 
 bindfn gocd gocd
