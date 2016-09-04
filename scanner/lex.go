@@ -23,9 +23,9 @@ type (
 
 	// Lexer holds the state of the scanner
 	Lexer struct {
-		name   string     // used only for error reports
+		name   string     // identify the source, used only for error reports
 		input  string     // the string being scanned
-		start  int        // start position of this token
+		start  int        // start position of current token
 		pos    int        // current position in the input
 		width  int        // width of last rune read
 		Tokens chan Token // channel of scanned tokens
@@ -102,13 +102,14 @@ func (l *Lexer) emit(t token.Token) {
 	l.start = l.pos
 }
 
-// peek returns but does not consume the next rune
+// peek returns but does not consume the next rune from input
 func (l *Lexer) peek() rune {
 	rune := l.next()
 	l.backup()
 	return rune
 }
 
+// next consumes the next rune from input
 func (l *Lexer) next() rune {
 	var r rune
 
@@ -150,16 +151,6 @@ func (l *Lexer) backup() {
 	}
 }
 
-// accept consumes the next rune if it's from the valid set
-func (l *Lexer) accept(valid string) bool {
-	if strings.IndexRune(valid, l.next()) >= 0 {
-		return true
-	}
-
-	l.backup()
-	return false
-}
-
 // acceptRun consumes a run of runes from the valid setup
 func (l *Lexer) acceptRun(valid string) {
 	for strings.IndexRune(valid, l.next()) >= 0 {
@@ -169,7 +160,7 @@ func (l *Lexer) acceptRun(valid string) {
 	l.backup()
 }
 
-// errorf returns an error token
+// errorf emit an error token
 func (l *Lexer) errorf(format string, args ...interface{}) stateFn {
 	fname := l.name
 
@@ -194,11 +185,6 @@ func (l *Lexer) errorf(format string, args ...interface{}) stateFn {
 	l.pos = l.start
 
 	return nil // finish the state machine
-}
-
-func (l *Lexer) String() string {
-	return fmt.Sprintf("Lexer:\n\tPos: %d\n\tStart: %d\n",
-		l.pos, l.start)
 }
 
 func Lex(name, input string) *Lexer {
@@ -353,7 +339,10 @@ func lexStart(l *Lexer) stateFn {
 
 		next := l.peek()
 
-		if isEndOfLine(next) || isSpace(next) || next == '=' || next == '(' || next == ')' || next == ',' || next == eof {
+		if isEndOfLine(next) || isSpace(next) ||
+			next == '=' || next == '(' ||
+			next == ')' || next == ',' ||
+			next == eof {
 			lit := scanIdentifier(l)
 
 			if len(lit) > 1 && r >= 'a' && r <= 'z' {

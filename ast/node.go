@@ -159,13 +159,6 @@ type (
 		tree *Tree
 	}
 
-	// CdNode is a builtin node for change directories
-	CdNode struct {
-		NodeType
-		token.Pos
-		dir Expr
-	}
-
 	// CommentNode is the node for comments
 	CommentNode struct {
 		NodeType
@@ -296,9 +289,6 @@ const (
 
 	// NodeRfork is the type for rfork statement
 	NodeRfork
-
-	// NodeCd is the type for builtin cd
-	NodeCd
 
 	// NodeRforkFlags are nodes for rfork flags
 	NodeRforkFlags
@@ -911,60 +901,6 @@ func (n *RforkNode) String() string {
 	}
 
 	return rforkstr
-}
-
-// NewCdNode creates a new node for changing directory
-func NewCdNode(pos token.Pos, dir Expr) *CdNode {
-	return &CdNode{
-		NodeType: NodeCd,
-		Pos:      pos,
-
-		dir: dir,
-	}
-}
-
-// Dir returns the directory of cd node
-func (n *CdNode) Dir() Expr {
-	return n.dir
-}
-
-// IsEqual returns if it is equal to other node.
-func (n *CdNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
-	}
-
-	o, ok := other.(*CdNode)
-
-	if !ok {
-		debug("other node is not CdNode")
-		return false
-	}
-
-	if n.dir == o.dir {
-		return true
-	}
-
-	if n.dir != nil {
-		return n.dir.IsEqual(o.dir)
-	}
-
-	return false
-}
-
-// String returns the string representation of cd node
-func (n *CdNode) String() string {
-	dir := n.dir
-
-	if dir == nil {
-		return "cd"
-	}
-
-	if !dir.Type().IsExpr() {
-		return "cd <invalid path>"
-	}
-
-	return "cd " + dir.String()
 }
 
 // NewCommentNode creates a new node for comments
