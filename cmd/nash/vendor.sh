@@ -1,5 +1,6 @@
 #!/usr/bin/env nash
 fn vendor() {
+        IFS = ()
 	rm -rf vendor
 	mkdir -p vendor/bin vendor/src vendor/pkg
 	GOPATH <= pwd | xargs echo -n

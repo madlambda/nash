@@ -64,3 +64,55 @@ func Line(prompt string) (string, error) {
 	ins.SetPrompt(prompt)
 	return ins.Readline()
 }
+
+type CancelableStdin struct {
+	r      io.Reader
+	mutex  sync.Mutex
+	stop   chan struct{}
+	notify chan struct{}
+	data   []byte
+	read   int
+	err    error
+}
+
+func NewCancelableStdin(r io.Reader) *CancelableStdin {
+	c := &CancelableStdin{
+		r:      r,
+		notify: make(chan struct{}),
+		stop:   make(chan struct{}),
+	}
+	go c.ioloop()
+	return c
+}
+
+func (c *CancelableStdin) ioloop() {
+loop:
+	for {
+		select {
+		case <-c.notify:
+			c.read, c.err = c.r.Read(c.data)
+			c.notify <- struct{}{}
+		case <-c.stop:
+			break loop
+		}
+	}
+}
+
+func (c *CancelableStdin) Read(b []byte) (n int, err error) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	c.data = b
+	c.notify <- struct{}{}
+	select {
+	case <-c.notify:
+		return c.read, c.err
+	case <-c.stop:
+		return 0, io.EOF
+	}
+}
+
+func (c *CancelableStdin) Close() error {
+	close(c.stop)
+	return nil
+}

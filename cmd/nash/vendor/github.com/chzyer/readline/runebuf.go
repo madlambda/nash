@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"io"
 	"strings"
+	"sync"
 )
 
 type runeBufferBck struct {
@@ -25,6 +26,10 @@ type RuneBuffer struct {
 	width int
 
 	bck *runeBufferBck
+
+	offset string
+
+	sync.Mutex
 }
 
 func (r *RuneBuffer) OnWidthChange(newWidth int) {
@@ -259,6 +264,28 @@ func (r *RuneBuffer) MoveToNextWord() {
 	})
 }
 
+func (r *RuneBuffer) MoveToEndWord() {
+	r.Refresh(func() {
+		// already at the end, so do nothing
+		if r.idx == len(r.buf) {
+			return
+		}
+		// if we are at the end of a word already, go to next
+		if !IsWordBreak(r.buf[r.idx]) && IsWordBreak(r.buf[r.idx+1]) {
+			r.idx++
+		}
+
+		// keep going until at the end of a word
+		for i := r.idx + 1; i < len(r.buf); i++ {
+			if IsWordBreak(r.buf[i]) && !IsWordBreak(r.buf[i-1]) {
+				r.idx = i - 1
+				return
+			}
+		}
+		r.idx = len(r.buf)
+	})
+}
+
 func (r *RuneBuffer) BackEscapeWord() {
 	r.Refresh(func() {
 		if r.idx == 0 {
@@ -348,6 +375,9 @@ func (r *RuneBuffer) getSplitByLine(rs []rune) []string {
 }
 
 func (r *RuneBuffer) IdxLine(width int) int {
+	if width == 0 {
+		return 0
+	}
 	sp := r.getSplitByLine(r.buf[:r.idx])
 	return len(sp) - 1
 }
@@ -357,17 +387,27 @@ func (r *RuneBuffer) CursorLineCount() int {
 }
 
 func (r *RuneBuffer) Refresh(f func()) {
+	r.Lock()
+	defer r.Unlock()
+
 	if !r.interactive {
 		if f != nil {
 			f()
 		}
 		return
 	}
+
 	r.Clean()
 	if f != nil {
 		f()
 	}
 	r.print()
+}
+
+func (r *RuneBuffer) SetOffset(offset string) {
+	r.Lock()
+	r.offset = offset
+	r.Unlock()
 }
 
 func (r *RuneBuffer) print() {
@@ -390,7 +430,13 @@ func (r *RuneBuffer) output() []byte {
 		}
 
 	} else {
-		buf.Write([]byte(string(r.buf)))
+		for idx := range r.buf {
+			if r.buf[idx] == '\t' {
+				buf.WriteString(strings.Repeat(" ", TabWidth))
+			} else {
+				buf.WriteRune(r.buf[idx])
+			}
+		}
 		if r.isInLineEdge() {
 			buf.Write([]byte(" \b"))
 		}
@@ -451,15 +497,21 @@ func (r *RuneBuffer) SetPrompt(prompt string) {
 
 func (r *RuneBuffer) cleanOutput(w io.Writer, idxLine int) {
 	buf := bufio.NewWriter(w)
-	buf.Write([]byte("\033[J")) // just like ^k :)
 
-	if idxLine == 0 {
-		io.WriteString(buf, "\033[2K\r")
+	if r.width == 0 {
+		buf.WriteString(strings.Repeat("\r\b", len(r.buf)+r.PromptLen()))
+		buf.Write([]byte("\033[J"))
 	} else {
-		for i := 0; i < idxLine; i++ {
-			io.WriteString(buf, "\033[2K\r\033[A")
+		buf.Write([]byte("\033[J")) // just like ^k :)
+		if idxLine == 0 {
+			buf.WriteString("\033[2K")
+			buf.WriteString("\r")
+		} else {
+			for i := 0; i < idxLine; i++ {
+				io.WriteString(buf, "\033[2K\r\033[A")
+			}
+			io.WriteString(buf, "\033[2K\r")
 		}
-		io.WriteString(buf, "\033[2K\r")
 	}
 	buf.Flush()
 	return
