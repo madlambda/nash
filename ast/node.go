@@ -680,12 +680,13 @@ func (n *CommandNode) IsEqual(other Node) bool {
 }
 
 func (n *CommandNode) multiString() string {
-	var content []string
+	var (
+		content  []string
+		line     string
+		last     = len(n.args) - 1
+		totalLen = 0
+	)
 
-	last := len(n.args) - 1
-
-	line := ""
-	totalLen := 0
 	for i := 0; i < len(n.args); i += 2 {
 		var next string
 
