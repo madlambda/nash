@@ -1724,3 +1724,32 @@ func TestExecuteGracefullyError(t *testing.T) {
 	}
 
 }
+
+func TestExecuteMultilineCmd(t *testing.T) {
+	sh, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.Exec("test", `(echo
+		hello
+		world)`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected := "hello world"
+
+	if expected != string(out.Bytes()) {
+		t.Errorf("Expected '%s' but got '%s'", expected, string(out.Bytes()))
+		return
+	}
+}
