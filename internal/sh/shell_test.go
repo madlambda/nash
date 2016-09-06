@@ -1704,7 +1704,7 @@ func TestExecuteGracefullyError(t *testing.T) {
 		return
 	}
 
-	expectErr := "someinput.sh:1:1: Unexpected token EOF. Expecting IDENT or ARG"
+	expectErr := "someinput.sh:1:1: Multi-line command not finished. Found EOF but expect ')'"
 
 	if err.Error() != expectErr {
 		t.Errorf("Expect error: %s, but got: %s", expectErr, err.Error())
@@ -1737,7 +1737,7 @@ func TestExecuteMultilineCmd(t *testing.T) {
 
 	sh.SetStdout(&out)
 
-	err = sh.Exec("test", `(echo
+	err = sh.Exec("test", `(echo -n
 		hello
 		world)`)
 
@@ -1750,6 +1750,128 @@ func TestExecuteMultilineCmd(t *testing.T) {
 
 	if expected != string(out.Bytes()) {
 		t.Errorf("Expected '%s' but got '%s'", expected, string(out.Bytes()))
+		return
+	}
+
+	out.Reset()
+
+	err = sh.Exec("test", `(
+                echo -n 1 2 3 4 5 6 7 8 9 10
+                        11 12 13 14 15 16 17 18 19 20
+                )`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20"
+
+	if expected != string(out.Bytes()) {
+		t.Errorf("Expected '%s' but got '%s'", expected, string(out.Bytes()))
+		return
+	}
+}
+
+func TestExecuteMultilineCmdAssign(t *testing.T) {
+	sh, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.Exec("test", `val <= (echo -n
+		hello
+		world)
+
+	echo -n $val`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected := "hello world"
+
+	if expected != string(out.Bytes()) {
+		t.Errorf("Expected '%s' but got '%s'", expected, string(out.Bytes()))
+		return
+	}
+
+	out.Reset()
+
+	err = sh.Exec("test", `val <= (
+                echo -n 1 2 3 4 5 6 7 8 9 10
+                        11 12 13 14 15 16 17 18 19 20
+                )
+		echo -n $val`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected = "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20"
+
+	if expected != string(out.Bytes()) {
+		t.Errorf("Expected '%s' but got '%s'", expected, string(out.Bytes()))
+		return
+	}
+}
+
+func TestExecuteMuliReturnUnfinished(t *testing.T) {
+	sh, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	err = sh.Exec("test", "(")
+
+	if err == nil {
+		t.Errorf("Must fail... Must return an unfinished paren error")
+		return
+	}
+
+	type unfinished interface {
+		Unfinished() bool
+	}
+
+	if e, ok := err.(unfinished); !ok || !e.Unfinished() {
+		t.Errorf("Must fail with unfinished paren error. Got %s", err.Error())
+		return
+	}
+
+	err = sh.Exec("test", `(
+echo`)
+
+	if err == nil {
+		t.Errorf("Must fail... Must return an unfinished paren error")
+		return
+	}
+
+	if e, ok := err.(unfinished); !ok || !e.Unfinished() {
+		t.Errorf("Must fail with unfinished paren error. Got %s", err.Error())
+		return
+	}
+
+	err = sh.Exec("test", `(
+echo hello
+world`)
+
+	if err == nil {
+		t.Errorf("Must fail... Must return an unfinished paren error")
+		return
+	}
+
+	if e, ok := err.(unfinished); !ok || !e.Unfinished() {
+		t.Errorf("Must fail with unfinished paren error. Got %s", err.Error())
 		return
 	}
 }

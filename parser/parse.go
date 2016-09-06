@@ -182,7 +182,8 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
 	it := p.next()
 
-	n := ast.NewPipeNode(it.Pos())
+	n := ast.NewPipeNode(it.Pos(), first.IsMulti())
+	first.SetMulti(false)
 
 	n.AddCmd(first)
 
@@ -201,7 +202,18 @@ func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
 		}
 	}
 
-	if p.peek().Type() == token.Semicolon {
+	if n.IsMulti() {
+		it = p.peek()
+		if it.Type() != token.RParen {
+			return nil, errors.NewUnfinishedCmdError(p.name, it)
+		}
+
+		p.ignore()
+	}
+
+	it = p.peek()
+
+	if it.Type() == token.Semicolon {
 		p.ignore()
 	}
 
@@ -219,6 +231,10 @@ func (p *Parser) parseCommand(it scanner.Token) (ast.Node, error) {
 	}
 
 	if it.Type() != token.Ident && it.Type() != token.Arg {
+		if isMulti {
+			return nil, errors.NewUnfinishedCmdError(p.name, it)
+		}
+
 		return nil, newParserError(it, p.name, "Unexpected token %v. Expecting IDENT or ARG", it)
 	}
 
@@ -260,7 +276,7 @@ cmdLoop:
 			p.insidePipe = true
 			return p.parsePipe(n)
 		case token.EOF:
-			return n, nil
+			break cmdLoop
 		case token.Illegal:
 			return nil, errors.NewError(it.Value())
 		default:
@@ -276,7 +292,7 @@ cmdLoop:
 
 	if isMulti {
 		if it.Type() != token.RParen {
-			return nil, newParserError(it, p.name, "Unexpected %v. Expecting ')' to finish multi line command", it)
+			return nil, errors.NewUnfinishedCmdError(p.name, it)
 		}
 
 		p.ignore()

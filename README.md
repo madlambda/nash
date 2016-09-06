@@ -164,6 +164,25 @@ For example, trying to evaluate an unbound variable aborts the program with erro
 ERROR: Variable '$bleh' not set
 ```
 
+Long commands can spawn multiple lines:
+
+```sh
+λ> (aws ec2 attach-internet-gateway 	--internet-gateway-id $igwid
+									--vpc-id $vpcid)
+
+λ> instanceId <= (
+	aws ec2 run-instances
+			--image-id ami-xxxxxxxx
+			--count 1
+			--instance-type t1.micro
+			--key-name MyKeyPair
+			--security-groups my-sg
+    | jq ".Instances[0].InstanceId"
+)
+```
+
+λ> echo $instanceId
+
 # Namespace features
 
 Nash is built with namespace support only on Linux (Plan9 soon). If

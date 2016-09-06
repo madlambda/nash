@@ -97,7 +97,7 @@ func TestParsePipe(t *testing.T) {
 	second := ast.NewCommandNode(21, "awk", false)
 	second.AddArg(ast.NewStringExpr(26, "{print $1}", true))
 
-	pipe := ast.NewPipeNode(19)
+	pipe := ast.NewPipeNode(19, false)
 	pipe.AddCmd(first)
 	pipe.AddCmd(second)
 
@@ -997,4 +997,46 @@ func TestParseMultilineCmdAssign(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("parser simple", `hello <= (echo "hello world")`, expected, t, true)
+}
+
+func TestMultiPipe(t *testing.T) {
+	expected := ast.NewTree("parser pipe")
+	ln := ast.NewListNode()
+	first := ast.NewCommandNode(0, "echo", false)
+	first.AddArg(ast.NewStringExpr(6, "hello world", true))
+
+	second := ast.NewCommandNode(21, "awk", false)
+	second.AddArg(ast.NewStringExpr(26, "{print $1}", true))
+
+	pipe := ast.NewPipeNode(19, true)
+	pipe.AddCmd(first)
+	pipe.AddCmd(second)
+
+	ln.Push(pipe)
+
+	expected.Root = ln
+
+	parserTestTable("parser pipe", `(echo "hello world" | awk "{print $1}")`, expected, t, true)
+
+	// get longer stringify
+	expected = ast.NewTree("parser pipe")
+	ln = ast.NewListNode()
+	first = ast.NewCommandNode(0, "echo", false)
+	first.AddArg(ast.NewStringExpr(6, "hello world", true))
+
+	second = ast.NewCommandNode(21, "awk", false)
+	second.AddArg(ast.NewStringExpr(26, "{print AAAAAAAAAAAAAAAAAAAAAA}", true))
+
+	pipe = ast.NewPipeNode(19, true)
+	pipe.AddCmd(first)
+	pipe.AddCmd(second)
+
+	ln.Push(pipe)
+
+	expected.Root = ln
+
+	parserTestTable("parser pipe", `(
+	echo "hello world" |
+	awk "{print AAAAAAAAAAAAAAAAAAAAAA}"
+)`, expected, t, true)
 }

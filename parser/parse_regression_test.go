@@ -125,7 +125,7 @@ func TestParseIssue43(t *testing.T) {
 	xargs.AddArg(ast.NewStringExpr(64, "echo", false))
 	xargs.AddArg(ast.NewStringExpr(69, "-n", false))
 
-	pipe := ast.NewPipeNode(56)
+	pipe := ast.NewPipeNode(56, false)
 	pipe.AddCmd(gitRevParse)
 	pipe.AddCmd(xargs)
 
@@ -171,7 +171,7 @@ func TestParseIssue68(t *testing.T) {
 	sedRedir.SetLocation(sedRedirArg)
 	sedCmd.AddRedirect(sedRedir)
 
-	pipe := ast.NewPipeNode(13)
+	pipe := ast.NewPipeNode(13, false)
 	pipe.AddCmd(catCmd)
 	pipe.AddCmd(sedCmd)
 

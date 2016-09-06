@@ -92,7 +92,8 @@ type (
 		NodeType
 		token.Pos
 
-		cmds []*CommandNode
+		cmds  []*CommandNode
+		multi bool
 	}
 
 	// StringExpr is a string argument
@@ -610,6 +611,9 @@ func NewCommandNode(pos token.Pos, name string, multiline bool) *CommandNode {
 	}
 }
 
+func (n *CommandNode) IsMulti() bool   { return n.multi }
+func (n *CommandNode) SetMulti(b bool) { n.multi = b }
+
 // AddArg adds a new argument to the command
 func (n *CommandNode) AddArg(a Expr) {
 	n.args = append(n.args, a)
@@ -679,7 +683,7 @@ func (n *CommandNode) IsEqual(other Node) bool {
 	return n.name == o.name
 }
 
-func (n *CommandNode) multiString() string {
+func (n *CommandNode) toStringParts() ([]string, int) {
 	var (
 		content  []string
 		line     string
@@ -725,6 +729,12 @@ func (n *CommandNode) multiString() string {
 		content = append(content, line)
 	}
 
+	return content, totalLen
+}
+
+func (n *CommandNode) multiString() string {
+	content, totalLen := n.toStringParts()
+
 	if totalLen < 50 {
 		return "(" + strings.Join(content, " ") + ")"
 	}
@@ -763,12 +773,17 @@ func (n *CommandNode) String() string {
 }
 
 // NewPipeNode creates a new command pipeline
-func NewPipeNode(pos token.Pos) *PipeNode {
+func NewPipeNode(pos token.Pos, multi bool) *PipeNode {
 	return &PipeNode{
 		NodeType: NodePipe,
 		Pos:      pos,
+
+		multi: multi,
 	}
 }
+
+func (n *PipeNode) IsMulti() bool   { return n.multi }
+func (n *PipeNode) SetMulti(b bool) { n.multi = b }
 
 // AddCmd add another command to end of the pipeline
 func (n *PipeNode) AddCmd(c *CommandNode) {
@@ -808,8 +823,70 @@ func (n *PipeNode) IsEqual(other Node) bool {
 	return true
 }
 
+func (n *PipeNode) multiString() string {
+	totalLen := 0
+
+	type cmdData struct {
+		content  []string
+		totalLen int
+	}
+
+	content := make([]cmdData, len(n.cmds))
+
+	for i := 0; i < len(n.cmds); i++ {
+		cmdContent, cmdLen := n.cmds[i].toStringParts()
+
+		content[i] = cmdData{
+			cmdContent,
+			cmdLen,
+		}
+
+		totalLen += cmdLen
+	}
+
+	if totalLen+3 < 50 {
+		result := "("
+
+		for i := 0; i < len(content); i++ {
+			result += strings.Join(content[i].content, " ")
+
+			if i < len(content)-1 {
+				result += " | "
+			}
+		}
+
+		return result + ")"
+	}
+
+	gentab := func(n int) string { return strings.Repeat("\t", n) }
+
+	result := "(\n"
+
+	for i := 0; i < len(content); i++ {
+		cmdContent := content[i].content
+		cmdContent[0] = "\t" + cmdContent[0]
+		tabLen := (len(cmdContent[0]) + 7) / 8
+
+		for j := 1; j < len(cmdContent); j++ {
+			cmdContent[j] = gentab(tabLen) + cmdContent[j]
+		}
+
+		result += strings.Join(cmdContent, "\n")
+
+		if i < len(content)-1 {
+			result += " |\n"
+		}
+	}
+
+	return result + "\n)"
+}
+
 // String returns the string representation of pipeline statement
 func (n *PipeNode) String() string {
+	if n.multi {
+		return n.multiString()
+	}
+
 	ret := ""
 
 	for i := 0; i < len(n.cmds); i++ {
