@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -50,7 +51,7 @@ But got:
 func TestParseSimple(t *testing.T) {
 	expected := ast.NewTree("parser simple")
 	ln := ast.NewListNode()
-	cmd := ast.NewCommandNode(0, "echo")
+	cmd := ast.NewCommandNode(0, "echo", false)
 	cmd.AddArg(ast.NewStringExpr(6, "hello world", true))
 	ln.Push(cmd)
 
@@ -58,7 +59,7 @@ func TestParseSimple(t *testing.T) {
 
 	parserTestTable("parser simple", `echo "hello world"`, expected, t, true)
 
-	cmd1 := ast.NewCommandNode(0, "cat")
+	cmd1 := ast.NewCommandNode(0, "cat", false)
 	arg1 := ast.NewStringExpr(4, "/etc/resolv.conf", false)
 	arg2 := ast.NewStringExpr(12, "/etc/hosts", false)
 	cmd1.AddArg(arg1)
@@ -90,10 +91,10 @@ func TestParseReverseGetSame(t *testing.T) {
 func TestParsePipe(t *testing.T) {
 	expected := ast.NewTree("parser pipe")
 	ln := ast.NewListNode()
-	first := ast.NewCommandNode(0, "echo")
+	first := ast.NewCommandNode(0, "echo", false)
 	first.AddArg(ast.NewStringExpr(6, "hello world", true))
 
-	second := ast.NewCommandNode(21, "awk")
+	second := ast.NewCommandNode(21, "awk", false)
 	second.AddArg(ast.NewStringExpr(26, "{print $1}", true))
 
 	pipe := ast.NewPipeNode(19)
@@ -194,7 +195,7 @@ func TestParseCmdAssignment(t *testing.T) {
 	expected := ast.NewTree("simple cmd assignment")
 	ln := ast.NewListNode()
 
-	cmd := ast.NewCommandNode(8, "ls")
+	cmd := ast.NewCommandNode(8, "ls", false)
 
 	assign, err := ast.NewExecAssignNode(0, "test", cmd)
 
@@ -223,7 +224,7 @@ func TestParseInvalid(t *testing.T) {
 func TestParsePathCommand(t *testing.T) {
 	expected := ast.NewTree("parser simple")
 	ln := ast.NewListNode()
-	cmd := ast.NewCommandNode(0, "/bin/echo")
+	cmd := ast.NewCommandNode(0, "/bin/echo", false)
 	cmd.AddArg(ast.NewStringExpr(11, "hello world", true))
 	ln.Push(cmd)
 
@@ -236,7 +237,7 @@ func TestParseWithShebang(t *testing.T) {
 	expected := ast.NewTree("parser shebang")
 	ln := ast.NewListNode()
 	cmt := ast.NewCommentNode(0, "#!/bin/nash")
-	cmd := ast.NewCommandNode(12, "echo")
+	cmd := ast.NewCommandNode(12, "echo", false)
 	cmd.AddArg(ast.NewStringExpr(17, "bleh", false))
 	ln.Push(cmt)
 	ln.Push(cmd)
@@ -260,7 +261,7 @@ func TestParseEmptyFile(t *testing.T) {
 func TestParseSingleCommand(t *testing.T) {
 	expected := ast.NewTree("single command")
 	expected.Root = ast.NewListNode()
-	expected.Root.Push(ast.NewCommandNode(0, "bleh"))
+	expected.Root.Push(ast.NewCommandNode(0, "bleh", false))
 
 	parserTestTable("single command", `bleh`, expected, t, true)
 }
@@ -268,7 +269,7 @@ func TestParseSingleCommand(t *testing.T) {
 func TestParseRedirectSimple(t *testing.T) {
 	expected := ast.NewTree("redirect")
 	ln := ast.NewListNode()
-	cmd := ast.NewCommandNode(0, "cmd")
+	cmd := ast.NewCommandNode(0, "cmd", false)
 	redir := ast.NewRedirectNode(0)
 	redir.SetMap(2, ast.RedirMapSupress)
 	cmd.AddRedirect(redir)
@@ -280,7 +281,7 @@ func TestParseRedirectSimple(t *testing.T) {
 
 	expected = ast.NewTree("redirect2")
 	ln = ast.NewListNode()
-	cmd = ast.NewCommandNode(0, "cmd")
+	cmd = ast.NewCommandNode(0, "cmd", false)
 	redir = ast.NewRedirectNode(0)
 	redir.SetMap(2, 1)
 	cmd.AddRedirect(redir)
@@ -294,7 +295,7 @@ func TestParseRedirectSimple(t *testing.T) {
 func TestParseRedirectWithLocation(t *testing.T) {
 	expected := ast.NewTree("redirect with location")
 	ln := ast.NewListNode()
-	cmd := ast.NewCommandNode(0, "cmd")
+	cmd := ast.NewCommandNode(0, "cmd", false)
 	redir := ast.NewRedirectNode(0)
 	redir.SetMap(2, ast.RedirMapNoValue)
 	redir.SetLocation(ast.NewStringExpr(0, "/var/log/service.log", false))
@@ -309,7 +310,7 @@ func TestParseRedirectWithLocation(t *testing.T) {
 func TestParseRedirectMultiples(t *testing.T) {
 	expected := ast.NewTree("redirect multiples")
 	ln := ast.NewListNode()
-	cmd := ast.NewCommandNode(0, "cmd")
+	cmd := ast.NewCommandNode(0, "cmd", false)
 	redir1 := ast.NewRedirectNode(0)
 	redir2 := ast.NewRedirectNode(0)
 
@@ -328,8 +329,8 @@ func TestParseRedirectMultiples(t *testing.T) {
 func TestParseCommandWithStringsEqualsNot(t *testing.T) {
 	expected := ast.NewTree("strings works as expected")
 	ln := ast.NewListNode()
-	cmd1 := ast.NewCommandNode(0, "echo")
-	cmd2 := ast.NewCommandNode(11, "echo")
+	cmd1 := ast.NewCommandNode(0, "echo", false)
+	cmd2 := ast.NewCommandNode(11, "echo", false)
 	cmd1.AddArg(ast.NewStringExpr(5, "hello", false))
 	cmd2.AddArg(ast.NewStringExpr(17, "hello", true))
 
@@ -360,7 +361,7 @@ func TestParseStringNotFinished(t *testing.T) {
 func TestParseCd(t *testing.T) {
 	expected := ast.NewTree("test cd")
 	ln := ast.NewListNode()
-	cd := ast.NewCommandNode(0, "cd")
+	cd := ast.NewCommandNode(0, "cd", false)
 	arg := ast.NewStringExpr(3, "/tmp", false)
 	cd.AddArg(arg)
 	ln.Push(cd)
@@ -371,7 +372,7 @@ func TestParseCd(t *testing.T) {
 	// test cd into home
 	expected = ast.NewTree("test cd into home")
 	ln = ast.NewListNode()
-	cd = ast.NewCommandNode(0, "cd")
+	cd = ast.NewCommandNode(0, "cd", false)
 	ln.Push(cd)
 	expected.Root = ln
 
@@ -383,8 +384,8 @@ func TestParseCd(t *testing.T) {
 	assign := ast.NewAssignmentNode(0, "HOME", ast.NewStringExpr(8, "/", true))
 
 	set := ast.NewSetenvNode(11, "HOME")
-	cd = ast.NewCommandNode(23, "cd")
-	pwd := ast.NewCommandNode(26, "pwd")
+	cd = ast.NewCommandNode(23, "cd", false)
+	pwd := ast.NewCommandNode(26, "pwd", false)
 
 	ln.Push(assign)
 	ln.Push(set)
@@ -405,7 +406,7 @@ pwd`, expected, t, true)
 	arg = ast.NewStringExpr(10, "/home/i4k/gopath", true)
 
 	assign = ast.NewAssignmentNode(0, "GOPATH", arg)
-	cd = ast.NewCommandNode(28, "cd")
+	cd = ast.NewCommandNode(28, "cd", false)
 	arg2 := ast.NewVarExpr(31, "$GOPATH")
 	cd.AddArg(arg2)
 
@@ -429,7 +430,7 @@ cd $GOPATH`, expected, t, true)
 	concat = append(concat, ast.NewVarExpr(31, "$GOPATH"))
 	concat = append(concat, ast.NewStringExpr(40, "/src/github.com", true))
 
-	cd = ast.NewCommandNode(28, "cd")
+	cd = ast.NewCommandNode(28, "cd", false)
 	carg := ast.NewConcatExpr(31, concat)
 	cd.AddArg(carg)
 
@@ -462,7 +463,7 @@ func TestParseRforkWithBlock(t *testing.T) {
 	arg := ast.NewStringExpr(6, "u", false)
 	rfork.SetFlags(arg)
 
-	insideFork := ast.NewCommandNode(11, "mount")
+	insideFork := ast.NewCommandNode(11, "mount", false)
 	insideFork.AddArg(ast.NewStringExpr(17, "-t", false))
 	insideFork.AddArg(ast.NewStringExpr(20, "proc", false))
 	insideFork.AddArg(ast.NewStringExpr(25, "proc", false))
@@ -523,7 +524,7 @@ func TestParseIf(t *testing.T) {
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewListNode()
-	cmd := ast.NewCommandNode(24, "pwd")
+	cmd := ast.NewCommandNode(24, "pwd", false)
 	subBlock.Push(cmd)
 
 	ifTree := ast.NewTree("if block")
@@ -546,7 +547,7 @@ func TestParseIf(t *testing.T) {
 	ifDecl.SetOp("!=")
 
 	subBlock = ast.NewListNode()
-	cmd = ast.NewCommandNode(20, "pwd")
+	cmd = ast.NewCommandNode(20, "pwd", false)
 	subBlock.Push(cmd)
 
 	ifTree = ast.NewTree("if block")
@@ -571,7 +572,7 @@ func TestParseIfLvariable(t *testing.T) {
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewListNode()
-	cmd := ast.NewCommandNode(23, "pwd")
+	cmd := ast.NewCommandNode(23, "pwd", false)
 	subBlock.Push(cmd)
 
 	ifTree := ast.NewTree("if block")
@@ -596,7 +597,7 @@ func TestParseIfElse(t *testing.T) {
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewListNode()
-	cmd := ast.NewCommandNode(23, "pwd")
+	cmd := ast.NewCommandNode(23, "pwd", false)
 	subBlock.Push(cmd)
 
 	ifTree := ast.NewTree("if block")
@@ -605,7 +606,7 @@ func TestParseIfElse(t *testing.T) {
 	ifDecl.SetIfTree(ifTree)
 
 	elseBlock := ast.NewListNode()
-	exitCmd := ast.NewCommandNode(0, "exit")
+	exitCmd := ast.NewCommandNode(0, "exit", false)
 	elseBlock.Push(exitCmd)
 
 	elseTree := ast.NewTree("else block")
@@ -632,7 +633,7 @@ func TestParseIfElseIf(t *testing.T) {
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewListNode()
-	cmd := ast.NewCommandNode(23, "pwd")
+	cmd := ast.NewCommandNode(23, "pwd", false)
 	subBlock.Push(cmd)
 
 	ifTree := ast.NewTree("if block")
@@ -647,7 +648,7 @@ func TestParseIfElseIf(t *testing.T) {
 	elseIfDecl.SetOp("==")
 
 	elseIfBlock := ast.NewListNode()
-	elseifCmd := ast.NewCommandNode(25, "ls")
+	elseifCmd := ast.NewCommandNode(25, "ls", false)
 	elseIfBlock.Push(elseifCmd)
 
 	elseIfTree := ast.NewTree("if block")
@@ -656,7 +657,7 @@ func TestParseIfElseIf(t *testing.T) {
 	elseIfDecl.SetIfTree(elseIfTree)
 
 	elseBlock := ast.NewListNode()
-	exitCmd := ast.NewCommandNode(0, "exit")
+	exitCmd := ast.NewCommandNode(0, "exit", false)
 	elseBlock.Push(exitCmd)
 
 	elseTree := ast.NewTree("else block")
@@ -710,7 +711,7 @@ func TestParseFnBasic(t *testing.T) {
 	fn = ast.NewFnDeclNode(0, "build")
 	tree = ast.NewTree("fn body")
 	lnBody = ast.NewListNode()
-	cmd := ast.NewCommandNode(14, "ls")
+	cmd := ast.NewCommandNode(14, "ls", false)
 	lnBody.Push(cmd)
 	tree.Root = lnBody
 	fn.SetTree(tree)
@@ -732,7 +733,7 @@ func TestParseFnBasic(t *testing.T) {
 	fn.AddArg("image")
 	tree = ast.NewTree("fn body")
 	lnBody = ast.NewListNode()
-	cmd = ast.NewCommandNode(19, "ls")
+	cmd = ast.NewCommandNode(19, "ls", false)
 	lnBody.Push(cmd)
 	tree.Root = lnBody
 	fn.SetTree(tree)
@@ -755,7 +756,7 @@ func TestParseFnBasic(t *testing.T) {
 	fn.AddArg("debug")
 	tree = ast.NewTree("fn body")
 	lnBody = ast.NewListNode()
-	cmd = ast.NewCommandNode(26, "ls")
+	cmd = ast.NewCommandNode(26, "ls", false)
 	lnBody.Push(cmd)
 	tree.Root = lnBody
 	fn.SetTree(tree)
@@ -784,7 +785,7 @@ func TestParseRedirectionVariable(t *testing.T) {
 	expected := ast.NewTree("redirection var")
 	ln := ast.NewListNode()
 
-	cmd := ast.NewCommandNode(0, "cmd")
+	cmd := ast.NewCommandNode(0, "cmd", false)
 	redir := ast.NewRedirectNode(0)
 	redirArg := ast.NewVarExpr(0, "$outFname")
 	redir.SetLocation(redirArg)
@@ -934,4 +935,66 @@ func TestParseVariableIndexing(t *testing.T) {
 	parserTestTable("variable indexing", `if $values[0] == "1" {
 
 }`, expected, t, true)
+}
+
+func TestParseMultilineCmdExec(t *testing.T) {
+	expected := ast.NewTree("parser simple")
+	ln := ast.NewListNode()
+	cmd := ast.NewCommandNode(0, "echo", true)
+	cmd.AddArg(ast.NewStringExpr(6, "hello world", true))
+	ln.Push(cmd)
+
+	expected.Root = ln
+
+	parserTestTable("parser simple", `(echo "hello world")`, expected, t, true)
+
+	expected = ast.NewTree("parser aws cmd")
+	ln = ast.NewListNode()
+	cmd = ast.NewCommandNode(0, "aws", true)
+	cmd.AddArg(ast.NewStringExpr(4, "ec2", false))
+	cmd.AddArg(ast.NewStringExpr(8, "run-instances", false))
+	cmd.AddArg(ast.NewStringExpr(22, "--image-id", false))
+	cmd.AddArg(ast.NewStringExpr(33, "ami-xxxxxxxx", false))
+	cmd.AddArg(ast.NewStringExpr(33, "--count", false))
+	cmd.AddArg(ast.NewStringExpr(33, "1", false))
+	cmd.AddArg(ast.NewStringExpr(33, "--instance-type", false))
+	cmd.AddArg(ast.NewStringExpr(33, "t1.micro", false))
+	cmd.AddArg(ast.NewStringExpr(33, "--key-name", false))
+	cmd.AddArg(ast.NewStringExpr(33, "MyKeyPair", false))
+	cmd.AddArg(ast.NewStringExpr(33, "--security-groups", false))
+	cmd.AddArg(ast.NewStringExpr(33, "my-sg", false))
+
+	ln.Push(cmd)
+
+	expected.Root = ln
+
+	fmt.Printf("ToString: '%s'\n", expected.String())
+
+	parserTestTable("parser simple", `(
+	aws ec2 run-instances
+			--image-id ami-xxxxxxxx
+			--count 1
+			--instance-type t1.micro
+			--key-name MyKeyPair
+			--security-groups my-sg
+)`, expected, t, true)
+}
+
+func TestParseMultilineCmdAssign(t *testing.T) {
+	expected := ast.NewTree("parser simple assign")
+	ln := ast.NewListNode()
+	cmd := ast.NewCommandNode(0, "echo", true)
+	cmd.AddArg(ast.NewStringExpr(6, "hello world", true))
+	assign, err := ast.NewExecAssignNode(0, "hello", cmd)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	ln.Push(assign)
+
+	expected.Root = ln
+
+	parserTestTable("parser simple", `hello <= (echo "hello world")`, expected, t, true)
 }
