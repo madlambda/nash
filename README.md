@@ -167,7 +167,7 @@ ERROR: Variable '$bleh' not set
 Long commands can be splited in multiple lines:
 
 ```sh
-λ> (aws ec2 attach-internet-gateway 	--internet-gateway-id $igwid
+λ> (aws ec2 attach-internet-gateway	--internet-gateway-id $igwid
 									--vpc-id $vpcid)
 
 λ> instanceId <= (
