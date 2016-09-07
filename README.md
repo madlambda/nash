@@ -282,11 +282,17 @@ See the project [nash-app-example](https://github.com/NeowayLabs/nash-app-exampl
 
 I've tested in the following environments:
 
-    Linux 4.1.13 (amd64)
-    Fedora release 23
+    Linux 4.7-rc7
+    Archlinux
+
+    Linux 4.5.5 (amd64)
+    Archlinux
 
     Linux 4.3.3 (amd64)
     Archlinux
+
+    Linux 4.1.13 (amd64)
+    Fedora release 23
 
     Linux 4.1.13 (amd64)
     Debian 8
