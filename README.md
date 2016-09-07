@@ -179,9 +179,8 @@ Long commands can be splited in multiple lines:
 			--security-groups my-sg
     | jq ".Instances[0].InstanceId"
 )
-```
-
 λ> echo $instanceId
+```
 
 # Namespace features
 
