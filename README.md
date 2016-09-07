@@ -164,7 +164,7 @@ For example, trying to evaluate an unbound variable aborts the program with erro
 ERROR: Variable '$bleh' not set
 ```
 
-Long commands can spawn multiple lines:
+Long commands can be splited in multiple lines:
 
 ```sh
 λ> (aws ec2 attach-internet-gateway 	--internet-gateway-id $igwid
@@ -365,17 +365,20 @@ limitations in mind.
 
 # Motivation
 
-I needed to create test scripts to be running on different mount namespaces
-for testing a file server and various use cases. Using bash in addition to
-docker or rkt was not so good for various reasons. First, docker prior to version 1.10
-doesn't support user namespaces, and then my `make test` would requires root privileges,
-but for docker 1.10 user namespace works still requires to it being enabled in the
-daemon flags (--userns-remap=?) making more hard to work on standard CIs (travis, circle, etc)...
-Another problem was that it was hard to maintain a script, that spawn docker container
-scripts inheriting environment variables from parent namespace (or host). Docker treats the container as a different
-machine or VM, even calling the parent namespace as "host". This breaks the namespace
-sharing/unsharing idea of processes. What I wanted was a copy of the missing plan9
-environment namespace to child namespaces.
+I needed to create test scripts to be running on different mount
+namespaces for testing a file server and various use cases. Using bash
+in addition to docker or rkt was not so good for various
+reasons. First, docker prior to version 1.10 doesn't support user
+namespaces, and then my `make test` would requires root privileges,
+but for docker 1.10 user namespace works still requires to it being
+enabled in the daemon flags (--userns-remap=?) making more hard to
+work on standard CIs (travis, circle, etc)...  Another problem was
+that it was hard to maintain a script, that spawn docker containers
+inheriting environment variables from parent namespace (or
+host). Docker treats the container as a different machine or VM, even
+calling the parent namespace as "host". This breaks the namespace
+sharing/unsharing idea of processes. What I wanted was a copy of the
+missing plan9 'environment namespace' to child namespaces.
 
 # Want to contribute?
 
