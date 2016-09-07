@@ -164,6 +164,24 @@ For example, trying to evaluate an unbound variable aborts the program with erro
 ERROR: Variable '$bleh' not set
 ```
 
+Long commands can be splited in multiple lines:
+
+```sh
+λ> (aws ec2 attach-internet-gateway	--internet-gateway-id $igwid
+									--vpc-id $vpcid)
+
+λ> instanceId <= (
+	aws ec2 run-instances
+			--image-id ami-xxxxxxxx
+			--count 1
+			--instance-type t1.micro
+			--key-name MyKeyPair
+			--security-groups my-sg
+    | jq ".Instances[0].InstanceId"
+)
+λ> echo $instanceId
+```
+
 # Namespace features
 
 Nash is built with namespace support only on Linux (Plan9 soon). If
@@ -264,11 +282,17 @@ See the project [nash-app-example](https://github.com/NeowayLabs/nash-app-exampl
 
 I've tested in the following environments:
 
-    Linux 4.1.13 (amd64)
-    Fedora release 23
+    Linux 4.7-rc7
+    Archlinux
+
+    Linux 4.5.5 (amd64)
+    Archlinux
 
     Linux 4.3.3 (amd64)
     Archlinux
+
+    Linux 4.1.13 (amd64)
+    Fedora release 23
 
     Linux 4.1.13 (amd64)
     Debian 8
@@ -346,17 +370,20 @@ limitations in mind.
 
 # Motivation
 
-I needed to create test scripts to be running on different mount namespaces
-for testing a file server and various use cases. Using bash in addition to
-docker or rkt was not so good for various reasons. First, docker prior to version 1.10
-doesn't support user namespaces, and then my `make test` would requires root privileges,
-but for docker 1.10 user namespace works still requires to it being enabled in the
-daemon flags (--userns-remap=?) making more hard to work on standard CIs (travis, circle, etc)...
-Another problem was that it was hard to maintain a script, that spawn docker container
-scripts inheriting environment variables from parent namespace (or host). Docker treats the container as a different
-machine or VM, even calling the parent namespace as "host". This breaks the namespace
-sharing/unsharing idea of processes. What I wanted was a copy of the missing plan9
-environment namespace to child namespaces.
+I needed to create test scripts to be running on different mount
+namespaces for testing a file server and various use cases. Using bash
+in addition to docker or rkt was not so good for various
+reasons. First, docker prior to version 1.10 doesn't support user
+namespaces, and then my `make test` would requires root privileges,
+but for docker 1.10 user namespace works still requires to it being
+enabled in the daemon flags (--userns-remap=?) making more hard to
+work on standard CIs (travis, circle, etc)...  Another problem was
+that it was hard to maintain a script, that spawn docker containers
+inheriting environment variables from parent namespace (or
+host). Docker treats the container as a different machine or VM, even
+calling the parent namespace as "host". This breaks the namespace
+sharing/unsharing idea of processes. What I wanted was a copy of the
+missing plan9 'environment namespace' to child namespaces.
 
 # Want to contribute?
 

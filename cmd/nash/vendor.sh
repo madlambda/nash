@@ -12,7 +12,7 @@ fn vendor() {
 	IFS = ("\n")
 	paths <= ls vendor/src
 	for path in $paths {
-	mv "vendor/src/"+$path vendor/
+		mv "vendor/src/"+$path vendor/
 	}
 	rm -rf vendor/src vendor/bin vendor/pkg
 	# because nash library is a dependency of cmd/nash

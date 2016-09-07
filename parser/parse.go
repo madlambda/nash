@@ -182,7 +182,8 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
 	it := p.next()
 
-	n := ast.NewPipeNode(it.Pos())
+	n := ast.NewPipeNode(it.Pos(), first.IsMulti())
+	first.SetMulti(false)
 
 	n.AddCmd(first)
 
@@ -201,7 +202,18 @@ func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
 		}
 	}
 
-	if p.peek().Type() == token.Semicolon {
+	if n.IsMulti() {
+		it = p.peek()
+		if it.Type() != token.RParen {
+			return nil, errors.NewUnfinishedCmdError(p.name, it)
+		}
+
+		p.ignore()
+	}
+
+	it = p.peek()
+
+	if it.Type() == token.Semicolon {
 		p.ignore()
 	}
 
@@ -209,16 +221,30 @@ func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
 }
 
 func (p *Parser) parseCommand(it scanner.Token) (ast.Node, error) {
-	n := ast.NewCommandNode(it.Pos(), it.Value())
+	isMulti := false
+
+	if it.Type() == token.LParen {
+		// multiline command
+		isMulti = true
+
+		it = p.next()
+	}
+
+	if it.Type() != token.Ident && it.Type() != token.Arg {
+		if isMulti {
+			return nil, errors.NewUnfinishedCmdError(p.name, it)
+		}
+
+		return nil, newParserError(it, p.name, "Unexpected token %v. Expecting IDENT or ARG", it)
+	}
+
+	n := ast.NewCommandNode(it.Pos(), it.Value(), isMulti)
 
 cmdLoop:
 	for {
 		it = p.peek()
 
 		switch it.Type() {
-		case token.Semicolon:
-			p.ignore()
-			break cmdLoop // TODO: remove this label
 		case token.RBrace:
 			break cmdLoop
 		case token.Ident, token.Arg, token.String, token.Number, token.Variable:
@@ -243,13 +269,14 @@ cmdLoop:
 		case token.Pipe:
 			if p.insidePipe {
 				p.next()
+				// TODO(i4k): test against pipes and multiline cmds
 				return n, nil
 			}
 
 			p.insidePipe = true
 			return p.parsePipe(n)
 		case token.EOF:
-			return n, nil
+			break cmdLoop
 		case token.Illegal:
 			return nil, errors.NewError(it.Value())
 		default:
@@ -259,6 +286,22 @@ cmdLoop:
 
 	if p.insidePipe {
 		p.insidePipe = false
+	}
+
+	it = p.peek()
+
+	if isMulti {
+		if it.Type() != token.RParen {
+			return nil, errors.NewUnfinishedCmdError(p.name, it)
+		}
+
+		p.ignore()
+
+		it = p.peek()
+	}
+
+	if it.Type() == token.Semicolon {
+		p.ignore()
 	}
 
 	return n, nil
@@ -533,31 +576,36 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 }
 
 func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
+	var (
+		exec ast.Node
+		err  error
+	)
+
 	it := p.next()
 
-	if it.Type() != token.Ident {
+	if it.Type() != token.Ident && it.Type() != token.Arg && it.Type() != token.LParen {
 		return nil, errors.NewError("Invalid token %v. Expected command or function invocation", it)
 	}
 
-	nextIt := p.peek()
+	if it.Type() == token.LParen {
+		// command invocation
+		exec, err = p.parseCommand(it)
+	} else {
+		nextIt := p.peek()
 
-	if nextIt.Type() != token.LParen {
-		cmd, err := p.parseCommand(it)
-
-		if err != nil {
-			return nil, err
+		if nextIt.Type() != token.LParen {
+			// it == (Ident || Arg)
+			exec, err = p.parseCommand(it)
+		} else {
+			exec, err = p.parseFnInv(it)
 		}
-
-		return ast.NewExecAssignNode(name.Pos(), name.Value(), cmd)
 	}
-
-	fn, err := p.parseFnInv(it)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return ast.NewExecAssignNode(name.Pos(), name.Value(), fn)
+	return ast.NewExecAssignNode(name.Pos(), name.Value(), exec)
 }
 
 func (p *Parser) parseRfork(it scanner.Token) (ast.Node, error) {
@@ -1062,6 +1110,12 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 
 		return p.parseCommand(it)
 	} else if it.Type() == token.Arg {
+		return p.parseCommand(it)
+	}
+
+	// statement starting with '('
+	// -multiline command (echo hello)
+	if it.Type() == token.LParen {
 		return p.parseCommand(it)
 	}
 

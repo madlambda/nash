@@ -1521,3 +1521,100 @@ func TestLexerListIndexing(t *testing.T) {
 
 	testTable("test if with indexing", `if $crazies[0] == "patito" { echo ":D" }`, expected, t)
 }
+
+func TestLexerMultilineCmdExecution(t *testing.T) {
+	expected := []Token{
+		{typ: token.LParen, val: "("},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("multiline", `()`, expected, t)
+
+	expected = []Token{
+		{typ: token.LParen, val: "("},
+		{typ: token.Ident, val: "echo"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("multiline", `(echo)`, expected, t)
+
+	expected = []Token{
+		{typ: token.LParen, val: "("},
+		{typ: token.Ident, val: "echo"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "BBBBB"},
+		{typ: token.Ident, val: "BBBBB"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test multiline cmd execution", `(echo AAAAA AAAAA
+	AAAAA AAAAA
+	AAAAA AAAAA
+	BBBBB BBBBB)`, expected, t)
+}
+
+func TestLexerMultilineCmdAssign(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "some"},
+		{typ: token.AssignCmd, val: "<="},
+		{typ: token.LParen, val: "("},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("multiline", `some <= ()`, expected, t)
+
+	expected = []Token{
+		{typ: token.Ident, val: "some"},
+		{typ: token.AssignCmd, val: "<="},
+		{typ: token.LParen, val: "("},
+		{typ: token.Ident, val: "echo"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("multiline", `some <= (echo)`, expected, t)
+
+	expected = []Token{
+		{typ: token.Ident, val: "some"},
+		{typ: token.AssignCmd, val: "<="},
+		{typ: token.LParen, val: "("},
+		{typ: token.Ident, val: "echo"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "AAAAA"},
+		{typ: token.Ident, val: "BBBBB"},
+		{typ: token.Ident, val: "BBBBB"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("multiline", `some <= (echo AAAAA AAAAA
+	AAAAA AAAAA
+	AAAAA AAAAA
+	BBBBB BBBBB)`, expected, t)
+
+	testTable("multiline", `some <= (
+	echo AAAAA AAAAA
+	AAAAA AAAAA
+	AAAAA AAAAA
+	BBBBB BBBBB
+)`, expected, t)
+}

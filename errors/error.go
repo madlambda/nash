@@ -12,12 +12,21 @@ type (
 		format string
 	}
 
+	unfinished struct{}
+
 	unfinishedBlockError struct {
 		*NashError
+		unfinished
 	}
 
 	unfinishedListError struct {
 		*NashError
+		unfinished
+	}
+
+	unfinishedCmdError struct {
+		*NashError
+		unfinished
 	}
 )
 
@@ -33,18 +42,25 @@ func (e *NashError) SetReason(format string, arg ...interface{}) {
 
 func (e *NashError) Error() string { return e.reason }
 
+func (e unfinished) Unfinished() bool { return true }
+
 func NewUnfinishedBlockError(name string, it scanner.Token) error {
 	return &unfinishedBlockError{
-		NashError: NewError("%s:%d:%d: Statement's block '{' not finished", name, it.Line(), it.Column()),
+		NashError: NewError("%s:%d:%d: Statement's block '{' not finished",
+			name, it.Line(), it.Column()),
 	}
 }
-
-func (e *unfinishedBlockError) Unfinished() bool { return true }
 
 func NewUnfinishedListError(name string, it scanner.Token) error {
 	return &unfinishedListError{
-		NashError: NewError("%s:%d:%d: List assignment not finished. Found %v", name, it.Line(), it.Column(), it),
+		NashError: NewError("%s:%d:%d: List assignment not finished. Found %v",
+			name, it.Line(), it.Column(), it),
 	}
 }
 
-func (e *unfinishedListError) Unfinished() bool { return true }
+func NewUnfinishedCmdError(name string, it scanner.Token) error {
+	return &unfinishedCmdError{
+		NashError: NewError("%s:%d:%d: Multi-line command not finished. Found %v but expect ')'",
+			name, it.Line(), it.Column(), it),
+	}
+}
