@@ -83,6 +83,8 @@ type (
 		name   string
 		args   []Expr
 		redirs []*RedirectNode
+
+		multi bool
 	}
 
 	// PipeNode represents the node for a command pipeline.
@@ -90,7 +92,8 @@ type (
 		NodeType
 		token.Pos
 
-		cmds []*CommandNode
+		cmds  []*CommandNode
+		multi bool
 	}
 
 	// StringExpr is a string argument
@@ -599,13 +602,17 @@ func (n *ExecAssignNode) String() string {
 }
 
 // NewCommandNode creates a new node for commands
-func NewCommandNode(pos token.Pos, name string) *CommandNode {
+func NewCommandNode(pos token.Pos, name string, multiline bool) *CommandNode {
 	return &CommandNode{
 		NodeType: NodeCommand,
 		Pos:      pos,
 		name:     name,
+		multi:    multiline,
 	}
 }
+
+func (n *CommandNode) IsMulti() bool   { return n.multi }
+func (n *CommandNode) SetMulti(b bool) { n.multi = b }
 
 // AddArg adds a new argument to the command
 func (n *CommandNode) AddArg(a Expr) {
@@ -644,6 +651,11 @@ func (n *CommandNode) IsEqual(other Node) bool {
 		return false
 	}
 
+	if n.multi != o.multi {
+		debug("Command multiline differs.")
+		return false
+	}
+
 	if len(n.args) != len(o.args) {
 		debug("Command argument length differs: %d (%+v) != %d (%+v)", len(n.args), n.args, len(o.args), o.args)
 		return false
@@ -671,34 +683,107 @@ func (n *CommandNode) IsEqual(other Node) bool {
 	return n.name == o.name
 }
 
+func (n *CommandNode) toStringParts() ([]string, int) {
+	var (
+		content  []string
+		line     string
+		last     = len(n.args) - 1
+		totalLen = 0
+	)
+
+	for i := 0; i < len(n.args); i += 2 {
+		var next string
+
+		arg := n.args[i].String()
+
+		if i < last {
+			next = n.args[i+1].String()
+		}
+
+		if i == 0 {
+			arg = n.name + " " + arg
+		}
+
+		if arg[0] == '-' {
+			if line != "" {
+				content = append(content, line)
+				line = ""
+			}
+
+			if next[0] != '-' {
+				line += arg + " " + next
+			} else {
+				content = append(content, arg, next)
+			}
+		} else if next != "" {
+			line += arg + " " + next
+		} else {
+			line += arg
+		}
+
+		totalLen += len(arg) + len(next) + 1
+
+	}
+
+	if line != "" {
+		content = append(content, line)
+	}
+
+	return content, totalLen
+}
+
+func (n *CommandNode) multiString() string {
+	content, totalLen := n.toStringParts()
+
+	if totalLen < 50 {
+		return "(" + strings.Join(content, " ") + ")"
+	}
+
+	content[0] = "\t" + content[0]
+
+	gentab := func(n int) string { return strings.Repeat("\t", n) }
+	tabLen := (len(content[0]) + 7) / 8
+
+	for i := 1; i < len(content); i++ {
+		content[i] = gentab(tabLen) + content[i]
+	}
+
+	return "(\n" + strings.Join(content, "\n") + "\n)"
+}
+
 // String returns the string representation of command statement
 func (n *CommandNode) String() string {
-	content := make([]string, 0, 1024)
-	args := make([]string, 0, len(n.args))
-	redirs := make([]string, 0, len(n.redirs))
+	if n.multi {
+		return n.multiString()
+	}
+
+	var content []string
+
+	content = append(content, n.name)
 
 	for i := 0; i < len(n.args); i++ {
-		args = append(args, n.args[i].String())
+		content = append(content, n.args[i].String())
 	}
 
 	for i := 0; i < len(n.redirs); i++ {
-		redirs = append(redirs, n.redirs[i].String())
+		content = append(content, n.redirs[i].String())
 	}
-
-	content = append(content, n.name)
-	content = append(content, args...)
-	content = append(content, redirs...)
 
 	return strings.Join(content, " ")
 }
 
 // NewPipeNode creates a new command pipeline
-func NewPipeNode(pos token.Pos) *PipeNode {
+func NewPipeNode(pos token.Pos, multi bool) *PipeNode {
 	return &PipeNode{
 		NodeType: NodePipe,
 		Pos:      pos,
+
+		multi: multi,
 	}
 }
+
+func (n *PipeNode) IsMulti() bool   { return n.multi }
+func (n *PipeNode) SetMulti(b bool) { n.multi = b }
 
 // AddCmd add another command to end of the pipeline
 func (n *PipeNode) AddCmd(c *CommandNode) {
@@ -738,8 +823,70 @@ func (n *PipeNode) IsEqual(other Node) bool {
 	return true
 }
 
+func (n *PipeNode) multiString() string {
+	totalLen := 0
+
+	type cmdData struct {
+		content  []string
+		totalLen int
+	}
+
+	content := make([]cmdData, len(n.cmds))
+
+	for i := 0; i < len(n.cmds); i++ {
+		cmdContent, cmdLen := n.cmds[i].toStringParts()
+
+		content[i] = cmdData{
+			cmdContent,
+			cmdLen,
+		}
+
+		totalLen += cmdLen
+	}
+
+	if totalLen+3 < 50 {
+		result := "("
+
+		for i := 0; i < len(content); i++ {
+			result += strings.Join(content[i].content, " ")
+
+			if i < len(content)-1 {
+				result += " | "
+			}
+		}
+
+		return result + ")"
+	}
+
+	gentab := func(n int) string { return strings.Repeat("\t", n) }
+
+	result := "(\n"
+
+	for i := 0; i < len(content); i++ {
+		cmdContent := content[i].content
+		cmdContent[0] = "\t" + cmdContent[0]
+		tabLen := (len(cmdContent[0]) + 7) / 8
+
+		for j := 1; j < len(cmdContent); j++ {
+			cmdContent[j] = gentab(tabLen) + cmdContent[j]
+		}
+
+		result += strings.Join(cmdContent, "\n")
+
+		if i < len(content)-1 {
+			result += " |\n"
+		}
+	}
+
+	return result + "\n)"
+}
+
 // String returns the string representation of pipeline statement
 func (n *PipeNode) String() string {
+	if n.multi {
+		return n.multiString()
+	}
+
 	ret := ""
 
 	for i := 0; i < len(n.cmds); i++ {

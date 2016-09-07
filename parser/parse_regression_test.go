@@ -29,7 +29,7 @@ func TestParseIssue22(t *testing.T) {
 	ifTree := ast.NewTree("if")
 	ifBlock := ast.NewListNode()
 
-	cdNode := ast.NewCommandNode(36, "cd")
+	cdNode := ast.NewCommandNode(36, "cd", false)
 	arg := ast.NewVarExpr(39, "$GOPATH")
 	cdNode.AddArg(arg)
 
@@ -45,7 +45,7 @@ func TestParseIssue22(t *testing.T) {
 	args[1] = ast.NewStringExpr(0, "/src/", true)
 	args[2] = ast.NewVarExpr(0, "$path")
 
-	cdNodeElse := ast.NewCommandNode(0, "cd")
+	cdNodeElse := ast.NewCommandNode(0, "cd", false)
 	carg := ast.NewConcatExpr(0, args)
 	cdNodeElse.AddArg(carg)
 
@@ -108,7 +108,7 @@ func TestParseIssue43(t *testing.T) {
 	fnTree := ast.NewTree("fn")
 	fnBlock := ast.NewListNode()
 
-	gitRevParse := ast.NewCommandNode(24, "git")
+	gitRevParse := ast.NewCommandNode(24, "git", false)
 
 	gitRevParse.AddArg(ast.NewStringExpr(28, "rev-parse", true))
 	gitRevParse.AddArg(ast.NewStringExpr(38, "--abbrev-ref", false))
@@ -121,11 +121,11 @@ func TestParseIssue43(t *testing.T) {
 		return
 	}
 
-	xargs := ast.NewCommandNode(58, "xargs")
+	xargs := ast.NewCommandNode(58, "xargs", false)
 	xargs.AddArg(ast.NewStringExpr(64, "echo", false))
 	xargs.AddArg(ast.NewStringExpr(69, "-n", false))
 
-	pipe := ast.NewPipeNode(56)
+	pipe := ast.NewPipeNode(56, false)
 	pipe.AddCmd(gitRevParse)
 	pipe.AddCmd(xargs)
 
@@ -133,7 +133,7 @@ func TestParseIssue43(t *testing.T) {
 
 	fnBlock.Push(branchAssign)
 
-	gitPull := ast.NewCommandNode(73, "git")
+	gitPull := ast.NewCommandNode(73, "git", false)
 
 	gitPull.AddArg(ast.NewStringExpr(77, "pull", false))
 	gitPull.AddArg(ast.NewStringExpr(82, "origin", false))
@@ -157,12 +157,12 @@ func TestParseIssue68(t *testing.T) {
 	expected := ast.NewTree("parse issue #68")
 	ln := ast.NewListNode()
 
-	catCmd := ast.NewCommandNode(0, "cat")
+	catCmd := ast.NewCommandNode(0, "cat", false)
 
 	catArg := ast.NewStringExpr(4, "PKGBUILD", false)
 	catCmd.AddArg(catArg)
 
-	sedCmd := ast.NewCommandNode(15, "sed")
+	sedCmd := ast.NewCommandNode(15, "sed", false)
 	sedArg := ast.NewStringExpr(20, `s#\$pkgdir#/home/i4k/alt#g`, true)
 	sedCmd.AddArg(sedArg)
 
@@ -171,7 +171,7 @@ func TestParseIssue68(t *testing.T) {
 	sedRedir.SetLocation(sedRedirArg)
 	sedCmd.AddRedirect(sedRedir)
 
-	pipe := ast.NewPipeNode(13)
+	pipe := ast.NewPipeNode(13, false)
 	pipe.AddCmd(catCmd)
 	pipe.AddCmd(sedCmd)
 
