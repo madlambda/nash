@@ -188,7 +188,43 @@ func TestParseListAssignment(t *testing.T) {
 	bell
 	labs
 )`, expected, t, false)
+}
 
+func TestParseListOfListsAssignment(t *testing.T) {
+	expected := ast.NewTree("list assignment")
+	ln := ast.NewListNode()
+
+	plan9 := make([]ast.Expr, 0, 4)
+	plan9 = append(plan9,
+		ast.NewStringExpr(10, "plan9", false),
+		ast.NewStringExpr(17, "from", false),
+		ast.NewStringExpr(23, "bell", false),
+		ast.NewStringExpr(29, "labs", false),
+	)
+
+	elem1 := ast.NewListExpr(7, plan9)
+
+	linux := make([]ast.Expr, 0, 2)
+	linux = append(linux, ast.NewStringExpr(0, "linux", false))
+	linux = append(linux, ast.NewStringExpr(0, "kernel", false))
+
+	elem2 := ast.NewListExpr(0, linux)
+
+	values := make([]ast.Expr, 2)
+	values[0] = elem1
+	values[1] = elem2
+
+	elem := ast.NewListExpr(0, values)
+
+	assign := ast.NewAssignmentNode(0, "test", elem)
+
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTestTable("list assignment", `test = (
+	(plan9 from bell labs)
+	(linux kernel)
+	)`, expected, t, false)
 }
 
 func TestParseCmdAssignment(t *testing.T) {
