@@ -9,15 +9,15 @@ varDecl      = assignValue | assignCmdOut .
 assignValue  = identifier "=" varSpec .
 varSpec      = ( list | varValue ) .
 varValue     = string_lit | ( stringConcat { stringConcat } ) .
-assignCmdOut = identifier "<=" command .
+assignCmdOut = identifier "<=" ( command | fnInv ) .
 
 /* Command */
-command   = ( cmdpart | pipe ) .
+command   = ( [ "(" ] cmdpart [ ")" ]  | pipe ) .
 cmdpart   = [ "-" ] ( cmdname | abscmd ) { argument } { redirect } .
 cmdname   = identifier .
 abscmd    = filename .
 argument  = ( unicode_char { unicode_char } ) | string_lit .
-pipe      = cmdpart "|" cmdpart [ { "|" cmdpart } ] .
+pipe      = [ "(" ] cmdpart "|" cmdpart [ { "|" cmdpart } ] [ ")" ] .
 redirect    = ( ">" ( filename | uri | variable ) |
                ">" "[" unicode_digit "]" ( filename | uri | variable ) |
                ">" "[" unicode_digit "=" ( unicode_digit | identifier ) "]" |
