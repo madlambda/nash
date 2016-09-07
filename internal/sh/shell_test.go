@@ -180,6 +180,8 @@ func TestExecuteAssignment(t *testing.T) {
 		return
 	}
 
+	out.Reset()
+
 	sh, err = NewShell()
 
 	if err != nil {
@@ -199,6 +201,8 @@ func TestExecuteAssignment(t *testing.T) {
 	}
 
 	out.Reset()
+
+	sh.SetStdout(&out)
 
 	err = sh.Exec("list of lists", `l = (
 		(name Archlinux)
