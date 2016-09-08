@@ -1,9 +1,5 @@
 package sh
 
-import (
-	"strings"
-)
-
 //go:generate stringer -type=objType
 const (
 	StringType objType = iota + 1
@@ -17,7 +13,7 @@ type (
 	Obj struct {
 		objType
 
-		list []string
+		list []*Obj
 		str  string
 		fn   Fn
 	}
@@ -34,7 +30,7 @@ func NewStrObj(val string) *Obj {
 	}
 }
 
-func NewListObj(val []string) *Obj {
+func NewListObj(val []*Obj) *Obj {
 	return &Obj{
 		list:    val,
 		objType: ListType,
@@ -48,9 +44,9 @@ func NewFnObj(val Fn) *Obj {
 	}
 }
 
-func (o Obj) Str() string    { return o.str }
-func (o Obj) Fn() Fn         { return o.fn }
-func (o Obj) List() []string { return o.list }
+func (o Obj) Str() string  { return o.str }
+func (o Obj) Fn() Fn       { return o.fn }
+func (o Obj) List() []*Obj { return o.list }
 
 func (o Obj) String() string {
 	switch o.Type() {
@@ -59,7 +55,19 @@ func (o Obj) String() string {
 	case FnType:
 		return "<fn " + o.Fn().Name() + ">"
 	case ListType:
-		return strings.Join(o.List(), ":")
+		result := ""
+		list := o.List()
+		for i := 0; i < len(list); i++ {
+			l := list[i]
+
+			result += l.String()
+
+			if i < len(list)-1 {
+				result += " "
+			}
+		}
+
+		return result
 	}
 
 	return "<unknown>"

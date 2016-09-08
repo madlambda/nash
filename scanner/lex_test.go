@@ -286,6 +286,51 @@ func TestLexerListAssignment(t *testing.T) {
         $bell
         labs
 )`, expected, t)
+}
+
+func TestLexerListOfLists(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "l"},
+		{typ: token.Assign, val: "="},
+		{typ: token.LParen, val: "("},
+		{typ: token.LParen, val: "("},
+		{typ: token.RParen, val: ")"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("testlistoflists", `l = (())`, expected, t)
+	testTable("testlistoflists", `l = (
+		()
+	)`, expected, t)
+
+	expected = []Token{
+		{typ: token.Ident, val: "l"},
+		{typ: token.Assign, val: "="},
+		{typ: token.LParen, val: "("},
+
+		{typ: token.LParen, val: "("},
+		{typ: token.Ident, val: "plan9"},
+		{typ: token.Ident, val: "from"},
+		{typ: token.Ident, val: "bell"},
+		{typ: token.Ident, val: "labs"},
+		{typ: token.RParen, val: ")"},
+
+		{typ: token.LParen, val: "("},
+		{typ: token.Ident, val: "linux"},
+		{typ: token.RParen, val: ")"},
+
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("testlistoflists", `l = ((plan9 from bell labs) (linux))`, expected, t)
+	testTable("testlistoflists", `l = (
+		(plan9 from bell labs)
+		(linux)
+	)`, expected, t)
 
 }
 

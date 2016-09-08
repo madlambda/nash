@@ -523,6 +523,42 @@ func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
 	return p.parseAssignCmdOut(ident)
 }
 
+func (p *Parser) parseList() (ast.Node, error) {
+	var (
+		arg ast.Expr
+		err error
+	)
+
+	lit := p.next()
+
+	var values []ast.Expr
+
+	it := p.peek()
+
+	for isValidArgument(it) || it.Type() == token.LParen {
+		if it.Type() == token.LParen {
+			arg, err = p.parseList()
+		} else {
+			arg, err = p.getArgument(true, true)
+		}
+
+		if err != nil {
+			return nil, err
+		}
+
+		it = p.peek()
+
+		values = append(values, arg)
+	}
+
+	if it.Type() != token.RParen {
+		return nil, errors.NewUnfinishedListError(p.name, it)
+	}
+
+	p.ignore()
+	return ast.NewListExpr(lit.Pos(), values), nil
+}
+
 func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 	var err error
 
@@ -540,30 +576,11 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 		}
 
 	} else if it.Type() == token.LParen { // list
-		lit := p.next()
+		value, err = p.parseList()
 
-		var values []ast.Expr
-
-		it = p.peek()
-
-		for isValidArgument(it) {
-			arg, err := p.getArgument(true, true)
-
-			if err != nil {
-				return nil, err
-			}
-
-			it = p.peek()
-
-			values = append(values, arg)
+		if err != nil {
+			return nil, err
 		}
-
-		if it.Type() != token.RParen {
-			return nil, errors.NewUnfinishedListError(p.name, it)
-		}
-
-		p.ignore()
-		value = ast.NewListExpr(lit.Pos(), values)
 	} else {
 		return nil, newParserError(it, p.name, "Unexpected token %v. Expecting VARIABLE or STRING or (", it)
 	}

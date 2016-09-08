@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"strings"
 
 	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
@@ -87,7 +86,7 @@ func (c *Cmd) processArgs(cmd string, nodeArgs []ast.Expr, envShell *Shell) ([]s
 		if obj.Type() == StringType {
 			argVal = obj.Str()
 		} else if obj.Type() == ListType {
-			argVal = strings.Join(obj.List(), " ")
+			argVal = obj.String()
 		} else if obj.Type() == FnType {
 			return nil, errors.NewError("Function cannot be passed as argument to commands.")
 		} else {

@@ -34,9 +34,9 @@ func TestBuildEnv(t *testing.T) {
 	}
 
 	env = Env{
-		"PATH": NewListObj([]string{
-			"/bin",
-			"/usr/bin",
+		"PATH": NewListObj([]*Obj{
+			NewStrObj("/bin"),
+			NewStrObj("/usr/bin"),
 		}),
 	}
 
@@ -53,9 +53,9 @@ func TestBuildEnv(t *testing.T) {
 	}
 
 	env = Env{
-		"PATH": NewListObj([]string{
-			"/bin",
-			"/usr/bin",
+		"PATH": NewListObj([]*Obj{
+			NewStrObj("/bin"),
+			NewStrObj("/usr/bin"),
 		}),
 		"path": NewStrObj("abracadabra"),
 	}
