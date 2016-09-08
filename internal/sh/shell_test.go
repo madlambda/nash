@@ -1930,3 +1930,30 @@ world`)
 		return
 	}
 }
+
+func TestExecuteBuiltinLen(t *testing.T) {
+	sh, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.Exec("test len", `a = (1 2 3 4 5 6 7 8 9 0)
+len_a <= len($a)
+echo -n $len_a`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if "10" != string(out.Bytes()) {
+		t.Errorf("String differs: '%s' != '%s'", "10", string(out.Bytes()))
+		return
+	}
+}

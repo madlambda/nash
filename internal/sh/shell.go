@@ -414,8 +414,11 @@ func (sh *Shell) String() string {
 }
 
 func (sh *Shell) setupBuiltin() error {
-	chdir := NewChdir(sh)
+	lenfn := NewLenFn(sh)
+	sh.builtins["len"] = lenfn
+	sh.Setvar("len", NewFnObj(lenfn))
 
+	chdir := NewChdir(sh)
 	sh.builtins["chdir"] = chdir
 	sh.Setvar("chdir", NewFnObj(chdir))
 
