@@ -559,7 +559,7 @@ func (sh *Shell) evalConcat(path ast.Expr) (string, error) {
 
 		case ast.NodeConcatExpr:
 			return "", errors.NewError("Nested concat is not allowed")
-		case ast.NodeVarExpr:
+		case ast.NodeVarExpr, ast.NodeIndexExpr:
 			partValues, err := sh.evalVariable(part)
 
 			if err != nil {

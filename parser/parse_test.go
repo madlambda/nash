@@ -495,6 +495,43 @@ cd $GOPATH+"/src/github.com"`, expected, t, true)
 
 }
 
+func TestParseConcatOfIndexedVar(t *testing.T) {
+	expected := ast.NewTree("concat indexed var")
+	ln := ast.NewListNode()
+	arg1 := ast.NewStringExpr(0, "ec2", false)
+	arg2 := ast.NewStringExpr(0, "create-tags", false)
+	arg3 := ast.NewStringExpr(0, "--resources", false)
+	arg4 := ast.NewVarExpr(0, "$resource")
+	arg5 := ast.NewStringExpr(0, "--tags", false)
+
+	c1 := ast.NewStringExpr(0, "Key=", true)
+	c2 := ast.NewIndexExpr(0, ast.NewVarExpr(0, "$tag"), ast.NewIntExpr(0, 0))
+	c3 := ast.NewStringExpr(0, ",Value=", true)
+	c4 := ast.NewIndexExpr(0, ast.NewVarExpr(0, "$tag"), ast.NewIntExpr(0, 1))
+	cvalues := make([]ast.Expr, 4)
+	cvalues[0] = c1
+	cvalues[1] = c2
+	cvalues[2] = c3
+	cvalues[3] = c4
+
+	arg6 := ast.NewConcatExpr(0, cvalues)
+
+	cmd := ast.NewCommandNode(0, "aws", false)
+	cmd.AddArg(arg1)
+	cmd.AddArg(arg2)
+	cmd.AddArg(arg3)
+	cmd.AddArg(arg4)
+	cmd.AddArg(arg5)
+	cmd.AddArg(arg6)
+
+	ln.Push(cmd)
+	expected.Root = ln
+
+	parserTestTable("concat indexed var",
+		`aws ec2 create-tags --resources $resource --tags "Key="+$tag[0]+",Value="+$tag[1]`,
+		expected, t, true)
+}
+
 func TestParseRfork(t *testing.T) {
 	expected := ast.NewTree("test rfork")
 	ln := ast.NewListNode()

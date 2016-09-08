@@ -1434,6 +1434,23 @@ echo -n $c`)
 		t.Errorf("Must be equal. '%s' != '%s'", string(out.Bytes()), "ABC")
 		return
 	}
+
+	out.Reset()
+
+	err = sh.Exec("concat indexed var", `tag = (Name some)
+	echo -n "Key="+$tag[0]+",Value="+$tag[1]`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected := "Key=Name,Value=some"
+
+	if expected != string(out.Bytes()) {
+		t.Errorf("String differs: '%s' != '%s'", expected, string(out.Bytes()))
+		return
+	}
 }
 
 func TestExecuteFor(t *testing.T) {
