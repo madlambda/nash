@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -34,10 +33,10 @@ func buildenv(e Env) []string {
 			continue
 		}
 
-		if v.Type() == StringType {
-			env = append(env, k+"="+v.Str())
-		} else if v.Type() == ListType {
-			env = append(env, k+"=("+strings.Join(v.List(), " ")+")")
+		if v.Type() == ListType {
+			env = append(env, k+"=("+v.String()+")")
+		} else {
+			env = append(env, k+"="+v.String())
 		}
 	}
 
@@ -48,9 +47,7 @@ func printVar(out io.Writer, name string, val *Obj) {
 	if val.Type() == StringType {
 		fmt.Fprintf(out, "%s = \"%s\"\n", name, val.Str())
 	} else if val.Type() == ListType {
-		fmt.Fprintf(out, "%s = ", name)
-		listStr := strings.Join(val.List(), ", ")
-		fmt.Fprintf(out, "(\"%s\")\n", listStr)
+		fmt.Fprintf(out, "%s = (%s)\n", name, val.String())
 	}
 }
 

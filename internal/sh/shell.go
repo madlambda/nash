@@ -185,7 +185,13 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 
 // initEnv creates a new environment from old one
 func (sh *Shell) initEnv(processEnv []string) error {
-	argv := NewListObj(os.Args)
+	largs := make([]*Obj, len(os.Args))
+
+	for i := 0; i < len(os.Args); i++ {
+		largs[i] = NewStrObj(os.Args[i])
+	}
+
+	argv := NewListObj(largs)
 
 	sh.Setenv("argv", argv)
 	sh.Setvar("argv", argv)
@@ -1229,6 +1235,22 @@ cmdError:
 	return err
 }
 
+func (sh *Shell) evalList(argList *ast.ListExpr) (*Obj, error) {
+	values := make([]*Obj, 0, len(argList.List()))
+
+	for _, arg := range argList.List() {
+		obj, err := sh.evalExpr(arg)
+
+		if err != nil {
+			return nil, err
+		}
+
+		values = append(values, obj)
+	}
+
+	return NewListObj(values), nil
+}
+
 func (sh *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (*Obj, error) {
 	var (
 		indexNum int
@@ -1275,8 +1297,7 @@ func (sh *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (*Obj, error) {
 		return nil, errors.NewError("Index out of bounds. len(%s) == %d, but given %d", variable.Name(), len(values), indexNum)
 	}
 
-	value := values[indexNum]
-	return NewStrObj(value), nil
+	return values[indexNum], nil
 }
 
 func (sh *Shell) evalVariable(a ast.Expr) (*Obj, error) {
@@ -1318,9 +1339,7 @@ func (sh *Shell) evalExpr(expr ast.Expr) (*Obj, error) {
 
 		return NewStrObj(argVal), nil
 	case ast.NodeVarExpr:
-		obj, err := sh.evalVariable(expr)
-
-		return obj, err
+		return sh.evalVariable(expr)
 	case ast.NodeIndexExpr:
 		indexedVar, ok := expr.(*ast.IndexExpr)
 
@@ -1328,28 +1347,11 @@ func (sh *Shell) evalExpr(expr ast.Expr) (*Obj, error) {
 			return nil, errors.NewError("Failed to eval indexed variable")
 		}
 
-		obj, err := sh.evalIndexedVar(indexedVar)
-
-		return obj, err
+		return sh.evalIndexedVar(indexedVar)
 	case ast.NodeListExpr:
 		argList := expr.(*ast.ListExpr)
-		values := make([]string, 0, len(argList.List()))
 
-		for _, arg := range argList.List() {
-			obj, err := sh.evalExpr(arg)
-
-			if err != nil {
-				return nil, err
-			}
-
-			if obj.Type() != StringType {
-				return nil, errors.NewError("Nested lists are not supported")
-			}
-
-			values = append(values, obj.Str())
-		}
-
-		return NewListObj(values), nil
+		return sh.evalList(argList)
 	}
 
 	return nil, errors.NewError("Invalid argument type: %+v", expr)
@@ -1439,7 +1441,11 @@ func (sh *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 	if ifs, ok := sh.GetVar("IFS"); ok && ifs.Type() == ListType && len(ifs.List()) > 0 {
 		strelems = strings.FieldsFunc(outStr, func(r rune) bool {
 			for _, delim := range ifs.List() {
-				if len(delim) > 0 && rune(delim[0]) == r {
+				if delim.Type() != StringType {
+					continue
+				}
+
+				if len(delim.Str()) > 0 && rune(delim.Str()[0]) == r {
 					return true
 				}
 			}
@@ -1447,7 +1453,13 @@ func (sh *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 			return false
 		})
 
-		sh.Setvar(v.Name(), NewListObj(strelems))
+		objelems := make([]*Obj, len(strelems))
+
+		for i := 0; i < len(strelems); i++ {
+			objelems[i] = NewStrObj(strelems[i])
+		}
+
+		sh.Setvar(v.Name(), NewListObj(objelems))
 	} else {
 		sh.Setvar(v.Name(), NewStrObj(outStr))
 	}
@@ -1678,7 +1690,7 @@ func (sh *Shell) executeFor(n *ast.ForNode) error {
 	}
 
 	for _, val := range obj.List() {
-		sh.Setvar(id, NewStrObj(val))
+		sh.Setvar(id, val)
 
 		_, err = sh.ExecuteTree(n.Tree())
 

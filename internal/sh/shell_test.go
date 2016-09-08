@@ -180,6 +180,8 @@ func TestExecuteAssignment(t *testing.T) {
 		return
 	}
 
+	out.Reset()
+
 	sh, err = NewShell()
 
 	if err != nil {
@@ -195,6 +197,34 @@ func TestExecuteAssignment(t *testing.T) {
 
 	if err == nil {
 		t.Error("Must fail")
+		return
+	}
+
+	out.Reset()
+
+	sh.SetStdout(&out)
+
+	err = sh.Exec("list of lists", `l = (
+		(name Archlinux)
+		(arch amd64)
+		(kernel 4.7.1)
+	)
+
+	echo $l[0]
+	echo $l[1]
+	echo -n $l[2]`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expected := `name Archlinux
+arch amd64
+kernel 4.7.1`
+
+	if expected != string(out.Bytes()) {
+		t.Errorf("expected '%s' but got '%s'", expected, string(out.Bytes()))
 		return
 	}
 }
