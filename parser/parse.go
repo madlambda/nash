@@ -403,7 +403,7 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 func (p *Parser) parseImport(importToken scanner.Token) (ast.Node, error) {
 	it := p.next()
 
-	if it.Type() != token.Arg && it.Type() != token.String {
+	if it.Type() != token.Arg && it.Type() != token.String && it.Type() != token.Ident {
 		return nil, newParserError(it, p.name, "Unexpected token %v. Expecting ARG or STRING", it)
 	}
 
@@ -411,7 +411,7 @@ func (p *Parser) parseImport(importToken scanner.Token) (ast.Node, error) {
 
 	if it.Type() == token.String {
 		arg = ast.NewStringExpr(it.Pos(), it.Value(), true)
-	} else if it.Type() == token.Arg {
+	} else if it.Type() == token.Arg || it.Type() == token.Ident {
 		arg = ast.NewStringExpr(it.Pos(), it.Value(), false)
 	} else {
 		return nil, newParserError(it, p.name, "Parser error: Invalid token '%v' for import path", it)
