@@ -675,7 +675,7 @@ func (p *Parser) parseIf(it scanner.Token) (ast.Node, error) {
 		p.next()
 		arg := ast.NewStringExpr(it.Pos(), it.Value(), true)
 		n.SetLvalue(arg)
-	} else if it.Type() == token.Variable {
+	} else {
 		arg, err := p.parseVariable()
 
 		if err != nil {
@@ -683,9 +683,6 @@ func (p *Parser) parseIf(it scanner.Token) (ast.Node, error) {
 		}
 
 		n.SetLvalue(arg)
-	} else {
-		return nil, errors.NewError("Unexpected token %v, expected %v or %v",
-			it, token.String, token.Variable)
 	}
 
 	it = p.next()
@@ -701,17 +698,23 @@ func (p *Parser) parseIf(it scanner.Token) (ast.Node, error) {
 
 	n.SetOp(it.Value())
 
-	it = p.next()
+	it = p.peek()
 
 	if it.Type() != token.String && it.Type() != token.Variable {
 		return nil, newParserError(it, p.name, "if requires an rvalue of type string or variable. Found %v", it)
 	}
 
 	if it.Type() == token.String {
+		p.next()
 		arg := ast.NewStringExpr(it.Pos(), it.Value(), true)
 		n.SetRvalue(arg)
 	} else {
-		arg := ast.NewStringExpr(it.Pos(), it.Value(), false)
+		arg, err := p.parseVariable()
+
+		if err != nil {
+			return nil, err
+		}
+
 		n.SetRvalue(arg)
 	}
 

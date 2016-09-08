@@ -676,6 +676,31 @@ func TestParseIfLvariable(t *testing.T) {
 }`, expected, t, true)
 }
 
+func TestParseIfRvariable(t *testing.T) {
+	expected := ast.NewTree("test if with variable")
+	ln := ast.NewListNode()
+	ifDecl := ast.NewIfNode(0)
+	ifDecl.SetLvalue(ast.NewVarExpr(3, "$test"))
+	ifDecl.SetRvalue(ast.NewVarExpr(13, "$other"))
+	ifDecl.SetOp("==")
+
+	subBlock := ast.NewListNode()
+	cmd := ast.NewCommandNode(23, "pwd", false)
+	subBlock.Push(cmd)
+
+	ifTree := ast.NewTree("if block")
+	ifTree.Root = subBlock
+
+	ifDecl.SetIfTree(ifTree)
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("test if", `if $test == $other {
+	pwd
+}`, expected, t, true)
+}
+
 func TestParseIfElse(t *testing.T) {
 	expected := ast.NewTree("test if else with variable")
 	ln := ast.NewListNode()
