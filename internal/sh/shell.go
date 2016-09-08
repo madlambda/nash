@@ -1434,10 +1434,6 @@ func (sh *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 		err = errors.NewError("Unexpected node in assignment: %s", assign.String())
 	}
 
-	if err != nil {
-		return err
-	}
-
 	var strelems []string
 
 	outStr := string(varOut.Bytes())
@@ -1468,7 +1464,7 @@ func (sh *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 		sh.Setvar(v.Name(), NewStrObj(outStr))
 	}
 
-	return nil
+	return err
 }
 
 func (sh *Shell) executeAssignment(v *ast.AssignmentNode) error {
