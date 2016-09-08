@@ -1573,3 +1573,18 @@ func TestLexerMultilineCmdAssign(t *testing.T) {
 	BBBBB BBBBB
 )`, expected, t)
 }
+
+func TestLexerCommandDelimiter(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "echo"},
+		{typ: token.String, val: "hello"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.Ident, val: "echo"},
+		{typ: token.String, val: "world"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("semicolons to separate commands",
+		`echo "hello"; echo "world"`, expected, t)
+}

@@ -343,6 +343,21 @@ echo "hello"
 `, expected, t, true)
 }
 
+func TestParseCommandSeparatedBySemicolon(t *testing.T) {
+	expected := ast.NewTree("semicolon")
+	ln := ast.NewListNode()
+	cmd1 := ast.NewCommandNode(0, "echo", false)
+	cmd2 := ast.NewCommandNode(11, "echo", false)
+	cmd1.AddArg(ast.NewStringExpr(5, "hello", false))
+	cmd2.AddArg(ast.NewStringExpr(17, "world", false))
+
+	ln.Push(cmd1)
+	ln.Push(cmd2)
+	expected.Root = ln
+
+	parserTestTable("strings works as expected", `echo hello;echo world`, expected, t, false)
+}
+
 func TestParseStringNotFinished(t *testing.T) {
 	parser := NewParser("string not finished", `echo "hello world`)
 	tr, err := parser.Parse()

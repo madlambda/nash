@@ -239,6 +239,9 @@ func lexStart(l *Lexer) stateFn {
 		}
 
 		return lexStart
+	case r == ';':
+		l.emit(token.Semicolon)
+		return lexStart
 	case isSpace(r):
 		return lexSpace
 
@@ -365,7 +368,7 @@ func lexStart(l *Lexer) stateFn {
 		return lexStart
 	}
 
-	return l.errorf("Unrecognized character in action: %#U", r, l.pos)
+	return l.errorf("Unrecognized character in action: %#U", r)
 }
 
 func absorbIdentifier(l *Lexer) {
