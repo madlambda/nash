@@ -203,3 +203,13 @@ func TestParseIssue69(t *testing.T) {
 
 	parserTestTable("parse-issue-69", `a = ($a+"b")`, expected, t, true)
 }
+
+func TestParseImportIssue94(t *testing.T) {
+	expected := ast.NewTree("test import")
+	ln := ast.NewListNode()
+	importStmt := ast.NewImportNode(0, ast.NewStringExpr(7, "common", false))
+	ln.Push(importStmt)
+	expected.Root = ln
+
+	parserTestTable("test import", "import common", expected, t, true)
+}
