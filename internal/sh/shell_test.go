@@ -295,6 +295,14 @@ func TestExecuteCmdAssignment(t *testing.T) {
 		t.Error("Must fail")
 		return
 	}
+
+	err = sh.Exec("fn must return value", `fn e() {}
+v <= e()`)
+
+	if err == nil {
+		t.Errorf("Must fail")
+		return
+	}
 }
 
 func TestExecuteCmdAssignmentIFS(t *testing.T) {

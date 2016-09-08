@@ -1424,6 +1424,10 @@ func (sh *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 			return err
 		}
 
+		if fnValues == nil {
+			return errors.NewError("Invalid assignment from function that does not return values: %s", assign)
+		}
+
 		sh.Setvar(v.Name(), fnValues)
 		return nil
 	default:
