@@ -909,9 +909,7 @@ pipeError:
 		errs[errIndex] = err.Error()
 	}
 
-	if cods[errIndex] == strconv.Itoa(ENotStarted) {
-		cods[errIndex] = getErrStatus(err, ENotStarted)
-	}
+	cods[errIndex] = getErrStatus(err, cods[errIndex])
 
 	err = errors.NewError(strings.Join(errs, "|"))
 
@@ -1170,7 +1168,7 @@ func (sh *Shell) getCommand(c *ast.CommandNode) (Runner, bool, error) {
 func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 	var (
 		ignoreError    bool
-		status         = 127
+		status         = "127"
 		envVars        []string
 		closeAfterWait []io.Closer
 		cmd            Runner

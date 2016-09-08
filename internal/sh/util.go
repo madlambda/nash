@@ -55,16 +55,16 @@ func printEnv(out io.Writer, name string) {
 	fmt.Fprintf(out, "setenv %s\n", name)
 }
 
-func getErrStatus(err error, def int) string {
+func getErrStatus(err error, def string) string {
 	status := def
 
 	if exiterr, ok := err.(*exec.ExitError); ok {
 		if statusObj, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			status = statusObj.ExitStatus()
+			status = strconv.Itoa(statusObj.ExitStatus())
 		}
 	}
 
-	return strconv.Itoa(status)
+	return status
 }
 
 func nashdAutoDiscover() string {
