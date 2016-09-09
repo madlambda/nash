@@ -714,11 +714,23 @@ func (sh *Shell) executeImport(node *ast.ImportNode) error {
 		return sh.ExecFile(fname)
 	}
 
-	tries := make([]string, 0, 4)
+	tries := make([]string, 0, 5)
 	tries = append(tries, fname)
+
+	var hasExt bool
+
+	if len(fname) > 3 && fname[len(fname)-3:] == ".sh" {
+		hasExt = true
+	} else {
+		tries = append(tries, fname+".sh")
+	}
 
 	if sh.currentFile != "" {
 		tries = append(tries, path.Dir(sh.currentFile)+"/"+fname)
+
+		if !hasExt {
+			tries = append(tries, path.Dir(sh.currentFile)+"/"+fname+".sh")
+		}
 	}
 
 	nashPath, ok := sh.Getenv("NASHPATH")
@@ -731,8 +743,11 @@ func (sh *Shell) executeImport(node *ast.ImportNode) error {
 
 	dotDir := nashPath.String()
 
-	tries = append(tries, dotDir+"/"+fname)
 	tries = append(tries, dotDir+"/lib/"+fname)
+
+	if !hasExt {
+		tries = append(tries, dotDir+"/lib/"+fname+".sh")
+	}
 
 	sh.logf("Trying %q\n", tries)
 
