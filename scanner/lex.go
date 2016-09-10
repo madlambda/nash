@@ -516,7 +516,7 @@ func isArgument(r rune) bool {
 	isId := isAlpha(r)
 
 	return isId || (r != eof && !isEndOfLine(r) && !isSpace(r) &&
-		r != '{' && r != '}' && r != '(' && r != ']' && r != '[' &&
+		r != '$' && r != '{' && r != '}' && r != '(' && r != ']' && r != '[' &&
 		r != ')' && r != '>' && r != '"' && r != ',' && r != ';')
 }
 

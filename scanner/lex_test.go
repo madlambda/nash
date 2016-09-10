@@ -1633,3 +1633,37 @@ func TestLexerCommandDelimiter(t *testing.T) {
 	testTable("semicolons to separate commands",
 		`echo "hello"; echo "world"`, expected, t)
 }
+
+func TestLexerLongAssignment(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "grpid"},
+		{typ: token.AssignCmd, val: "<="},
+		{typ: token.LParen, val: "("},
+		{typ: token.Ident, val: "aws"},
+		{typ: token.Ident, val: "ec2"},
+		{typ: token.Arg, val: "create-security-group"},
+		{typ: token.Arg, val: "--group-name"},
+		{typ: token.Variable, val: "$name"},
+		{typ: token.Arg, val: "--description"},
+		{typ: token.Variable, val: "$desc"},
+		{typ: token.Variable, val: "$vpcarg"},
+		{typ: token.Pipe, val: "|"},
+		{typ: token.Ident, val: "jq"},
+		{typ: token.String, val: ".GroupId"},
+		{typ: token.Pipe, val: "|"},
+		{typ: token.Ident, val: "xargs"},
+		{typ: token.Ident, val: "echo"},
+		{typ: token.Arg, val: "-n"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test xxx", `grpid <= (
+	aws ec2 create-security-group
+				--group-name $name
+				--description $desc
+				$vpcarg |
+	jq ".GroupId" |
+	xargs echo -n)`, expected, t)
+}
