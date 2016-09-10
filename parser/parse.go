@@ -874,7 +874,8 @@ func (p *Parser) parseFnInv(ident scanner.Token) (ast.Node, error) {
 			p.next()
 			break
 		} else {
-			return nil, errors.NewError("Unexpected token %v. Expecting STRING, VARIABLE or )", it)
+			return nil, newParserError(it, p.name,
+				"Unexpected token %v. Expecting STRING, VARIABLE or )", it)
 		}
 
 		if p.peek().Type() == token.Comma {

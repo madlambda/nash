@@ -1773,7 +1773,7 @@ func TestExecuteGracefullyError(t *testing.T) {
 		return
 	}
 
-	if err.Error() != "Unexpected token EOF. Expecting STRING, VARIABLE or )" {
+	if err.Error() != "input:1:5: Unexpected token EOF. Expecting STRING, VARIABLE or )" {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return
 	}

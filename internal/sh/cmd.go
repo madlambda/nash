@@ -69,12 +69,10 @@ func (c *Cmd) SetStdout(out io.Writer) { c.Cmd.Stdout = out }
 func (c *Cmd) SetStderr(err io.Writer) { c.Cmd.Stderr = err }
 
 func (c *Cmd) processArgs(cmd string, nodeArgs []ast.Expr, envShell *Shell) ([]string, error) {
-	args := make([]string, len(nodeArgs)+1)
+	args := make([]string, 1, len(nodeArgs)+1)
 	args[0] = cmd
 
 	for i := 0; i < len(nodeArgs); i++ {
-		var argVal string
-
 		carg := nodeArgs[i]
 
 		obj, err := envShell.evalExpr(carg)
@@ -84,16 +82,22 @@ func (c *Cmd) processArgs(cmd string, nodeArgs []ast.Expr, envShell *Shell) ([]s
 		}
 
 		if obj.Type() == StringType {
-			argVal = obj.Str()
+			args = append(args, obj.Str())
 		} else if obj.Type() == ListType {
-			argVal = obj.String()
+			objlist := obj.List()
+
+			for _, l := range objlist {
+				if l.Type() != StringType {
+					return nil, errors.NewError("Command arguments requires string or list of strings. But received '%v'", l.String())
+				}
+
+				args = append(args, l.Str())
+			}
 		} else if obj.Type() == FnType {
 			return nil, errors.NewError("Function cannot be passed as argument to commands.")
 		} else {
 			return nil, errors.NewError("Invalid command argument '%v'", carg)
 		}
-
-		args[i+1] = argVal
 	}
 
 	return args, nil
