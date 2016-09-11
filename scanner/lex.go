@@ -12,11 +12,10 @@ import (
 
 type (
 	Token struct {
-		typ    token.Token
-		pos    token.Pos // start position of this token
-		line   int       // line of token
-		column int       // column of token in the line
-		val    string
+		typ token.Token
+		token.FileInfo
+
+		val string
 	}
 
 	stateFn func(*Lexer) stateFn
@@ -46,9 +45,6 @@ const (
 
 func (i Token) Type() token.Token { return i.typ }
 func (i Token) Value() string     { return i.val }
-func (i Token) Pos() token.Pos    { return i.pos }
-func (i Token) Line() int         { return i.line }
-func (i Token) Column() int       { return i.column }
 
 func (i Token) String() string {
 	switch i.typ {
@@ -80,11 +76,10 @@ func (l *Lexer) run() {
 
 func (l *Lexer) emitVal(t token.Token, val string, line, column int) {
 	l.Tokens <- Token{
-		typ:    t,
-		val:    val,
-		pos:    token.Pos(l.start),
-		line:   line,
-		column: column,
+		FileInfo: token.NewFileInfo(line, column),
+
+		typ: t,
+		val: val,
 	}
 
 	l.start = l.pos
@@ -92,11 +87,10 @@ func (l *Lexer) emitVal(t token.Token, val string, line, column int) {
 
 func (l *Lexer) emit(t token.Token) {
 	l.Tokens <- Token{
-		typ:    t,
-		val:    l.input[l.start:l.pos],
-		pos:    token.Pos(l.start),
-		line:   l.linenum,
-		column: l.column,
+		FileInfo: token.NewFileInfo(l.linenum, l.column),
+
+		typ: t,
+		val: l.input[l.start:l.pos],
 	}
 
 	l.start = l.pos
@@ -174,11 +168,10 @@ func (l *Lexer) errorf(format string, args ...interface{}) stateFn {
 	arguments = append(arguments, fname, l.linenum, l.column, errMsg)
 
 	l.Tokens <- Token{
-		typ:    token.Illegal,
-		val:    fmt.Sprintf("%s:%d:%d: %s", arguments...),
-		pos:    token.Pos(l.start),
-		line:   l.linenum,
-		column: l.column,
+		FileInfo: token.NewFileInfo(l.linenum, l.column),
+
+		typ: token.Illegal,
+		val: fmt.Sprintf("%s:%d:%d: %s", arguments...),
 	}
 
 	l.start = len(l.input)

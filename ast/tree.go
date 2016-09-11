@@ -6,7 +6,7 @@ type (
 	// Tree is the AST
 	Tree struct {
 		Name string
-		Root *ListNode // top-level root of the tree.
+		Root *BlockNode // top-level root of the tree.
 	}
 )
 

@@ -18,6 +18,7 @@ import (
 	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
 	"github.com/NeowayLabs/nash/parser"
+	"github.com/NeowayLabs/nash/token"
 )
 
 const (
@@ -1165,7 +1166,7 @@ func (sh *Shell) getCommand(c *ast.CommandNode) (Runner, bool, error) {
 				for i := 0 + len(c.Args()); i < len(fn.ArgNames()); i++ {
 					// fill missing args with empty string
 					// safe?
-					c.SetArgs(append(c.Args(), ast.NewStringExpr(0, "", true)))
+					c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
 				}
 
 				return fn, ignoreError, nil
@@ -1590,7 +1591,7 @@ func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 	fnName := n.Name()
 
 	if len(fnName) > 1 && fnName[0] == '$' {
-		argVar := ast.NewVarExpr(n.Position(), fnName)
+		argVar := ast.NewVarExpr(token.NewFileInfo(n.Line(), n.Column()), fnName)
 
 		obj, err := sh.evalVariable(argVar)
 
@@ -1693,7 +1694,7 @@ func (sh *Shell) executeFor(n *ast.ForNode) error {
 	id := n.Identifier()
 	inVar := n.InVar()
 
-	argVar := ast.NewVarExpr(n.Position(), inVar)
+	argVar := ast.NewVarExpr(token.NewFileInfo(n.Line(), n.Column()), inVar)
 
 	obj, err := sh.evalVariable(argVar)
 

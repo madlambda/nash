@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/NeowayLabs/nash/ast"
+	"github.com/NeowayLabs/nash/token"
 )
 
 func init() {
@@ -12,25 +13,25 @@ func init() {
 
 func TestParseIssue22(t *testing.T) {
 	expected := ast.NewTree("issue 22")
-	ln := ast.NewListNode()
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	fn := ast.NewFnDeclNode(0, "gocd")
+	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 0), "gocd")
 	fn.AddArg("path")
 
 	fnTree := ast.NewTree("fn")
-	fnBlock := ast.NewListNode()
+	fnBlock := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	ifDecl := ast.NewIfNode(17)
-	ifDecl.SetLvalue(ast.NewVarExpr(20, "$path"))
+	ifDecl := ast.NewIfNode(token.NewFileInfo(2, 1))
+	ifDecl.SetLvalue(ast.NewVarExpr(token.NewFileInfo(2, 4), "$path"))
 	ifDecl.SetOp("==")
 
-	ifDecl.SetRvalue(ast.NewStringExpr(30, "", true))
+	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(2, 13), "", true))
 
 	ifTree := ast.NewTree("if")
-	ifBlock := ast.NewListNode()
+	ifBlock := ast.NewBlockNode(token.NewFileInfo(2, 1))
 
-	cdNode := ast.NewCommandNode(36, "cd", false)
-	arg := ast.NewVarExpr(39, "$GOPATH")
+	cdNode := ast.NewCommandNode(token.NewFileInfo(3, 2), "cd", false)
+	arg := ast.NewVarExpr(token.NewFileInfo(3, 5), "$GOPATH")
 	cdNode.AddArg(arg)
 
 	ifBlock.Push(cdNode)
@@ -38,15 +39,15 @@ func TestParseIssue22(t *testing.T) {
 	ifDecl.SetIfTree(ifTree)
 
 	elseTree := ast.NewTree("else")
-	elseBlock := ast.NewListNode()
+	elseBlock := ast.NewBlockNode(token.NewFileInfo(4, 9))
 
 	args := make([]ast.Expr, 3)
-	args[0] = ast.NewVarExpr(0, "$GOPATH")
-	args[1] = ast.NewStringExpr(0, "/src/", true)
-	args[2] = ast.NewVarExpr(0, "$path")
+	args[0] = ast.NewVarExpr(token.NewFileInfo(5, 5), "$GOPATH")
+	args[1] = ast.NewStringExpr(token.NewFileInfo(5, 12), "/src/", true)
+	args[2] = ast.NewVarExpr(token.NewFileInfo(5, 20), "$path")
 
-	cdNodeElse := ast.NewCommandNode(0, "cd", false)
-	carg := ast.NewConcatExpr(0, args)
+	cdNodeElse := ast.NewCommandNode(token.NewFileInfo(5, 2), "cd", false)
+	carg := ast.NewConcatExpr(token.NewFileInfo(5, 5), args)
 	cdNodeElse.AddArg(carg)
 
 	elseBlock.Push(cdNodeElse)
@@ -74,17 +75,17 @@ func TestParseIssue22(t *testing.T) {
 func TestParseIssue38(t *testing.T) {
 	expected := ast.NewTree("parse issue38")
 
-	ln := ast.NewListNode()
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	fnInv := ast.NewFnInvNode(0, "cd")
+	fnInv := ast.NewFnInvNode(token.NewFileInfo(1, 0), "cd")
 
 	args := make([]ast.Expr, 3)
 
-	args[0] = ast.NewVarExpr(3, "$GOPATH")
-	args[1] = ast.NewStringExpr(11, "/src/", true)
-	args[2] = ast.NewVarExpr(19, "$path")
+	args[0] = ast.NewVarExpr(token.NewFileInfo(1, 3), "$GOPATH")
+	args[1] = ast.NewStringExpr(token.NewFileInfo(1, 11), "/src/", true)
+	args[2] = ast.NewVarExpr(token.NewFileInfo(1, 19), "$path")
 
-	arg := ast.NewConcatExpr(0, args)
+	arg := ast.NewConcatExpr(token.NewFileInfo(1, 3), args)
 
 	fnInv.AddArg(arg)
 
@@ -102,30 +103,30 @@ func TestParseIssue43(t *testing.T) {
 }`
 
 	expected := ast.NewTree("parse issue 41")
-	ln := ast.NewListNode()
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	fnDecl := ast.NewFnDeclNode(0, "gpull")
+	fnDecl := ast.NewFnDeclNode(token.NewFileInfo(1, 3), "gpull")
 	fnTree := ast.NewTree("fn")
-	fnBlock := ast.NewListNode()
+	fnBlock := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	gitRevParse := ast.NewCommandNode(24, "git", false)
+	gitRevParse := ast.NewCommandNode(token.NewFileInfo(2, 11), "git", false)
 
-	gitRevParse.AddArg(ast.NewStringExpr(28, "rev-parse", true))
-	gitRevParse.AddArg(ast.NewStringExpr(38, "--abbrev-ref", false))
-	gitRevParse.AddArg(ast.NewStringExpr(51, "HEAD", false))
+	gitRevParse.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 15), "rev-parse", true))
+	gitRevParse.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 25), "--abbrev-ref", false))
+	gitRevParse.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 38), "HEAD", false))
 
-	branchAssign, err := ast.NewExecAssignNode(14, "branch", gitRevParse)
+	branchAssign, err := ast.NewExecAssignNode(token.NewFileInfo(2, 1), "branch", gitRevParse)
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	xargs := ast.NewCommandNode(58, "xargs", false)
-	xargs.AddArg(ast.NewStringExpr(64, "echo", false))
-	xargs.AddArg(ast.NewStringExpr(69, "-n", false))
+	xargs := ast.NewCommandNode(token.NewFileInfo(2, 45), "xargs", false)
+	xargs.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 51), "echo", false))
+	xargs.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 56), "-n", false))
 
-	pipe := ast.NewPipeNode(56, false)
+	pipe := ast.NewPipeNode(token.NewFileInfo(2, 43), false)
 	pipe.AddCmd(gitRevParse)
 	pipe.AddCmd(xargs)
 
@@ -133,15 +134,15 @@ func TestParseIssue43(t *testing.T) {
 
 	fnBlock.Push(branchAssign)
 
-	gitPull := ast.NewCommandNode(73, "git", false)
+	gitPull := ast.NewCommandNode(token.NewFileInfo(1, 0), "git", false)
 
-	gitPull.AddArg(ast.NewStringExpr(77, "pull", false))
-	gitPull.AddArg(ast.NewStringExpr(82, "origin", false))
-	gitPull.AddArg(ast.NewVarExpr(89, "$branch"))
+	gitPull.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "pull", false))
+	gitPull.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "origin", false))
+	gitPull.AddArg(ast.NewVarExpr(token.NewFileInfo(1, 0), "$branch"))
 
 	fnBlock.Push(gitPull)
 
-	fnInv := ast.NewFnInvNode(98, "refreshPrompt")
+	fnInv := ast.NewFnInvNode(token.NewFileInfo(1, 0), "refreshPrompt")
 	fnBlock.Push(fnInv)
 	fnTree.Root = fnBlock
 
@@ -155,23 +156,23 @@ func TestParseIssue43(t *testing.T) {
 
 func TestParseIssue68(t *testing.T) {
 	expected := ast.NewTree("parse issue #68")
-	ln := ast.NewListNode()
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	catCmd := ast.NewCommandNode(0, "cat", false)
+	catCmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "cat", false)
 
-	catArg := ast.NewStringExpr(4, "PKGBUILD", false)
+	catArg := ast.NewStringExpr(token.NewFileInfo(1, 0), "PKGBUILD", false)
 	catCmd.AddArg(catArg)
 
-	sedCmd := ast.NewCommandNode(15, "sed", false)
-	sedArg := ast.NewStringExpr(20, `s#\$pkgdir#/home/i4k/alt#g`, true)
+	sedCmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "sed", false)
+	sedArg := ast.NewStringExpr(token.NewFileInfo(1, 0), `s#\$pkgdir#/home/i4k/alt#g`, true)
 	sedCmd.AddArg(sedArg)
 
-	sedRedir := ast.NewRedirectNode(0)
-	sedRedirArg := ast.NewStringExpr(0, "PKGBUILD2", false)
+	sedRedir := ast.NewRedirectNode(token.NewFileInfo(1, 0))
+	sedRedirArg := ast.NewStringExpr(token.NewFileInfo(1, 0), "PKGBUILD2", false)
 	sedRedir.SetLocation(sedRedirArg)
 	sedCmd.AddRedirect(sedRedir)
 
-	pipe := ast.NewPipeNode(13, false)
+	pipe := ast.NewPipeNode(token.NewFileInfo(1, 0), false)
 	pipe.AddCmd(catCmd)
 	pipe.AddCmd(sedCmd)
 
@@ -183,21 +184,21 @@ func TestParseIssue68(t *testing.T) {
 
 func TestParseIssue69(t *testing.T) {
 	expected := ast.NewTree("parse-issue-69")
-	ln := ast.NewListNode()
+	ln := ast.NewBlockNode(token.NewFileInfo(0, 0))
 
 	parts := make([]ast.Expr, 2)
 
-	parts[0] = ast.NewVarExpr(0, "$a")
-	parts[1] = ast.NewStringExpr(0, "b", true)
+	parts[0] = ast.NewVarExpr(token.NewFileInfo(1, 0), "$a")
+	parts[1] = ast.NewStringExpr(token.NewFileInfo(1, 0), "b", true)
 
-	concat := ast.NewConcatExpr(0, parts)
+	concat := ast.NewConcatExpr(token.NewFileInfo(1, 0), parts)
 
 	listValues := make([]ast.Expr, 1)
 	listValues[0] = concat
 
-	list := ast.NewListExpr(0, listValues)
+	list := ast.NewListExpr(token.NewFileInfo(1, 0), listValues)
 
-	assign := ast.NewAssignmentNode(0, "a", list)
+	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0), "a", list)
 	ln.Push(assign)
 	expected.Root = ln
 
@@ -206,8 +207,8 @@ func TestParseIssue69(t *testing.T) {
 
 func TestParseImportIssue94(t *testing.T) {
 	expected := ast.NewTree("test import")
-	ln := ast.NewListNode()
-	importStmt := ast.NewImportNode(0, ast.NewStringExpr(7, "common", false))
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+	importStmt := ast.NewImportNode(token.NewFileInfo(1, 0), ast.NewStringExpr(token.NewFileInfo(1, 0), "common", false))
 	ln.Push(importStmt)
 	expected.Root = ln
 

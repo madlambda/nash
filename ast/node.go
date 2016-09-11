@@ -22,9 +22,17 @@ type (
 	// Node represents nodes in the grammar
 	Node interface {
 		Type() NodeType
-		Position() token.Pos
-		String() string
 		IsEqual(Node) bool
+
+		// Line of node in the file
+		Line() int
+		// Column of the node in the file
+		Column() int
+
+		// String representation of the node.
+		// Note that it could not match the correspondent node in
+		// the source code.
+		String() string
 	}
 
 	// Expr is the interface of expression nodes.
@@ -33,10 +41,10 @@ type (
 	// NodeType is the types of grammar
 	NodeType int
 
-	// ListNode is the block
-	ListNode struct {
+	// BlockNode is the block
+	BlockNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		Nodes []Node
 	}
@@ -44,7 +52,7 @@ type (
 	// An ImportNode represents the node for an "import" keyword.
 	ImportNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		path *StringExpr // Import path
 	}
@@ -52,7 +60,7 @@ type (
 	// A SetenvNode represents the node for a "setenv" keyword.
 	SetenvNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		varName string
 	}
@@ -60,7 +68,7 @@ type (
 	// AssignmentNode is a node for variable assignments
 	AssignmentNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		name string
 		val  Expr
@@ -69,7 +77,7 @@ type (
 	// An ExecAssignNode represents the node for execution assignment.
 	ExecAssignNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		name string
 		cmd  Node
@@ -78,7 +86,7 @@ type (
 	// A CommandNode is a node for commands
 	CommandNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		name   string
 		args   []Expr
@@ -90,7 +98,7 @@ type (
 	// PipeNode represents the node for a command pipeline.
 	PipeNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		cmds  []*CommandNode
 		multi bool
@@ -99,7 +107,7 @@ type (
 	// StringExpr is a string argument
 	StringExpr struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		str    string
 		quoted bool
@@ -108,7 +116,7 @@ type (
 	// IntExpr is a integer used at indexing
 	IntExpr struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		val int
 	}
@@ -116,7 +124,7 @@ type (
 	// ListExpr is a list argument
 	ListExpr struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		list []Expr
 	}
@@ -124,7 +132,7 @@ type (
 	// ConcatExpr is a concatenation of arguments
 	ConcatExpr struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		concat []Expr
 	}
@@ -132,7 +140,7 @@ type (
 	// VarExpr is a variable argument
 	VarExpr struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		name string
 	}
@@ -140,7 +148,7 @@ type (
 	// IndexExpr is a indexed variable
 	IndexExpr struct {
 		NodeType
-		token.Pos
+		token.FileInfo
 
 		variable *VarExpr
 		index    Expr
@@ -149,7 +157,8 @@ type (
 	// RedirectNode represents the output redirection part of a command
 	RedirectNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
+
 		rmap     RedirMap
 		location Expr
 	}
@@ -157,7 +166,8 @@ type (
 	// RforkNode is a builtin node for rfork
 	RforkNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
+
 		arg  *StringExpr
 		tree *Tree
 	}
@@ -165,7 +175,8 @@ type (
 	// CommentNode is the node for comments
 	CommentNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
+
 		val string
 	}
 
@@ -178,7 +189,8 @@ type (
 	// IfNode represents the node for the "if" keyword.
 	IfNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
+
 		lvalue Expr
 		rvalue Expr
 		op     string
@@ -191,7 +203,8 @@ type (
 	// A FnDeclNode represents a function declaration.
 	FnDeclNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
+
 		name string
 		args []string
 		tree *Tree
@@ -200,7 +213,8 @@ type (
 	// A FnInvNode represents a function invocation statement.
 	FnInvNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
+
 		name string
 		args []Expr
 	}
@@ -208,14 +222,16 @@ type (
 	// A ReturnNode represents the "return" keyword.
 	ReturnNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
+
 		arg Expr
 	}
 
 	// A BindFnNode represents the "bindfn" keyword.
 	BindFnNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
+
 		name    string
 		cmdname string
 	}
@@ -223,14 +239,16 @@ type (
 	// A DumpNode represents the "dump" keyword.
 	DumpNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
+
 		filename Expr
 	}
 
 	// A ForNode represents the "for" keyword.
 	ForNode struct {
 		NodeType
-		token.Pos
+		token.FileInfo
+
 		identifier string
 		inVar      string
 		tree       *Tree
@@ -240,8 +258,11 @@ type (
 //go:generate stringer -type=NodeType
 
 const (
-	// NodeSetenv the type for "setenv" builtin keyword
+	// NodeSetenv is the type for "setenv" builtin keyword
 	NodeSetenv NodeType = iota + 1
+
+	// NodeBlock represents a program scope.
+	NodeBlock
 
 	// NodeAssignment is the type for simple variable assignment
 	NodeAssignment
@@ -259,6 +280,9 @@ const (
 
 	// NodePipe is the type for pipeline execution
 	NodePipe
+
+	// NodeRedirect is the type for redirection nodes
+	NodeRedirect
 
 	// NodeFnInv is the type for function invocation
 	NodeFnInv
@@ -343,30 +367,33 @@ func (t NodeType) IsExecutable() bool {
 	return t > execBegin && t < execEnd
 }
 
-// NewListNode creates a new block
-func NewListNode() *ListNode {
-	return &ListNode{}
+// NewBlockNode creates a new block
+func NewBlockNode(info token.FileInfo) *BlockNode {
+	return &BlockNode{
+		NodeType: NodeBlock,
+		FileInfo: info,
+	}
 }
 
 // Push adds a new node for a block of nodes
-func (l *ListNode) Push(n Node) {
+func (l *BlockNode) Push(n Node) {
 	l.Nodes = append(l.Nodes, n)
 }
 
-func (l *ListNode) String() string {
+func (l *BlockNode) String() string {
 	return "unimplemented"
 }
 
 // IsEqual returns if it is equal to the other node.
-func (l *ListNode) IsEqual(other Node) bool {
+func (l *BlockNode) IsEqual(other Node) bool {
 	if l == other {
 		return true
 	}
 
-	o, ok := other.(*ListNode)
+	o, ok := other.(*BlockNode)
 
 	if !ok {
-		debug("Failed to cast other node to ListNode")
+		debug("Failed to cast other node to BlockNode")
 		return false
 	}
 
@@ -386,10 +413,10 @@ func (l *ListNode) IsEqual(other Node) bool {
 }
 
 // NewImportNode creates a new ImportNode object
-func NewImportNode(pos token.Pos, path *StringExpr) *ImportNode {
+func NewImportNode(info token.FileInfo, path *StringExpr) *ImportNode {
 	return &ImportNode{
 		NodeType: NodeImport,
-		Pos:      pos,
+		FileInfo: info,
 
 		path: path,
 	}
@@ -428,11 +455,12 @@ func (n *ImportNode) String() string {
 }
 
 // NewSetenvNode creates a new assignment node
-func NewSetenvNode(pos token.Pos, name string) *SetenvNode {
+func NewSetenvNode(info token.FileInfo, name string) *SetenvNode {
 	return &SetenvNode{
 		NodeType: NodeSetenv,
-		Pos:      pos,
-		varName:  name,
+		FileInfo: info,
+
+		varName: name,
 	}
 }
 
@@ -461,10 +489,10 @@ func (n *SetenvNode) String() string {
 }
 
 // NewAssignmentNode creates a new assignment
-func NewAssignmentNode(pos token.Pos, ident string, value Expr) *AssignmentNode {
+func NewAssignmentNode(info token.FileInfo, ident string, value Expr) *AssignmentNode {
 	return &AssignmentNode{
 		NodeType: NodeAssignment,
-		Pos:      pos,
+		FileInfo: info,
 
 		name: ident,
 		val:  value,
@@ -534,17 +562,17 @@ func (n *AssignmentNode) String() string {
 // command, a pipe of commands or a function invocation.
 // It returns a *ExecAssignNode ready to be executed or error when n is not a valid
 // node for execution.
-func NewExecAssignNode(pos token.Pos, name string, n Node) (*ExecAssignNode, error) {
+func NewExecAssignNode(info token.FileInfo, name string, n Node) (*ExecAssignNode, error) {
 	if !n.Type().IsExecutable() {
 		return nil, errors.New("NewExecAssignNode expects a CommandNode, or PipeNode or FninvNode")
 	}
 
 	return &ExecAssignNode{
 		NodeType: NodeExecAssign,
-		Pos:      pos,
-		name:     name,
+		FileInfo: info,
 
-		cmd: n,
+		name: name,
+		cmd:  n,
 	}, nil
 }
 
@@ -602,12 +630,13 @@ func (n *ExecAssignNode) String() string {
 }
 
 // NewCommandNode creates a new node for commands
-func NewCommandNode(pos token.Pos, name string, multiline bool) *CommandNode {
+func NewCommandNode(info token.FileInfo, name string, multiline bool) *CommandNode {
 	return &CommandNode{
 		NodeType: NodeCommand,
-		Pos:      pos,
-		name:     name,
-		multi:    multiline,
+		FileInfo: info,
+
+		name:  name,
+		multi: multiline,
 	}
 }
 
@@ -773,10 +802,10 @@ func (n *CommandNode) String() string {
 }
 
 // NewPipeNode creates a new command pipeline
-func NewPipeNode(pos token.Pos, multi bool) *PipeNode {
+func NewPipeNode(info token.FileInfo, multi bool) *PipeNode {
 	return &PipeNode{
 		NodeType: NodePipe,
-		Pos:      pos,
+		FileInfo: info,
 
 		multi: multi,
 	}
@@ -901,13 +930,15 @@ func (n *PipeNode) String() string {
 }
 
 // NewRedirectNode creates a new redirection node for commands
-func NewRedirectNode(pos token.Pos) *RedirectNode {
+func NewRedirectNode(info token.FileInfo) *RedirectNode {
 	return &RedirectNode{
+		NodeType: NodeRedirect,
+		FileInfo: info,
+
 		rmap: RedirMap{
 			lfd: -1,
 			rfd: -1,
 		},
-		Pos: pos,
 	}
 }
 
@@ -985,10 +1016,10 @@ func (r *RedirectNode) String() string {
 }
 
 // NewRforkNode creates a new node for rfork
-func NewRforkNode(pos token.Pos) *RforkNode {
+func NewRforkNode(info token.FileInfo) *RforkNode {
 	return &RforkNode{
 		NodeType: NodeRfork,
-		Pos:      pos,
+		FileInfo: info,
 	}
 }
 
@@ -1051,11 +1082,12 @@ func (n *RforkNode) String() string {
 }
 
 // NewCommentNode creates a new node for comments
-func NewCommentNode(pos token.Pos, val string) *CommentNode {
+func NewCommentNode(info token.FileInfo, val string) *CommentNode {
 	return &CommentNode{
 		NodeType: NodeComment,
-		Pos:      pos,
-		val:      val,
+		FileInfo: info,
+
+		val: val,
 	}
 }
 
@@ -1083,10 +1115,10 @@ func (n *CommentNode) String() string {
 }
 
 // NewIfNode creates a new if block statement
-func NewIfNode(pos token.Pos) *IfNode {
+func NewIfNode(info token.FileInfo) *IfNode {
 	return &IfNode{
 		NodeType: NodeIf,
-		Pos:      pos,
+		FileInfo: info,
 	}
 }
 
@@ -1242,11 +1274,12 @@ func (n *IfNode) String() string {
 }
 
 // NewFnDeclNode creates a new function declaration
-func NewFnDeclNode(pos token.Pos, name string) *FnDeclNode {
+func NewFnDeclNode(info token.FileInfo, name string) *FnDeclNode {
 	return &FnDeclNode{
 		NodeType: NodeFnDecl,
-		Pos:      pos,
-		name:     name,
+		FileInfo: info,
+
+		name: name,
 	}
 }
 
@@ -1338,11 +1371,12 @@ func (n *FnDeclNode) String() string {
 }
 
 // NewFnInvNode creates a new function invocation
-func NewFnInvNode(pos token.Pos, name string) *FnInvNode {
+func NewFnInvNode(info token.FileInfo, name string) *FnInvNode {
 	return &FnInvNode{
 		NodeType: NodeFnInv,
-		Pos:      pos,
-		name:     name,
+		FileInfo: info,
+
+		name: name,
 	}
 }
 
@@ -1407,12 +1441,13 @@ func (n *FnInvNode) String() string {
 }
 
 // NewBindFnNode creates a new bindfn statement
-func NewBindFnNode(pos token.Pos, name, cmd string) *BindFnNode {
+func NewBindFnNode(info token.FileInfo, name, cmd string) *BindFnNode {
 	return &BindFnNode{
 		NodeType: NodeBindFn,
-		Pos:      pos,
-		name:     name,
-		cmdname:  cmd,
+		FileInfo: info,
+
+		name:    name,
+		cmdname: cmd,
 	}
 }
 
@@ -1442,10 +1477,10 @@ func (n *BindFnNode) String() string {
 }
 
 // NewDumpNode creates a new dump statement
-func NewDumpNode(pos token.Pos) *DumpNode {
+func NewDumpNode(info token.FileInfo) *DumpNode {
 	return &DumpNode{
 		NodeType: NodeDump,
-		Pos:      pos,
+		FileInfo: info,
 	}
 }
 
@@ -1492,9 +1527,9 @@ func (n *DumpNode) String() string {
 }
 
 // NewReturnNode create a return statement
-func NewReturnNode(pos token.Pos) *ReturnNode {
+func NewReturnNode(info token.FileInfo) *ReturnNode {
 	return &ReturnNode{
-		Pos:      pos,
+		FileInfo: info,
 		NodeType: NodeReturn,
 	}
 }
@@ -1543,10 +1578,10 @@ func (n *ReturnNode) String() string {
 }
 
 // NewForNode create a new for statement
-func NewForNode(pos token.Pos) *ForNode {
+func NewForNode(info token.FileInfo) *ForNode {
 	return &ForNode{
 		NodeType: NodeFor,
-		Pos:      pos,
+		FileInfo: info,
 	}
 }
 

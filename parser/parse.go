@@ -56,7 +56,7 @@ func NewParser(name, content string) *Parser {
 
 // Parse starts the parsing.
 func (p *Parser) Parse() (tr *ast.Tree, err error) {
-	var root *ast.ListNode
+	var root *ast.BlockNode
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -134,7 +134,7 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 		return nil, errors.NewError("Unexpected token %v. Expected VARIABLE", it)
 	}
 
-	variable := ast.NewVarExpr(it.Pos(), it.Value())
+	variable := ast.NewVarExpr(it.FileInfo, it.Value())
 
 	it = p.peek()
 
@@ -156,7 +156,7 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 				return nil, err
 			}
 
-			index = ast.NewIntExpr(it.Pos(), intval)
+			index = ast.NewIntExpr(it.FileInfo, intval)
 		} else {
 			p.backup(it)
 
@@ -173,7 +173,7 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 			return nil, errors.NewError("Unexpected token %v. Expecting ']'", it)
 		}
 
-		return ast.NewIndexExpr(variable.Position(), variable, index), nil
+		return ast.NewIndexExpr(variable.FileInfo, variable, index), nil
 	}
 
 	return variable, nil
@@ -182,7 +182,7 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
 	it := p.next()
 
-	n := ast.NewPipeNode(it.Pos(), first.IsMulti())
+	n := ast.NewPipeNode(it.FileInfo, first.IsMulti())
 	first.SetMulti(false)
 
 	n.AddCmd(first)
@@ -238,7 +238,7 @@ func (p *Parser) parseCommand(it scanner.Token) (ast.Node, error) {
 		return nil, newParserError(it, p.name, "Unexpected token %v. Expecting IDENT or ARG", it)
 	}
 
-	n := ast.NewCommandNode(it.Pos(), it.Value(), isMulti)
+	n := ast.NewCommandNode(it.FileInfo, it.Value(), isMulti)
 
 cmdLoop:
 	for {
@@ -313,7 +313,7 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 		err        error
 	)
 
-	redir := ast.NewRedirectNode(it.Pos())
+	redir := ast.NewRedirectNode(it.FileInfo)
 
 	it = p.peek()
 
@@ -410,9 +410,9 @@ func (p *Parser) parseImport(importToken scanner.Token) (ast.Node, error) {
 	var arg *ast.StringExpr
 
 	if it.Type() == token.String {
-		arg = ast.NewStringExpr(it.Pos(), it.Value(), true)
+		arg = ast.NewStringExpr(it.FileInfo, it.Value(), true)
 	} else if it.Type() == token.Arg || it.Type() == token.Ident {
-		arg = ast.NewStringExpr(it.Pos(), it.Value(), false)
+		arg = ast.NewStringExpr(it.FileInfo, it.Value(), false)
 	} else {
 		return nil, newParserError(it, p.name, "Parser error: Invalid token '%v' for import path", it)
 	}
@@ -421,11 +421,11 @@ func (p *Parser) parseImport(importToken scanner.Token) (ast.Node, error) {
 		p.ignore()
 	}
 
-	return ast.NewImportNode(importToken.Pos(), arg), nil
+	return ast.NewImportNode(importToken.FileInfo, arg), nil
 }
 
 func (p *Parser) parseSetenv(it scanner.Token) (ast.Node, error) {
-	pos := it.Pos()
+	fileInfo := it.FileInfo
 
 	it = p.next()
 
@@ -437,7 +437,7 @@ func (p *Parser) parseSetenv(it scanner.Token) (ast.Node, error) {
 		p.ignore()
 	}
 
-	return ast.NewSetenvNode(pos, it.Value()), nil
+	return ast.NewSetenvNode(fileInfo, it.Value()), nil
 }
 
 func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
@@ -463,10 +463,10 @@ func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
 			return nil, err
 		}
 	} else if firstToken.Type() == token.String {
-		arg = ast.NewStringExpr(firstToken.Pos(), firstToken.Value(), true)
+		arg = ast.NewStringExpr(firstToken.FileInfo, firstToken.Value(), true)
 	} else {
 		// Arg && Ident
-		arg = ast.NewStringExpr(firstToken.Pos(), firstToken.Value(), false)
+		arg = ast.NewStringExpr(firstToken.FileInfo, firstToken.Value(), false)
 	}
 
 	it = p.peek()
@@ -476,7 +476,7 @@ func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
 	}
 
 	if (firstToken.Type() == token.Arg || firstToken.Type() == token.Ident) && !allowArg {
-		return nil, newParserError(it, p.name, "Unquoted string not allowed at pos %d (%s)", it.Pos(), it.Value())
+		return nil, newParserError(it, p.name, "Unquoted string not allowed at pos %d (%s)", it.FileInfo, it.Value())
 	}
 
 	return arg, nil
@@ -506,7 +506,7 @@ hasConcat:
 		goto hasConcat
 	}
 
-	return ast.NewConcatExpr(firstArg.Position(), parts), nil
+	return ast.NewConcatExpr(token.NewFileInfo(firstArg.Line(), firstArg.Column()), parts), nil
 }
 
 func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
@@ -556,7 +556,7 @@ func (p *Parser) parseList() (ast.Node, error) {
 	}
 
 	p.ignore()
-	return ast.NewListExpr(lit.Pos(), values), nil
+	return ast.NewListExpr(lit.FileInfo, values), nil
 }
 
 func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
@@ -589,7 +589,7 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 		p.ignore()
 	}
 
-	return ast.NewAssignmentNode(assignIdent.Pos(), assignIdent.Value(), value), nil
+	return ast.NewAssignmentNode(assignIdent.FileInfo, assignIdent.Value(), value), nil
 }
 
 func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
@@ -622,11 +622,11 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 		return nil, err
 	}
 
-	return ast.NewExecAssignNode(name.Pos(), name.Value(), exec)
+	return ast.NewExecAssignNode(name.FileInfo, name.Value(), exec)
 }
 
 func (p *Parser) parseRfork(it scanner.Token) (ast.Node, error) {
-	n := ast.NewRforkNode(it.Pos())
+	n := ast.NewRforkNode(it.FileInfo)
 
 	it = p.next()
 
@@ -634,7 +634,7 @@ func (p *Parser) parseRfork(it scanner.Token) (ast.Node, error) {
 		return nil, newParserError(it, p.name, "rfork requires one or more of the following flags: %s", ast.RforkFlags)
 	}
 
-	arg := ast.NewStringExpr(it.Pos(), it.Value(), false)
+	arg := ast.NewStringExpr(it.FileInfo, it.Value(), false)
 	n.SetFlags(arg)
 
 	it = p.peek()
@@ -663,7 +663,7 @@ func (p *Parser) parseRfork(it scanner.Token) (ast.Node, error) {
 }
 
 func (p *Parser) parseIf(it scanner.Token) (ast.Node, error) {
-	n := ast.NewIfNode(it.Pos())
+	n := ast.NewIfNode(it.FileInfo)
 
 	it = p.peek()
 
@@ -673,7 +673,7 @@ func (p *Parser) parseIf(it scanner.Token) (ast.Node, error) {
 
 	if it.Type() == token.String {
 		p.next()
-		arg := ast.NewStringExpr(it.Pos(), it.Value(), true)
+		arg := ast.NewStringExpr(it.FileInfo, it.Value(), true)
 		n.SetLvalue(arg)
 	} else {
 		arg, err := p.parseVariable()
@@ -706,7 +706,7 @@ func (p *Parser) parseIf(it scanner.Token) (ast.Node, error) {
 
 	if it.Type() == token.String {
 		p.next()
-		arg := ast.NewStringExpr(it.Pos(), it.Value(), true)
+		arg := ast.NewStringExpr(it.FileInfo, it.Value(), true)
 		n.SetRvalue(arg)
 	} else {
 		arg, err := p.parseVariable()
@@ -802,7 +802,7 @@ func (p *Parser) parseFnArgs() ([]string, error) {
 }
 
 func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
-	n := ast.NewFnDeclNode(it.Pos(), "")
+	n := ast.NewFnDeclNode(it.FileInfo, "")
 
 	it = p.next()
 
@@ -851,7 +851,7 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 }
 
 func (p *Parser) parseFnInv(ident scanner.Token) (ast.Node, error) {
-	n := ast.NewFnInvNode(ident.Pos(), ident.Value())
+	n := ast.NewFnInvNode(ident.FileInfo, ident.Value())
 
 	it := p.next()
 
@@ -893,7 +893,7 @@ func (p *Parser) parseFnInv(ident scanner.Token) (ast.Node, error) {
 	return n, nil
 }
 
-func (p *Parser) parseElse() (*ast.ListNode, bool, error) {
+func (p *Parser) parseElse() (*ast.BlockNode, bool, error) {
 	it := p.next()
 
 	if it.Type() == token.LBrace {
@@ -915,7 +915,7 @@ func (p *Parser) parseElse() (*ast.ListNode, bool, error) {
 			return nil, false, err
 		}
 
-		block := ast.NewListNode()
+		block := ast.NewBlockNode(it.FileInfo)
 		block.Push(ifNode)
 
 		return block, true, nil
@@ -941,12 +941,12 @@ func (p *Parser) parseBindFn(bindIt scanner.Token) (ast.Node, error) {
 		p.ignore()
 	}
 
-	n := ast.NewBindFnNode(bindIt.Pos(), nameIt.Value(), cmdIt.Value())
+	n := ast.NewBindFnNode(bindIt.FileInfo, nameIt.Value(), cmdIt.Value())
 	return n, nil
 }
 
 func (p *Parser) parseDump(dumpIt scanner.Token) (ast.Node, error) {
-	dump := ast.NewDumpNode(dumpIt.Pos())
+	dump := ast.NewDumpNode(dumpIt.FileInfo)
 
 	fnameIt := p.peek()
 
@@ -957,11 +957,11 @@ func (p *Parser) parseDump(dumpIt scanner.Token) (ast.Node, error) {
 		p.ignore()
 		return dump, nil
 	case token.String:
-		arg = ast.NewStringExpr(fnameIt.Pos(), fnameIt.Value(), true)
+		arg = ast.NewStringExpr(fnameIt.FileInfo, fnameIt.Value(), true)
 	case token.Arg:
-		arg = ast.NewStringExpr(fnameIt.Pos(), fnameIt.Value(), false)
+		arg = ast.NewStringExpr(fnameIt.FileInfo, fnameIt.Value(), false)
 	case token.Variable:
-		arg = ast.NewVarExpr(fnameIt.Pos(), fnameIt.Value())
+		arg = ast.NewVarExpr(fnameIt.FileInfo, fnameIt.Value())
 	default:
 		return dump, nil
 	}
@@ -978,7 +978,7 @@ func (p *Parser) parseDump(dumpIt scanner.Token) (ast.Node, error) {
 }
 
 func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
-	ret := ast.NewReturnNode(retIt.Pos())
+	ret := ast.NewReturnNode(retIt.FileInfo)
 
 	valueIt := p.peek()
 
@@ -1007,6 +1007,7 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 	}
 
 	if valueIt.Type() == token.LParen {
+		listInfo := valueIt.FileInfo
 		p.ignore()
 
 		var values []ast.Expr
@@ -1031,7 +1032,7 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 			p.ignore()
 		}
 
-		listArg := ast.NewListExpr(ret.Position(), values)
+		listArg := ast.NewListExpr(listInfo, values)
 		ret.SetReturn(listArg)
 		return ret, nil
 	}
@@ -1052,7 +1053,7 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 }
 
 func (p *Parser) parseFor(it scanner.Token) (ast.Node, error) {
-	forStmt := ast.NewForNode(it.Pos())
+	forStmt := ast.NewForNode(it.FileInfo)
 
 	it = p.peek()
 
@@ -1102,7 +1103,7 @@ forBlockParse:
 }
 
 func (p *Parser) parseComment(it scanner.Token) (ast.Node, error) {
-	return ast.NewCommentNode(it.Pos(), it.Value()), nil
+	return ast.NewCommentNode(it.FileInfo, it.Value()), nil
 }
 
 func (p *Parser) parseStatement() (ast.Node, error) {
@@ -1147,11 +1148,12 @@ func (p *Parser) parseError(it scanner.Token) (ast.Node, error) {
 	return nil, errors.NewError(it.Value())
 }
 
-func (p *Parser) parseBlock() (*ast.ListNode, error) {
-	ln := ast.NewListNode()
+func (p *Parser) parseBlock() (*ast.BlockNode, error) {
+	it := p.peek()
+	ln := ast.NewBlockNode(it.FileInfo)
 
 	for {
-		it := p.peek()
+		it = p.peek()
 
 		switch it.Type() {
 		case token.EOF:
