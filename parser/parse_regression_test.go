@@ -15,7 +15,7 @@ func TestParseIssue22(t *testing.T) {
 	expected := ast.NewTree("issue 22")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 0), "gocd")
+	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 2), "gocd")
 	fn.AddArg("path")
 
 	fnTree := ast.NewTree("fn")
@@ -163,7 +163,7 @@ func TestParseIssue68(t *testing.T) {
 	catArg := ast.NewStringExpr(token.NewFileInfo(1, 0), "PKGBUILD", false)
 	catCmd.AddArg(catArg)
 
-	sedCmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "sed", false)
+	sedCmd := ast.NewCommandNode(token.NewFileInfo(1, 15), "sed", false)
 	sedArg := ast.NewStringExpr(token.NewFileInfo(1, 0), `s#\$pkgdir#/home/i4k/alt#g`, true)
 	sedCmd.AddArg(sedArg)
 
@@ -184,7 +184,7 @@ func TestParseIssue68(t *testing.T) {
 
 func TestParseIssue69(t *testing.T) {
 	expected := ast.NewTree("parse-issue-69")
-	ln := ast.NewBlockNode(token.NewFileInfo(0, 0))
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	parts := make([]ast.Expr, 2)
 
@@ -196,7 +196,7 @@ func TestParseIssue69(t *testing.T) {
 	listValues := make([]ast.Expr, 1)
 	listValues[0] = concat
 
-	list := ast.NewListExpr(token.NewFileInfo(1, 0), listValues)
+	list := ast.NewListExpr(token.NewFileInfo(1, 1), listValues)
 
 	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0), "a", list)
 	ln.Push(assign)
@@ -208,7 +208,7 @@ func TestParseIssue69(t *testing.T) {
 func TestParseImportIssue94(t *testing.T) {
 	expected := ast.NewTree("test import")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
-	importStmt := ast.NewImportNode(token.NewFileInfo(1, 0), ast.NewStringExpr(token.NewFileInfo(1, 0), "common", false))
+	importStmt := ast.NewImportNode(token.NewFileInfo(1, 0), ast.NewStringExpr(token.NewFileInfo(1, 7), "common", false))
 	ln.Push(importStmt)
 	expected.Root = ln
 

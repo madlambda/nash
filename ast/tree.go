@@ -1,7 +1,5 @@
 package ast
 
-import "strings"
-
 type (
 	// Tree is the AST
 	Tree struct {
@@ -34,35 +32,5 @@ func (tree *Tree) String() string {
 		return ""
 	}
 
-	nodes := tree.Root.Nodes
-
-	content := make([]string, 0, 8192)
-
-	for i := 0; i < len(nodes); i++ {
-		addEOL := false
-		node := nodes[i]
-
-		nodebytes := node.String()
-
-		if i == 0 && node.Type() == NodeComment && strings.HasPrefix(node.String(), "#!") {
-			nodebytes += "\n"
-		}
-
-		if (node.Type() == NodeAssignment) && i < (len(nodes)-1) {
-			nextNode := nodes[i+1]
-
-			switch nextNode.Type() {
-			case NodeComment, NodeFnDecl:
-				addEOL = true
-			}
-		}
-
-		if addEOL {
-			nodebytes += "\n"
-		}
-
-		content = append(content, nodebytes)
-	}
-
-	return strings.Join(content, "\n")
+	return tree.Root.String()
 }

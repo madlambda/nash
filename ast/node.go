@@ -381,7 +381,36 @@ func (l *BlockNode) Push(n Node) {
 }
 
 func (l *BlockNode) String() string {
-	return "unimplemented"
+	nodes := l.Nodes
+	content := make([]string, 0, 8192)
+
+	for i := 0; i < len(nodes); i++ {
+		addEOL := false
+		node := nodes[i]
+
+		nodebytes := node.String()
+
+		if i == 0 && node.Type() == NodeComment && strings.HasPrefix(node.String(), "#!") {
+			nodebytes += "\n"
+		}
+
+		if (node.Type() == NodeAssignment) && i < (len(nodes)-1) {
+			nextNode := nodes[i+1]
+
+			switch nextNode.Type() {
+			case NodeComment, NodeFnDecl:
+				addEOL = true
+			}
+		}
+
+		if addEOL {
+			nodebytes += "\n"
+		}
+
+		content = append(content, nodebytes)
+	}
+
+	return strings.Join(content, "\n")
 }
 
 // IsEqual returns if it is equal to the other node.
@@ -409,7 +438,7 @@ func (l *BlockNode) IsEqual(other Node) bool {
 		}
 	}
 
-	return true
+	return cmpInfo(l, other)
 }
 
 // NewImportNode creates a new ImportNode object
@@ -438,12 +467,14 @@ func (n *ImportNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.path == o.path {
-		return true
+	if !cmpInfo(n, other) {
+		return false
 	}
 
 	if n.path != nil {
 		return n.path.IsEqual(o.path)
+	} else if o.path == nil {
+		return true
 	}
 
 	return false
@@ -477,6 +508,10 @@ func (n *SetenvNode) IsEqual(other Node) bool {
 
 	if !ok {
 		debug("Failed to convert to SetenvNode")
+		return false
+	}
+
+	if !cmpInfo(n, other) {
 		return false
 	}
 
@@ -537,6 +572,10 @@ func (n *AssignmentNode) IsEqual(other Node) bool {
 
 	if n.val == o.val {
 		return true
+	}
+
+	if !cmpInfo(n, other) {
+		return false
 	}
 
 	if n.val != nil {
@@ -610,6 +649,10 @@ func (n *ExecAssignNode) IsEqual(other Node) bool {
 
 	if n.name != o.name {
 		debug("Exec assignment name differs")
+		return false
+	}
+
+	if !cmpInfo(n, other) {
 		return false
 	}
 
@@ -707,6 +750,10 @@ func (n *CommandNode) IsEqual(other Node) bool {
 			debug("Redirect differs... %s != %s", n.redirs[i], o.redirs[i])
 			return false
 		}
+	}
+
+	if !cmpInfo(n, other) {
+		return false
 	}
 
 	return n.name == o.name
@@ -1643,4 +1690,15 @@ func (n *ForNode) String() string {
 	ret += "}"
 
 	return ret
+}
+
+func cmpInfo(n, other Node) bool {
+	if n.Line() != other.Line() ||
+		n.Column() != other.Column() {
+		debug("file info mismatch on %v (%s): (%d, %d) != (%d, %d)", n, n.Type(), n.Line(), n.Column(),
+			other.Line(), other.Column())
+		return false
+	}
+
+	return true
 }

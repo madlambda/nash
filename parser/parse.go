@@ -68,7 +68,7 @@ func (p *Parser) Parse() (tr *ast.Tree, err error) {
 		}
 	}()
 
-	root, err = p.parseBlock()
+	root, err = p.parseBlock(1, 0)
 
 	if err != nil {
 		return nil, err
@@ -640,11 +640,13 @@ func (p *Parser) parseRfork(it scanner.Token) (ast.Node, error) {
 	it = p.peek()
 
 	if it.Type() == token.LBrace {
+		blockPos := it.FileInfo
+
 		p.ignore() // ignore lookaheaded symbol
 		p.openblocks++
 
 		tree := ast.NewTree("rfork block")
-		r, err := p.parseBlock()
+		r, err := p.parseBlock(blockPos.Line(), blockPos.Column())
 
 		if err != nil {
 			return nil, err
@@ -726,7 +728,7 @@ func (p *Parser) parseIf(it scanner.Token) (ast.Node, error) {
 
 	p.openblocks++
 
-	r, err := p.parseBlock()
+	r, err := p.parseBlock(it.Line(), it.Column())
 
 	if err != nil {
 		return nil, err
@@ -836,7 +838,7 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 
 	tree := ast.NewTree(fmt.Sprintf("fn %s body", n.Name()))
 
-	r, err := p.parseBlock()
+	r, err := p.parseBlock(it.Line(), it.Column())
 
 	if err != nil {
 		return nil, err
@@ -899,7 +901,7 @@ func (p *Parser) parseElse() (*ast.BlockNode, bool, error) {
 	if it.Type() == token.LBrace {
 		p.openblocks++
 
-		elseBlock, err := p.parseBlock()
+		elseBlock, err := p.parseBlock(it.Line(), it.Column())
 
 		if err != nil {
 			return nil, false, err
@@ -1085,12 +1087,14 @@ forBlockParse:
 		return nil, errors.NewError("Expected '{' but found %q", it)
 	}
 
+	blockPos := it.FileInfo
+
 	p.ignore() // ignore lookaheaded symbol
 	p.openblocks++
 
 	tree := ast.NewTree("for block")
 
-	r, err := p.parseBlock()
+	r, err := p.parseBlock(blockPos.Line(), blockPos.Column())
 
 	if err != nil {
 		return nil, err
@@ -1148,12 +1152,11 @@ func (p *Parser) parseError(it scanner.Token) (ast.Node, error) {
 	return nil, errors.NewError(it.Value())
 }
 
-func (p *Parser) parseBlock() (*ast.BlockNode, error) {
-	it := p.peek()
-	ln := ast.NewBlockNode(it.FileInfo)
+func (p *Parser) parseBlock(lineStart, columnStart int) (*ast.BlockNode, error) {
+	ln := ast.NewBlockNode(token.NewFileInfo(lineStart, columnStart))
 
 	for {
-		it = p.peek()
+		it := p.peek()
 
 		switch it.Type() {
 		case token.EOF:
