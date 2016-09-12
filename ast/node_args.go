@@ -2,8 +2,6 @@ package ast
 
 import (
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/NeowayLabs/nash/scanner"
 	"github.com/NeowayLabs/nash/token"
@@ -39,14 +37,6 @@ func (s *StringExpr) Value() string {
 	return s.str
 }
 
-func (s *StringExpr) String() string {
-	if s.quoted {
-		return `"` + stringify(s.str) + `"`
-	}
-
-	return s.str
-}
-
 func (s *StringExpr) IsEqual(other Node) bool {
 	if s == other {
 		return true
@@ -79,9 +69,6 @@ func NewIntExpr(info token.FileInfo, val int) *IntExpr {
 }
 
 func (i *IntExpr) Value() int { return i.val }
-func (i *IntExpr) String() string {
-	return strconv.Itoa(i.val)
-}
 
 func (i *IntExpr) IsEqual(other Node) bool {
 	if i == other {
@@ -141,22 +128,6 @@ func (l *ListExpr) IsEqual(other Node) bool {
 	return cmpInfo(l, other)
 }
 
-func (l *ListExpr) String() string {
-	elems := make([]string, len(l.list))
-	columnCount := 0
-
-	for i := 0; i < len(l.list); i++ {
-		elems[i] = l.list[i].String()
-		columnCount += len(elems[i])
-	}
-
-	if columnCount+len(elems) > 50 {
-		return "(\n\t" + strings.Join(elems, "\n\t") + "\n)"
-	}
-
-	return "(" + strings.Join(elems, " ") + ")"
-}
-
 func NewConcatExpr(info token.FileInfo, parts []Expr) *ConcatExpr {
 	return &ConcatExpr{
 		NodeType: NodeConcatExpr,
@@ -202,20 +173,6 @@ func (c *ConcatExpr) IsEqual(other Node) bool {
 	return cmpInfo(c, other)
 }
 
-func (c *ConcatExpr) String() string {
-	ret := ""
-
-	for i := 0; i < len(c.concat); i++ {
-		ret += c.concat[i].String()
-
-		if i < (len(c.concat) - 1) {
-			ret += "+"
-		}
-	}
-
-	return ret
-}
-
 func NewVarExpr(info token.FileInfo, name string) *VarExpr {
 	return &VarExpr{
 		NodeType: NodeVarExpr,
@@ -244,10 +201,6 @@ func (v *VarExpr) IsEqual(other Node) bool {
 	return v.name == o.name
 }
 
-func (v *VarExpr) String() string {
-	return v.name
-}
-
 func NewIndexExpr(info token.FileInfo, variable *VarExpr, index Expr) *IndexExpr {
 	return &IndexExpr{
 		NodeType: NodeIndexExpr,
@@ -261,9 +214,6 @@ func NewIndexExpr(info token.FileInfo, variable *VarExpr, index Expr) *IndexExpr
 func (i *IndexExpr) Var() *VarExpr { return i.variable }
 func (i *IndexExpr) Index() Expr   { return i.index }
 
-func (i *IndexExpr) String() string {
-	return i.variable.String() + "[" + i.index.String() + "]"
-}
 func (i *IndexExpr) IsEqual(other Node) bool {
 	if i == other {
 		return true

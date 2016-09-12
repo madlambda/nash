@@ -1445,7 +1445,7 @@ func (sh *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 			return errors.NewError("Invalid assignment from function that does not return values: %s", assign)
 		}
 
-		sh.Setvar(v.Name(), fnValues)
+		sh.Setvar(v.Identifier(), fnValues)
 		return nil
 	default:
 		err = errors.NewError("Unexpected node in assignment: %s", assign.String())
@@ -1476,9 +1476,9 @@ func (sh *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 			objelems[i] = NewStrObj(strelems[i])
 		}
 
-		sh.Setvar(v.Name(), NewListObj(objelems))
+		sh.Setvar(v.Identifier(), NewListObj(objelems))
 	} else {
-		sh.Setvar(v.Name(), NewStrObj(outStr))
+		sh.Setvar(v.Identifier(), NewStrObj(outStr))
 	}
 
 	return err

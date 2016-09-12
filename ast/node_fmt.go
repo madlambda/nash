@@ -5,19 +5,81 @@ import (
 	"strings"
 )
 
-func (l *BlockNode) adjustGroupAssign(node *AssignmentNode, nodes []Node) {
-	var eqSpace = node.eqSpace
+func (s *StringExpr) String() string {
+	if s.quoted {
+		return `"` + stringify(s.str) + `"`
+	}
+
+	return s.str
+}
+
+func (i *IntExpr) String() string {
+	return strconv.Itoa(i.val)
+}
+
+func (l *ListExpr) string() (string, bool) {
+	elems := make([]string, len(l.list))
+	columnCount := 0
+	forceMulti := false
+
+	for i := 0; i < len(l.list); i++ {
+		if l.list[i].Type() == NodeListExpr {
+			forceMulti = true
+		}
+
+		elems[i] = l.list[i].String()
+		columnCount += len(elems[i])
+	}
+
+	if columnCount+len(elems) > 50 || forceMulti {
+		forceMulti = true
+		return "(\n\t" + strings.Join(elems, "\n\t") + "\n)", forceMulti
+	}
+
+	return "(" + strings.Join(elems, " ") + ")", false
+}
+
+func (l *ListExpr) String() string {
+	str, _ := l.string()
+	return str
+}
+
+func (c *ConcatExpr) String() string {
+	ret := ""
+
+	for i := 0; i < len(c.concat); i++ {
+		ret += c.concat[i].String()
+
+		if i < (len(c.concat) - 1) {
+			ret += "+"
+		}
+	}
+
+	return ret
+}
+
+func (v *VarExpr) String() string {
+	return v.name
+}
+
+func (i *IndexExpr) String() string {
+	return i.variable.String() + "[" + i.index.String() + "]"
+}
+
+func (l *BlockNode) adjustGroupAssign(node assignable, nodes []Node) {
+	var (
+		eqSpace int = node.getEqSpace()
+		i       int
+	)
 
 	eqSpace = len(node.Identifier()) + 1
 
-	var i int
-
 	for i = 0; i < len(nodes); i++ {
-		if nodes[i].Type() != NodeAssignment {
+		assign, ok := nodes[i].(assignable)
+
+		if !ok {
 			break
 		}
-
-		assign := nodes[i].(*AssignmentNode)
 
 		if len(assign.Identifier())+1 > eqSpace {
 			eqSpace = len(assign.Identifier()) + 1
@@ -25,11 +87,11 @@ func (l *BlockNode) adjustGroupAssign(node *AssignmentNode, nodes []Node) {
 	}
 
 	for j := 0; j < i; j++ {
-		knode := nodes[j].(*AssignmentNode)
-		knode.eqSpace = eqSpace
+		knode := nodes[j].(assignable)
+		knode.setEqSpace(eqSpace)
 	}
 
-	node.eqSpace = eqSpace
+	node.setEqSpace(eqSpace)
 }
 
 func (l *BlockNode) String() string {
@@ -61,14 +123,15 @@ func (l *BlockNode) String() string {
 				addEOL = true
 			} else if node.Type() == NodeFnDecl {
 				addEOL = true
-			} else if node.Type() == NodeAssignment {
-				// lookahead to decide about best '=' distance
-				nodeAssign := node.(*AssignmentNode)
+			} else if node.Type() == NodeAssignment || node.Type() == NodeExecAssign {
+				nodeAssign := node.(assignable)
 
-				if nodeAssign.eqSpace == -1 {
+				if nodeAssign.getEqSpace() == -1 {
+					// lookahead to decide about best '=' distance
 					l.adjustGroupAssign(nodeAssign, nodes[i+1:])
-					nodebytes = nodeAssign.String()
 				}
+
+				nodebytes, addEOL = nodeAssign.string()
 			}
 		}
 
@@ -92,24 +155,69 @@ func (n *SetenvNode) String() string {
 	return "setenv " + n.varName
 }
 
-// String returns the string representation of assignment statement
-func (n *AssignmentNode) String() string {
+func (n *AssignmentNode) string() (string, bool) {
+	var (
+		objStr string
+		multi  bool
+	)
+
 	obj := n.val
 
 	if obj.Type().IsExpr() {
-		if n.eqSpace > len(n.name) {
-			return n.name + strings.Repeat(" ", n.eqSpace-len(n.name)) + "= " + obj.String()
+		if obj.Type() == NodeListExpr {
+			lobj := obj.(*ListExpr)
+			objStr, multi = lobj.string()
+		} else {
+			objStr = obj.String()
 		}
 
-		return n.name + " = " + obj.String()
+		if n.eqSpace > len(n.name) && !multi {
+			ret := n.name + strings.Repeat(" ", n.eqSpace-len(n.name)) + "= " + objStr
+			return ret, multi
+		}
+
+		ret := n.name + " = " + objStr
+		return ret, multi
 	}
 
-	return "<unknown>"
+	return "<unknown>", false
+}
+
+// String returns the string representation of assignment statement
+func (n *AssignmentNode) String() string {
+	str, _ := n.string()
+	return str
+}
+
+func (n *ExecAssignNode) string() (string, bool) {
+	var (
+		cmdStr string
+		multi  bool
+	)
+
+	if n.cmd.Type() == NodeCommand {
+		cmd := n.cmd.(*CommandNode)
+		cmdStr, multi = cmd.string()
+	} else if n.cmd.Type() == NodePipe {
+		cmd := n.cmd.(*PipeNode)
+		cmdStr, multi = cmd.string()
+	} else {
+		cmd := n.cmd.(*FnInvNode)
+		cmdStr, multi = cmd.string()
+	}
+
+	if n.eqSpace > len(n.name) {
+		ret := n.name + strings.Repeat(" ", n.eqSpace-len(n.name)) + "<= " + cmdStr
+		return ret, multi
+	}
+
+	return n.name + " <= " + cmdStr, multi
 }
 
 // String returns the string representation of command assignment statement
 func (n *ExecAssignNode) String() string {
-	return n.name + " <= " + n.cmd.String()
+	str, _ := n.string()
+	return str
 }
 
 func (n *CommandNode) toStringParts() ([]string, int) {
@@ -193,9 +301,9 @@ func (n *CommandNode) multiString() string {
 }
 
 // String returns the string representation of command statement
-func (n *CommandNode) String() string {
+func (n *CommandNode) string() (string, bool) {
 	if n.multi {
-		return n.multiString()
+		return n.multiString(), true
 	}
 
 	var content []string
@@ -210,7 +318,12 @@ func (n *CommandNode) String() string {
 		content = append(content, n.redirs[i].String())
 	}
 
-	return strings.Join(content, " ")
+	return strings.Join(content, " "), false
+}
+
+func (n *CommandNode) String() string {
+	str, _ := n.string()
+	return str
 }
 
 func (n *PipeNode) multiString() string {
@@ -272,9 +385,9 @@ func (n *PipeNode) multiString() string {
 }
 
 // String returns the string representation of pipeline statement
-func (n *PipeNode) String() string {
+func (n *PipeNode) string() (string, bool) {
 	if n.multi {
-		return n.multiString()
+		return n.multiString(), true
 	}
 
 	ret := ""
@@ -287,7 +400,12 @@ func (n *PipeNode) String() string {
 		}
 	}
 
-	return ret
+	return ret, false
+}
+
+func (n *PipeNode) String() string {
+	str, _ := n.string()
+	return str
 }
 
 // String returns the string representation of redirect
@@ -428,7 +546,7 @@ func (n *FnDeclNode) String() string {
 }
 
 // String returns the string representation of function invocation
-func (n *FnInvNode) String() string {
+func (n *FnInvNode) string() (string, bool) {
 	fnInvStr := n.name + "("
 
 	for i := 0; i < len(n.args); i++ {
@@ -441,7 +559,12 @@ func (n *FnInvNode) String() string {
 
 	fnInvStr += ")"
 
-	return fnInvStr
+	return fnInvStr, false
+}
+
+func (n *FnInvNode) String() string {
+	str, _ := n.string()
+	return str
 }
 
 // String returns the string representation of bindfn

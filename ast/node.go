@@ -33,6 +33,13 @@ type (
 		String() string
 	}
 
+	assignable interface {
+		Identifier() string
+		setEqSpace(int)
+		getEqSpace() int
+		string() (string, bool)
+	}
+
 	// Expr is the interface of expression nodes.
 	Expr Node
 
@@ -78,8 +85,9 @@ type (
 		NodeType
 		token.FileInfo
 
-		name string
-		cmd  Node
+		name    string
+		cmd     Node
+		eqSpace int
 	}
 
 	// A CommandNode is a node for commands
@@ -499,6 +507,9 @@ func (n *AssignmentNode) SetIdentifier(a string) {
 // Identifier return the name of the variable.
 func (n *AssignmentNode) Identifier() string { return n.name }
 
+func (n *AssignmentNode) getEqSpace() int      { return n.eqSpace }
+func (n *AssignmentNode) setEqSpace(value int) { n.eqSpace = value }
+
 // SetValue sets the value of the list
 func (n *AssignmentNode) SetValue(val Expr) {
 	n.val = val
@@ -556,15 +567,19 @@ func NewExecAssignNode(info token.FileInfo, name string, n Node) (*ExecAssignNod
 		NodeType: NodeExecAssign,
 		FileInfo: info,
 
-		name: name,
-		cmd:  n,
+		name:    name,
+		cmd:     n,
+		eqSpace: -1,
 	}, nil
 }
 
 // Name returns the identifier (l-value)
-func (n *ExecAssignNode) Name() string {
+func (n *ExecAssignNode) Identifier() string {
 	return n.name
 }
+
+func (n *ExecAssignNode) getEqSpace() int      { return n.eqSpace }
+func (n *ExecAssignNode) setEqSpace(value int) { n.eqSpace = value }
 
 // Command returns the command (or r-value). Command could be a CommandNode or FnNode
 func (n *ExecAssignNode) Command() Node {
