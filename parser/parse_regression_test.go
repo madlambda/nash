@@ -15,7 +15,7 @@ func TestParseIssue22(t *testing.T) {
 	expected := ast.NewTree("issue 22")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 2), "gocd")
+	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 0), "gocd")
 	fn.AddArg("path")
 
 	fnTree := ast.NewTree("fn")
@@ -82,7 +82,7 @@ func TestParseIssue38(t *testing.T) {
 	args := make([]ast.Expr, 3)
 
 	args[0] = ast.NewVarExpr(token.NewFileInfo(1, 3), "$GOPATH")
-	args[1] = ast.NewStringExpr(token.NewFileInfo(1, 11), "/src/", true)
+	args[1] = ast.NewStringExpr(token.NewFileInfo(1, 12), "/src/", true)
 	args[2] = ast.NewVarExpr(token.NewFileInfo(1, 19), "$path")
 
 	arg := ast.NewConcatExpr(token.NewFileInfo(1, 3), args)
@@ -105,7 +105,7 @@ func TestParseIssue43(t *testing.T) {
 	expected := ast.NewTree("parse issue 41")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	fnDecl := ast.NewFnDeclNode(token.NewFileInfo(1, 3), "gpull")
+	fnDecl := ast.NewFnDeclNode(token.NewFileInfo(1, 0), "gpull")
 	fnTree := ast.NewTree("fn")
 	fnBlock := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
@@ -160,19 +160,19 @@ func TestParseIssue68(t *testing.T) {
 
 	catCmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "cat", false)
 
-	catArg := ast.NewStringExpr(token.NewFileInfo(1, 0), "PKGBUILD", false)
+	catArg := ast.NewStringExpr(token.NewFileInfo(1, 4), "PKGBUILD", false)
 	catCmd.AddArg(catArg)
 
 	sedCmd := ast.NewCommandNode(token.NewFileInfo(1, 15), "sed", false)
-	sedArg := ast.NewStringExpr(token.NewFileInfo(1, 0), `s#\$pkgdir#/home/i4k/alt#g`, true)
+	sedArg := ast.NewStringExpr(token.NewFileInfo(1, 20), `s#\$pkgdir#/home/i4k/alt#g`, true)
 	sedCmd.AddArg(sedArg)
 
-	sedRedir := ast.NewRedirectNode(token.NewFileInfo(1, 0))
-	sedRedirArg := ast.NewStringExpr(token.NewFileInfo(1, 0), "PKGBUILD2", false)
+	sedRedir := ast.NewRedirectNode(token.NewFileInfo(1, 49))
+	sedRedirArg := ast.NewStringExpr(token.NewFileInfo(1, 51), "PKGBUILD2", false)
 	sedRedir.SetLocation(sedRedirArg)
 	sedCmd.AddRedirect(sedRedir)
 
-	pipe := ast.NewPipeNode(token.NewFileInfo(1, 0), false)
+	pipe := ast.NewPipeNode(token.NewFileInfo(1, 13), false)
 	pipe.AddCmd(catCmd)
 	pipe.AddCmd(sedCmd)
 
@@ -188,15 +188,15 @@ func TestParseIssue69(t *testing.T) {
 
 	parts := make([]ast.Expr, 2)
 
-	parts[0] = ast.NewVarExpr(token.NewFileInfo(1, 0), "$a")
-	parts[1] = ast.NewStringExpr(token.NewFileInfo(1, 0), "b", true)
+	parts[0] = ast.NewVarExpr(token.NewFileInfo(1, 5), "$a")
+	parts[1] = ast.NewStringExpr(token.NewFileInfo(1, 9), "b", true)
 
-	concat := ast.NewConcatExpr(token.NewFileInfo(1, 0), parts)
+	concat := ast.NewConcatExpr(token.NewFileInfo(1, 5), parts)
 
 	listValues := make([]ast.Expr, 1)
 	listValues[0] = concat
 
-	list := ast.NewListExpr(token.NewFileInfo(1, 1), listValues)
+	list := ast.NewListExpr(token.NewFileInfo(1, 4), listValues)
 
 	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0), "a", list)
 	ln.Push(assign)

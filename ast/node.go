@@ -896,7 +896,7 @@ func (n *PipeNode) IsEqual(other Node) bool {
 		}
 	}
 
-	return true
+	return cmpInfo(n, other)
 }
 
 func (n *PipeNode) multiString() string {
@@ -1024,6 +1024,10 @@ func (r *RedirectNode) IsEqual(other Node) bool {
 		return false
 	}
 
+	if !cmpInfo(r, other) {
+		return false
+	}
+
 	if r.location == o.location {
 		return true
 	}
@@ -1105,6 +1109,10 @@ func (n *RforkNode) IsEqual(other Node) bool {
 		return false
 	}
 
+	if !cmpInfo(n, other) {
+		return false
+	}
+
 	return n.tree.IsEqual(o.tree)
 }
 
@@ -1150,6 +1158,10 @@ func (n *CommentNode) IsEqual(other Node) bool {
 	o, ok := other.(*CommentNode)
 
 	if !ok {
+		return false
+	}
+
+	if !cmpInfo(n, other) {
 		return false
 	}
 
@@ -1261,6 +1273,10 @@ func (n *IfNode) IsEqual(other Node) bool {
 
 	if !expectedTree.IsEqual(valueTree) {
 		debug("If tree differs: '%s' != '%s'", expectedTree, valueTree)
+		return false
+	}
+
+	if !cmpInfo(n, other) {
 		return false
 	}
 
@@ -1381,7 +1397,7 @@ func (n *FnDeclNode) IsEqual(other Node) bool {
 		}
 	}
 
-	return true
+	return cmpInfo(n, other)
 }
 
 // String returns the string representation of function declaration
@@ -1467,7 +1483,7 @@ func (n *FnInvNode) IsEqual(other Node) bool {
 		}
 	}
 
-	return true
+	return cmpInfo(n, other)
 }
 
 // String returns the string representation of function invocation
@@ -1515,6 +1531,10 @@ func (n *BindFnNode) IsEqual(other Node) bool {
 		return false
 	}
 
+	if !cmpInfo(n, other) {
+		return false
+	}
+
 	return n.name == o.name && n.cmdname == o.cmdname
 }
 
@@ -1551,6 +1571,10 @@ func (n *DumpNode) IsEqual(other Node) bool {
 	if !ok {
 		debug("Failed to convert to DumpNode")
 		return ok
+	}
+
+	if !cmpInfo(n, other) {
+		return false
 	}
 
 	if n.filename == o.filename {
@@ -1601,6 +1625,10 @@ func (n *ReturnNode) IsEqual(other Node) bool {
 	o, ok := other.(*ReturnNode)
 
 	if !ok {
+		return false
+	}
+
+	if !cmpInfo(n, other) {
 		return false
 	}
 
@@ -1666,6 +1694,10 @@ func (n *ForNode) IsEqual(other Node) bool {
 	o, ok := other.(*ForNode)
 
 	if !ok {
+		return false
+	}
+
+	if !cmpInfo(n, other) {
 		return false
 	}
 

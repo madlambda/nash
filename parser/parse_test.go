@@ -52,7 +52,7 @@ func TestParseSimple(t *testing.T) {
 	expected := ast.NewTree("parser simple")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "echo", false)
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 5), "hello world", true))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 6), "hello world", true))
 	ln.Push(cmd)
 
 	expected.Root = ln
@@ -60,8 +60,8 @@ func TestParseSimple(t *testing.T) {
 	parserTestTable("parser simple", `echo "hello world"`, expected, t, true)
 
 	cmd1 := ast.NewCommandNode(token.NewFileInfo(1, 0), "cat", false)
-	arg1 := ast.NewStringExpr(token.NewFileInfo(1, 3), "/etc/resolv.conf", false)
-	arg2 := ast.NewStringExpr(token.NewFileInfo(1, 0), "/etc/hosts", false)
+	arg1 := ast.NewStringExpr(token.NewFileInfo(1, 4), "/etc/resolv.conf", false)
+	arg2 := ast.NewStringExpr(token.NewFileInfo(1, 21), "/etc/hosts", false)
 	cmd1.AddArg(arg1)
 	cmd1.AddArg(arg2)
 
@@ -92,12 +92,12 @@ func TestParsePipe(t *testing.T) {
 	expected := ast.NewTree("parser pipe")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	first := ast.NewCommandNode(token.NewFileInfo(1, 0), "echo", false)
-	first.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "hello world", true))
+	first.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 6), "hello world", true))
 
 	second := ast.NewCommandNode(token.NewFileInfo(1, 21), "awk", false)
-	second.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "{print $1}", true))
+	second.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 26), "{print $1}", true))
 
-	pipe := ast.NewPipeNode(token.NewFileInfo(1, 0), false)
+	pipe := ast.NewPipeNode(token.NewFileInfo(1, 19), false)
 	pipe.AddCmd(first)
 	pipe.AddCmd(second)
 
@@ -124,7 +124,7 @@ func TestBasicAssignment(t *testing.T) {
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0),
 		"test",
-		ast.NewStringExpr(token.NewFileInfo(1, 0), "hello", true))
+		ast.NewStringExpr(token.NewFileInfo(1, 8), "hello", true))
 	ln.Push(assign)
 	expected.Root = ln
 
@@ -135,10 +135,10 @@ func TestBasicAssignment(t *testing.T) {
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	concats := make([]ast.Expr, 2, 2)
-	concats[0] = ast.NewStringExpr(token.NewFileInfo(1, 0), "hello", true)
-	concats[1] = ast.NewVarExpr(token.NewFileInfo(1, 0), "$var")
+	concats[0] = ast.NewStringExpr(token.NewFileInfo(1, 8), "hello", true)
+	concats[1] = ast.NewVarExpr(token.NewFileInfo(1, 15), "$var")
 
-	arg1 := ast.NewConcatExpr(token.NewFileInfo(1, 0), concats)
+	arg1 := ast.NewConcatExpr(token.NewFileInfo(1, 8), concats)
 
 	assign = ast.NewAssignmentNode(token.NewFileInfo(1, 0), "test", arg1)
 
@@ -171,13 +171,13 @@ func TestParseListAssignment(t *testing.T) {
 	values := make([]ast.Expr, 0, 4)
 
 	values = append(values,
-		ast.NewStringExpr(token.NewFileInfo(1, 0), "plan9", false),
-		ast.NewStringExpr(token.NewFileInfo(1, 0), "from", false),
-		ast.NewStringExpr(token.NewFileInfo(1, 0), "bell", false),
-		ast.NewStringExpr(token.NewFileInfo(1, 0), "labs", false),
+		ast.NewStringExpr(token.NewFileInfo(2, 1), "plan9", false),
+		ast.NewStringExpr(token.NewFileInfo(3, 1), "from", false),
+		ast.NewStringExpr(token.NewFileInfo(4, 1), "bell", false),
+		ast.NewStringExpr(token.NewFileInfo(5, 1), "labs", false),
 	)
 
-	elem := ast.NewListExpr(token.NewFileInfo(1, 0), values)
+	elem := ast.NewListExpr(token.NewFileInfo(1, 7), values)
 
 	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0), "test", elem)
 
@@ -198,25 +198,25 @@ func TestParseListOfListsAssignment(t *testing.T) {
 
 	plan9 := make([]ast.Expr, 0, 4)
 	plan9 = append(plan9,
-		ast.NewStringExpr(token.NewFileInfo(1, 0), "plan9", false),
-		ast.NewStringExpr(token.NewFileInfo(1, 0), "from", false),
-		ast.NewStringExpr(token.NewFileInfo(1, 0), "bell", false),
-		ast.NewStringExpr(token.NewFileInfo(1, 0), "labs", false),
+		ast.NewStringExpr(token.NewFileInfo(2, 2), "plan9", false),
+		ast.NewStringExpr(token.NewFileInfo(2, 8), "from", false),
+		ast.NewStringExpr(token.NewFileInfo(2, 13), "bell", false),
+		ast.NewStringExpr(token.NewFileInfo(2, 18), "labs", false),
 	)
 
-	elem1 := ast.NewListExpr(token.NewFileInfo(1, 0), plan9)
+	elem1 := ast.NewListExpr(token.NewFileInfo(2, 1), plan9)
 
 	linux := make([]ast.Expr, 0, 2)
-	linux = append(linux, ast.NewStringExpr(token.NewFileInfo(1, 0), "linux", false))
-	linux = append(linux, ast.NewStringExpr(token.NewFileInfo(1, 0), "kernel", false))
+	linux = append(linux, ast.NewStringExpr(token.NewFileInfo(3, 2), "linux", false))
+	linux = append(linux, ast.NewStringExpr(token.NewFileInfo(3, 8), "kernel", false))
 
-	elem2 := ast.NewListExpr(token.NewFileInfo(1, 0), linux)
+	elem2 := ast.NewListExpr(token.NewFileInfo(3, 1), linux)
 
 	values := make([]ast.Expr, 2)
 	values[0] = elem1
 	values[1] = elem2
 
-	elem := ast.NewListExpr(token.NewFileInfo(1, 0), values)
+	elem := ast.NewListExpr(token.NewFileInfo(1, 7), values)
 
 	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0), "test", elem)
 
@@ -263,7 +263,7 @@ func TestParsePathCommand(t *testing.T) {
 	expected := ast.NewTree("parser simple")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "/bin/echo", false)
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "hello world", true))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 11), "hello world", true))
 	ln.Push(cmd)
 
 	expected.Root = ln
@@ -276,7 +276,7 @@ func TestParseWithShebang(t *testing.T) {
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmt := ast.NewCommentNode(token.NewFileInfo(1, 0), "#!/bin/nash")
 	cmd := ast.NewCommandNode(token.NewFileInfo(3, 0), "echo", false)
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "bleh", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(3, 5), "bleh", false))
 	ln.Push(cmt)
 	ln.Push(cmd)
 
@@ -308,7 +308,7 @@ func TestParseRedirectSimple(t *testing.T) {
 	expected := ast.NewTree("redirect")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "cmd", false)
-	redir := ast.NewRedirectNode(token.NewFileInfo(1, 0))
+	redir := ast.NewRedirectNode(token.NewFileInfo(1, 4))
 	redir.SetMap(2, ast.RedirMapSupress)
 	cmd.AddRedirect(redir)
 	ln.Push(cmd)
@@ -320,7 +320,7 @@ func TestParseRedirectSimple(t *testing.T) {
 	expected = ast.NewTree("redirect2")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd = ast.NewCommandNode(token.NewFileInfo(1, 0), "cmd", false)
-	redir = ast.NewRedirectNode(token.NewFileInfo(1, 0))
+	redir = ast.NewRedirectNode(token.NewFileInfo(1, 4))
 	redir.SetMap(2, 1)
 	cmd.AddRedirect(redir)
 	ln.Push(cmd)
@@ -334,9 +334,9 @@ func TestParseRedirectWithLocation(t *testing.T) {
 	expected := ast.NewTree("redirect with location")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "cmd", false)
-	redir := ast.NewRedirectNode(token.NewFileInfo(1, 0))
+	redir := ast.NewRedirectNode(token.NewFileInfo(1, 4))
 	redir.SetMap(2, ast.RedirMapNoValue)
-	redir.SetLocation(ast.NewStringExpr(token.NewFileInfo(1, 0), "/var/log/service.log", false))
+	redir.SetLocation(ast.NewStringExpr(token.NewFileInfo(1, 9), "/var/log/service.log", false))
 	cmd.AddRedirect(redir)
 	ln.Push(cmd)
 
@@ -349,8 +349,8 @@ func TestParseRedirectMultiples(t *testing.T) {
 	expected := ast.NewTree("redirect multiples")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "cmd", false)
-	redir1 := ast.NewRedirectNode(token.NewFileInfo(1, 0))
-	redir2 := ast.NewRedirectNode(token.NewFileInfo(1, 0))
+	redir1 := ast.NewRedirectNode(token.NewFileInfo(1, 4))
+	redir2 := ast.NewRedirectNode(token.NewFileInfo(1, 11))
 
 	redir1.SetMap(1, 2)
 	redir2.SetMap(2, ast.RedirMapSupress)
@@ -369,8 +369,8 @@ func TestParseCommandWithStringsEqualsNot(t *testing.T) {
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd1 := ast.NewCommandNode(token.NewFileInfo(1, 0), "echo", false)
 	cmd2 := ast.NewCommandNode(token.NewFileInfo(2, 0), "echo", false)
-	cmd1.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "hello", false))
-	cmd2.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "hello", true))
+	cmd1.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 5), "hello", false))
+	cmd2.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 6), "hello", true))
 
 	ln.Push(cmd1)
 	ln.Push(cmd2)
@@ -386,8 +386,8 @@ func TestParseCommandSeparatedBySemicolon(t *testing.T) {
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd1 := ast.NewCommandNode(token.NewFileInfo(1, 0), "echo", false)
 	cmd2 := ast.NewCommandNode(token.NewFileInfo(1, 11), "echo", false)
-	cmd1.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "hello", false))
-	cmd2.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "world", false))
+	cmd1.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 5), "hello", false))
+	cmd2.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 16), "world", false))
 
 	ln.Push(cmd1)
 	ln.Push(cmd2)
@@ -415,7 +415,7 @@ func TestParseCd(t *testing.T) {
 	expected := ast.NewTree("test cd")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cd := ast.NewCommandNode(token.NewFileInfo(1, 0), "cd", false)
-	arg := ast.NewStringExpr(token.NewFileInfo(1, 0), "/tmp", false)
+	arg := ast.NewStringExpr(token.NewFileInfo(1, 3), "/tmp", false)
 	cd.AddArg(arg)
 	ln.Push(cd)
 	expected.Root = ln
@@ -434,7 +434,7 @@ func TestParseCd(t *testing.T) {
 	expected = ast.NewTree("cd into HOME by setenv")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0), "HOME", ast.NewStringExpr(token.NewFileInfo(1, 0), "/", true))
+	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0), "HOME", ast.NewStringExpr(token.NewFileInfo(1, 8), "/", true))
 
 	set := ast.NewSetenvNode(token.NewFileInfo(2, 0), "HOME")
 	cd = ast.NewCommandNode(token.NewFileInfo(3, 0), "cd", false)
@@ -456,11 +456,11 @@ pwd`, expected, t, true)
 	expected = ast.NewTree("cd into variable value")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	arg = ast.NewStringExpr(token.NewFileInfo(1, 0), "/home/i4k/gopath", true)
+	arg = ast.NewStringExpr(token.NewFileInfo(1, 10), "/home/i4k/gopath", true)
 
 	assign = ast.NewAssignmentNode(token.NewFileInfo(1, 0), "GOPATH", arg)
 	cd = ast.NewCommandNode(token.NewFileInfo(2, 0), "cd", false)
-	arg2 := ast.NewVarExpr(token.NewFileInfo(1, 0), "$GOPATH")
+	arg2 := ast.NewVarExpr(token.NewFileInfo(2, 3), "$GOPATH")
 	cd.AddArg(arg2)
 
 	ln.Push(assign)
@@ -475,16 +475,16 @@ cd $GOPATH`, expected, t, true)
 	expected = ast.NewTree("cd into variable value with concat")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	arg = ast.NewStringExpr(token.NewFileInfo(1, 0), "/home/i4k/gopath", true)
+	arg = ast.NewStringExpr(token.NewFileInfo(1, 10), "/home/i4k/gopath", true)
 
 	assign = ast.NewAssignmentNode(token.NewFileInfo(1, 0), "GOPATH", arg)
 
 	concat := make([]ast.Expr, 0, 2)
-	concat = append(concat, ast.NewVarExpr(token.NewFileInfo(1, 0), "$GOPATH"))
-	concat = append(concat, ast.NewStringExpr(token.NewFileInfo(1, 0), "/src/github.com", true))
+	concat = append(concat, ast.NewVarExpr(token.NewFileInfo(2, 3), "$GOPATH"))
+	concat = append(concat, ast.NewStringExpr(token.NewFileInfo(2, 12), "/src/github.com", true))
 
 	cd = ast.NewCommandNode(token.NewFileInfo(2, 0), "cd", false)
-	carg := ast.NewConcatExpr(token.NewFileInfo(1, 0), concat)
+	carg := ast.NewConcatExpr(token.NewFileInfo(2, 3), concat)
 	cd.AddArg(carg)
 
 	ln.Push(assign)
@@ -500,27 +500,27 @@ cd $GOPATH+"/src/github.com"`, expected, t, true)
 func TestParseConcatOfIndexedVar(t *testing.T) {
 	expected := ast.NewTree("concat indexed var")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
-	arg1 := ast.NewStringExpr(token.NewFileInfo(1, 0), "ec2", false)
-	arg2 := ast.NewStringExpr(token.NewFileInfo(1, 0), "create-tags", false)
-	arg3 := ast.NewStringExpr(token.NewFileInfo(1, 0), "--resources", false)
-	arg4 := ast.NewVarExpr(token.NewFileInfo(1, 0), "$resource")
-	arg5 := ast.NewStringExpr(token.NewFileInfo(1, 0), "--tags", false)
+	arg1 := ast.NewStringExpr(token.NewFileInfo(1, 4), "ec2", false)
+	arg2 := ast.NewStringExpr(token.NewFileInfo(1, 8), "create-tags", false)
+	arg3 := ast.NewStringExpr(token.NewFileInfo(1, 20), "--resources", false)
+	arg4 := ast.NewVarExpr(token.NewFileInfo(1, 32), "$resource")
+	arg5 := ast.NewStringExpr(token.NewFileInfo(1, 42), "--tags", false)
 
-	c1 := ast.NewStringExpr(token.NewFileInfo(1, 0), "Key=", true)
-	c2 := ast.NewIndexExpr(token.NewFileInfo(1, 0),
-		ast.NewVarExpr(token.NewFileInfo(1, 0), "$tag"),
-		ast.NewIntExpr(token.NewFileInfo(1, 0), 0))
-	c3 := ast.NewStringExpr(token.NewFileInfo(1, 0), ",Value=", true)
-	c4 := ast.NewIndexExpr(token.NewFileInfo(1, 0),
-		ast.NewVarExpr(token.NewFileInfo(1, 0), "$tag"),
-		ast.NewIntExpr(token.NewFileInfo(1, 0), 1))
+	c1 := ast.NewStringExpr(token.NewFileInfo(1, 50), "Key=", true)
+	c2 := ast.NewIndexExpr(token.NewFileInfo(1, 56),
+		ast.NewVarExpr(token.NewFileInfo(1, 56), "$tag"),
+		ast.NewIntExpr(token.NewFileInfo(1, 61), 0))
+	c3 := ast.NewStringExpr(token.NewFileInfo(1, 65), ",Value=", true)
+	c4 := ast.NewIndexExpr(token.NewFileInfo(1, 74),
+		ast.NewVarExpr(token.NewFileInfo(1, 74), "$tag"),
+		ast.NewIntExpr(token.NewFileInfo(1, 79), 1))
 	cvalues := make([]ast.Expr, 4)
 	cvalues[0] = c1
 	cvalues[1] = c2
 	cvalues[2] = c3
 	cvalues[3] = c4
 
-	arg6 := ast.NewConcatExpr(token.NewFileInfo(1, 0), cvalues)
+	arg6 := ast.NewConcatExpr(token.NewFileInfo(1, 50), cvalues)
 
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "aws", false)
 	cmd.AddArg(arg1)
@@ -542,7 +542,7 @@ func TestParseRfork(t *testing.T) {
 	expected := ast.NewTree("test rfork")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd1 := ast.NewRforkNode(token.NewFileInfo(1, 0))
-	f1 := ast.NewStringExpr(token.NewFileInfo(1, 0), "u", false)
+	f1 := ast.NewStringExpr(token.NewFileInfo(1, 6), "u", false)
 	cmd1.SetFlags(f1)
 	ln.Push(cmd1)
 	expected.Root = ln
@@ -554,14 +554,14 @@ func TestParseRforkWithBlock(t *testing.T) {
 	expected := ast.NewTree("rfork with block")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	rfork := ast.NewRforkNode(token.NewFileInfo(1, 0))
-	arg := ast.NewStringExpr(token.NewFileInfo(1, 0), "u", false)
+	arg := ast.NewStringExpr(token.NewFileInfo(1, 6), "u", false)
 	rfork.SetFlags(arg)
 
 	insideFork := ast.NewCommandNode(token.NewFileInfo(2, 1), "mount", false)
-	insideFork.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "-t", false))
-	insideFork.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "proc", false))
-	insideFork.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "proc", false))
-	insideFork.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "/proc", false))
+	insideFork.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 7), "-t", false))
+	insideFork.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 10), "proc", false))
+	insideFork.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 15), "proc", false))
+	insideFork.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 20), "/proc", false))
 
 	bln := ast.NewBlockNode(token.NewFileInfo(1, 8))
 	bln.Push(insideFork)
@@ -595,7 +595,7 @@ func TestParseImport(t *testing.T) {
 	expected := ast.NewTree("test import")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	importStmt := ast.NewImportNode(token.NewFileInfo(1, 0),
-		ast.NewStringExpr(token.NewFileInfo(1, 0), "env.sh", false))
+		ast.NewStringExpr(token.NewFileInfo(1, 7), "env.sh", false))
 	ln.Push(importStmt)
 	expected.Root = ln
 
@@ -604,7 +604,7 @@ func TestParseImport(t *testing.T) {
 	expected = ast.NewTree("test import with quotes")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 	importStmt = ast.NewImportNode(token.NewFileInfo(1, 0),
-		ast.NewStringExpr(token.NewFileInfo(1, 0), "env.sh", true))
+		ast.NewStringExpr(token.NewFileInfo(1, 8), "env.sh", true))
 	ln.Push(importStmt)
 	expected.Root = ln
 
@@ -615,8 +615,8 @@ func TestParseIf(t *testing.T) {
 	expected := ast.NewTree("test if")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	ifDecl := ast.NewIfNode(token.NewFileInfo(1, 0))
-	ifDecl.SetLvalue(ast.NewStringExpr(token.NewFileInfo(1, 0), "test", true))
-	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 0), "other", true))
+	ifDecl.SetLvalue(ast.NewStringExpr(token.NewFileInfo(1, 4), "test", true))
+	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 14), "other", true))
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewBlockNode(token.NewFileInfo(1, 21))
@@ -638,8 +638,8 @@ func TestParseIf(t *testing.T) {
 	expected = ast.NewTree("test if")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 	ifDecl = ast.NewIfNode(token.NewFileInfo(1, 0))
-	ifDecl.SetLvalue(ast.NewStringExpr(token.NewFileInfo(1, 0), "", true))
-	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 0), "other", true))
+	ifDecl.SetLvalue(ast.NewStringExpr(token.NewFileInfo(1, 4), "", true))
+	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 10), "other", true))
 	ifDecl.SetOp("!=")
 
 	subBlock = ast.NewBlockNode(token.NewFileInfo(1, 17))
@@ -663,8 +663,8 @@ func TestParseIfLvariable(t *testing.T) {
 	expected := ast.NewTree("test if with variable")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	ifDecl := ast.NewIfNode(token.NewFileInfo(1, 0))
-	ifDecl.SetLvalue(ast.NewVarExpr(token.NewFileInfo(1, 0), "$test"))
-	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 0), "other", true))
+	ifDecl.SetLvalue(ast.NewVarExpr(token.NewFileInfo(1, 3), "$test"))
+	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 13), "other", true))
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewBlockNode(token.NewFileInfo(1, 20))
@@ -688,8 +688,8 @@ func TestParseIfRvariable(t *testing.T) {
 	expected := ast.NewTree("test if with variable")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	ifDecl := ast.NewIfNode(token.NewFileInfo(1, 0))
-	ifDecl.SetLvalue(ast.NewVarExpr(token.NewFileInfo(1, 0), "$test"))
-	ifDecl.SetRvalue(ast.NewVarExpr(token.NewFileInfo(1, 0), "$other"))
+	ifDecl.SetLvalue(ast.NewVarExpr(token.NewFileInfo(1, 3), "$test"))
+	ifDecl.SetRvalue(ast.NewVarExpr(token.NewFileInfo(1, 12), "$other"))
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewBlockNode(token.NewFileInfo(1, 19))
@@ -713,8 +713,8 @@ func TestParseIfElse(t *testing.T) {
 	expected := ast.NewTree("test if else with variable")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	ifDecl := ast.NewIfNode(token.NewFileInfo(1, 0))
-	ifDecl.SetLvalue(ast.NewVarExpr(token.NewFileInfo(1, 0), "$test"))
-	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 0), "other", true))
+	ifDecl.SetLvalue(ast.NewVarExpr(token.NewFileInfo(1, 3), "$test"))
+	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 13), "other", true))
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewBlockNode(token.NewFileInfo(1, 20))
@@ -749,8 +749,8 @@ func TestParseIfElseIf(t *testing.T) {
 	expected := ast.NewTree("test if else with variable")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	ifDecl := ast.NewIfNode(token.NewFileInfo(1, 0))
-	ifDecl.SetLvalue(ast.NewVarExpr(token.NewFileInfo(1, 0), "$test"))
-	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 0), "other", true))
+	ifDecl.SetLvalue(ast.NewVarExpr(token.NewFileInfo(1, 3), "$test"))
+	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 13), "other", true))
 	ifDecl.SetOp("==")
 
 	subBlock := ast.NewBlockNode(token.NewFileInfo(1, 20))
@@ -762,10 +762,10 @@ func TestParseIfElseIf(t *testing.T) {
 
 	ifDecl.SetIfTree(ifTree)
 
-	elseIfDecl := ast.NewIfNode(token.NewFileInfo(1, 0))
+	elseIfDecl := ast.NewIfNode(token.NewFileInfo(3, 7))
 
-	elseIfDecl.SetLvalue(ast.NewVarExpr(token.NewFileInfo(1, 0), "$test"))
-	elseIfDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 0), "others", true))
+	elseIfDecl.SetLvalue(ast.NewVarExpr(token.NewFileInfo(3, 10), "$test"))
+	elseIfDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(3, 20), "others", true))
 	elseIfDecl.SetOp("==")
 
 	elseIfBlock := ast.NewBlockNode(token.NewFileInfo(3, 28))
@@ -907,8 +907,8 @@ func TestParseRedirectionVariable(t *testing.T) {
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "cmd", false)
-	redir := ast.NewRedirectNode(token.NewFileInfo(1, 0))
-	redirArg := ast.NewVarExpr(token.NewFileInfo(1, 0), "$outFname")
+	redir := ast.NewRedirectNode(token.NewFileInfo(1, 4))
+	redirArg := ast.NewVarExpr(token.NewFileInfo(1, 6), "$outFname")
 	redir.SetLocation(redirArg)
 	cmd.AddRedirect(redir)
 	ln.Push(cmd)
@@ -922,7 +922,7 @@ func TestParseDump(t *testing.T) {
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	dump := ast.NewDumpNode(token.NewFileInfo(1, 0))
-	dump.SetFilename(ast.NewStringExpr(token.NewFileInfo(1, 0), "./init", false))
+	dump.SetFilename(ast.NewStringExpr(token.NewFileInfo(1, 5), "./init", false))
 	ln.Push(dump)
 	expected.Root = ln
 
@@ -946,10 +946,10 @@ func TestParseReturn(t *testing.T) {
 
 	listvalues := make([]ast.Expr, 2)
 
-	listvalues[0] = ast.NewStringExpr(token.NewFileInfo(1, 0), "val1", true)
-	listvalues[1] = ast.NewStringExpr(token.NewFileInfo(1, 0), "val2", true)
+	listvalues[0] = ast.NewStringExpr(token.NewFileInfo(1, 9), "val1", true)
+	listvalues[1] = ast.NewStringExpr(token.NewFileInfo(1, 16), "val2", true)
 
-	retReturn := ast.NewListExpr(token.NewFileInfo(1, 0), listvalues)
+	retReturn := ast.NewListExpr(token.NewFileInfo(1, 7), listvalues)
 
 	ret.SetReturn(retReturn)
 
@@ -963,7 +963,7 @@ func TestParseReturn(t *testing.T) {
 
 	ret = ast.NewReturnNode(token.NewFileInfo(1, 0))
 
-	ret.SetReturn(ast.NewVarExpr(token.NewFileInfo(1, 0), "$var"))
+	ret.SetReturn(ast.NewVarExpr(token.NewFileInfo(1, 7), "$var"))
 
 	ln.Push(ret)
 	expected.Root = ln
@@ -975,7 +975,7 @@ func TestParseReturn(t *testing.T) {
 
 	ret = ast.NewReturnNode(token.NewFileInfo(1, 0))
 
-	ret.SetReturn(ast.NewStringExpr(token.NewFileInfo(1, 0), "value", true))
+	ret.SetReturn(ast.NewStringExpr(token.NewFileInfo(1, 8), "value", true))
 
 	ln.Push(ret)
 	expected.Root = ln
@@ -1023,9 +1023,9 @@ func TestParseVariableIndexing(t *testing.T) {
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	indexedVar := ast.NewIndexExpr(
-		token.NewFileInfo(1, 0),
-		ast.NewVarExpr(token.NewFileInfo(1, 0), "$values"),
-		ast.NewIntExpr(token.NewFileInfo(1, 0), 0),
+		token.NewFileInfo(1, 7),
+		ast.NewVarExpr(token.NewFileInfo(1, 7), "$values"),
+		ast.NewIntExpr(token.NewFileInfo(1, 15), 0),
 	)
 
 	assignment := ast.NewAssignmentNode(token.NewFileInfo(1, 0), "test", indexedVar)
@@ -1037,14 +1037,14 @@ func TestParseVariableIndexing(t *testing.T) {
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	ifDecl := ast.NewIfNode(token.NewFileInfo(1, 0))
-	lvalue := ast.NewVarExpr(token.NewFileInfo(1, 0), "$values")
+	lvalue := ast.NewVarExpr(token.NewFileInfo(1, 3), "$values")
 
-	indexedVar = ast.NewIndexExpr(token.NewFileInfo(1, 0), lvalue,
-		ast.NewIntExpr(token.NewFileInfo(1, 0), 0))
+	indexedVar = ast.NewIndexExpr(token.NewFileInfo(1, 3), lvalue,
+		ast.NewIntExpr(token.NewFileInfo(1, 11), 0))
 
 	ifDecl.SetLvalue(indexedVar)
 	ifDecl.SetOp("==")
-	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 0), "1", true))
+	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 18), "1", true))
 
 	ifBlock := ast.NewTree("if")
 	lnBody := ast.NewBlockNode(token.NewFileInfo(1, 21))
@@ -1063,7 +1063,7 @@ func TestParseMultilineCmdExec(t *testing.T) {
 	expected := ast.NewTree("parser simple")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 1), "echo", true)
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "hello world", true))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 7), "hello world", true))
 	ln.Push(cmd)
 
 	expected.Root = ln
@@ -1073,18 +1073,18 @@ func TestParseMultilineCmdExec(t *testing.T) {
 	expected = ast.NewTree("parser aws cmd")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd = ast.NewCommandNode(token.NewFileInfo(2, 1), "aws", true)
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "ec2", false))
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "run-instances", false))
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "--image-id", false))
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "ami-xxxxxxxx", false))
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "--count", false))
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "1", false))
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "--instance-type", false))
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "t1.micro", false))
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "--key-name", false))
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "MyKeyPair", false))
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "--security-groups", false))
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "my-sg", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 5), "ec2", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 9), "run-instances", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(3, 3), "--image-id", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(3, 14), "ami-xxxxxxxx", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(4, 3), "--count", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(4, 11), "1", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(5, 3), "--instance-type", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(5, 19), "t1.micro", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(6, 3), "--key-name", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(6, 14), "MyKeyPair", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(7, 3), "--security-groups", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(7, 21), "my-sg", false))
 
 	ln.Push(cmd)
 
@@ -1104,7 +1104,7 @@ func TestParseMultilineCmdAssign(t *testing.T) {
 	expected := ast.NewTree("parser simple assign")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 10), "echo", true)
-	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "hello world", true))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 16), "hello world", true))
 	assign, err := ast.NewExecAssignNode(token.NewFileInfo(1, 0), "hello", cmd)
 
 	if err != nil {
@@ -1123,12 +1123,12 @@ func TestMultiPipe(t *testing.T) {
 	expected := ast.NewTree("parser pipe")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	first := ast.NewCommandNode(token.NewFileInfo(1, 1), "echo", false)
-	first.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 6), "hello world", true))
+	first.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 7), "hello world", true))
 
 	second := ast.NewCommandNode(token.NewFileInfo(1, 22), "awk", false)
-	second.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 22), "{print $1}", true))
+	second.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 27), "{print $1}", true))
 
-	pipe := ast.NewPipeNode(token.NewFileInfo(1, 0), true)
+	pipe := ast.NewPipeNode(token.NewFileInfo(1, 20), true)
 	pipe.AddCmd(first)
 	pipe.AddCmd(second)
 
@@ -1142,12 +1142,12 @@ func TestMultiPipe(t *testing.T) {
 	expected = ast.NewTree("parser pipe")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 	first = ast.NewCommandNode(token.NewFileInfo(2, 1), "echo", false)
-	first.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "hello world", true))
+	first.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 7), "hello world", true))
 
 	second = ast.NewCommandNode(token.NewFileInfo(3, 1), "awk", false)
-	second.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 0), "{print AAAAAAAAAAAAAAAAAAAAAA}", true))
+	second.AddArg(ast.NewStringExpr(token.NewFileInfo(3, 6), "{print AAAAAAAAAAAAAAAAAAAAAA}", true))
 
-	pipe = ast.NewPipeNode(token.NewFileInfo(1, 0), true)
+	pipe = ast.NewPipeNode(token.NewFileInfo(2, 20), true)
 	pipe.AddCmd(first)
 	pipe.AddCmd(second)
 

@@ -62,6 +62,10 @@ func (s *StringExpr) IsEqual(other Node) bool {
 		return false
 	}
 
+	if !cmpInfo(s, other) {
+		return false
+	}
+
 	return s.str == value.str
 }
 
@@ -87,6 +91,10 @@ func (i *IntExpr) IsEqual(other Node) bool {
 	o, ok := other.(*IntExpr)
 
 	if !ok {
+		return false
+	}
+
+	if !cmpInfo(i, other) {
 		return false
 	}
 
@@ -130,7 +138,7 @@ func (l *ListExpr) IsEqual(other Node) bool {
 		}
 	}
 
-	return true
+	return cmpInfo(l, other)
 }
 
 func (l *ListExpr) String() string {
@@ -191,7 +199,7 @@ func (c *ConcatExpr) IsEqual(other Node) bool {
 		}
 	}
 
-	return true
+	return cmpInfo(c, other)
 }
 
 func (c *ConcatExpr) String() string {
@@ -229,6 +237,10 @@ func (v *VarExpr) IsEqual(other Node) bool {
 		return false
 	}
 
+	if !cmpInfo(v, other) {
+		return false
+	}
+
 	return v.name == o.name
 }
 
@@ -260,6 +272,10 @@ func (i *IndexExpr) IsEqual(other Node) bool {
 	o, ok := other.(*IndexExpr)
 
 	if !ok {
+		return false
+	}
+
+	if !cmpInfo(i, other) {
 		return false
 	}
 

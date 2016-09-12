@@ -463,7 +463,7 @@ func lexQuote(l *Lexer) stateFn {
 			return l.errorf("Quoted string not finished: %s", l.input[l.start:])
 		}
 
-		l.emitVal(token.String, string(data), l.line, l.column)
+		l.emitVal(token.String, string(data), l.lineStart, l.columnStart)
 
 		l.ignore() // ignores last quote
 		break
@@ -521,7 +521,7 @@ func isArgument(r rune) bool {
 
 	return isId || (r != eof && !isEndOfLine(r) && !isSpace(r) &&
 		r != '$' && r != '{' && r != '}' && r != '(' && r != ']' && r != '[' &&
-		r != ')' && r != '>' && r != '"' && r != ',' && r != ';')
+		r != ')' && r != '>' && r != '"' && r != ',' && r != ';' && r != '|')
 }
 
 func isIdentifier(r rune) bool {
