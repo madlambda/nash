@@ -436,9 +436,9 @@ func TestParseCd(t *testing.T) {
 
 	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0), "HOME", ast.NewStringExpr(token.NewFileInfo(1, 8), "/", true))
 
-	set := ast.NewSetenvNode(token.NewFileInfo(2, 0), "HOME")
-	cd = ast.NewCommandNode(token.NewFileInfo(3, 0), "cd", false)
-	pwd := ast.NewCommandNode(token.NewFileInfo(4, 0), "pwd", false)
+	set := ast.NewSetenvNode(token.NewFileInfo(3, 0), "HOME")
+	cd = ast.NewCommandNode(token.NewFileInfo(5, 0), "cd", false)
+	pwd := ast.NewCommandNode(token.NewFileInfo(6, 0), "pwd", false)
 
 	ln.Push(assign)
 	ln.Push(set)
@@ -448,7 +448,9 @@ func TestParseCd(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("test cd into HOME by setenv", `HOME = "/"
+
 setenv HOME
+
 cd
 pwd`, expected, t, true)
 
@@ -459,8 +461,8 @@ pwd`, expected, t, true)
 	arg = ast.NewStringExpr(token.NewFileInfo(1, 10), "/home/i4k/gopath", true)
 
 	assign = ast.NewAssignmentNode(token.NewFileInfo(1, 0), "GOPATH", arg)
-	cd = ast.NewCommandNode(token.NewFileInfo(2, 0), "cd", false)
-	arg2 := ast.NewVarExpr(token.NewFileInfo(2, 3), "$GOPATH")
+	cd = ast.NewCommandNode(token.NewFileInfo(3, 0), "cd", false)
+	arg2 := ast.NewVarExpr(token.NewFileInfo(3, 3), "$GOPATH")
 	cd.AddArg(arg2)
 
 	ln.Push(assign)
@@ -469,6 +471,7 @@ pwd`, expected, t, true)
 	expected.Root = ln
 
 	parserTestTable("test cd into variable value", `GOPATH = "/home/i4k/gopath"
+
 cd $GOPATH`, expected, t, true)
 
 	// Test cd into custom variable
@@ -480,11 +483,11 @@ cd $GOPATH`, expected, t, true)
 	assign = ast.NewAssignmentNode(token.NewFileInfo(1, 0), "GOPATH", arg)
 
 	concat := make([]ast.Expr, 0, 2)
-	concat = append(concat, ast.NewVarExpr(token.NewFileInfo(2, 3), "$GOPATH"))
-	concat = append(concat, ast.NewStringExpr(token.NewFileInfo(2, 12), "/src/github.com", true))
+	concat = append(concat, ast.NewVarExpr(token.NewFileInfo(3, 3), "$GOPATH"))
+	concat = append(concat, ast.NewStringExpr(token.NewFileInfo(3, 12), "/src/github.com", true))
 
-	cd = ast.NewCommandNode(token.NewFileInfo(2, 0), "cd", false)
-	carg := ast.NewConcatExpr(token.NewFileInfo(2, 3), concat)
+	cd = ast.NewCommandNode(token.NewFileInfo(3, 0), "cd", false)
+	carg := ast.NewConcatExpr(token.NewFileInfo(3, 3), concat)
 	cd.AddArg(carg)
 
 	ln.Push(assign)
@@ -493,6 +496,7 @@ cd $GOPATH`, expected, t, true)
 	expected.Root = ln
 
 	parserTestTable("test cd into variable value", `GOPATH = "/home/i4k/gopath"
+
 cd $GOPATH+"/src/github.com"`, expected, t, true)
 
 }
@@ -822,6 +826,7 @@ func TestParseFnBasic(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("fn", `fn build() {
+
 }`, expected, t, true)
 
 	// root

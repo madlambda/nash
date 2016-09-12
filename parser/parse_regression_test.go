@@ -98,7 +98,9 @@ func TestParseIssue38(t *testing.T) {
 func TestParseIssue43(t *testing.T) {
 	content := `fn gpull() {
 	branch <= git rev-parse --abbrev-ref HEAD | xargs echo -n
+
 	git pull origin $branch
+
 	refreshPrompt()
 }`
 
