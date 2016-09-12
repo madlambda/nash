@@ -27,7 +27,6 @@ func (l *BlockNode) adjustGroupAssign(node *AssignmentNode, nodes []Node) {
 	for j := 0; j < i; j++ {
 		knode := nodes[j].(*AssignmentNode)
 		knode.eqSpace = eqSpace
-		nodes[j] = knode
 	}
 
 	node.eqSpace = eqSpace
