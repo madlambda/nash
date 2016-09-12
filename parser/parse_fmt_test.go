@@ -201,6 +201,21 @@ fn test() {
 func TestFmtSamples(t *testing.T) {
 	testTable := []fmtTestTable{
 		{
+			`dhcpOptId <= (
+		aws ec2 create-dhcp-options
+					--dhcp-configuration "Key=domain-name,Values="+$domain"Key=domain-name-servers,Values="+$domainServers |
+		jq ".DhcpOptions.DhcpOptionsId" |
+		xargs echo -n
+	)`,
+			`dhcpOptId <= (
+		aws ec2 create-dhcp-options
+					--dhcp-configuration "Key=domain-name,Values="+$domain
+					"Key=domain-name-servers,Values="+$domainServers |
+		jq ".DhcpOptions.DhcpOptionsId" |
+		xargs echo -n
+	)`,
+		},
+		{
 			`#!/usr/bin/env nash
 import nashlib/all
 import klb/aws/all

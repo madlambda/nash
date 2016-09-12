@@ -115,9 +115,10 @@ func (n *ExecAssignNode) String() string {
 func (n *CommandNode) toStringParts() ([]string, int) {
 	var (
 		content  []string
-		line     string
 		last     = len(n.args) - 1
 		totalLen = 0
+		buffer   string
+		firstOk  bool
 	)
 
 	for i := 0; i < len(n.args); i += 2 {
@@ -133,29 +134,31 @@ func (n *CommandNode) toStringParts() ([]string, int) {
 			arg = n.name + " " + arg
 		}
 
-		if arg[0] == '-' {
-			if line != "" {
-				content = append(content, line)
-				line = ""
-			}
-
-			if next[0] != '-' {
-				line += arg + " " + next
+		if arg[0] == '-' && next != "" && next[0] != '-' && len(buffer+" "+arg+" "+next) < 60 {
+			if firstOk {
+				content = append(content, arg+" "+next)
 			} else {
-				content = append(content, arg, next)
+				if buffer == "" {
+					buffer = arg + " " + next
+				} else {
+					content = append(content, buffer+" "+arg+" "+next)
+					firstOk = true
+				}
 			}
-		} else if next != "" {
-			line += arg + " " + next
 		} else {
-			line += arg
+			if firstOk {
+				content = append(content, arg, next)
+			} else {
+				if buffer != "" {
+					content = append(content, buffer, arg, next)
+				} else {
+					content = append(content, arg+" "+next)
+				}
+			}
 		}
 
 		totalLen += len(arg) + len(next) + 1
 
-	}
-
-	if line != "" {
-		content = append(content, line)
 	}
 
 	return content, totalLen
