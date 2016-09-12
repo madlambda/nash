@@ -165,7 +165,10 @@ vpcTags = ((Name klb-vpc-example) (Env testing))
 			`import nashlib/all
 import klb/aws/all
 
-vpcTags = ((Name klb-vpc-example) (Env testing))`,
+vpcTags = (
+	(Name klb-vpc-example)
+	(Env testing)
+)`,
 		},
 	}
 
@@ -236,12 +239,35 @@ create_prod()
 import nashlib/all
 import klb/aws/all
 
-vpcTags       = ((Name klb-vpc-example) (Env testing))
-igwTags       = ((Name klb-igw-example) (Env testing))
-routeTblTags  = ((Name klb-rtbl-example) (Env testing))
-appSubnetTags = ((Name klb-app-subnet-example) (Env testing))
-dbSubnetTags  = ((Name klb-db-subnet-example) (Env testing))
-sgTags        = ((Name klb-sg-example) (Env testing))
+vpcTags = (
+	(Name klb-vpc-example)
+	(Env testing)
+)
+
+igwTags = (
+	(Name klb-igw-example)
+	(Env testing)
+)
+
+routeTblTags = (
+	(Name klb-rtbl-example)
+	(Env testing)
+)
+
+appSubnetTags = (
+	(Name klb-app-subnet-example)
+	(Env testing)
+)
+
+dbSubnetTags = (
+	(Name klb-db-subnet-example)
+	(Env testing)
+)
+
+sgTags = (
+	(Name klb-sg-example)
+	(Env testing)
+)
 
 fn print_resource(name, id) {
 	printf "Created %s: %s%s%s\n" $name $NASH_GREEN $id $NASH_RESET
