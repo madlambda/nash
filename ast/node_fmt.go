@@ -5,6 +5,34 @@ import (
 	"strings"
 )
 
+func (l *BlockNode) adjustGroupAssign(node *AssignmentNode, nodes []Node) {
+	var eqSpace = node.eqSpace
+
+	eqSpace = len(node.Identifier()) + 1
+
+	var i int
+
+	for i = 0; i < len(nodes); i++ {
+		if nodes[i].Type() != NodeAssignment {
+			break
+		}
+
+		assign := nodes[i].(*AssignmentNode)
+
+		if len(assign.Identifier())+1 > eqSpace {
+			eqSpace = len(assign.Identifier()) + 1
+		}
+	}
+
+	for j := 0; j < i; j++ {
+		knode := nodes[j].(*AssignmentNode)
+		knode.eqSpace = eqSpace
+		nodes[j] = knode
+	}
+
+	node.eqSpace = eqSpace
+}
+
 func (l *BlockNode) String() string {
 	nodes := l.Nodes
 	content := make([]string, 0, 8192)
@@ -34,6 +62,14 @@ func (l *BlockNode) String() string {
 				addEOL = true
 			} else if node.Type() == NodeFnDecl {
 				addEOL = true
+			} else if node.Type() == NodeAssignment {
+				// lookahead to decide about best '=' distance
+				nodeAssign := node.(*AssignmentNode)
+
+				if nodeAssign.eqSpace == -1 {
+					l.adjustGroupAssign(nodeAssign, nodes[i+1:])
+					nodebytes = nodeAssign.String()
+				}
 			}
 		}
 
@@ -62,6 +98,10 @@ func (n *AssignmentNode) String() string {
 	obj := n.val
 
 	if obj.Type().IsExpr() {
+		if n.eqSpace > len(n.name) {
+			return n.name + strings.Repeat(" ", n.eqSpace-len(n.name)) + "= " + obj.String()
+		}
+
 		return n.name + " = " + obj.String()
 	}
 

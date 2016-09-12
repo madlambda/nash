@@ -68,8 +68,9 @@ type (
 		NodeType
 		token.FileInfo
 
-		name string
-		val  Expr
+		name    string
+		val     Expr
+		eqSpace int
 	}
 
 	// An ExecAssignNode represents the node for execution assignment.
@@ -483,6 +484,7 @@ func NewAssignmentNode(info token.FileInfo, ident string, value Expr) *Assignmen
 	return &AssignmentNode{
 		NodeType: NodeAssignment,
 		FileInfo: info,
+		eqSpace:  -1,
 
 		name: ident,
 		val:  value,
