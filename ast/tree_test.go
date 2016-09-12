@@ -1,6 +1,10 @@
 package ast
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/NeowayLabs/nash/token"
+)
 
 // Test API
 func TestTreeCreation(t *testing.T) {
@@ -15,10 +19,10 @@ func TestTreeCreation(t *testing.T) {
 func TestTreeRawCreation(t *testing.T) {
 	tr := NewTree("creating a tree by hand")
 
-	ln := NewListNode()
-	rfarg := NewStringExpr(6, "unp", false)
+	ln := NewBlockNode(token.NewFileInfo(1, 0))
+	rfarg := NewStringExpr(token.NewFileInfo(1, 0), "unp", false)
 
-	r := NewRforkNode(0)
+	r := NewRforkNode(token.NewFileInfo(1, 0))
 	r.SetFlags(rfarg)
 	ln.Push(r)
 

@@ -12,27 +12,30 @@ import (
 
 type (
 	Token struct {
-		typ    token.Token
-		pos    token.Pos // start position of this token
-		line   int       // line of token
-		column int       // column of token in the line
-		val    string
+		typ token.Token
+		token.FileInfo
+
+		val string
 	}
 
 	stateFn func(*Lexer) stateFn
 
 	// Lexer holds the state of the scanner
 	Lexer struct {
-		name   string     // identify the source, used only for error reports
-		input  string     // the string being scanned
-		start  int        // start position of current token
-		pos    int        // current position in the input
+		name  string // identify the source, used only for error reports
+		input string // the string being scanned
+		start int    // start position of current token
+
 		width  int        // width of last rune read
 		Tokens chan Token // channel of scanned tokens
 
-		linenum    int
-		column     int
-		prevColumn int
+		// file positions
+		pos         int // file offset
+		line        int // current line position
+		lineStart   int // line of the symbol's start
+		prevColumn  int // previous column value
+		column      int // current column position
+		columnStart int // column of the symbol's start
 
 		openParens int
 
@@ -46,9 +49,6 @@ const (
 
 func (i Token) Type() token.Token { return i.typ }
 func (i Token) Value() string     { return i.val }
-func (i Token) Pos() token.Pos    { return i.pos }
-func (i Token) Line() int         { return i.line }
-func (i Token) Column() int       { return i.column }
 
 func (i Token) String() string {
 	switch i.typ {
@@ -67,8 +67,7 @@ func (i Token) String() string {
 
 // run lexes the input by executing state functions until the state is nil
 func (l *Lexer) run() {
-	l.linenum = 1
-	l.column = 0
+	l.line, l.lineStart, l.column, l.columnStart = 1, 1, 0, 0
 
 	for state := lexStart; state != nil; {
 		state = state(l)
@@ -80,26 +79,28 @@ func (l *Lexer) run() {
 
 func (l *Lexer) emitVal(t token.Token, val string, line, column int) {
 	l.Tokens <- Token{
-		typ:    t,
-		val:    val,
-		pos:    token.Pos(l.start),
-		line:   line,
-		column: column,
+		FileInfo: token.NewFileInfo(line, column),
+
+		typ: t,
+		val: val,
 	}
 
 	l.start = l.pos
+	l.lineStart = l.line
+	l.columnStart = l.column
 }
 
 func (l *Lexer) emit(t token.Token) {
 	l.Tokens <- Token{
-		typ:    t,
-		val:    l.input[l.start:l.pos],
-		pos:    token.Pos(l.start),
-		line:   l.linenum,
-		column: l.column,
+		FileInfo: token.NewFileInfo(l.lineStart, l.columnStart),
+
+		typ: t,
+		val: l.input[l.start:l.pos],
 	}
 
 	l.start = l.pos
+	l.lineStart = l.line
+	l.columnStart = l.column
 }
 
 // peek returns but does not consume the next rune from input
@@ -124,7 +125,7 @@ func (l *Lexer) next() rune {
 	l.prevColumn = l.column
 
 	if r == '\n' {
-		l.linenum++
+		l.line++
 		l.column = 0
 	} else {
 		l.column++
@@ -136,6 +137,8 @@ func (l *Lexer) next() rune {
 // ignore skips over the pending input before this point
 func (l *Lexer) ignore() {
 	l.start = l.pos
+	l.lineStart = l.line
+	l.columnStart = l.column
 }
 
 // backup steps back one rune
@@ -147,7 +150,7 @@ func (l *Lexer) backup() {
 	l.column = l.prevColumn
 
 	if r == '\n' {
-		l.linenum--
+		l.line--
 	}
 }
 
@@ -171,17 +174,18 @@ func (l *Lexer) errorf(format string, args ...interface{}) stateFn {
 	errMsg := fmt.Sprintf(format, args...)
 
 	arguments := make([]interface{}, 0, len(args)+2)
-	arguments = append(arguments, fname, l.linenum, l.column, errMsg)
+	arguments = append(arguments, fname, l.line, l.column, errMsg)
 
 	l.Tokens <- Token{
-		typ:    token.Illegal,
-		val:    fmt.Sprintf("%s:%d:%d: %s", arguments...),
-		pos:    token.Pos(l.start),
-		line:   l.linenum,
-		column: l.column,
+		FileInfo: token.NewFileInfo(l.line, l.column),
+
+		typ: token.Illegal,
+		val: fmt.Sprintf("%s:%d:%d: %s", arguments...),
 	}
 
 	l.start = len(l.input)
+	l.lineStart = l.line
+	l.columnStart = l.column
 	l.pos = l.start
 
 	return nil // finish the state machine
@@ -206,7 +210,7 @@ func lexStart(l *Lexer) stateFn {
 	switch {
 	case r == eof:
 		if l.addSemicolon {
-			l.emitVal(token.Semicolon, ";", l.linenum, l.column)
+			l.emitVal(token.Semicolon, ";", l.line, l.column)
 		}
 
 		l.addSemicolon = false
@@ -249,7 +253,7 @@ func lexStart(l *Lexer) stateFn {
 		l.ignore()
 
 		if l.addSemicolon && l.openParens == 0 {
-			l.emitVal(token.Semicolon, ";", l.linenum, l.column)
+			l.emitVal(token.Semicolon, ";", l.line, l.column)
 		}
 
 		l.addSemicolon = false
@@ -459,7 +463,7 @@ func lexQuote(l *Lexer) stateFn {
 			return l.errorf("Quoted string not finished: %s", l.input[l.start:])
 		}
 
-		l.emitVal(token.String, string(data), l.linenum, l.column)
+		l.emitVal(token.String, string(data), l.lineStart, l.columnStart)
 
 		l.ignore() // ignores last quote
 		break
@@ -517,7 +521,7 @@ func isArgument(r rune) bool {
 
 	return isId || (r != eof && !isEndOfLine(r) && !isSpace(r) &&
 		r != '$' && r != '{' && r != '}' && r != '(' && r != ']' && r != '[' &&
-		r != ')' && r != '>' && r != '"' && r != ',' && r != ';')
+		r != ')' && r != '>' && r != '"' && r != ',' && r != ';' && r != '|')
 }
 
 func isIdentifier(r rune) bool {

@@ -4,7 +4,10 @@ import "strconv"
 
 type (
 	Token int
-	Pos   int
+
+	FileInfo struct {
+		line, column int
+	}
 )
 
 const (
@@ -138,10 +141,9 @@ func IsKeyword(t Token) bool {
 	return false
 }
 
-// token.Position returns the position of the node in file
-func (p Pos) Position() Pos {
-	return p
-}
+func NewFileInfo(l, c int) FileInfo { return FileInfo{l, c} }
+func (info FileInfo) Line() int     { return info.line }
+func (info FileInfo) Column() int   { return info.column }
 
 func (tok Token) String() string {
 	s := ""
