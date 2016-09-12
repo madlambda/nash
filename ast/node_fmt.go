@@ -112,8 +112,7 @@ func (l *BlockNode) String() string {
 		} else if (node.Type() == NodeComment) && i < last {
 			nextNode := nodes[i+1]
 
-			if nextNode.Type() == NodeComment &&
-				nextNode.Line() > node.Line()+1 {
+			if nextNode.Line() > node.Line()+1 {
 				addEOL = true
 			}
 		} else if i < last {
