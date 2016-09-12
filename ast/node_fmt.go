@@ -140,14 +140,26 @@ func (n *CommandNode) toStringParts() ([]string, int) {
 			}
 
 			if next[0] != '-' {
-				line += arg + " " + next
+				if line == "" {
+					line += arg + " " + next
+				} else {
+					line += " " + arg + " " + next
+				}
 			} else {
 				content = append(content, arg, next)
 			}
 		} else if next != "" {
-			line += arg + " " + next
+			if line == "" {
+				line += arg + " " + next
+			} else {
+				line += " " + arg + " " + next
+			}
 		} else {
-			line += arg
+			if line == "" {
+				line += arg
+			} else {
+				line += " " + arg
+			}
 		}
 
 		totalLen += len(arg) + len(next) + 1
@@ -480,4 +492,23 @@ func (n *ForNode) String() string {
 	ret += "}"
 
 	return ret
+}
+
+func stringify(s string) string {
+	buf := make([]byte, 0, len(s))
+
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '"':
+			buf = append(buf, '\\', '"')
+		case '\t':
+			buf = append(buf, '\\', 't')
+		case '\n':
+			buf = append(buf, '\\', 'n')
+		default:
+			buf = append(buf, s[i])
+		}
+	}
+
+	return string(buf)
 }
