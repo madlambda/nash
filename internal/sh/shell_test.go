@@ -1679,6 +1679,8 @@ func TestExecuteInterruptDoesNotCancelLoop(t *testing.T) {
 
 	sh.TriggerCTRLC()
 
+	time.Sleep(time.Second * 1)
+
 	err = sh.Exec("interrupting loop", `seq = (1 2 3 4 5)
 for i in $seq {}`)
 
