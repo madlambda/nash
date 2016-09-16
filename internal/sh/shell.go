@@ -286,6 +286,8 @@ func (sh *Shell) Setenv(name string, value *Obj) {
 		return
 	}
 
+	sh.Setvar(name, value)
+
 	sh.env[name] = value
 	os.Setenv(name, value.String())
 }
