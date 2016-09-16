@@ -299,3 +299,23 @@ create_prod()`,
 
 	testFmtTable(testTable, t)
 }
+
+func TestFmtPipes(t *testing.T) {
+	testTable := []fmtTestTable{
+		{
+			`echo hello | grep "he" > test`,
+			`echo hello | grep "he" > test`,
+		},
+		{
+			`(echo hello | sed "s/he/wo/g" >[1] /tmp/test >[2] /dev/null)`,
+			`(
+	echo hello |
+	sed "s/he/wo/g"
+		>[1] /tmp/test
+		>[2] /dev/null
+)`,
+		},
+	}
+
+	testFmtTable(testTable, t)
+}
