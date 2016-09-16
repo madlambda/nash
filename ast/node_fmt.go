@@ -246,7 +246,7 @@ func (n *CommandNode) toStringParts() ([]string, int) {
 				line = ""
 			}
 
-			if next[0] != '-' {
+			if len(next) > 0 && next[0] != '-' {
 				if line == "" {
 					line += arg + " " + next
 				} else {
