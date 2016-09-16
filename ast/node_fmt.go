@@ -277,6 +277,12 @@ func (n *CommandNode) toStringParts() ([]string, int) {
 		content = append(content, line)
 	}
 
+	for i := 0; i < len(n.redirs); i++ {
+		rstr := n.redirs[i].String()
+		totalLen += len(rstr) + 1
+		content = append(content, rstr)
+	}
+
 	return content, totalLen
 }
 
@@ -627,6 +633,8 @@ func stringify(s string) string {
 			buf = append(buf, '\\', 't')
 		case '\n':
 			buf = append(buf, '\\', 'n')
+		case '\\':
+			buf = append(buf, '\\', '\\')
 		default:
 			buf = append(buf, s[i])
 		}
