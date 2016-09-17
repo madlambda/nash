@@ -956,29 +956,20 @@ pipeError:
 
 func (sh *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, error) {
 	var (
-		protocol, locationStr string
+		protocol string
 	)
 
-	if location.Type() != ast.NodeVarExpr && location.Type() != ast.NodeStringExpr {
-		return nil, errors.NewError("Invalid argument of type %v in redirection", location.Type())
+	locationObj, err := sh.evalExpr(location)
+
+	if err != nil {
+		return nil, err
 	}
 
-	if location.Type() == ast.NodeStringExpr {
-		estr := location.(*ast.StringExpr)
-		locationStr = estr.Value()
-	} else {
-		obj, err := sh.evalVariable(location)
-
-		if err != nil {
-			return nil, err
-		}
-
-		if obj.Type() != StringType {
-			return nil, errors.NewError("Invalid object type in redirection: %+v", obj.Type())
-		}
-
-		locationStr = obj.Str()
+	if locationObj.Type() != StringType {
+		return nil, errors.NewError("Redirection to invalid object type: %v (%s)", locationObj, locationObj.Type())
 	}
+
+	locationStr := locationObj.Str()
 
 	if len(locationStr) > 6 {
 		if locationStr[0:6] == "tcp://" {

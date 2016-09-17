@@ -409,8 +409,10 @@ func TestExecuteRedirection(t *testing.T) {
 
 	sh.SetNashdPath(nashdPath)
 
+	path := "/tmp/nash.test.txt"
+
 	err = sh.Exec("redirect", `
-        echo -n "hello world" > /tmp/test1.txt
+        echo -n "hello world" > `+path+`
         `)
 
 	if err != nil {
@@ -418,7 +420,32 @@ func TestExecuteRedirection(t *testing.T) {
 		return
 	}
 
-	content, err := ioutil.ReadFile("/tmp/test1.txt")
+	content, err := ioutil.ReadFile(path)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	os.Remove(path)
+
+	if string(content) != "hello world" {
+		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
+		return
+	}
+
+	// Test redirection to variable
+	err = sh.Exec("redirect", `
+	location = "`+path+`"
+        echo -n "hello world" > $location
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	content, err = ioutil.ReadFile(path)
 
 	if err != nil {
 		t.Error(err)
@@ -429,6 +456,34 @@ func TestExecuteRedirection(t *testing.T) {
 		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
 		return
 	}
+
+	os.Remove(path)
+
+	// Test redirection to concat
+	err = sh.Exec("redirect", `
+	location = "`+path+`"
+a = ".2"
+        echo -n "hello world" > $location+$a
+        `)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	content, err = ioutil.ReadFile(path + ".2")
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(content) != "hello world" {
+		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
+		return
+	}
+
+	os.Remove(path + ".2")
 }
 
 func TestExecuteRedirectionMap(t *testing.T) {
