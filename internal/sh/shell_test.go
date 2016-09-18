@@ -1564,29 +1564,48 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 
 	sh.SetNashdPath(nashdPath)
 
+	doneCtrlc := make(chan bool)
+	doneLoop := make(chan bool)
+
 	go func() {
 		fmt.Printf("Waiting 2 second to abort infinite loop")
 		time.Sleep(2 * time.Second)
 
 		sh.TriggerCTRLC()
+		doneCtrlc <- true
 	}()
 
-	err = sh.Exec("simple loop", `for {
+	go func() {
+		err = sh.Exec("simple loop", `for {
         echo "infinite loop" >[1=]
 }`)
+		doneLoop <- true
 
-	if err == nil {
-		t.Errorf("Must fail with interrupted error")
-		return
-	}
+		if err == nil {
+			t.Errorf("Must fail with interrupted error")
+			return
+		}
 
-	type interrupted interface {
-		Interrupted() bool
-	}
+		type interrupted interface {
+			Interrupted() bool
+		}
 
-	if errInterrupted, ok := err.(interrupted); !ok || !errInterrupted.Interrupted() {
-		t.Errorf("Loop not interrupted properly")
-		return
+		if errInterrupted, ok := err.(interrupted); !ok || !errInterrupted.Interrupted() {
+			t.Errorf("Loop not interrupted properly")
+			return
+		}
+	}()
+
+	for i := 0; i < 2; i++ {
+		select {
+		case <-doneCtrlc:
+			fmt.Printf("CTRL-C Sent to subshell\n")
+		case <-doneLoop:
+			fmt.Printf("Loop finished.\n")
+		case <-time.After(5 * time.Second):
+			t.Errorf("Failed to stop infinite loop")
+			return
+		}
 	}
 }
 
@@ -1984,33 +2003,6 @@ world`)
 
 	if e, ok := err.(unfinished); !ok || !e.Unfinished() {
 		t.Errorf("Must fail with unfinished paren error. Got %s", err.Error())
-		return
-	}
-}
-
-func TestExecuteBuiltinLen(t *testing.T) {
-	sh, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	var out bytes.Buffer
-
-	sh.SetStdout(&out)
-
-	err = sh.Exec("test len", `a = (1 2 3 4 5 6 7 8 9 0)
-len_a <= len($a)
-echo -n $len_a`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if "10" != string(out.Bytes()) {
-		t.Errorf("String differs: '%s' != '%s'", "10", string(out.Bytes()))
 		return
 	}
 }

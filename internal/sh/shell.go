@@ -421,6 +421,10 @@ func (sh *Shell) setupBuiltin() error {
 	sh.builtins["len"] = lenfn
 	sh.Setvar("len", NewFnObj(lenfn))
 
+	appendfn := NewAppendFn(sh)
+	sh.builtins["append"] = appendfn
+	sh.Setvar("append", NewFnObj(appendfn))
+
 	chdir := NewChdir(sh)
 	sh.builtins["chdir"] = chdir
 	sh.Setvar("chdir", NewFnObj(chdir))
