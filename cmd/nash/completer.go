@@ -26,7 +26,7 @@ func (c *Completer) Do(line []rune, pos int) (newLine [][]rune, offset int) {
 	if len(line) >= 1 && (line[0] == '/' || line[0] == '.') {
 		return completeFile(line, pos, "")
 	} else if len(line) == 0 {
-		return completeFile([]rune{'/'}, 0, "/")
+		return
 	}
 
 	pathVal := os.Getenv("PATH")
