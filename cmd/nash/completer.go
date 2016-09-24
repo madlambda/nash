@@ -32,7 +32,7 @@ func (c *Completer) Do(line []rune, pos int) (newLine [][]rune, offset int) {
 	completeStr := line
 
 	for i := pos - 1; i >= 0; i-- {
-		if line[i] == ' ' || i == 0 {
+		if line[i] == ' ' {
 			completeStr = completeStr[i+1 : pos]
 			local = true
 			break
