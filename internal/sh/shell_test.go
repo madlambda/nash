@@ -1267,6 +1267,33 @@ test()`)
 		t.Error(err)
 		return
 	}
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.Exec("test return", `fn test() {
+	if "1" == "1" {
+		return "1"
+	}
+
+	return "0"
+}
+
+res <= test()
+echo -n $res`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	got := string(out.Bytes())
+
+	if got != "1" {
+		t.Errorf("Expected '1' but got '%s'", got)
+		return
+	}
 }
 
 func TestExecuteFnAsFirstClass(t *testing.T) {
