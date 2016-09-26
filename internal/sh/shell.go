@@ -646,7 +646,7 @@ func (sh *Shell) executeNode(node ast.Node, builtin bool) (*Obj, error) {
 		// invocation ignoring output
 		_, err = sh.executeFnInv(node.(*ast.FnInvNode))
 	case ast.NodeFor:
-		err = sh.executeFor(node.(*ast.ForNode))
+		obj, err = sh.executeFor(node.(*ast.ForNode))
 	case ast.NodeBindFn:
 		err = sh.executeBindFn(node.(*ast.BindFnNode))
 	case ast.NodeDump:
@@ -1658,20 +1658,33 @@ func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 	return fn.Results(), nil
 }
 
-func (sh *Shell) executeInfLoop(tr *ast.Tree) error {
-	var err error
+func (sh *Shell) executeInfLoop(tr *ast.Tree) (*Obj, error) {
+	var (
+		err error
+		obj *Obj
+	)
 
 	for {
-		_, err = sh.executeTree(tr, true)
+		obj, err = sh.executeTree(tr, false)
 
 		runtime.Gosched()
 
-		type interruptedError interface {
-			Interrupted() bool
-		}
+		type (
+			interruptedError interface {
+				Interrupted() bool
+			}
+
+			stopWalkingError interface {
+				StopWalking() bool
+			}
+		)
 
 		if errInterrupted, ok := err.(interruptedError); ok && errInterrupted.Interrupted() {
 			break
+		}
+
+		if errStopWalking, ok := err.(stopWalkingError); ok && errStopWalking.StopWalking() {
+			return obj, err
 		}
 
 		sh.Lock()
@@ -1693,10 +1706,10 @@ func (sh *Shell) executeInfLoop(tr *ast.Tree) error {
 		}
 	}
 
-	return err
+	return nil, err
 }
 
-func (sh *Shell) executeFor(n *ast.ForNode) error {
+func (sh *Shell) executeFor(n *ast.ForNode) (*Obj, error) {
 	sh.Lock()
 	sh.looping = true
 	sh.Unlock()
@@ -1720,24 +1733,34 @@ func (sh *Shell) executeFor(n *ast.ForNode) error {
 	obj, err := sh.evalVariable(argVar)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if obj.Type() != ListType {
-		return errors.NewError("Invalid variable type in for range: %s", obj.Type())
+		return nil, errors.NewError("Invalid variable type in for range: %s", obj.Type())
 	}
 
 	for _, val := range obj.List() {
 		sh.Setvar(id, val)
 
-		obj, err = sh.executeTree(n.Tree(), true)
+		obj, err = sh.executeTree(n.Tree(), false)
 
-		type interruptedError interface {
-			Interrupted() bool
-		}
+		type (
+			interruptedError interface {
+				Interrupted() bool
+			}
+
+			stopWalkingError interface {
+				StopWalking() bool
+			}
+		)
 
 		if errInterrupted, ok := err.(interruptedError); ok && errInterrupted.Interrupted() {
-			return err
+			return nil, err
+		}
+
+		if errStopWalking, ok := err.(stopWalkingError); ok && errStopWalking.StopWalking() {
+			return obj, err
 		}
 
 		sh.Lock()
@@ -1747,20 +1770,20 @@ func (sh *Shell) executeFor(n *ast.ForNode) error {
 			sh.Unlock()
 
 			if err != nil {
-				return newErrInterrupted(err.Error())
+				return nil, newErrInterrupted(err.Error())
 			}
 
-			return newErrInterrupted("loop interrupted")
+			return nil, newErrInterrupted("loop interrupted")
 		}
 
 		sh.Unlock()
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (sh *Shell) executeFnDecl(n *ast.FnDeclNode) error {
