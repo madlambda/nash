@@ -600,7 +600,7 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 
 	it := p.next()
 
-	if it.Type() != token.Ident && it.Type() != token.Arg && it.Type() != token.LParen {
+	if it.Type() != token.Ident && it.Type() != token.Arg && it.Type() != token.Variable && it.Type() != token.LParen {
 		return nil, errors.NewError("Invalid token %v. Expected command or function invocation", it)
 	}
 
@@ -614,6 +614,9 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 			// it == (Ident || Arg)
 			exec, err = p.parseCommand(it)
 		} else {
+			// <ident>()
+			// <arg>()
+			// <var>()
 			exec, err = p.parseFnInv(it)
 		}
 	}
