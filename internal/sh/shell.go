@@ -100,6 +100,10 @@ type (
 	errInterrupted struct {
 		*errors.NashError
 	}
+
+	errStopWalking struct {
+		*errors.NashError
+	}
 )
 
 const (
@@ -125,6 +129,14 @@ func newErrInterrupted(format string, arg ...interface{}) error {
 }
 
 func (e *errInterrupted) Interrupted() bool { return true }
+
+func newErrStopWalking() *errStopWalking {
+	return &errStopWalking{
+		NashError: errors.NewError("return"),
+	}
+}
+
+func (e *errStopWalking) StopWalking() bool { return true }
 
 // NewShell creates a new shell object
 func NewShell() (*Shell, error) {
@@ -627,14 +639,14 @@ func (sh *Shell) executeNode(node ast.Node, builtin bool) (*Obj, error) {
 	case ast.NodeRfork:
 		err = sh.executeRfork(node.(*ast.RforkNode))
 	case ast.NodeIf:
-		err = sh.executeIf(node.(*ast.IfNode))
+		obj, err = sh.executeIf(node.(*ast.IfNode))
 	case ast.NodeFnDecl:
 		err = sh.executeFnDecl(node.(*ast.FnDeclNode))
 	case ast.NodeFnInv:
 		// invocation ignoring output
 		_, err = sh.executeFnInv(node.(*ast.FnInvNode))
 	case ast.NodeFor:
-		err = sh.executeFor(node.(*ast.ForNode))
+		obj, err = sh.executeFor(node.(*ast.ForNode))
 	case ast.NodeBindFn:
 		err = sh.executeBindFn(node.(*ast.BindFnNode))
 	case ast.NodeDump:
@@ -653,8 +665,12 @@ func (sh *Shell) executeNode(node ast.Node, builtin bool) (*Obj, error) {
 	return obj, err
 }
 
-// ExecuteTree evaluates the given tree
 func (sh *Shell) ExecuteTree(tr *ast.Tree) (*Obj, error) {
+	return sh.executeTree(tr, true)
+}
+
+// executeTree evaluates the given tree
+func (sh *Shell) executeTree(tr *ast.Tree, stopable bool) (*Obj, error) {
 	if tr == nil || tr.Root == nil {
 		return nil, errors.NewError("empty abstract syntax tree to execute")
 	}
@@ -665,27 +681,33 @@ func (sh *Shell) ExecuteTree(tr *ast.Tree) (*Obj, error) {
 		obj, err := sh.executeNode(node, false)
 
 		if err != nil {
-			type IgnoreError interface {
-				Ignore() bool
-			}
+			type (
+				IgnoreError interface {
+					Ignore() bool
+				}
+
+				InterruptedError interface {
+					Interrupted() bool
+				}
+
+				StopWalkingError interface {
+					StopWalking() bool
+				}
+			)
 
 			if errIgnore, ok := err.(IgnoreError); ok && errIgnore.Ignore() {
 				continue
-			}
-
-			type InterruptedError interface {
-				Interrupted() bool
 			}
 
 			if errInterrupted, ok := err.(InterruptedError); ok && errInterrupted.Interrupted() {
 				return nil, err
 			}
 
-			return nil, err
-		}
+			if errStopWalking, ok := err.(StopWalkingError); stopable && ok && errStopWalking.StopWalking() {
+				return obj, nil
+			}
 
-		if node.Type() == ast.NodeReturn {
-			return obj, nil
+			return obj, err
 		}
 	}
 
@@ -694,10 +716,16 @@ func (sh *Shell) ExecuteTree(tr *ast.Tree) (*Obj, error) {
 
 func (sh *Shell) executeReturn(n *ast.ReturnNode) (*Obj, error) {
 	if n.Return() == nil {
-		return nil, nil
+		return nil, newErrStopWalking()
 	}
 
-	return sh.evalExpr(n.Return())
+	obj, err := sh.evalExpr(n.Return())
+
+	if err != nil {
+		return nil, err
+	}
+
+	return obj, newErrStopWalking()
 }
 
 func (sh *Shell) executeImport(node *ast.ImportNode) error {
@@ -1521,40 +1549,36 @@ func (sh *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
 	return lobj.Str(), robj.Str(), nil
 }
 
-func (sh *Shell) executeIfEqual(n *ast.IfNode) error {
+func (sh *Shell) executeIfEqual(n *ast.IfNode) (*Obj, error) {
 	lstr, rstr, err := sh.evalIfArguments(n)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if lstr == rstr {
-		_, err = sh.ExecuteTree(n.IfTree())
-		return err
+		return sh.executeTree(n.IfTree(), false)
 	} else if n.ElseTree() != nil {
-		_, err = sh.ExecuteTree(n.ElseTree())
-		return err
+		return sh.executeTree(n.ElseTree(), false)
 	}
 
-	return nil
+	return nil, nil
 }
 
-func (sh *Shell) executeIfNotEqual(n *ast.IfNode) error {
+func (sh *Shell) executeIfNotEqual(n *ast.IfNode) (*Obj, error) {
 	lstr, rstr, err := sh.evalIfArguments(n)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if lstr != rstr {
-		_, err = sh.ExecuteTree(n.IfTree())
-		return err
+		return sh.executeTree(n.IfTree(), false)
 	} else if n.ElseTree() != nil {
-		_, err = sh.ExecuteTree(n.ElseTree())
-		return err
+		return sh.executeTree(n.ElseTree(), false)
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (sh *Shell) executeFn(fn Fn, args []ast.Expr) (*Obj, error) {
@@ -1634,20 +1658,33 @@ func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 	return fn.Results(), nil
 }
 
-func (sh *Shell) executeInfLoop(tr *ast.Tree) error {
-	var err error
+func (sh *Shell) executeInfLoop(tr *ast.Tree) (*Obj, error) {
+	var (
+		err error
+		obj *Obj
+	)
 
 	for {
-		_, err = sh.ExecuteTree(tr)
+		obj, err = sh.executeTree(tr, false)
 
 		runtime.Gosched()
 
-		type interruptedError interface {
-			Interrupted() bool
-		}
+		type (
+			interruptedError interface {
+				Interrupted() bool
+			}
+
+			stopWalkingError interface {
+				StopWalking() bool
+			}
+		)
 
 		if errInterrupted, ok := err.(interruptedError); ok && errInterrupted.Interrupted() {
 			break
+		}
+
+		if errStopWalking, ok := err.(stopWalkingError); ok && errStopWalking.StopWalking() {
+			return obj, err
 		}
 
 		sh.Lock()
@@ -1669,10 +1706,10 @@ func (sh *Shell) executeInfLoop(tr *ast.Tree) error {
 		}
 	}
 
-	return err
+	return nil, err
 }
 
-func (sh *Shell) executeFor(n *ast.ForNode) error {
+func (sh *Shell) executeFor(n *ast.ForNode) (*Obj, error) {
 	sh.Lock()
 	sh.looping = true
 	sh.Unlock()
@@ -1696,24 +1733,34 @@ func (sh *Shell) executeFor(n *ast.ForNode) error {
 	obj, err := sh.evalVariable(argVar)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if obj.Type() != ListType {
-		return errors.NewError("Invalid variable type in for range: %s", obj.Type())
+		return nil, errors.NewError("Invalid variable type in for range: %s", obj.Type())
 	}
 
 	for _, val := range obj.List() {
 		sh.Setvar(id, val)
 
-		_, err = sh.ExecuteTree(n.Tree())
+		obj, err = sh.executeTree(n.Tree(), false)
 
-		type interruptedError interface {
-			Interrupted() bool
-		}
+		type (
+			interruptedError interface {
+				Interrupted() bool
+			}
+
+			stopWalkingError interface {
+				StopWalking() bool
+			}
+		)
 
 		if errInterrupted, ok := err.(interruptedError); ok && errInterrupted.Interrupted() {
-			return err
+			return nil, err
+		}
+
+		if errStopWalking, ok := err.(stopWalkingError); ok && errStopWalking.StopWalking() {
+			return obj, err
 		}
 
 		sh.Lock()
@@ -1723,20 +1770,20 @@ func (sh *Shell) executeFor(n *ast.ForNode) error {
 			sh.Unlock()
 
 			if err != nil {
-				return newErrInterrupted(err.Error())
+				return nil, newErrInterrupted(err.Error())
 			}
 
-			return newErrInterrupted("loop interrupted")
+			return nil, newErrInterrupted("loop interrupted")
 		}
 
 		sh.Unlock()
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 func (sh *Shell) executeFnDecl(n *ast.FnDeclNode) error {
@@ -1843,7 +1890,7 @@ func (sh *Shell) executeBindFn(n *ast.BindFnNode) error {
 	return nil
 }
 
-func (sh *Shell) executeIf(n *ast.IfNode) error {
+func (sh *Shell) executeIf(n *ast.IfNode) (*Obj, error) {
 	op := n.Op()
 
 	if op == "==" {
@@ -1852,5 +1899,5 @@ func (sh *Shell) executeIf(n *ast.IfNode) error {
 		return sh.executeIfNotEqual(n)
 	}
 
-	return fmt.Errorf("Invalid operation '%s'.", op)
+	return nil, fmt.Errorf("Invalid operation '%s'.", op)
 }

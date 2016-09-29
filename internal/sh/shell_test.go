@@ -1267,6 +1267,88 @@ test()`)
 		t.Error(err)
 		return
 	}
+
+	var out bytes.Buffer
+
+	sh.SetStdout(&out)
+
+	err = sh.Exec("test return", `fn test() {
+	if "1" == "1" {
+		return "1"
+	}
+
+	return "0"
+}
+
+res <= test()
+echo -n $res`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	got := string(out.Bytes())
+
+	if got != "1" {
+		t.Errorf("Expected '1' but got '%s'", got)
+		return
+	}
+
+	out.Reset()
+
+	err = sh.Exec("ret from for", `fn test() {
+	values = (0 1 2 3 4 5 6 7 8 9)
+
+	for i in $values {
+		if $i == "5" {
+			return $i
+		}
+	}
+
+	return "0"
+}
+a <= test()
+echo -n $a`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	got = string(out.Bytes())
+
+	if "5" != got {
+		t.Errorf("Expected '5' but got '%s'", got)
+		return
+	}
+
+	out.Reset()
+
+	err = sh.Exec("inf loop ret", `fn test() {
+	for {
+		if "1" == "1" {
+			return "1"
+		}
+	}
+
+	# never happen
+	return "bleh"
+}
+a <= test()
+echo -n $a`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	got = string(out.Bytes())
+
+	if got != "1" {
+		t.Errorf("Expected '1' but got '%s'", got)
+		return
+	}
 }
 
 func TestExecuteFnAsFirstClass(t *testing.T) {

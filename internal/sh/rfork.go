@@ -3,6 +3,11 @@
 //
 package sh
 
-func (sh *Shell) executeRfork(rfork *RforkNode) error {
-	return newError("rfork only supported on Linux and Plan9")
+import (
+	"github.com/NeowayLabs/nash/ast"
+	"github.com/NeowayLabs/nash/errors"
+)
+
+func (sh *Shell) executeRfork(rfork *ast.RforkNode) error {
+	return errors.NewError("rfork only supported on Linux and Plan9")
 }

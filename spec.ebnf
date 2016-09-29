@@ -54,7 +54,7 @@ fnArg  = identifier .
 returnDecl = "return" [ ( variable | string_lit | list ) ] .
 
 /* Function invocation */
-fnInv = identifier "(" fnArgs ")" .
+fnInv = ( variable | identifier ) "(" fnArgs ")" .
 
 /* Function binding */
 bindfn = "bindfn" identifier identifier .
