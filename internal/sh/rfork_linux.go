@@ -20,23 +20,29 @@ func getProcAttrs(flags uintptr) *syscall.SysProcAttr {
 	uid := os.Getuid()
 	gid := os.Getgid()
 
-	return &syscall.SysProcAttr{
+	sysproc := &syscall.SysProcAttr{
 		Cloneflags: flags,
-		UidMappings: []syscall.SysProcIDMap{
+	}
+
+	if (flags & syscall.CLONE_NEWUSER) == syscall.CLONE_NEWUSER {
+		sysproc.UidMappings = []syscall.SysProcIDMap{
 			{
 				ContainerID: 0,
 				HostID:      uid,
 				Size:        1,
 			},
-		},
-		GidMappings: []syscall.SysProcIDMap{
+		}
+
+		sysproc.GidMappings = []syscall.SysProcIDMap{
 			{
 				ContainerID: 0,
 				HostID:      gid,
 				Size:        1,
 			},
-		},
+		}
 	}
+
+	return sysproc
 }
 
 func dialRc(sockpath string) (net.Conn, error) {
