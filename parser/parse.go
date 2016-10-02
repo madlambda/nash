@@ -244,10 +244,10 @@ cmdLoop:
 	for {
 		it = p.peek()
 
-		switch it.Type() {
-		case token.RBrace:
+		switch typ := it.Type(); {
+		case typ == token.RBrace:
 			break cmdLoop
-		case token.Ident, token.Arg, token.String, token.Number, token.Variable:
+		case isValidArgument(it):
 			arg, err := p.getArgument(true, true)
 
 			if err != nil {
@@ -255,9 +255,9 @@ cmdLoop:
 			}
 
 			n.AddArg(arg)
-		case token.Plus:
+		case typ == token.Plus:
 			return nil, errors.NewError("%s:%d:%d: Unexpected '+'", p.name, it.Line(), it.Column())
-		case token.Gt:
+		case typ == token.Gt:
 			p.next()
 			redir, err := p.parseRedirection(it)
 
@@ -266,7 +266,7 @@ cmdLoop:
 			}
 
 			n.AddRedirect(redir)
-		case token.Pipe:
+		case typ == token.Pipe:
 			if p.insidePipe {
 				p.next()
 				// TODO(i4k): test against pipes and multiline cmds
@@ -275,9 +275,9 @@ cmdLoop:
 
 			p.insidePipe = true
 			return p.parsePipe(n)
-		case token.EOF:
+		case typ == token.EOF:
 			break cmdLoop
-		case token.Illegal:
+		case typ == token.Illegal:
 			return nil, errors.NewError(it.Value())
 		default:
 			break cmdLoop
