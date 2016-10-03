@@ -3,8 +3,8 @@ package sh
 import (
 	"io"
 
-	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
+	"github.com/NeowayLabs/nash/sh"
 )
 
 type (
@@ -14,10 +14,10 @@ type (
 
 		done    chan struct{}
 		err     error
-		results *Obj
+		results sh.Obj
 
-		obj []*Obj
-		arg *Obj
+		obj []sh.Obj
+		arg sh.Obj
 	}
 )
 
@@ -39,7 +39,7 @@ func (appendfn *AppendFn) ArgNames() []string {
 
 func (appendfn *AppendFn) run() error {
 	newobj := append(appendfn.obj, appendfn.arg)
-	appendfn.results = NewListObj(newobj)
+	appendfn.results = sh.NewListObj(newobj)
 	return nil
 }
 
@@ -59,34 +59,30 @@ func (appendfn *AppendFn) Wait() error {
 	return appendfn.err
 }
 
-func (appendfn *AppendFn) Results() *Obj {
+func (appendfn *AppendFn) Results() sh.Obj {
 	return appendfn.results
 }
 
-func (appendfn *AppendFn) SetArgs(args []ast.Expr, envShell *Shell) error {
+func (appendfn *AppendFn) SetArgs(args []sh.Obj) error {
 	if len(args) != 2 {
 		return errors.NewError("appendfn expects two arguments")
 	}
 
-	obj, err := envShell.evalExpr(args[0])
+	obj := args[1]
 
-	if err != nil {
-		return err
-	}
-
-	if obj.Type() != ListType {
+	if obj.Type() != sh.ListType {
 		return errors.NewError("appendfn expects a list as first argument, but a %s was provided", obj.Type())
 	}
 
-	arg, err := envShell.evalExpr(args[1])
+	arg := args[1]
 
-	if err != nil {
-		return err
+	if objlist, ok := obj.(*sh.ListObj); ok {
+		appendfn.obj = objlist.List()
+		appendfn.arg = arg
+		return nil
 	}
 
-	appendfn.obj = obj.List()
-	appendfn.arg = arg
-	return nil
+	return errors.NewError("internal error: object of wrong type")
 }
 
 func (appendfn *AppendFn) SetEnviron(env []string) {

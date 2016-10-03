@@ -4,8 +4,8 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
+	"github.com/NeowayLabs/nash/sh"
 )
 
 type (
@@ -17,7 +17,7 @@ type (
 		err     error
 		results int
 
-		arg []*Obj
+		arg []sh.Obj
 	}
 )
 
@@ -58,26 +58,23 @@ func (lenfn *LenFn) Wait() error {
 	return lenfn.err
 }
 
-func (lenfn *LenFn) Results() *Obj {
-	return NewStrObj(strconv.Itoa(lenfn.results))
+func (lenfn *LenFn) Results() sh.Obj {
+	return sh.NewStrObj(strconv.Itoa(lenfn.results))
 }
 
-func (lenfn *LenFn) SetArgs(args []ast.Expr, envShell *Shell) error {
+func (lenfn *LenFn) SetArgs(args []sh.Obj) error {
 	if len(args) != 1 {
 		return errors.NewError("lenfn expects one argument")
 	}
 
-	obj, err := envShell.evalExpr(args[0])
+	obj := args[0]
 
-	if err != nil {
-		return err
-	}
-
-	if obj.Type() != ListType {
+	if obj.Type() != sh.ListType {
 		return errors.NewError("lenfn expects a list, but a %s was provided", obj.Type())
 	}
 
-	lenfn.arg = obj.List()
+	objlist := obj.(*sh.ListObj)
+	lenfn.arg = objlist.List()
 	return nil
 }
 

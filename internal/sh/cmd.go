@@ -1,12 +1,12 @@
 package sh
 
 import (
-	"fmt"
 	"io"
 	"os/exec"
 
 	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
+	"github.com/NeowayLabs/nash/sh"
 )
 
 type (
@@ -68,54 +68,31 @@ func (c *Cmd) SetStdin(in io.Reader)   { c.Cmd.Stdin = in }
 func (c *Cmd) SetStdout(out io.Writer) { c.Cmd.Stdout = out }
 func (c *Cmd) SetStderr(err io.Writer) { c.Cmd.Stderr = err }
 
-func (c *Cmd) processArgs(cmd string, nodeArgs []ast.Expr, envShell *Shell) ([]string, error) {
+func (c *Cmd) SetArgs(nodeArgs []sh.Obj) error {
 	args := make([]string, 1, len(nodeArgs)+1)
-	args[0] = cmd
+	args[0] = c.Path
 
-	for i := 0; i < len(nodeArgs); i++ {
-		carg := nodeArgs[i]
+	for _, obj := range nodeArgs {
+		if obj.Type() == sh.StringType {
+			objstr := obj.(*sh.StrObj)
+			args = append(args, objstr.Str())
+		} else if obj.Type() == sh.ListType {
+			objlist := obj.(*sh.ListObj)
+			values := objlist.List()
 
-		obj, err := envShell.evalExpr(carg)
-
-		if err != nil {
-			return nil, err
-		}
-
-		if obj.Type() == StringType {
-			args = append(args, obj.Str())
-		} else if obj.Type() == ListType {
-			objlist := obj.List()
-
-			for _, l := range objlist {
-				if l.Type() != StringType {
-					return nil, errors.NewError("Command arguments requires string or list of strings. But received '%v'", l.String())
+			for _, l := range values {
+				if l.Type() != sh.StringType {
+					return errors.NewError("Command arguments requires string or list of strings. But received '%v'", l.String())
 				}
 
-				args = append(args, l.Str())
+				lstr := l.(*sh.StrObj)
+				args = append(args, lstr.Str())
 			}
-		} else if obj.Type() == FnType {
-			return nil, errors.NewError("Function cannot be passed as argument to commands.")
+		} else if obj.Type() == sh.FnType {
+			return errors.NewError("Function cannot be passed as argument to commands.")
 		} else {
-			return nil, errors.NewError("Invalid command argument '%v'", carg)
+			return errors.NewError("Invalid command argument '%v'", obj)
 		}
-	}
-
-	return args, nil
-}
-
-func (c *Cmd) SetArgs(nodeArgs []ast.Expr, envShell *Shell) error {
-	args, err := c.processArgs(c.Path, nodeArgs, envShell)
-
-	if err != nil {
-		return err
-	}
-
-	if len(args) < 1 {
-		return fmt.Errorf("Require at least the argument name")
-	}
-
-	if args[0] != c.Path {
-		return fmt.Errorf("Require first argument equals command name")
 	}
 
 	c.Cmd.Args = args
@@ -148,4 +125,23 @@ func (c *Cmd) Start() error {
 	return nil
 }
 
-func (c *Cmd) Results() *Obj { return nil }
+func (c *Cmd) Results() sh.Obj { return nil }
+
+func cmdArgs(nodeArgs []ast.Expr, envShell *Shell) ([]sh.Obj, error) {
+	args := make([]sh.Obj, 0, len(nodeArgs))
+
+	for i := 0; i < len(nodeArgs); i++ {
+		carg := nodeArgs[i]
+
+		obj, err := envShell.evalExpr(carg)
+
+		if err != nil {
+			return nil, err
+		}
+
+		args = append(args, obj)
+
+	}
+
+	return args, nil
+}

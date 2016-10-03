@@ -35,11 +35,7 @@ func cli(sh *nash.Shell) error {
 
 	historyFile := sh.DotDir() + "/history"
 
-	for envName := range sh.Environ() {
-		completers = append(completers, readline.PcItem(envName))
-	}
-
-	completer := NewCompleter(completers...)
+	completer := NewCompleter(sh)
 
 	l, err := readline.NewEx(&readline.Config{
 		Prompt:          sh.Prompt(),

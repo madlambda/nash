@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/NeowayLabs/nash/sh"
 )
 
 var (
@@ -36,17 +38,17 @@ func TestExecuteFile(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
-	err = sh.ExecFile(testfile)
+	err = shell.ExecFile(testfile)
 
 	if err != nil {
 		t.Error(err)
@@ -60,17 +62,17 @@ func TestExecuteFile(t *testing.T) {
 }
 
 func TestExecuteCommand(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStderr(ioutil.Discard)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStderr(ioutil.Discard)
 
-	err = sh.Exec("command failed", `
+	err = shell.Exec("command failed", `
         non-existent-program
         `)
 
@@ -80,7 +82,7 @@ func TestExecuteCommand(t *testing.T) {
 	}
 
 	// test ignore works
-	err = sh.Exec("command failed", `
+	err = shell.Exec("command failed", `
         -non-existent-program
         `)
 
@@ -90,10 +92,10 @@ func TestExecuteCommand(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	sh.SetStderr(os.Stderr)
-	sh.SetStdout(&out)
+	shell.SetStderr(os.Stderr)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("command failed", `
+	err = shell.Exec("command failed", `
         echo -n "hello world"
         `)
 
@@ -109,7 +111,7 @@ func TestExecuteCommand(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("cmd with concat", `echo -n "hello " + "world"`)
+	err = shell.Exec("cmd with concat", `echo -n "hello " + "world"`)
 
 	if err != nil {
 		t.Error(err)
@@ -123,7 +125,7 @@ func TestExecuteCommand(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("cmd with concat", `echo -n $notexits`)
+	err = shell.Exec("cmd with concat", `echo -n $notexits`)
 
 	if err == nil {
 		t.Errorf("Must fail")
@@ -134,17 +136,17 @@ func TestExecuteCommand(t *testing.T) {
 func TestExecuteAssignment(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("assignment", `
+	err = shell.Exec("assignment", `
         name="i4k"
         echo $name
         `)
@@ -163,7 +165,7 @@ func TestExecuteAssignment(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("list assignment", `
+	err = shell.Exec("list assignment", `
         name=(honda civic)
         echo $name
         `)
@@ -182,16 +184,16 @@ func TestExecuteAssignment(t *testing.T) {
 
 	out.Reset()
 
-	sh, err = NewShell()
+	shell, err = NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	shell.SetNashdPath(nashdPath)
 
-	err = sh.Exec("assignment", `
+	err = shell.Exec("assignment", `
         name=i4k
         `)
 
@@ -202,9 +204,9 @@ func TestExecuteAssignment(t *testing.T) {
 
 	out.Reset()
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("list of lists", `l = (
+	err = shell.Exec("list of lists", `l = (
 		(name Archlinux)
 		(arch amd64)
 		(kernel 4.7.1)
@@ -232,17 +234,17 @@ kernel 4.7.1`
 func TestExecuteCmdAssignment(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("assignment", `
+	err = shell.Exec("assignment", `
         name <= echo i4k
         echo $name
         `)
@@ -261,7 +263,7 @@ func TestExecuteCmdAssignment(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("list assignment", `
+	err = shell.Exec("list assignment", `
         name <= echo "honda civic"
         echo $name
         `)
@@ -278,16 +280,16 @@ func TestExecuteCmdAssignment(t *testing.T) {
 		return
 	}
 
-	sh, err = NewShell()
+	shell, err = NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	shell.SetNashdPath(nashdPath)
 
-	err = sh.Exec("assignment", `
+	err = shell.Exec("assignment", `
         name <= ""
         `)
 
@@ -296,7 +298,7 @@ func TestExecuteCmdAssignment(t *testing.T) {
 		return
 	}
 
-	err = sh.Exec("fn must return value", `fn e() {}
+	err = shell.Exec("fn must return value", `fn e() {}
 v <= e()`)
 
 	if err == nil {
@@ -308,17 +310,17 @@ v <= e()`)
 func TestExecuteCmdAssignmentIFS(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("assignment", `IFS = (" ")
+	err = shell.Exec("assignment", `IFS = (" ")
 range <= echo 1 2 3 4 5 6 7 8 9 10
 
 for i in $range {
@@ -350,7 +352,7 @@ i = 10`
 
 	out.Reset()
 
-	err = sh.Exec("assignment", `IFS = (";")
+	err = shell.Exec("assignment", `IFS = (";")
 range <= echo "1;2;3;4;5;6;7;8;9;10"
 
 for i in $range {
@@ -366,7 +368,7 @@ for i in $range {
 
 	out.Reset()
 
-	err = sh.Exec("assignment", `IFS = (" " ";")
+	err = shell.Exec("assignment", `IFS = (" " ";")
 range <= echo "1;2;3;4;5;6;7;8;9;10"
 
 for i in $range {
@@ -382,7 +384,7 @@ for i in $range {
 
 	out.Reset()
 
-	err = sh.Exec("assignment", `IFS = (" " "-")
+	err = shell.Exec("assignment", `IFS = (" " "-")
 range <= echo "1;2;3;4;5;6;7;8;9;10"
 
 for i in $range {
@@ -400,18 +402,18 @@ for i in $range {
 }
 
 func TestExecuteRedirection(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	shell.SetNashdPath(nashdPath)
 
-	path := "/tmp/nash.test.txt"
+	path := "/tmp/nashell.test.txt"
 
-	err = sh.Exec("redirect", `
+	err = shell.Exec("redirect", `
         echo -n "hello world" > `+path+`
         `)
 
@@ -435,7 +437,7 @@ func TestExecuteRedirection(t *testing.T) {
 	}
 
 	// Test redirection to variable
-	err = sh.Exec("redirect", `
+	err = shell.Exec("redirect", `
 	location = "`+path+`"
         echo -n "hello world" > $location
         `)
@@ -460,7 +462,7 @@ func TestExecuteRedirection(t *testing.T) {
 	os.Remove(path)
 
 	// Test redirection to concat
-	err = sh.Exec("redirect", `
+	err = shell.Exec("redirect", `
 	location = "`+path+`"
 a = ".2"
         echo -n "hello world" > $location+$a
@@ -487,16 +489,16 @@ a = ".2"
 }
 
 func TestExecuteRedirectionMap(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	shell.SetNashdPath(nashdPath)
 
-	err = sh.Exec("redirect map", `
+	err = shell.Exec("redirect map", `
         echo -n "hello world" > /tmp/test1.txt
         `)
 
@@ -521,17 +523,17 @@ func TestExecuteRedirectionMap(t *testing.T) {
 func TestExecuteCd(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test cd", `
+	err = shell.Exec("test cd", `
         cd /tmp
         pwd
         `)
@@ -548,7 +550,7 @@ func TestExecuteCd(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("test cd", `
+	err = shell.Exec("test cd", `
         HOME="/"
         setenv HOME
         cd
@@ -568,7 +570,7 @@ func TestExecuteCd(t *testing.T) {
 	// test cd into $var
 	out.Reset()
 
-	err = sh.Exec("test cd", `
+	err = shell.Exec("test cd", `
         var="/tmp"
         cd $var
         pwd
@@ -586,7 +588,7 @@ func TestExecuteCd(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("test error", `
+	err = shell.Exec("test error", `
         var=("val1" "val2" "val3")
         cd $var
         pwd
@@ -606,15 +608,15 @@ func TestExecuteCd(t *testing.T) {
 func TestExecuteImport(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
 	err = ioutil.WriteFile("/tmp/test.sh", []byte(`TESTE="teste"`), 0644)
 
@@ -623,7 +625,7 @@ func TestExecuteImport(t *testing.T) {
 		return
 	}
 
-	err = sh.Exec("test import", `import /tmp/test.sh
+	err = shell.Exec("test import", `import /tmp/test.sh
         echo $TESTE
         `)
 
@@ -641,17 +643,17 @@ func TestExecuteImport(t *testing.T) {
 func TestExecuteIfEqual(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test if equal", `
+	err = shell.Exec("test if equal", `
         if "" == "" {
             echo "empty string works"
         }`)
@@ -668,7 +670,7 @@ func TestExecuteIfEqual(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("test if equal 2", `
+	err = shell.Exec("test if equal 2", `
         if "i4k" == "_i4k_" {
             echo "do not print"
         }`)
@@ -687,17 +689,17 @@ func TestExecuteIfEqual(t *testing.T) {
 func TestExecuteIfElse(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test if else", `
+	err = shell.Exec("test if else", `
         if "" == "" {
             echo "if still works"
         } else {
@@ -716,7 +718,7 @@ func TestExecuteIfElse(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("test if equal 2", `
+	err = shell.Exec("test if equal 2", `
         if "i4k" == "_i4k_" {
             echo "do not print"
         } else {
@@ -737,17 +739,17 @@ func TestExecuteIfElse(t *testing.T) {
 func TestExecuteIfElseIf(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test if else", `
+	err = shell.Exec("test if else", `
         if "" == "" {
             echo "if still works"
         } else if "bleh" == "bloh" {
@@ -766,7 +768,7 @@ func TestExecuteIfElseIf(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("test if equal 2", `
+	err = shell.Exec("test if equal 2", `
         if "i4k" == "_i4k_" {
             echo "do not print"
         } else if "a" != "b" {
@@ -785,16 +787,16 @@ func TestExecuteIfElseIf(t *testing.T) {
 }
 
 func TestExecuteFnDecl(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	shell.SetNashdPath(nashdPath)
 
-	err = sh.Exec("test fnDecl", `
+	err = shell.Exec("test fnDecl", `
         fn build(image, debug) {
                 ls
         }`)
@@ -806,20 +808,20 @@ func TestExecuteFnDecl(t *testing.T) {
 }
 
 func TestExecuteFnInv(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	shell.SetNashdPath(nashdPath)
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test fn inv", `
+	err = shell.Exec("test fn inv", `
 fn getints() {
         return ("1" "2" "3" "4" "5" "6" "7" "8" "9" "0")
 }
@@ -841,7 +843,7 @@ echo -n $integers
 	out.Reset()
 
 	// Test fn scope
-	err = sh.Exec("test fn inv", `
+	err = shell.Exec("test fn inv", `
 OUTSIDE = "some value"
 
 fn getOUTSIDE() {
@@ -862,7 +864,7 @@ echo -n $val
 		return
 	}
 
-	err = sh.Exec("test fn inv", `
+	err = shell.Exec("test fn inv", `
 fn notset() {
         INSIDE = "camshaft"
 }
@@ -879,7 +881,7 @@ echo -n $INSIDE
 	out.Reset()
 
 	// test variables shadow the global ones
-	err = sh.Exec("test shadow", `path="AAA"
+	err = shell.Exec("test shadow", `path="AAA"
 fn test(path) {
 echo -n $path
 }
@@ -893,7 +895,7 @@ echo -n $path
 
 	out.Reset()
 
-	err = sh.Exec("test shadow", `
+	err = shell.Exec("test shadow", `
 fn test(path) {
 echo -n $path
 }
@@ -910,20 +912,20 @@ path="AAA"
 }
 
 func TestExecuteFnInvOthers(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	shell.SetNashdPath(nashdPath)
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test fn inv", `
+	err = shell.Exec("test fn inv", `
 fn _getints() {
         return ("1" "2" "3" "4" "5" "6" "7" "8" "9" "0")
 }
@@ -952,17 +954,17 @@ echo -n $integers
 func TestExecuteBindFn(t *testing.T) {
 	var out bytes.Buffer
 
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test bindfn", `
+	err = shell.Exec("test bindfn", `
         fn cd(path) {
                 echo "override builtin cd"
         }
@@ -989,17 +991,17 @@ func TestExecutePipe(t *testing.T) {
 
 	os.Setenv("PATH", path)
 
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test pipe", `echo hello | wc -l`)
+	err = shell.Exec("test pipe", `echo hello | wc -l`)
 
 	if err != nil {
 		t.Error(err)
@@ -1015,7 +1017,7 @@ func TestExecutePipe(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("test pipe 3", `echo hello | wc -l | grep 1`)
+	err = shell.Exec("test pipe 3", `echo hello | wc -l | grep 1`)
 
 	if err != nil {
 		t.Error(err)
@@ -1044,18 +1046,18 @@ func testTCPRedirection(t *testing.T, port, command string) {
 	}
 
 	go func() {
-		sh, err := NewShell()
+		shell, err := NewShell()
 
 		if err != nil {
 			t.Error(err)
 			return
 		}
 
-		sh.SetNashdPath(nashdPath)
+		shell.SetNashdPath(nashdPath)
 
 		<-done
 
-		err = sh.Exec("test net redirection", command)
+		err = shell.Exec("test net redirection", command)
 
 		if err != nil {
 			t.Error(err)
@@ -1120,18 +1122,18 @@ func TestExecuteUnixRedirection(t *testing.T) {
 			writeDone <- true
 		}()
 
-		sh, err := NewShell()
+		shell, err := NewShell()
 
 		if err != nil {
 			t.Error(err)
 			return
 		}
 
-		sh.SetNashdPath(nashdPath)
+		shell.SetNashdPath(nashdPath)
 
 		<-done
 
-		err = sh.Exec("test net redirection", `echo -n "`+message+`" >[1] "unix://`+sockFile+`"`)
+		err = shell.Exec("test net redirection", `echo -n "`+message+`" >[1] "unix://`+sockFile+`"`)
 
 		if err != nil {
 			t.Error(err)
@@ -1186,18 +1188,18 @@ func TestExecuteUDPRedirection(t *testing.T) {
 			writeDone <- true
 		}()
 
-		sh, err := NewShell()
+		shell, err := NewShell()
 
 		if err != nil {
 			t.Error(err)
 			return
 		}
 
-		sh.SetNashdPath(nashdPath)
+		shell.SetNashdPath(nashdPath)
 
 		<-done
 
-		err = sh.Exec("test net redirection", `echo -n "`+message+`" >[1] "udp://localhost:6667"`)
+		err = shell.Exec("test net redirection", `echo -n "`+message+`" >[1] "udp://localhost:6667"`)
 
 		if err != nil {
 			t.Error(err)
@@ -1244,23 +1246,23 @@ func TestExecuteUDPRedirection(t *testing.T) {
 }
 
 func TestExecuteReturn(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	shell.SetNashdPath(nashdPath)
 
-	err = sh.Exec("test return fail", "return")
+	err = shell.Exec("test return fail", "return")
 
 	if err == nil {
 		t.Errorf("Must fail. Return is only valid inside function")
 		return
 	}
 
-	err = sh.Exec("test return", `fn test() { return }
+	err = shell.Exec("test return", `fn test() { return }
 test()`)
 
 	if err != nil {
@@ -1270,9 +1272,9 @@ test()`)
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test return", `fn test() {
+	err = shell.Exec("test return", `fn test() {
 	if "1" == "1" {
 		return "1"
 	}
@@ -1297,7 +1299,7 @@ echo -n $res`)
 
 	out.Reset()
 
-	err = sh.Exec("ret from for", `fn test() {
+	err = shell.Exec("ret from for", `fn test() {
 	values = (0 1 2 3 4 5 6 7 8 9)
 
 	for i in $values {
@@ -1325,7 +1327,7 @@ echo -n $a`)
 
 	out.Reset()
 
-	err = sh.Exec("inf loop ret", `fn test() {
+	err = shell.Exec("inf loop ret", `fn test() {
 	for {
 		if "1" == "1" {
 			return "1"
@@ -1352,20 +1354,20 @@ echo -n $a`)
 }
 
 func TestExecuteFnAsFirstClass(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	shell.SetNashdPath(nashdPath)
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test fn by arg", `
+	err = shell.Exec("test fn by arg", `
         fn printer(val) {
                 echo -n $val
         }
@@ -1391,21 +1393,21 @@ func TestExecuteFnAsFirstClass(t *testing.T) {
 }
 
 func TestExecuteDump(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.Reset()
+	shell.SetNashdPath(nashdPath)
+	shell.Reset()
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("exec dump", "dump")
+	err = shell.Exec("exec dump", "dump")
 
 	if err != nil {
 		t.Error(err)
@@ -1417,7 +1419,7 @@ func TestExecuteDump(t *testing.T) {
 		return
 	}
 
-	err = sh.Exec("", `TEST = "some value"`)
+	err = shell.Exec("", `TEST = "some value"`)
 
 	if err != nil {
 		t.Error(err)
@@ -1426,7 +1428,7 @@ func TestExecuteDump(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("", "dump")
+	err = shell.Exec("", "dump")
 
 	if err != nil {
 		t.Error(err)
@@ -1456,9 +1458,9 @@ func TestExecuteDump(t *testing.T) {
 
 	out.Reset()
 
-	//	sh.SetStdout(os.Stdout)
+	//	shell.SetStdout(os.Stdout)
 
-	err = sh.Exec("", "dump "+dumpFile)
+	err = shell.Exec("", "dump "+dumpFile)
 
 	if err != nil {
 		t.Error(err)
@@ -1484,19 +1486,19 @@ func TestExecuteDump(t *testing.T) {
 }
 
 func TestExecuteDumpVariable(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.Reset()
+	shell.SetNashdPath(nashdPath)
+	shell.Reset()
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
 	tempDir, err := ioutil.TempDir("/tmp", "nash-test")
 
@@ -1512,7 +1514,7 @@ func TestExecuteDumpVariable(t *testing.T) {
 		os.RemoveAll(tempDir)
 	}()
 
-	err = sh.Exec("", `dumpFile = "`+dumpFile+`"`)
+	err = shell.Exec("", `dumpFile = "`+dumpFile+`"`)
 
 	if err != nil {
 		t.Error(err)
@@ -1521,9 +1523,9 @@ func TestExecuteDumpVariable(t *testing.T) {
 
 	out.Reset()
 
-	//	sh.SetStdout(os.Stdout)
+	//	shell.SetStdout(os.Stdout)
 
-	err = sh.Exec("", `dump $dumpFile`)
+	err = shell.Exec("", `dump $dumpFile`)
 
 	if err != nil {
 		t.Error(err)
@@ -1551,21 +1553,21 @@ func TestExecuteDumpVariable(t *testing.T) {
 }
 
 func TestExecuteConcat(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.Reset()
+	shell.SetNashdPath(nashdPath)
+	shell.Reset()
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("", `a = "A"
+	err = shell.Exec("", `a = "A"
 b = "B"
 c = $a + $b + "C"
 echo -n $c`)
@@ -1582,7 +1584,7 @@ echo -n $c`)
 
 	out.Reset()
 
-	err = sh.Exec("concat indexed var", `tag = (Name some)
+	err = shell.Exec("concat indexed var", `tag = (Name some)
 	echo -n "Key="+$tag[0]+",Value="+$tag[1]`)
 
 	if err != nil {
@@ -1599,20 +1601,20 @@ echo -n $c`)
 }
 
 func TestExecuteFor(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	shell.SetNashdPath(nashdPath)
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("simple loop", `files = (/etc/passwd /etc/shells)
+	err = shell.Exec("simple loop", `files = (/etc/passwd /etc/shells)
 for f in $files {
         echo $f
         echo "loop"
@@ -1637,14 +1639,14 @@ loop`
 }
 
 func TestExecuteInfiniteLoop(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	shell.SetNashdPath(nashdPath)
 
 	doneCtrlc := make(chan bool)
 	doneLoop := make(chan bool)
@@ -1653,12 +1655,12 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 		fmt.Printf("Waiting 2 second to abort infinite loop")
 		time.Sleep(2 * time.Second)
 
-		sh.TriggerCTRLC()
+		shell.TriggerCTRLC()
 		doneCtrlc <- true
 	}()
 
 	go func() {
-		err = sh.Exec("simple loop", `for {
+		err = shell.Exec("simple loop", `for {
         echo "infinite loop" >[1=]
 }`)
 		doneLoop <- true
@@ -1692,7 +1694,7 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 }
 
 func TestExecuteVariableIndexing(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -1701,10 +1703,10 @@ func TestExecuteVariableIndexing(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("indexing", `list = ("1" "2" "3")
+	err = shell.Exec("indexing", `list = ("1" "2" "3")
         echo -n $list[0]`)
 
 	if err != nil {
@@ -1722,7 +1724,7 @@ func TestExecuteVariableIndexing(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("indexing", `i = "0"
+	err = shell.Exec("indexing", `i = "0"
 echo -n $list[$i]`)
 
 	if err != nil {
@@ -1740,7 +1742,7 @@ echo -n $list[$i]`)
 
 	out.Reset()
 
-	err = sh.Exec("indexing", `IFS = ("\n")
+	err = shell.Exec("indexing", `IFS = ("\n")
 seq <= seq 0 2
 
 for i in $seq {
@@ -1762,7 +1764,7 @@ for i in $seq {
 
 	out.Reset()
 
-	err = sh.Exec("indexing", `echo -n $list[5]`)
+	err = shell.Exec("indexing", `echo -n $list[5]`)
 
 	if err == nil {
 		t.Error("Must fail. Out of bounds")
@@ -1771,7 +1773,7 @@ for i in $seq {
 
 	out.Reset()
 
-	err = sh.Exec("indexing", `a = ("0")
+	err = shell.Exec("indexing", `a = ("0")
 echo -n $list[$a[0]]`)
 
 	if err != nil {
@@ -1789,14 +1791,14 @@ echo -n $list[$a[0]]`)
 }
 
 func TestExecuteSubShellDoesNotOverwriteparentEnv(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	err = sh.Exec("set env", `SHELL = "bleh"
+	err = shell.Exec("set env", `SHELL = "bleh"
 setenv SHELL`)
 
 	if err != nil {
@@ -1805,9 +1807,9 @@ setenv SHELL`)
 	}
 
 	var out bytes.Buffer
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("set env from fn", `fn test() {
+	err = shell.Exec("set env from fn", `fn test() {
 }
 
 test()
@@ -1826,18 +1828,18 @@ echo -n $SHELL`)
 }
 
 func TestExecuteInterruptDoesNotCancelLoop(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.TriggerCTRLC()
+	shell.TriggerCTRLC()
 
 	time.Sleep(time.Second * 1)
 
-	err = sh.Exec("interrupting loop", `seq = (1 2 3 4 5)
+	err = shell.Exec("interrupting loop", `seq = (1 2 3 4 5)
 for i in $seq {}`)
 
 	if err != nil {
@@ -1847,42 +1849,42 @@ for i in $seq {}`)
 }
 
 func TestExecuteErrorSuppressionAll(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	err = sh.Exec("-input-", `-command-not-exists`)
+	err = shell.Exec("-input-", `-command-not-exists`)
 
 	if err != nil {
 		t.Errorf("Expected to not fail...: %s", err.Error())
 		return
 	}
 
-	scode, ok := sh.GetVar("status")
+	scode, ok := shell.GetVar("status")
 
-	if !ok || scode.Type() != StringType || scode.String() != strconv.Itoa(ENotFound) {
+	if !ok || scode.Type() != sh.StringType || scode.String() != strconv.Itoa(ENotFound) {
 		t.Errorf("Invalid status code %s", scode.String())
 		return
 	}
 
-	err = sh.Exec("-input-", `echo works >[1=]`)
+	err = shell.Exec("-input-", `echo works >[1=]`)
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	scode, ok = sh.GetVar("status")
+	scode, ok = shell.GetVar("status")
 
-	if !ok || scode.Type() != StringType || scode.String() != "0" {
+	if !ok || scode.Type() != sh.StringType || scode.String() != "0" {
 		t.Errorf("Invalid status code %s", scode)
 		return
 	}
 
-	err = sh.Exec("-input-", `echo works | cmd-does-not-exists`)
+	err = shell.Exec("-input-", `echo works | cmd-does-not-exists`)
 
 	if err == nil {
 		t.Errorf("Must fail")
@@ -1894,23 +1896,23 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 		return
 	}
 
-	scode, ok = sh.GetVar("status")
+	scode, ok = shell.GetVar("status")
 
-	if !ok || scode.Type() != StringType || scode.String() != "255|127" {
+	if !ok || scode.Type() != sh.StringType || scode.String() != "255|127" {
 		t.Errorf("Invalid status code %s", scode)
 		return
 	}
 }
 
 func TestExecuteGracefullyError(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	err = sh.Exec("someinput.sh", "(")
+	err = shell.Exec("someinput.sh", "(")
 
 	if err == nil {
 		t.Errorf("Must fail...")
@@ -1924,7 +1926,7 @@ func TestExecuteGracefullyError(t *testing.T) {
 		return
 	}
 
-	err = sh.Exec("input", "echo(")
+	err = shell.Exec("input", "echo(")
 
 	if err == nil {
 		t.Errorf("Must fail...")
@@ -1939,7 +1941,7 @@ func TestExecuteGracefullyError(t *testing.T) {
 }
 
 func TestExecuteMultilineCmd(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -1948,9 +1950,9 @@ func TestExecuteMultilineCmd(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test", `(echo -n
+	err = shell.Exec("test", `(echo -n
 		hello
 		world)`)
 
@@ -1968,7 +1970,7 @@ func TestExecuteMultilineCmd(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("test", `(
+	err = shell.Exec("test", `(
                 echo -n 1 2 3 4 5 6 7 8 9 10
                         11 12 13 14 15 16 17 18 19 20
                 )`)
@@ -1987,7 +1989,7 @@ func TestExecuteMultilineCmd(t *testing.T) {
 }
 
 func TestExecuteMultilineCmdAssign(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
@@ -1996,9 +1998,9 @@ func TestExecuteMultilineCmdAssign(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.Exec("test", `val <= (echo -n
+	err = shell.Exec("test", `val <= (echo -n
 		hello
 		world)
 
@@ -2018,7 +2020,7 @@ func TestExecuteMultilineCmdAssign(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.Exec("test", `val <= (
+	err = shell.Exec("test", `val <= (
                 echo -n 1 2 3 4 5 6 7 8 9 10
                         11 12 13 14 15 16 17 18 19 20
                 )
@@ -2038,14 +2040,14 @@ func TestExecuteMultilineCmdAssign(t *testing.T) {
 }
 
 func TestExecuteMuliReturnUnfinished(t *testing.T) {
-	sh, err := NewShell()
+	shell, err := NewShell()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	err = sh.Exec("test", "(")
+	err = shell.Exec("test", "(")
 
 	if err == nil {
 		t.Errorf("Must fail... Must return an unfinished paren error")
@@ -2061,7 +2063,7 @@ func TestExecuteMuliReturnUnfinished(t *testing.T) {
 		return
 	}
 
-	err = sh.Exec("test", `(
+	err = shell.Exec("test", `(
 echo`)
 
 	if err == nil {
@@ -2074,7 +2076,7 @@ echo`)
 		return
 	}
 
-	err = sh.Exec("test", `(
+	err = shell.Exec("test", `(
 echo hello
 world`)
 

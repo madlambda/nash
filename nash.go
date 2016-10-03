@@ -6,19 +6,20 @@ import (
 	"io"
 
 	"github.com/NeowayLabs/nash/ast"
-	"github.com/NeowayLabs/nash/internal/sh"
+	shell "github.com/NeowayLabs/nash/internal/sh"
+	"github.com/NeowayLabs/nash/sh"
 )
 
 type (
 	// Shell is the execution engine of the scripting language.
 	Shell struct {
-		interp *sh.Shell
+		interp *shell.Shell
 	}
 )
 
 // New creates a new `nash.Shell` instance.
 func New() (*Shell, error) {
-	interp, err := sh.NewShell()
+	interp, err := shell.NewShell()
 
 	if err != nil {
 		return nil, err
@@ -59,9 +60,12 @@ func (nash *Shell) DotDir() string {
 }
 
 // Environ returns the set of environment variables in the shell
-func (nash *Shell) Environ() sh.Env {
+func (nash *Shell) Environ() shell.Env {
 	return nash.interp.Environ()
 }
+
+// GetFn gets the function object.
+func (nash *Shell) GetFn(name string) (sh.Fn, bool) { return nash.interp.GetFn(name) }
 
 // Prompt returns the environment prompt or the default one
 func (nash *Shell) Prompt() string {
@@ -109,13 +113,13 @@ func (nash *Shell) ExecuteFile(path string) error {
 
 // ExecuteTree executes the given tree.
 // Deprecated: Use ExecTree instead.
-func (nash *Shell) ExecuteTree(tr *ast.Tree) (*sh.Obj, error) {
+func (nash *Shell) ExecuteTree(tr *ast.Tree) (sh.Obj, error) {
 	return nash.interp.ExecuteTree(tr)
 }
 
 // ExecTree evaluates the given abstract syntax tree.
 // it returns the object result of eval or nil when not applied and error.
-func (nash *Shell) ExecTree(tree *ast.Tree) (*sh.Obj, error) {
+func (nash *Shell) ExecTree(tree *ast.Tree) (sh.Obj, error) {
 	return nash.interp.ExecuteTree(tree)
 }
 

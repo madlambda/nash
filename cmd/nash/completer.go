@@ -1,47 +1,77 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"strings"
 
+	"github.com/NeowayLabs/nash"
+	"github.com/NeowayLabs/nash/sh"
 	"github.com/chzyer/readline"
 )
 
 var runes = readline.Runes{}
 
 type Completer struct {
-	prefixCompleter readline.PrefixCompleterInterface
+	sh *nash.Shell
 }
 
-func NewCompleter(p ...readline.PrefixCompleterInterface) *Completer {
-	return &Completer{
-		prefixCompleter: readline.NewPrefixCompleter(p...),
-	}
+func NewCompleter(sh *nash.Shell) *Completer {
+	return &Completer{sh}
 }
 
-func (c *Completer) Do(line []rune, pos int) (newLine [][]rune, offset int) {
-	line = runes.TrimSpaceLeft(line[:pos])
+func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
+	var (
+		newLine [][]rune
+		offset  int
+		lineArg = sh.NewStrObj(string(line))
+		posArg  = sh.NewStrObj(strconv.Itoa(pos))
+	)
 
-	if len(line) >= 1 && (line[0] == '/' || line[0] == '.') {
-		return completeFile(line, pos, "")
-	} else if len(line) == 0 {
-		return
+	nashFunc, ok := c.sh.GetFn("nash_complete")
+
+	if !ok {
+		return newLine, offset
 	}
 
-	pathVal := os.Getenv("PATH")
-	path := make([]string, 0, 256)
+	err := nashFunc.SetArgs([]sh.Obj{lineArg, posArg})
 
-	pathparts := strings.Split(pathVal, ":")
-	if len(pathparts) == 1 {
-		path = append(path, pathparts[0])
-	} else {
-		for _, p := range pathparts {
-			path = append(path, p)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
+		return newLine, offset
+	}
+
+	if err = nashFunc.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
+		return newLine, offset
+	}
+
+	if err = nashFunc.Wait(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
+		return newLine, offset
+	}
+
+	ret := nashFunc.Results()
+
+	if ret.Type() != sh.ListType {
+		return newLine, offset
+	}
+
+	retlist := ret.(*sh.ListObj)
+
+	for _, l := range retlist.List() {
+		if l.Type() != sh.StringType {
+			fmt.Fprintf(os.Stderr, "ignoring autocomplete value: %v\n", l)
+			continue
 		}
+
+		lstr := l.(*sh.StrObj)
+		newLine = append(newLine, []rune(lstr.Str()))
 	}
 
-	return completeInPathList(path, line, pos)
+	return newLine, offset
 }
 
 func completeInPath(path string, line []rune, offset int) ([][]rune, int, bool) {

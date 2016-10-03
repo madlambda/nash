@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/NeowayLabs/nash/sh"
 )
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -33,21 +35,30 @@ func buildenv(e Env) []string {
 			continue
 		}
 
-		if v.Type() == ListType {
-			env = append(env, k+"=("+v.String()+")")
+		if v.Type() != sh.ListType &&
+			v.Type() != sh.StringType {
+			continue
+		}
+
+		if v.Type() == sh.ListType {
+			vlist := v.(*sh.ListObj)
+			env = append(env, k+"=("+vlist.String()+")")
 		} else {
-			env = append(env, k+"="+v.String())
+			vstr := v.(*sh.StrObj)
+			env = append(env, k+"="+vstr.String())
 		}
 	}
 
 	return env
 }
 
-func printVar(out io.Writer, name string, val *Obj) {
-	if val.Type() == StringType {
-		fmt.Fprintf(out, "%s = \"%s\"\n", name, val.Str())
-	} else if val.Type() == ListType {
-		fmt.Fprintf(out, "%s = (%s)\n", name, val.String())
+func printVar(out io.Writer, name string, val sh.Obj) {
+	if val.Type() == sh.StringType {
+		valstr := val.(*sh.StrObj)
+		fmt.Fprintf(out, "%s = \"%s\"\n", name, valstr.Str())
+	} else if val.Type() == sh.ListType {
+		vallist := val.(*sh.ListObj)
+		fmt.Fprintf(out, "%s = (%s)\n", name, vallist.String())
 	}
 }
 

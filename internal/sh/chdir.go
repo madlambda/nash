@@ -4,8 +4,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
+	"github.com/NeowayLabs/nash/sh"
 )
 
 type (
@@ -56,25 +56,25 @@ func (chdir *ChdirFn) Wait() error {
 	return chdir.err
 }
 
-func (chdir *ChdirFn) Results() *Obj { return nil }
+func (chdir *ChdirFn) Results() sh.Obj { return nil }
 
-func (chdir *ChdirFn) SetArgs(args []ast.Expr, envShell *Shell) error {
+func (chdir *ChdirFn) SetArgs(args []sh.Obj) error {
 	if len(args) != 1 {
 		return errors.NewError("chdir expects one argument")
 	}
 
-	obj, err := envShell.evalExpr(args[0])
+	obj := args[0]
 
-	if err != nil {
-		return err
-	}
-
-	if obj.Type() != StringType {
+	if obj.Type() != sh.StringType {
 		return errors.NewError("chdir expects a string, but a %s was provided", obj.Type())
 	}
 
-	chdir.arg = obj.Str()
-	return nil
+	if objstr, ok := obj.(*sh.StrObj); ok {
+		chdir.arg = objstr.Str()
+		return nil
+	}
+
+	return errors.NewError("internal error: object of wrong type")
 }
 
 func (chdir *ChdirFn) SetEnviron(env []string) {
