@@ -18,7 +18,7 @@ and purpose.
 
 # Show time!
 
-[![asciicast](https://asciinema.org/a/6a1lqcllwctoaej6gzsxcuqo6.png)](https://asciinema.org/a/6a1lqcllwctoaej6gzsxcuqo6?speed=2)
+[![asciicast](https://asciinema.org/a/6a1lqcllwctoaej6gzsxcuqo6.png)](https://asciinema.org/a/6a1lqcllwctoaej6gzsxcuqo6?speed=2&autoplay=true)
 
 ## Useful stuff
 
