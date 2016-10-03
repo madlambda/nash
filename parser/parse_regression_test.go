@@ -216,3 +216,31 @@ func TestParseImportIssue94(t *testing.T) {
 
 	parserTestTable("test import", "import common", expected, t, true)
 }
+
+func TestParseIssue108(t *testing.T) {
+	// keywords cannot be used as command arguments
+
+	expected := ast.NewTree("parse issue #108")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+
+	catCmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "cat", false)
+
+	catArg := ast.NewStringExpr(token.NewFileInfo(1, 4), "spec.ebnf", false)
+	catCmd.AddArg(catArg)
+
+	grepCmd := ast.NewCommandNode(token.NewFileInfo(1, 16), "grep", false)
+	grepArg := ast.NewStringExpr(token.NewFileInfo(1, 21), `-i`, false)
+	grepArg2 := ast.NewStringExpr(token.NewFileInfo(1, 24), "rfork", false)
+
+	grepCmd.AddArg(grepArg)
+	grepCmd.AddArg(grepArg2)
+
+	pipe := ast.NewPipeNode(token.NewFileInfo(1, 14), false)
+	pipe.AddCmd(catCmd)
+	pipe.AddCmd(grepCmd)
+
+	ln.Push(pipe)
+	expected.Root = ln
+
+	parserTestTable("parse issue #108", `cat spec.ebnf | grep -i rfork`, expected, t, false)
+}
