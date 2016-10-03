@@ -137,3 +137,7 @@ func (nash *Shell) SetStderr(err io.Writer) {
 func (nash *Shell) SetStdin(in io.Reader) {
 	nash.interp.SetStdin(in)
 }
+
+func (nash *Shell) Stdin() io.Reader  { return nash.interp.Stdin() }
+func (nash *Shell) Stdout() io.Writer { return nash.interp.Stdout() }
+func (nash *Shell) Stderr() io.Writer { return nash.interp.Stderr() }

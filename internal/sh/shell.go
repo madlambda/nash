@@ -1491,32 +1491,35 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 	if ifs, ok := shell.GetVar("IFS"); ok && ifs.Type() == sh.ListType {
 		ifslist := ifs.(*sh.ListObj)
 
-		strelems = strings.FieldsFunc(outStr, func(r rune) bool {
-			for _, delim := range ifslist.List() {
-				if delim.Type() != sh.StringType {
-					continue
+		if len(ifslist.List()) > 0 {
+			strelems = strings.FieldsFunc(outStr, func(r rune) bool {
+				for _, delim := range ifslist.List() {
+					if delim.Type() != sh.StringType {
+						continue
+					}
+
+					objstr := delim.(*sh.StrObj)
+
+					if len(objstr.Str()) > 0 && rune(objstr.Str()[0]) == r {
+						return true
+					}
 				}
 
-				objstr := delim.(*sh.StrObj)
+				return false
+			})
 
-				if len(objstr.Str()) > 0 && rune(objstr.Str()[0]) == r {
-					return true
-				}
+			objelems := make([]sh.Obj, len(strelems))
+
+			for i := 0; i < len(strelems); i++ {
+				objelems[i] = sh.NewStrObj(strelems[i])
 			}
 
-			return false
-		})
-
-		objelems := make([]sh.Obj, len(strelems))
-
-		for i := 0; i < len(strelems); i++ {
-			objelems[i] = sh.NewStrObj(strelems[i])
+			shell.Setvar(v.Identifier(), sh.NewListObj(objelems))
+			return nil
 		}
-
-		shell.Setvar(v.Identifier(), sh.NewListObj(objelems))
-	} else {
-		shell.Setvar(v.Identifier(), sh.NewStrObj(outStr))
 	}
+
+	shell.Setvar(v.Identifier(), sh.NewStrObj(outStr))
 
 	return err
 }

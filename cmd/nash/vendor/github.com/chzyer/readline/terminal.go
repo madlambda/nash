@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Terminal struct {
@@ -18,6 +19,7 @@ type Terminal struct {
 	wg        sync.WaitGroup
 	isReading int32
 	sleeping  int32
+	pause     int32
 
 	sizeChan chan string
 }
@@ -108,6 +110,14 @@ func (t *Terminal) KickRead() {
 	}
 }
 
+func (t *Terminal) PauseRead(b bool) {
+	if b {
+		atomic.StoreInt32(&t.pause, 1)
+	} else {
+		atomic.StoreInt32(&t.pause, 0)
+	}
+}
+
 func (t *Terminal) ioloop() {
 	t.wg.Add(1)
 	defer func() {
@@ -123,6 +133,13 @@ func (t *Terminal) ioloop() {
 
 	buf := bufio.NewReader(t.cfg.Stdin)
 	for {
+		pause := atomic.LoadInt32(&t.pause)
+
+		if pause == 1 {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
 		if !expectNextChar {
 			atomic.StoreInt32(&t.isReading, 0)
 			select {
@@ -184,6 +201,10 @@ func (t *Terminal) ioloop() {
 			expectNextChar = false
 			fallthrough
 		default:
+			if r == CharTab {
+				t.PauseRead(true)
+			}
+
 			t.outchan <- r
 		}
 	}
