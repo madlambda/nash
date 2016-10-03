@@ -17,7 +17,7 @@ type (
 		err     error
 		results int
 
-		arg []sh.Obj
+		arg sh.Obj
 	}
 )
 
@@ -38,7 +38,14 @@ func (lenfn *LenFn) ArgNames() []string {
 }
 
 func (lenfn *LenFn) run() error {
-	lenfn.results = len(lenfn.arg)
+	if lenfn.arg.Type() == sh.ListType {
+		arglist := lenfn.arg.(*sh.ListObj)
+		lenfn.results = len(arglist.List())
+	} else {
+		argstr := lenfn.arg.(*sh.StrObj)
+		lenfn.results = len(argstr.Str())
+	}
+
 	return nil
 }
 
@@ -69,12 +76,11 @@ func (lenfn *LenFn) SetArgs(args []sh.Obj) error {
 
 	obj := args[0]
 
-	if obj.Type() != sh.ListType {
-		return errors.NewError("lenfn expects a list, but a %s was provided", obj.Type())
+	if obj.Type() != sh.ListType && obj.Type() != sh.StringType {
+		return errors.NewError("lenfn expects a list or a string, but a %s was provided", obj.Type())
 	}
 
-	objlist := obj.(*sh.ListObj)
-	lenfn.arg = objlist.List()
+	lenfn.arg = obj
 	return nil
 }
 

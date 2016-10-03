@@ -825,6 +825,7 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) error {
 		var (
 			cmd    sh.Runner
 			ignore bool
+			args   []sh.Obj
 		)
 
 		nodeCmd := nodeCommands[i]
@@ -843,7 +844,7 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) error {
 		// otherwise the subshell will have the arguments
 		// shadowed by parent env
 		cmd.SetEnviron(envVars)
-		args, err := shell.evalExprs(nodeCmd.Args())
+		args, err = shell.evalExprs(nodeCmd.Args())
 
 		if err != nil {
 			errIndex = i

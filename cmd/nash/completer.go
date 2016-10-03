@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/NeowayLabs/nash"
 	"github.com/NeowayLabs/nash/sh"
@@ -56,22 +57,41 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	ret := nashFunc.Results()
 
 	if ret.Type() != sh.ListType {
+		fmt.Fprintf(os.Stderr, "ignoring autocomplete value: %v\n", ret)
 		return newLine, offset
 	}
 
 	retlist := ret.(*sh.ListObj)
 
-	for _, l := range retlist.List() {
-		if l.Type() != sh.StringType {
-			fmt.Fprintf(os.Stderr, "ignoring autocomplete value: %v\n", l)
-			continue
-		}
-
-		lstr := l.(*sh.StrObj)
-		newLine = append(newLine, []rune(lstr.Str()))
+	if len(retlist.List()) != 2 {
+		fmt.Fprintf(os.Stderr, "ignoring autocomplete value: %v\n", retlist)
+		return newLine, offset
 	}
 
-	return newLine, offset
+	newline := retlist.List()[0]
+	newpos := retlist.List()[1]
+
+	if newline.Type() != sh.StringType || newpos.Type() != sh.StringType {
+		fmt.Fprintf(os.Stderr, "ignoring autocomplete value: %v\n", retlist)
+		return newLine, offset
+	}
+
+	objline := newline.(*sh.StrObj)
+	objpos := newpos.(*sh.StrObj)
+
+	newoffset, err := strconv.Atoi(objpos.Str())
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
+		return newLine, offset
+	}
+
+	newLine = append(newLine, []rune(objline.Str()))
+
+	fmt.Printf("newLine = %v, pos = %d\n", newLine, newoffset)
+
+	time.Sleep(time.Second * 5)
+	return newLine, newoffset
 }
 
 func completeInPath(path string, line []rune, offset int) ([][]rune, int, bool) {
