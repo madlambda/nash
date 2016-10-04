@@ -13,12 +13,13 @@ import (
 var runes = readline.Runes{}
 
 type Completer struct {
+	op   *readline.Operation
 	term *readline.Terminal
 	sh   *nash.Shell
 }
 
-func NewCompleter(term *readline.Terminal, sh *nash.Shell) *Completer {
-	return &Completer{term, sh}
+func NewCompleter(op *readline.Operation, term *readline.Terminal, sh *nash.Shell) *Completer {
+	return &Completer{op, term, sh}
 }
 
 func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
@@ -29,12 +30,14 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 		posArg  = sh.NewStrObj(strconv.Itoa(pos))
 	)
 
+	defer c.op.Refresh()
 	defer c.term.PauseRead(false)
 
 	nashFunc, ok := c.sh.GetFn("nash_complete")
 
 	if !ok {
-		return newLine, offset
+		// no complete available
+		return [][]rune{[]rune{'\t'}}, offset
 	}
 
 	err := nashFunc.SetArgs([]sh.Obj{lineArg, posArg})
@@ -68,8 +71,7 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	retlist := ret.(*sh.ListObj)
 
 	if len(retlist.List()) != 2 {
-		fmt.Fprintf(os.Stderr, "ignoring autocomplete value: %v (%d)\n", retlist, len(retlist.List()))
-		return newLine, offset
+		return newLine, pos
 	}
 
 	newline := retlist.List()[0]

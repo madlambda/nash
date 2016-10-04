@@ -47,16 +47,16 @@ func cli(sh *nash.Shell) error {
 		return err
 	}
 
-	completer := NewCompleter(term, sh)
-
-	cfg.AutoComplete = completer
-
 	op := term.Readline()
 	l := &readline.Instance{
 		Config:    &cfg,
 		Terminal:  term,
 		Operation: op,
 	}
+
+	completer := NewCompleter(op, term, sh)
+
+	cfg.AutoComplete = completer
 
 	defer l.Close()
 
