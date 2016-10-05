@@ -153,6 +153,7 @@ func (o *Operation) ioloop() {
 				o.t.Bell()
 				break
 			}
+
 			if o.OnComplete() {
 				keepInCompleteMode = true
 			} else {

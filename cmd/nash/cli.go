@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 
 	"github.com/NeowayLabs/nash"
@@ -35,27 +34,33 @@ func cli(sh *nash.Shell) error {
 
 	historyFile := sh.DotDir() + "/history"
 
-	for envName := range sh.Environ() {
-		completers = append(completers, readline.PcItem(envName))
-	}
-
-	completer := NewCompleter(completers...)
-
-	l, err := readline.NewEx(&readline.Config{
+	cfg := readline.Config{
 		Prompt:          sh.Prompt(),
 		HistoryFile:     historyFile,
-		AutoComplete:    completer,
 		InterruptPrompt: "^C",
 		EOFPrompt:       "exit",
-	})
+	}
+
+	term, err := readline.NewTerminal(&cfg)
 
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	op := term.Readline()
+	l := &readline.Instance{
+		Config:    &cfg,
+		Terminal:  term,
+		Operation: op,
+	}
+
+	completer := NewCompleter(op, term, sh)
+
+	cfg.AutoComplete = completer
 
 	defer l.Close()
 
-	log.SetOutput(l.Stderr())
+	//	log.SetOutput(l.Stderr())
 
 	var content bytes.Buffer
 	var lineidx int

@@ -31,13 +31,20 @@ echo -n $len_a`)
 		return
 	}
 
+	out.Reset()
+
 	err = sh.Exec("test len fail", `a = "test"
 l <= len($a)
-echo $l
+echo -n $l
 `)
 
-	if err == nil {
+	if err != nil {
 		t.Errorf("Must fail... Len only should work= with lists")
+		return
+	}
+
+	if "4" != string(out.Bytes()) {
+		t.Errorf("String differs: '%s' != '%s'", "4", string(out.Bytes()))
 		return
 	}
 }

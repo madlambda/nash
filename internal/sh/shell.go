@@ -18,48 +18,22 @@ import (
 	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
 	"github.com/NeowayLabs/nash/parser"
+	"github.com/NeowayLabs/nash/sh"
 	"github.com/NeowayLabs/nash/token"
 )
 
 const (
-	logNS     = "nash.Shell"
+	logNS     = "nashell.Shell"
 	defPrompt = "\033[31mλ>\033[0m "
 )
 
 type (
 	// Env is the environment map of lists
-	Env map[string]*Obj
+	Env map[string]sh.Obj
 	Var Env
-	Fns map[string]Fn
+	Fns map[string]sh.Fn
 
 	StatusCode uint8
-
-	Runner interface {
-		Start() error
-		Wait() error
-		Results() *Obj
-
-		SetArgs([]ast.Expr, *Shell) error
-		SetEnviron([]string)
-		SetStdin(io.Reader)
-		SetStdout(io.Writer)
-		SetStderr(io.Writer)
-
-		StdoutPipe() (io.ReadCloser, error)
-
-		Stdin() io.Reader
-		Stdout() io.Writer
-		Stderr() io.Writer
-	}
-
-	Fn interface {
-		Name() string
-		ArgNames() []string
-
-		Runner
-
-		String() string
-	}
 
 	// Shell is the core data structure.
 	Shell struct {
@@ -140,7 +114,7 @@ func (e *errStopWalking) StopWalking() bool { return true }
 
 // NewShell creates a new shell object
 func NewShell() (*Shell, error) {
-	sh := &Shell{
+	shell := &Shell{
 		name:      "parent scope",
 		isFn:      false,
 		logf:      NewLog(logNS, false),
@@ -156,18 +130,18 @@ func NewShell() (*Shell, error) {
 		Mutex:     &sync.Mutex{},
 	}
 
-	err := sh.setup()
+	err := shell.setup()
 
 	if err != nil {
 		return nil, err
 	}
 
-	sh.setupSignals()
+	shell.setupSignals()
 
-	return sh, nil
+	return shell, nil
 }
 
-// NewSubShell creates a nash.Shell that inherits the parent shell stdin,
+// NewSubShell creates a nashell.Shell that inherits the parent shell stdin,
 // stdout, stderr and mutex lock.
 // Every variable and function lookup is done first in the subshell and then, if
 // not found, in the parent shell recursively.
@@ -197,20 +171,20 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 }
 
 // initEnv creates a new environment from old one
-func (sh *Shell) initEnv(processEnv []string) error {
-	largs := make([]*Obj, len(os.Args))
+func (shell *Shell) initEnv(processEnv []string) error {
+	largs := make([]sh.Obj, len(os.Args))
 
 	for i := 0; i < len(os.Args); i++ {
-		largs[i] = NewStrObj(os.Args[i])
+		largs[i] = sh.NewStrObj(os.Args[i])
 	}
 
-	argv := NewListObj(largs)
+	argv := sh.NewListObj(largs)
 
-	sh.Setenv("argv", argv)
-	sh.Setvar("argv", argv)
+	shell.Setenv("argv", argv)
+	shell.Setvar("argv", argv)
 
 	for _, penv := range processEnv {
-		var value *Obj
+		var value sh.Obj
 		p := strings.Split(penv, "=")
 
 		if len(p) == 2 {
@@ -220,22 +194,22 @@ func (sh *Shell) initEnv(processEnv []string) error {
 				continue
 			}
 
-			value = NewStrObj(p[1])
+			value = sh.NewStrObj(p[1])
 
-			sh.Setvar(p[0], value)
-			sh.Setenv(p[0], value)
+			shell.Setvar(p[0], value)
+			shell.Setenv(p[0], value)
 		}
 	}
 
-	pidVal := NewStrObj(strconv.Itoa(os.Getpid()))
+	pidVal := sh.NewStrObj(strconv.Itoa(os.Getpid()))
 
-	sh.Setenv("PID", pidVal)
-	sh.Setvar("PID", pidVal)
+	shell.Setenv("PID", pidVal)
+	shell.Setvar("PID", pidVal)
 
-	if _, ok := sh.Getenv("SHELL"); !ok {
-		shellVal := NewStrObj(nashdAutoDiscover())
-		sh.Setenv("SHELL", shellVal)
-		sh.Setvar("SHELL", shellVal)
+	if _, ok := shell.Getenv("SHELL"); !ok {
+		shellVal := sh.NewStrObj(nashdAutoDiscover())
+		shell.Setenv("SHELL", shellVal)
+		shell.Setvar("SHELL", shellVal)
 	}
 
 	cwd, err := os.Getwd()
@@ -244,205 +218,205 @@ func (sh *Shell) initEnv(processEnv []string) error {
 		return err
 	}
 
-	cwdObj := NewStrObj(cwd)
-	sh.Setenv("PWD", cwdObj)
-	sh.Setvar("PWD", cwdObj)
+	cwdObj := sh.NewStrObj(cwd)
+	shell.Setenv("PWD", cwdObj)
+	shell.Setvar("PWD", cwdObj)
 
 	return nil
 }
 
 // Reset internal state
-func (sh *Shell) Reset() {
-	sh.fns = make(Fns)
-	sh.vars = make(Var)
-	sh.env = make(Env)
-	sh.binds = make(Fns)
+func (shell *Shell) Reset() {
+	shell.fns = make(Fns)
+	shell.vars = make(Var)
+	shell.env = make(Env)
+	shell.binds = make(Fns)
 }
 
 // SetDebug enable/disable debug in the shell
-func (sh *Shell) SetDebug(d bool) {
-	sh.debug = d
-	sh.logf = NewLog(logNS, d)
+func (shell *Shell) SetDebug(d bool) {
+	shell.debug = d
+	shell.logf = NewLog(logNS, d)
 }
 
-func (sh *Shell) SetName(a string) {
-	sh.name = a
+func (shell *Shell) SetName(a string) {
+	shell.name = a
 }
 
-func (sh *Shell) Name() string { return sh.name }
+func (shell *Shell) Name() string { return shell.name }
 
-func (sh *Shell) SetParent(a *Shell) {
-	sh.parent = a
+func (shell *Shell) SetParent(a *Shell) {
+	shell.parent = a
 }
 
-func (sh *Shell) Environ() Env {
-	if sh.parent != nil {
-		return sh.parent.Environ()
+func (shell *Shell) Environ() Env {
+	if shell.parent != nil {
+		return shell.parent.Environ()
 	}
 
-	return sh.env
+	return shell.env
 }
 
-func (sh *Shell) Getenv(name string) (*Obj, bool) {
-	if sh.parent != nil {
-		return sh.parent.Getenv(name)
+func (shell *Shell) Getenv(name string) (sh.Obj, bool) {
+	if shell.parent != nil {
+		return shell.parent.Getenv(name)
 	}
 
-	value, ok := sh.env[name]
+	value, ok := shell.env[name]
 	return value, ok
 }
 
-func (sh *Shell) Setenv(name string, value *Obj) {
-	if sh.parent != nil {
-		sh.parent.Setenv(name, value)
+func (shell *Shell) Setenv(name string, value sh.Obj) {
+	if shell.parent != nil {
+		shell.parent.Setenv(name, value)
 		return
 	}
 
-	sh.Setvar(name, value)
+	shell.Setvar(name, value)
 
-	sh.env[name] = value
+	shell.env[name] = value
 	os.Setenv(name, value.String())
 }
 
-func (sh *Shell) SetEnviron(processEnv []string) {
-	sh.env = make(Env)
+func (shell *Shell) SetEnviron(processEnv []string) {
+	shell.env = make(Env)
 
 	for _, penv := range processEnv {
-		var value *Obj
+		var value sh.Obj
 		p := strings.Split(penv, "=")
 
 		if len(p) == 2 {
-			value = NewStrObj(p[1])
+			value = sh.NewStrObj(p[1])
 
-			sh.Setvar(p[0], value)
-			sh.Setenv(p[0], value)
+			shell.Setvar(p[0], value)
+			shell.Setenv(p[0], value)
 		}
 	}
 }
 
-func (sh *Shell) GetVar(name string) (*Obj, bool) {
-	if value, ok := sh.vars[name]; ok {
+func (shell *Shell) GetVar(name string) (sh.Obj, bool) {
+	if value, ok := shell.vars[name]; ok {
 		return value, ok
 	}
 
-	if sh.parent != nil {
-		return sh.parent.GetVar(name)
+	if shell.parent != nil {
+		return shell.parent.GetVar(name)
 	}
 
 	return nil, false
 }
 
-func (sh *Shell) GetBuiltin(name string) (Fn, bool) {
-	sh.logf("Looking for builtin '%s' on shell '%s'\n", name, sh.name)
+func (shell *Shell) GetBuiltin(name string) (sh.Fn, bool) {
+	shell.logf("Looking for builtin '%s' on shell '%s'\n", name, shell.name)
 
-	if sh.parent != nil {
-		return sh.parent.GetBuiltin(name)
+	if shell.parent != nil {
+		return shell.parent.GetBuiltin(name)
 	}
 
-	if fn, ok := sh.builtins[name]; ok {
+	if fn, ok := shell.builtins[name]; ok {
 		return fn, true
 	}
 
 	return nil, false
 }
 
-func (sh *Shell) GetFn(name string) (Fn, bool) {
-	sh.logf("Looking for function '%s' on shell '%s'\n", name, sh.name)
+func (shell *Shell) GetFn(name string) (sh.Fn, bool) {
+	shell.logf("Looking for function '%s' on shell '%s'\n", name, shell.name)
 
-	if fn, ok := sh.fns[name]; ok {
+	if fn, ok := shell.fns[name]; ok {
 		return fn, ok
 	}
 
-	if sh.parent != nil {
-		return sh.parent.GetFn(name)
+	if shell.parent != nil {
+		return shell.parent.GetFn(name)
 	}
 
 	return nil, false
 }
 
-func (sh *Shell) Setbindfn(name string, value Fn) {
-	sh.binds[name] = value
+func (shell *Shell) Setbindfn(name string, value sh.Fn) {
+	shell.binds[name] = value
 }
 
-func (sh *Shell) Getbindfn(cmdName string) (Fn, bool) {
-	if fn, ok := sh.binds[cmdName]; ok {
+func (shell *Shell) Getbindfn(cmdName string) (sh.Fn, bool) {
+	if fn, ok := shell.binds[cmdName]; ok {
 		return fn, true
 	}
 
-	if sh.parent != nil {
-		return sh.parent.Getbindfn(cmdName)
+	if shell.parent != nil {
+		return shell.parent.Getbindfn(cmdName)
 	}
 
 	return nil, false
 }
 
-func (sh *Shell) Setvar(name string, value *Obj) {
-	sh.vars[name] = value
+func (shell *Shell) Setvar(name string, value sh.Obj) {
+	shell.vars[name] = value
 }
 
-func (sh *Shell) IsFn() bool { return sh.isFn }
+func (shell *Shell) IsFn() bool { return shell.isFn }
 
-func (sh *Shell) SetIsFn(b bool) { sh.isFn = b }
+func (shell *Shell) SetIsFn(b bool) { shell.isFn = b }
 
 // SetNashdPath sets an alternativa path to nashd
-func (sh *Shell) SetNashdPath(path string) {
-	sh.nashdPath = path
+func (shell *Shell) SetNashdPath(path string) {
+	shell.nashdPath = path
 }
 
 // SetStdin sets the stdin for commands
-func (sh *Shell) SetStdin(in io.Reader) { sh.stdin = in }
+func (shell *Shell) SetStdin(in io.Reader) { shell.stdin = in }
 
 // SetStdout sets stdout for commands
-func (sh *Shell) SetStdout(out io.Writer) { sh.stdout = out }
+func (shell *Shell) SetStdout(out io.Writer) { shell.stdout = out }
 
 // SetStderr sets stderr for commands
-func (sh *Shell) SetStderr(err io.Writer) { sh.stderr = err }
+func (shell *Shell) SetStderr(err io.Writer) { shell.stderr = err }
 
-func (sh *Shell) Stdout() io.Writer { return sh.stdout }
-func (sh *Shell) Stderr() io.Writer { return sh.stderr }
-func (sh *Shell) Stdin() io.Reader  { return sh.stdin }
+func (shell *Shell) Stdout() io.Writer { return shell.stdout }
+func (shell *Shell) Stderr() io.Writer { return shell.stderr }
+func (shell *Shell) Stdin() io.Reader  { return shell.stdin }
 
 // SetTree sets the internal tree of the interpreter. It's used for
 // sub-shells like `fn`.
-func (sh *Shell) SetTree(t *ast.Tree) {
-	sh.root = t
+func (shell *Shell) SetTree(t *ast.Tree) {
+	shell.root = t
 }
 
 // Tree returns the internal tree of the subshell.
-func (sh *Shell) Tree() *ast.Tree { return sh.root }
+func (shell *Shell) Tree() *ast.Tree { return shell.root }
 
 // SetRepr set the string representation of the shell
-func (sh *Shell) SetRepr(a string) {
-	sh.repr = a
+func (shell *Shell) SetRepr(a string) {
+	shell.repr = a
 }
 
-func (sh *Shell) String() string {
-	if sh.repr != "" {
-		return sh.repr
+func (shell *Shell) String() string {
+	if shell.repr != "" {
+		return shell.repr
 	}
 
 	var out bytes.Buffer
 
-	sh.dump(&out)
+	shell.dump(&out)
 
 	return string(out.Bytes())
 }
 
-func (sh *Shell) setupBuiltin() error {
-	lenfn := NewLenFn(sh)
-	sh.builtins["len"] = lenfn
-	sh.Setvar("len", NewFnObj(lenfn))
+func (shell *Shell) setupBuiltin() error {
+	lenfn := NewLenFn(shell)
+	shell.builtins["len"] = lenfn
+	shell.Setvar("len", sh.NewFnObj(lenfn))
 
-	appendfn := NewAppendFn(sh)
-	sh.builtins["append"] = appendfn
-	sh.Setvar("append", NewFnObj(appendfn))
+	appendfn := NewAppendFn(shell)
+	shell.builtins["append"] = appendfn
+	shell.Setvar("append", sh.NewFnObj(appendfn))
 
-	chdir := NewChdir(sh)
-	sh.builtins["chdir"] = chdir
-	sh.Setvar("chdir", NewFnObj(chdir))
+	chdir := NewChdir(shell)
+	shell.builtins["chdir"] = chdir
+	shell.Setvar("chdir", sh.NewFnObj(chdir))
 
 	// only one builtin fn... no need for advanced machinery yet
-	err := sh.Exec(sh.name, `fn nash_builtin_cd(path) {
+	err := shell.Exec(shell.name, `fn nash_builtin_cd(path) {
             if $path == "" {
                     path = $HOME
             }
@@ -455,23 +429,23 @@ func (sh *Shell) setupBuiltin() error {
 	return err
 }
 
-func (sh *Shell) setup() error {
-	err := sh.initEnv(os.Environ())
+func (shell *Shell) setup() error {
+	err := shell.initEnv(os.Environ())
 
 	if err != nil {
 		return err
 	}
 
-	if sh.env["PROMPT"] == nil {
-		pobj := NewStrObj(defPrompt)
-		sh.Setenv("PROMPT", pobj)
-		sh.Setvar("PROMPT", pobj)
+	if shell.env["PROMPT"] == nil {
+		pobj := sh.NewStrObj(defPrompt)
+		shell.Setenv("PROMPT", pobj)
+		shell.Setvar("PROMPT", pobj)
 	}
 
-	return sh.setupBuiltin()
+	return shell.setupBuiltin()
 }
 
-func (sh *Shell) setupSignals() {
+func (shell *Shell) setupSignals() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGCHLD)
 
@@ -481,15 +455,15 @@ func (sh *Shell) setupSignals() {
 
 			switch sig {
 			case syscall.SIGINT:
-				sh.Lock()
+				shell.Lock()
 
 				// TODO(i4k): Review implementation when interrupted inside
 				// function loops
-				if sh.looping {
-					sh.setIntr(true)
+				if shell.looping {
+					shell.setIntr(true)
 				}
 
-				sh.Unlock()
+				shell.Unlock()
 			case syscall.SIGCHLD:
 				// dont need reaping because we dont have job control yet
 				// every command is wait'ed.
@@ -500,7 +474,7 @@ func (sh *Shell) setupSignals() {
 	}()
 }
 
-func (sh *Shell) TriggerCTRLC() error {
+func (shell *Shell) TriggerCTRLC() error {
 	p, err := os.FindProcess(os.Getpid())
 
 	if err != nil {
@@ -511,26 +485,26 @@ func (sh *Shell) TriggerCTRLC() error {
 }
 
 // setIntr *do not lock*. You must do it yourself!
-func (sh *Shell) setIntr(b bool) {
-	if sh.parent != nil {
-		sh.parent.setIntr(b)
+func (shell *Shell) setIntr(b bool) {
+	if shell.parent != nil {
+		shell.parent.setIntr(b)
 		return
 	}
 
-	sh.interrupted = b
+	shell.interrupted = b
 }
 
 // getIntr returns true if nash was interrupted by CTRL-C
-func (sh *Shell) getIntr() bool {
-	if sh.parent != nil {
-		return sh.parent.getIntr()
+func (shell *Shell) getIntr() bool {
+	if shell.parent != nil {
+		return shell.parent.getIntr()
 	}
 
-	return sh.interrupted
+	return shell.interrupted
 }
 
 // Exec executes the commands specified by string content
-func (sh *Shell) Exec(path, content string) error {
+func (shell *Shell) Exec(path, content string) error {
 	p := parser.NewParser(path, content)
 
 	tr, err := p.Parse()
@@ -539,13 +513,13 @@ func (sh *Shell) Exec(path, content string) error {
 		return err
 	}
 
-	_, err = sh.ExecuteTree(tr)
+	_, err = shell.ExecuteTree(tr)
 	return err
 }
 
 // Execute the nash file at given path
-func (sh *Shell) ExecFile(path string) error {
-	bkCurFile := sh.currentFile
+func (shell *Shell) ExecFile(path string) error {
+	bkCurFile := shell.currentFile
 
 	content, err := ioutil.ReadFile(path)
 
@@ -553,18 +527,18 @@ func (sh *Shell) ExecFile(path string) error {
 		return err
 	}
 
-	sh.currentFile = path
+	shell.currentFile = path
 
 	defer func() {
-		sh.currentFile = bkCurFile
+		shell.currentFile = bkCurFile
 	}()
 
-	return sh.Exec(path, string(content))
+	return shell.Exec(path, string(content))
 }
 
 // evalConcat reveives the AST representation of a concatenation of objects and
 // returns the string representation, or error.
-func (sh *Shell) evalConcat(path ast.Expr) (string, error) {
+func (shell *Shell) evalConcat(path ast.Expr) (string, error) {
 	var pathStr string
 
 	if path.Type() != ast.NodeConcatExpr {
@@ -582,19 +556,20 @@ func (sh *Shell) evalConcat(path ast.Expr) (string, error) {
 		case ast.NodeConcatExpr:
 			return "", errors.NewError("Nested concat is not allowed")
 		case ast.NodeVarExpr, ast.NodeIndexExpr:
-			partValues, err := sh.evalVariable(part)
+			partValues, err := shell.evalVariable(part)
 
 			if err != nil {
 				return "", err
 			}
 
-			if partValues.Type() == ListType {
+			if partValues.Type() == sh.ListType {
 				return "", fmt.Errorf("Concat of list variables is not allowed: %v = %v", part, partValues)
-			} else if partValues.Type() != StringType {
+			} else if partValues.Type() != sh.StringType {
 				return "", fmt.Errorf("Invalid concat element: %v", partValues)
 			}
 
-			pathStr += partValues.Str()
+			strval := partValues.(*sh.StrObj)
+			pathStr += strval.Str()
 		case ast.NodeStringExpr:
 			str, ok := part.(*ast.StringExpr)
 
@@ -613,47 +588,47 @@ func (sh *Shell) evalConcat(path ast.Expr) (string, error) {
 	return pathStr, nil
 }
 
-func (sh *Shell) executeNode(node ast.Node, builtin bool) (*Obj, error) {
+func (shell *Shell) executeNode(node ast.Node, builtin bool) (sh.Obj, error) {
 	var (
-		obj *Obj
+		obj sh.Obj
 		err error
 	)
 
-	sh.logf("Executing node: %v\n", node)
+	shell.logf("Executing node: %v\n", node)
 
 	switch node.Type() {
 	case ast.NodeImport:
-		err = sh.executeImport(node.(*ast.ImportNode))
+		err = shell.executeImport(node.(*ast.ImportNode))
 	case ast.NodeComment:
 		// ignore
 	case ast.NodeSetenv:
-		err = sh.executeSetenv(node.(*ast.SetenvNode))
+		err = shell.executeSetenv(node.(*ast.SetenvNode))
 	case ast.NodeAssignment:
-		err = sh.executeAssignment(node.(*ast.AssignmentNode))
+		err = shell.executeAssignment(node.(*ast.AssignmentNode))
 	case ast.NodeExecAssign:
-		err = sh.executeExecAssign(node.(*ast.ExecAssignNode))
+		err = shell.executeExecAssign(node.(*ast.ExecAssignNode))
 	case ast.NodeCommand:
-		err = sh.executeCommand(node.(*ast.CommandNode))
+		err = shell.executeCommand(node.(*ast.CommandNode))
 	case ast.NodePipe:
-		err = sh.executePipe(node.(*ast.PipeNode))
+		err = shell.executePipe(node.(*ast.PipeNode))
 	case ast.NodeRfork:
-		err = sh.executeRfork(node.(*ast.RforkNode))
+		err = shell.executeRfork(node.(*ast.RforkNode))
 	case ast.NodeIf:
-		obj, err = sh.executeIf(node.(*ast.IfNode))
+		obj, err = shell.executeIf(node.(*ast.IfNode))
 	case ast.NodeFnDecl:
-		err = sh.executeFnDecl(node.(*ast.FnDeclNode))
+		err = shell.executeFnDecl(node.(*ast.FnDeclNode))
 	case ast.NodeFnInv:
 		// invocation ignoring output
-		_, err = sh.executeFnInv(node.(*ast.FnInvNode))
+		_, err = shell.executeFnInv(node.(*ast.FnInvNode))
 	case ast.NodeFor:
-		obj, err = sh.executeFor(node.(*ast.ForNode))
+		obj, err = shell.executeFor(node.(*ast.ForNode))
 	case ast.NodeBindFn:
-		err = sh.executeBindFn(node.(*ast.BindFnNode))
+		err = shell.executeBindFn(node.(*ast.BindFnNode))
 	case ast.NodeDump:
-		err = sh.executeDump(node.(*ast.DumpNode))
+		err = shell.executeDump(node.(*ast.DumpNode))
 	case ast.NodeReturn:
-		if sh.IsFn() {
-			obj, err = sh.executeReturn(node.(*ast.ReturnNode))
+		if shell.IsFn() {
+			obj, err = shell.executeReturn(node.(*ast.ReturnNode))
 		} else {
 			err = errors.NewError("Unexpected return outside of function declaration.")
 		}
@@ -665,12 +640,12 @@ func (sh *Shell) executeNode(node ast.Node, builtin bool) (*Obj, error) {
 	return obj, err
 }
 
-func (sh *Shell) ExecuteTree(tr *ast.Tree) (*Obj, error) {
-	return sh.executeTree(tr, true)
+func (shell *Shell) ExecuteTree(tr *ast.Tree) (sh.Obj, error) {
+	return shell.executeTree(tr, true)
 }
 
 // executeTree evaluates the given tree
-func (sh *Shell) executeTree(tr *ast.Tree, stopable bool) (*Obj, error) {
+func (shell *Shell) executeTree(tr *ast.Tree, stopable bool) (sh.Obj, error) {
 	if tr == nil || tr.Root == nil {
 		return nil, errors.NewError("empty abstract syntax tree to execute")
 	}
@@ -678,7 +653,7 @@ func (sh *Shell) executeTree(tr *ast.Tree, stopable bool) (*Obj, error) {
 	root := tr.Root
 
 	for _, node := range root.Nodes {
-		obj, err := sh.executeNode(node, false)
+		obj, err := shell.executeNode(node, false)
 
 		if err != nil {
 			type (
@@ -714,12 +689,12 @@ func (sh *Shell) executeTree(tr *ast.Tree, stopable bool) (*Obj, error) {
 	return nil, nil
 }
 
-func (sh *Shell) executeReturn(n *ast.ReturnNode) (*Obj, error) {
+func (shell *Shell) executeReturn(n *ast.ReturnNode) (sh.Obj, error) {
 	if n.Return() == nil {
 		return nil, newErrStopWalking()
 	}
 
-	obj, err := sh.evalExpr(n.Return())
+	obj, err := shell.evalExpr(n.Return())
 
 	if err != nil {
 		return nil, err
@@ -728,25 +703,26 @@ func (sh *Shell) executeReturn(n *ast.ReturnNode) (*Obj, error) {
 	return obj, newErrStopWalking()
 }
 
-func (sh *Shell) executeImport(node *ast.ImportNode) error {
+func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	arg := node.Path()
 
-	obj, err := sh.evalExpr(arg)
+	obj, err := shell.evalExpr(arg)
 
 	if err != nil {
 		return err
 	}
 
-	if obj.Type() != StringType {
+	if obj.Type() != sh.StringType {
 		return errors.NewError("Invalid type on import argument: %s", obj.Type())
 	}
 
-	fname := obj.Str()
+	objstr := obj.(*sh.StrObj)
+	fname := objstr.Str()
 
-	sh.logf("Importing '%s'", fname)
+	shell.logf("Importing '%s'", fname)
 
 	if len(fname) > 0 && fname[0] == '/' {
-		return sh.ExecFile(fname)
+		return shell.ExecFile(fname)
 	}
 
 	tries := make([]string, 0, 5)
@@ -760,19 +736,19 @@ func (sh *Shell) executeImport(node *ast.ImportNode) error {
 		tries = append(tries, fname+".sh")
 	}
 
-	if sh.currentFile != "" {
-		tries = append(tries, path.Dir(sh.currentFile)+"/"+fname)
+	if shell.currentFile != "" {
+		tries = append(tries, path.Dir(shell.currentFile)+"/"+fname)
 
 		if !hasExt {
-			tries = append(tries, path.Dir(sh.currentFile)+"/"+fname+".sh")
+			tries = append(tries, path.Dir(shell.currentFile)+"/"+fname+".sh")
 		}
 	}
 
-	nashPath, ok := sh.Getenv("NASHPATH")
+	nashPath, ok := shell.Getenv("NASHPATH")
 
 	if !ok {
-		return errors.NewError("NASHPATH environment variable not set on shell %s", sh.name)
-	} else if nashPath.Type() != StringType {
+		return errors.NewError("NASHPATH environment variable not set on shell %s", shell.name)
+	} else if nashPath.Type() != sh.StringType {
 		return errors.NewError("NASHPATH must be n string")
 	}
 
@@ -784,7 +760,7 @@ func (sh *Shell) executeImport(node *ast.ImportNode) error {
 		tries = append(tries, dotDir+"/lib/"+fname+".sh")
 	}
 
-	sh.logf("Trying %q\n", tries)
+	shell.logf("Trying %q\n", tries)
 
 	for _, path := range tries {
 		d, err := os.Stat(path)
@@ -794,7 +770,7 @@ func (sh *Shell) executeImport(node *ast.ImportNode) error {
 		}
 
 		if m := d.Mode(); !m.IsDir() {
-			return sh.ExecFile(path)
+			return shell.ExecFile(path)
 		}
 	}
 
@@ -810,7 +786,7 @@ func (sh *Shell) executeImport(node *ast.ImportNode) error {
 // The error returned will be a string representing the errors (or none) of
 // each command separated by '|'. The $status of pipe execution will be
 // the $status of each command separated by '|'.
-func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
+func (shell *Shell) executePipe(pipe *ast.PipeNode) error {
 	var (
 		closeFiles     []io.Closer
 		closeAfterWait []io.Closer
@@ -830,7 +806,7 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 		return errors.NewError("Pipe requires at least two commands.")
 	}
 
-	cmds := make([]Runner, len(nodeCommands))
+	cmds := make([]sh.Runner, len(nodeCommands))
 	errs := make([]string, len(nodeCommands))
 	igns := make([]bool, len(nodeCommands)) // ignoreErrors
 	cods := make([]string, len(nodeCommands))
@@ -842,18 +818,19 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 
 	last := len(nodeCommands) - 1
 
-	envVars := buildenv(sh.Environ())
+	envVars := buildenv(shell.Environ())
 
 	// Create all commands
 	for i := 0; i < len(nodeCommands); i++ {
 		var (
-			cmd    Runner
+			cmd    sh.Runner
 			ignore bool
+			args   []sh.Obj
 		)
 
 		nodeCmd := nodeCommands[i]
 
-		cmd, ignore, err = sh.getCommand(nodeCmd)
+		cmd, ignore, err = shell.getCommand(nodeCmd)
 
 		igns[i] = ignore
 
@@ -867,18 +844,25 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 		// otherwise the subshell will have the arguments
 		// shadowed by parent env
 		cmd.SetEnviron(envVars)
-		err = cmd.SetArgs(nodeCmd.Args(), sh)
+		args, err = shell.evalExprs(nodeCmd.Args())
 
 		if err != nil {
 			errIndex = i
 			goto pipeError
 		}
 
-		cmd.SetStdin(sh.stdin)
-		cmd.SetStderr(sh.stderr)
+		err = cmd.SetArgs(args)
+
+		if err != nil {
+			errIndex = i
+			goto pipeError
+		}
+
+		cmd.SetStdin(shell.stdin)
+		cmd.SetStderr(shell.stderr)
 
 		if i < last {
-			closeFiles, err = sh.setRedirects(cmd, nodeCmd.Redirects())
+			closeFiles, err = shell.setRedirects(cmd, nodeCmd.Redirects())
 			closeAfterWait = append(closeAfterWait, closeFiles...)
 
 			if err != nil {
@@ -891,7 +875,7 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 	}
 
 	// Shell does not support stdin redirection yet
-	cmds[0].SetStdin(sh.stdin)
+	cmds[0].SetStdin(shell.stdin)
 
 	// Setup the commands. Pointing the stdin of next command to stdout of previous.
 	// Except the stdout of last one
@@ -900,7 +884,7 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 			stdin io.ReadCloser
 		)
 
-		cmd.SetStderr(sh.stderr)
+		cmd.SetStderr(shell.stderr)
 
 		stdin, err = cmd.StdoutPipe()
 
@@ -912,10 +896,10 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 		cmds[i+1].SetStdin(stdin)
 	}
 
-	cmds[last].SetStdout(sh.stdout)
-	cmds[last].SetStderr(sh.stderr)
+	cmds[last].SetStdout(shell.stdout)
+	cmds[last].SetStderr(shell.stderr)
 
-	closeFiles, err = sh.setRedirects(cmds[last], nodeCommands[last].Redirects())
+	closeFiles, err = shell.setRedirects(cmds[last], nodeCommands[last].Redirects())
 	closeAfterWait = append(closeAfterWait, closeFiles...)
 
 	if err != nil {
@@ -949,7 +933,7 @@ func (sh *Shell) executePipe(pipe *ast.PipeNode) error {
 		cods[i] = "0"
 	}
 
-	sh.Setvar("status", NewStrObj("0"))
+	shell.Setvar("status", sh.NewStrObj("0"))
 	return nil
 
 pipeError:
@@ -974,9 +958,9 @@ pipeError:
 
 	if len(uniqCodes) == 1 {
 		// if all status are the same
-		sh.Setvar("status", NewStrObj(uniqCode))
+		shell.Setvar("status", sh.NewStrObj(uniqCode))
 	} else {
-		sh.Setvar("status", NewStrObj(strings.Join(cods, "|")))
+		shell.Setvar("status", sh.NewStrObj(strings.Join(cods, "|")))
 	}
 
 	if igns[errIndex] {
@@ -986,22 +970,23 @@ pipeError:
 	return err
 }
 
-func (sh *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, error) {
+func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, error) {
 	var (
 		protocol string
 	)
 
-	locationObj, err := sh.evalExpr(location)
+	locationObj, err := shell.evalExpr(location)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if locationObj.Type() != StringType {
+	if locationObj.Type() != sh.StringType {
 		return nil, errors.NewError("Redirection to invalid object type: %v (%s)", locationObj, locationObj.Type())
 	}
 
-	locationStr := locationObj.Str()
+	objstr := locationObj.(*sh.StrObj)
+	locationStr := objstr.Str()
 
 	if len(locationStr) > 6 {
 		if locationStr[0:6] == "tcp://" {
@@ -1035,11 +1020,11 @@ func (sh *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, error)
 	return nil, errors.NewError("Unexpected redirection value: %s", locationStr)
 }
 
-func (sh *Shell) setRedirects(cmd Runner, redirDecls []*ast.RedirectNode) ([]io.Closer, error) {
+func (shell *Shell) setRedirects(cmd sh.Runner, redirDecls []*ast.RedirectNode) ([]io.Closer, error) {
 	var closeAfterWait []io.Closer
 
 	for _, r := range redirDecls {
-		closeFiles, err := sh.buildRedirect(cmd, r)
+		closeFiles, err := shell.buildRedirect(cmd, r)
 		closeAfterWait = append(closeAfterWait, closeFiles...)
 
 		if err != nil {
@@ -1050,7 +1035,7 @@ func (sh *Shell) setRedirects(cmd Runner, redirDecls []*ast.RedirectNode) ([]io.
 	return closeAfterWait, nil
 }
 
-func (sh *Shell) buildRedirect(cmd Runner, redirDecl *ast.RedirectNode) ([]io.Closer, error) {
+func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([]io.Closer, error) {
 	var closeAfterWait []io.Closer
 
 	if redirDecl.LeftFD() > 2 || redirDecl.LeftFD() < ast.RedirMapSupress {
@@ -1079,7 +1064,7 @@ func (sh *Shell) buildRedirect(cmd Runner, redirDecl *ast.RedirectNode) ([]io.Cl
 				return closeAfterWait, errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
 			}
 
-			file, err := sh.openRedirectLocation(redirDecl.Location())
+			file, err := shell.openRedirectLocation(redirDecl.Location())
 
 			if err != nil {
 				return closeAfterWait, err
@@ -1108,7 +1093,7 @@ func (sh *Shell) buildRedirect(cmd Runner, redirDecl *ast.RedirectNode) ([]io.Cl
 				return closeAfterWait, errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
 			}
 
-			file, err := sh.openRedirectLocation(redirDecl.Location())
+			file, err := shell.openRedirectLocation(redirDecl.Location())
 
 			if err != nil {
 				return closeAfterWait, err
@@ -1130,7 +1115,7 @@ func (sh *Shell) buildRedirect(cmd Runner, redirDecl *ast.RedirectNode) ([]io.Cl
 			return closeAfterWait, errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
 		}
 
-		file, err := sh.openRedirectLocation(redirDecl.Location())
+		file, err := shell.openRedirectLocation(redirDecl.Location())
 
 		if err != nil {
 			return closeAfterWait, err
@@ -1143,22 +1128,22 @@ func (sh *Shell) buildRedirect(cmd Runner, redirDecl *ast.RedirectNode) ([]io.Cl
 	return closeAfterWait, err
 }
 
-func (sh *Shell) getCommand(c *ast.CommandNode) (Runner, bool, error) {
+func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 	var (
 		ignoreError bool
-		cmd         Runner
+		cmd         sh.Runner
 		err         error
 	)
 
 	cmdName := c.Name()
 
-	sh.logf("Executing: %s\n", c.Name())
+	shell.logf("Executing: %s\n", c.Name())
 
 	if len(cmdName) > 1 && cmdName[0] == '-' {
 		ignoreError = true
 		cmdName = cmdName[1:]
 
-		sh.logf("Ignoring error\n")
+		shell.logf("Ignoring error\n")
 	}
 
 	if cmdName == "" {
@@ -1172,12 +1157,12 @@ func (sh *Shell) getCommand(c *ast.CommandNode) (Runner, bool, error) {
 			NotFound() bool
 		}
 
-		sh.logf("Command fails: %s", err.Error())
+		shell.logf("Command fails: %s", err.Error())
 
 		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
-			if fn, ok := sh.Getbindfn(cmdName); ok {
-				sh.logf("Executing bind %s", cmdName)
-				sh.logf("%s bind to %s", cmdName, fn)
+			if fn, ok := shell.Getbindfn(cmdName); ok {
+				shell.logf("Executing bind %s", cmdName)
+				shell.logf("%s bind to %s", cmdName, fn)
 
 				if len(c.Args()) > len(fn.ArgNames()) {
 					err = errors.NewError("Too much arguments for"+
@@ -1206,14 +1191,15 @@ func (sh *Shell) getCommand(c *ast.CommandNode) (Runner, bool, error) {
 	return cmd, ignoreError, nil
 }
 
-func (sh *Shell) executeCommand(c *ast.CommandNode) error {
+func (shell *Shell) executeCommand(c *ast.CommandNode) error {
 	var (
 		ignoreError    bool
 		status         = "127"
 		envVars        []string
 		closeAfterWait []io.Closer
-		cmd            Runner
+		cmd            sh.Runner
 		err            error
+		args           []sh.Obj
 	)
 
 	defer func() {
@@ -1222,30 +1208,35 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 		}
 	}()
 
-	cmd, ignoreError, err = sh.getCommand(c)
+	cmd, ignoreError, err = shell.getCommand(c)
 
 	if err != nil {
-		sh.logf("FAILED here ...%s", cmd)
 		goto cmdError
 	}
 
 	// SetEnviron must be called before SetArgs
 	// otherwise the subshell will have the arguments
 	// shadowed by parent env
-	envVars = buildenv(sh.Environ())
+	envVars = buildenv(shell.Environ())
 	cmd.SetEnviron(envVars)
 
-	err = cmd.SetArgs(c.Args(), sh)
+	args, err = cmdArgs(c.Args(), shell)
 
 	if err != nil {
 		goto cmdError
 	}
 
-	cmd.SetStdin(sh.stdin)
-	cmd.SetStdout(sh.stdout)
-	cmd.SetStderr(sh.stderr)
+	err = cmd.SetArgs(args)
 
-	closeAfterWait, err = sh.setRedirects(cmd, c.Redirects())
+	if err != nil {
+		goto cmdError
+	}
+
+	cmd.SetStdin(shell.stdin)
+	cmd.SetStdout(shell.stdout)
+	cmd.SetStderr(shell.stderr)
+
+	closeAfterWait, err = shell.setRedirects(cmd, c.Redirects())
 
 	if err != nil {
 		goto cmdError
@@ -1263,12 +1254,12 @@ func (sh *Shell) executeCommand(c *ast.CommandNode) error {
 		goto cmdError
 	}
 
-	sh.Setvar("status", NewStrObj("0"))
+	shell.Setvar("status", sh.NewStrObj("0"))
 
 	return nil
 
 cmdError:
-	sh.Setvar("status", NewStrObj(getErrStatus(err, status)))
+	shell.Setvar("status", sh.NewStrObj(getErrStatus(err, status)))
 
 	if ignoreError {
 		return newErrIgnore(err.Error())
@@ -1277,11 +1268,11 @@ cmdError:
 	return err
 }
 
-func (sh *Shell) evalList(argList *ast.ListExpr) (*Obj, error) {
-	values := make([]*Obj, 0, len(argList.List()))
+func (shell *Shell) evalList(argList *ast.ListExpr) (sh.Obj, error) {
+	values := make([]sh.Obj, 0, len(argList.List()))
 
 	for _, arg := range argList.List() {
-		obj, err := sh.evalExpr(arg)
+		obj, err := shell.evalExpr(arg)
 
 		if err != nil {
 			return nil, err
@@ -1290,10 +1281,10 @@ func (sh *Shell) evalList(argList *ast.ListExpr) (*Obj, error) {
 		values = append(values, obj)
 	}
 
-	return NewListObj(values), nil
+	return sh.NewListObj(values), nil
 }
 
-func (sh *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (*Obj, error) {
+func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 	var (
 		indexNum int
 	)
@@ -1301,13 +1292,13 @@ func (sh *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (*Obj, error) {
 	variable := indexVar.Var()
 	index := indexVar.Index()
 
-	v, err := sh.evalVariable(variable)
+	v, err := shell.evalVariable(variable)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if v.Type() != ListType {
+	if v.Type() != sh.ListType {
 		return nil, errors.NewError("Invalid indexing of non-list variable: %s", v.Type())
 	}
 
@@ -1315,25 +1306,26 @@ func (sh *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (*Obj, error) {
 		idxArg := index.(*ast.IntExpr)
 		indexNum = idxArg.Value()
 	} else if index.Type() == ast.NodeVarExpr {
-		idxObj, err := sh.evalVariable(index)
+		idxObj, err := shell.evalVariable(index)
 
 		if err != nil {
 			return nil, err
 		}
 
-		if idxObj.Type() != StringType {
+		if idxObj.Type() != sh.StringType {
 			return nil, errors.NewError("Invalid object type on index value: %s", idxObj.Type())
 		}
 
-		idxVal := idxObj.Str()
-		indexNum, err = strconv.Atoi(idxVal)
+		objstr := idxObj.(*sh.StrObj)
+		indexNum, err = strconv.Atoi(objstr.Str())
 
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	values := v.List()
+	vlist := v.(*sh.ListObj)
+	values := vlist.List()
 
 	if indexNum < 0 || indexNum >= len(values) {
 		return nil, errors.NewError("Index out of bounds. len(%s) == %d, but given %d", variable.Name(), len(values), indexNum)
@@ -1342,14 +1334,14 @@ func (sh *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (*Obj, error) {
 	return values[indexNum], nil
 }
 
-func (sh *Shell) evalVariable(a ast.Expr) (*Obj, error) {
+func (shell *Shell) evalVariable(a ast.Expr) (sh.Obj, error) {
 	var (
-		v  *Obj
+		v  sh.Obj
 		ok bool
 	)
 
 	if a.Type() == ast.NodeIndexExpr {
-		return sh.evalIndexedVar(a.(*ast.IndexExpr))
+		return shell.evalIndexedVar(a.(*ast.IndexExpr))
 	}
 
 	if a.Type() != ast.NodeVarExpr {
@@ -1359,29 +1351,45 @@ func (sh *Shell) evalVariable(a ast.Expr) (*Obj, error) {
 	vexpr := a.(*ast.VarExpr)
 	varName := vexpr.Name()
 
-	if v, ok = sh.GetVar(varName[1:]); !ok {
-		return nil, fmt.Errorf("Variable %s not set on shell %s", varName, sh.name)
+	if v, ok = shell.GetVar(varName[1:]); !ok {
+		return nil, fmt.Errorf("Variable %s not set on shell %s", varName, shell.name)
 	}
 
 	return v, nil
 }
 
-func (sh *Shell) evalExpr(expr ast.Expr) (*Obj, error) {
-	switch expr.Type() {
-	case ast.NodeStringExpr:
-		str := expr.(*ast.StringExpr)
-		return NewStrObj(str.Value()), nil
-	case ast.NodeConcatExpr:
-		concat := expr.(*ast.ConcatExpr)
-		argVal, err := sh.evalConcat(concat)
+func (shell *Shell) evalExprs(exprs []ast.Expr) ([]sh.Obj, error) {
+	objs := make([]sh.Obj, 0, len(exprs))
+
+	for _, expr := range exprs {
+		obj, err := shell.evalExpr(expr)
 
 		if err != nil {
 			return nil, err
 		}
 
-		return NewStrObj(argVal), nil
+		objs = append(objs, obj)
+	}
+
+	return objs, nil
+}
+
+func (shell *Shell) evalExpr(expr ast.Expr) (sh.Obj, error) {
+	switch expr.Type() {
+	case ast.NodeStringExpr:
+		str := expr.(*ast.StringExpr)
+		return sh.NewStrObj(str.Value()), nil
+	case ast.NodeConcatExpr:
+		concat := expr.(*ast.ConcatExpr)
+		argVal, err := shell.evalConcat(concat)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return sh.NewStrObj(argVal), nil
 	case ast.NodeVarExpr:
-		return sh.evalVariable(expr)
+		return shell.evalVariable(expr)
 	case ast.NodeIndexExpr:
 		indexedVar, ok := expr.(*ast.IndexExpr)
 
@@ -1389,34 +1397,34 @@ func (sh *Shell) evalExpr(expr ast.Expr) (*Obj, error) {
 			return nil, errors.NewError("Failed to eval indexed variable")
 		}
 
-		return sh.evalIndexedVar(indexedVar)
+		return shell.evalIndexedVar(indexedVar)
 	case ast.NodeListExpr:
 		argList := expr.(*ast.ListExpr)
 
-		return sh.evalList(argList)
+		return shell.evalList(argList)
 	}
 
 	return nil, errors.NewError("Invalid argument type: %+v", expr)
 }
 
-func (sh *Shell) executeSetenv(v *ast.SetenvNode) error {
+func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 	var (
-		varValue *Obj
+		varValue sh.Obj
 		ok       bool
 	)
 
 	varName := v.Identifier()
 
-	if varValue, ok = sh.GetVar(varName); !ok {
-		return fmt.Errorf("Variable '%s' not set on shell %s", varName, sh.name)
+	if varValue, ok = shell.GetVar(varName); !ok {
+		return fmt.Errorf("Variable '%s' not set on shell %s", varName, shell.name)
 	}
 
-	sh.Setenv(varName, varValue)
+	shell.Setenv(varName, varValue)
 
 	return nil
 }
 
-func (sh *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
+func (shell *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 	value := ""
 
 	list := expr.List()
@@ -1424,13 +1432,13 @@ func (sh *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 	for i := 0; i < len(list); i++ {
 		ec := list[i]
 
-		obj, err := sh.evalExpr(ec)
+		obj, err := shell.evalExpr(ec)
 
 		if err != nil {
 			return "", err
 		}
 
-		if obj.Type() != StringType {
+		if obj.Type() != sh.StringType {
 			return "", errors.NewError("Impossible to concat elements of type %s", obj.Type())
 		}
 
@@ -1440,27 +1448,27 @@ func (sh *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 	return value, nil
 }
 
-func (sh *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
+func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 	var (
 		varOut bytes.Buffer
 		err    error
 	)
 
-	bkStdout := sh.stdout
+	bkStdout := shell.stdout
 
-	sh.SetStdout(&varOut)
+	shell.SetStdout(&varOut)
 
-	defer sh.SetStdout(bkStdout)
+	defer shell.SetStdout(bkStdout)
 
 	assign := v.Command()
 
 	switch assign.Type() {
 	case ast.NodeCommand:
-		err = sh.executeCommand(assign.(*ast.CommandNode))
+		err = shell.executeCommand(assign.(*ast.CommandNode))
 	case ast.NodePipe:
-		err = sh.executePipe(assign.(*ast.PipeNode))
+		err = shell.executePipe(assign.(*ast.PipeNode))
 	case ast.NodeFnInv:
-		fnValues, err := sh.executeFnInv(assign.(*ast.FnInvNode))
+		fnValues, err := shell.executeFnInv(assign.(*ast.FnInvNode))
 
 		if err != nil {
 			return err
@@ -1470,7 +1478,7 @@ func (sh *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 			return errors.NewError("Invalid assignment from function that does not return values: %s", assign)
 		}
 
-		sh.Setvar(v.Identifier(), fnValues)
+		shell.Setvar(v.Identifier(), fnValues)
 		return nil
 	default:
 		err = errors.NewError("Unexpected node in assignment: %s", assign.String())
@@ -1480,109 +1488,125 @@ func (sh *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 
 	outStr := string(varOut.Bytes())
 
-	if ifs, ok := sh.GetVar("IFS"); ok && ifs.Type() == ListType && len(ifs.List()) > 0 {
-		strelems = strings.FieldsFunc(outStr, func(r rune) bool {
-			for _, delim := range ifs.List() {
-				if delim.Type() != StringType {
-					continue
+	if ifs, ok := shell.GetVar("IFS"); ok && ifs.Type() == sh.ListType {
+		ifslist := ifs.(*sh.ListObj)
+
+		if len(ifslist.List()) > 0 {
+			strelems = strings.FieldsFunc(outStr, func(r rune) bool {
+				for _, delim := range ifslist.List() {
+					if delim.Type() != sh.StringType {
+						continue
+					}
+
+					objstr := delim.(*sh.StrObj)
+
+					if len(objstr.Str()) > 0 && rune(objstr.Str()[0]) == r {
+						return true
+					}
 				}
 
-				if len(delim.Str()) > 0 && rune(delim.Str()[0]) == r {
-					return true
-				}
+				return false
+			})
+
+			objelems := make([]sh.Obj, len(strelems))
+
+			for i := 0; i < len(strelems); i++ {
+				objelems[i] = sh.NewStrObj(strelems[i])
 			}
 
-			return false
-		})
-
-		objelems := make([]*Obj, len(strelems))
-
-		for i := 0; i < len(strelems); i++ {
-			objelems[i] = NewStrObj(strelems[i])
+			shell.Setvar(v.Identifier(), sh.NewListObj(objelems))
+			return nil
 		}
-
-		sh.Setvar(v.Identifier(), NewListObj(objelems))
-	} else {
-		sh.Setvar(v.Identifier(), NewStrObj(outStr))
 	}
+
+	shell.Setvar(v.Identifier(), sh.NewStrObj(outStr))
 
 	return err
 }
 
-func (sh *Shell) executeAssignment(v *ast.AssignmentNode) error {
+func (shell *Shell) executeAssignment(v *ast.AssignmentNode) error {
 	var err error
 
-	obj, err := sh.evalExpr(v.Value())
+	obj, err := shell.evalExpr(v.Value())
 
 	if err != nil {
 		return err
 	}
 
-	sh.Setvar(v.Identifier(), obj)
+	shell.Setvar(v.Identifier(), obj)
 	return nil
 }
 
-func (sh *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
+func (shell *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
 	lvalue := n.Lvalue()
 	rvalue := n.Rvalue()
 
-	lobj, err := sh.evalExpr(lvalue)
+	lobj, err := shell.evalExpr(lvalue)
 
 	if err != nil {
 		return "", "", err
 	}
 
-	robj, err := sh.evalExpr(rvalue)
+	robj, err := shell.evalExpr(rvalue)
 
 	if err != nil {
 		return "", "", err
 	}
 
-	if lobj.Type() != StringType {
+	if lobj.Type() != sh.StringType {
 		return "", "", errors.NewError("lvalue is not comparable: (%v) -> %s.", lobj, lobj.Type())
 	}
 
-	if robj.Type() != StringType {
+	if robj.Type() != sh.StringType {
 		return "", "", errors.NewError("rvalue is not comparable")
 	}
 
-	return lobj.Str(), robj.Str(), nil
+	lobjstr := lobj.(*sh.StrObj)
+	robjstr := robj.(*sh.StrObj)
+
+	return lobjstr.Str(), robjstr.Str(), nil
 }
 
-func (sh *Shell) executeIfEqual(n *ast.IfNode) (*Obj, error) {
-	lstr, rstr, err := sh.evalIfArguments(n)
+func (shell *Shell) executeIfEqual(n *ast.IfNode) (sh.Obj, error) {
+	lstr, rstr, err := shell.evalIfArguments(n)
 
 	if err != nil {
 		return nil, err
 	}
 
 	if lstr == rstr {
-		return sh.executeTree(n.IfTree(), false)
+		return shell.executeTree(n.IfTree(), false)
 	} else if n.ElseTree() != nil {
-		return sh.executeTree(n.ElseTree(), false)
+		return shell.executeTree(n.ElseTree(), false)
 	}
 
 	return nil, nil
 }
 
-func (sh *Shell) executeIfNotEqual(n *ast.IfNode) (*Obj, error) {
-	lstr, rstr, err := sh.evalIfArguments(n)
+func (shell *Shell) executeIfNotEqual(n *ast.IfNode) (sh.Obj, error) {
+	lstr, rstr, err := shell.evalIfArguments(n)
 
 	if err != nil {
 		return nil, err
 	}
 
 	if lstr != rstr {
-		return sh.executeTree(n.IfTree(), false)
+		return shell.executeTree(n.IfTree(), false)
 	} else if n.ElseTree() != nil {
-		return sh.executeTree(n.ElseTree(), false)
+		return shell.executeTree(n.ElseTree(), false)
 	}
 
 	return nil, nil
 }
 
-func (sh *Shell) executeFn(fn Fn, args []ast.Expr) (*Obj, error) {
-	err := fn.SetArgs(args, sh)
+func (shell *Shell) executeFn(fn sh.Fn, nodeArgs []ast.Expr) (sh.Obj, error) {
+	args, err := shell.evalExprs(nodeArgs)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = fn.SetArgs(args)
 
 	if err != nil {
 		return nil, err
@@ -1603,9 +1627,9 @@ func (sh *Shell) executeFn(fn Fn, args []ast.Expr) (*Obj, error) {
 	return fn.Results(), nil
 }
 
-func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
+func (shell *Shell) executeFnInv(n *ast.FnInvNode) (sh.Obj, error) {
 	var (
-		fn Runner
+		fn sh.Runner
 		ok bool
 	)
 
@@ -1614,22 +1638,23 @@ func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 	if len(fnName) > 1 && fnName[0] == '$' {
 		argVar := ast.NewVarExpr(token.NewFileInfo(n.Line(), n.Column()), fnName)
 
-		obj, err := sh.evalVariable(argVar)
+		obj, err := shell.evalVariable(argVar)
 
 		if err != nil {
 			return nil, err
 		}
 
-		if obj.Type() != FnType {
+		if obj.Type() != sh.FnType {
 			return nil, errors.NewError("Variable '%s' isnt a function.", fnName)
 		}
 
-		fn = obj.Fn()
+		objfn := obj.(*sh.FnObj)
+		fn = objfn.Fn()
 	} else {
-		fn, ok = sh.GetBuiltin(fnName)
+		fn, ok = shell.GetBuiltin(fnName)
 
 		if !ok {
-			fn, ok = sh.GetFn(fnName)
+			fn, ok = shell.GetFn(fnName)
 
 			if !ok {
 				return nil, errors.NewError("no such function '%s'", fnName)
@@ -1637,7 +1662,13 @@ func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 		}
 	}
 
-	err := fn.SetArgs(n.Args(), sh)
+	args, err := shell.evalExprs(n.Args())
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = fn.SetArgs(args)
 
 	if err != nil {
 		return nil, err
@@ -1658,14 +1689,14 @@ func (sh *Shell) executeFnInv(n *ast.FnInvNode) (*Obj, error) {
 	return fn.Results(), nil
 }
 
-func (sh *Shell) executeInfLoop(tr *ast.Tree) (*Obj, error) {
+func (shell *Shell) executeInfLoop(tr *ast.Tree) (sh.Obj, error) {
 	var (
 		err error
-		obj *Obj
+		obj sh.Obj
 	)
 
 	for {
-		obj, err = sh.executeTree(tr, false)
+		obj, err = shell.executeTree(tr, false)
 
 		runtime.Gosched()
 
@@ -1687,10 +1718,10 @@ func (sh *Shell) executeInfLoop(tr *ast.Tree) (*Obj, error) {
 			return obj, err
 		}
 
-		sh.Lock()
+		shell.Lock()
 
-		if sh.getIntr() {
-			sh.setIntr(false)
+		if shell.getIntr() {
+			shell.setIntr(false)
 
 			if err != nil {
 				err = newErrInterrupted(err.Error())
@@ -1699,7 +1730,7 @@ func (sh *Shell) executeInfLoop(tr *ast.Tree) (*Obj, error) {
 			}
 		}
 
-		sh.Unlock()
+		shell.Unlock()
 
 		if err != nil {
 			break
@@ -1709,20 +1740,20 @@ func (sh *Shell) executeInfLoop(tr *ast.Tree) (*Obj, error) {
 	return nil, err
 }
 
-func (sh *Shell) executeFor(n *ast.ForNode) (*Obj, error) {
-	sh.Lock()
-	sh.looping = true
-	sh.Unlock()
+func (shell *Shell) executeFor(n *ast.ForNode) (sh.Obj, error) {
+	shell.Lock()
+	shell.looping = true
+	shell.Unlock()
 
 	defer func() {
-		sh.Lock()
-		defer sh.Unlock()
+		shell.Lock()
+		defer shell.Unlock()
 
-		sh.looping = false
+		shell.looping = false
 	}()
 
 	if n.InVar() == "" {
-		return sh.executeInfLoop(n.Tree())
+		return shell.executeInfLoop(n.Tree())
 	}
 
 	id := n.Identifier()
@@ -1730,20 +1761,22 @@ func (sh *Shell) executeFor(n *ast.ForNode) (*Obj, error) {
 
 	argVar := ast.NewVarExpr(token.NewFileInfo(n.Line(), n.Column()), inVar)
 
-	obj, err := sh.evalVariable(argVar)
+	obj, err := shell.evalVariable(argVar)
 
 	if err != nil {
 		return nil, err
 	}
 
-	if obj.Type() != ListType {
+	if obj.Type() != sh.ListType {
 		return nil, errors.NewError("Invalid variable type in for range: %s", obj.Type())
 	}
 
-	for _, val := range obj.List() {
-		sh.Setvar(id, val)
+	objlist := obj.(*sh.ListObj)
 
-		obj, err = sh.executeTree(n.Tree(), false)
+	for _, val := range objlist.List() {
+		shell.Setvar(id, val)
+
+		obj, err = shell.executeTree(n.Tree(), false)
 
 		type (
 			interruptedError interface {
@@ -1763,11 +1796,11 @@ func (sh *Shell) executeFor(n *ast.ForNode) (*Obj, error) {
 			return obj, err
 		}
 
-		sh.Lock()
+		shell.Lock()
 
-		if sh.getIntr() {
-			sh.setIntr(false)
-			sh.Unlock()
+		if shell.getIntr() {
+			shell.setIntr(false)
+			shell.Unlock()
 
 			if err != nil {
 				return nil, newErrInterrupted(err.Error())
@@ -1776,7 +1809,7 @@ func (sh *Shell) executeFor(n *ast.ForNode) (*Obj, error) {
 			return nil, newErrInterrupted("loop interrupted")
 		}
 
-		sh.Unlock()
+		shell.Unlock()
 
 		if err != nil {
 			return nil, err
@@ -1786,8 +1819,8 @@ func (sh *Shell) executeFor(n *ast.ForNode) (*Obj, error) {
 	return nil, nil
 }
 
-func (sh *Shell) executeFnDecl(n *ast.FnDeclNode) error {
-	fn, err := NewUserFn(n.Name(), sh)
+func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
+	fn, err := NewUserFn(n.Name(), shell)
 
 	if err != nil {
 		return err
@@ -1808,81 +1841,83 @@ func (sh *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 	fnName := n.Name()
 
 	if fnName == "" {
-		fnName = fmt.Sprintf("lambda %d", int(sh.lambdas))
-		sh.lambdas++
+		fnName = fmt.Sprintf("lambda %d", int(shell.lambdas))
+		shell.lambdas++
 	}
 
-	sh.fns[fnName] = fn
+	shell.fns[fnName] = fn
 
-	sh.Setvar(fnName, NewFnObj(fn))
-	sh.logf("Function %s declared on '%s'", fnName, sh.name)
+	shell.Setvar(fnName, sh.NewFnObj(fn))
+	shell.logf("Function %s declared on '%s'", fnName, shell.name)
 
 	return nil
 }
 
-func (sh *Shell) dumpVar(file io.Writer) {
-	for n, v := range sh.vars {
+func (shell *Shell) dumpVar(file io.Writer) {
+	for n, v := range shell.vars {
 		printVar(file, n, v)
 	}
 }
 
-func (sh *Shell) dumpEnv(file io.Writer) {
-	for n := range sh.env {
+func (shell *Shell) dumpEnv(file io.Writer) {
+	for n := range shell.env {
 		printEnv(file, n)
 	}
 }
 
-func (sh *Shell) dumpFns(file io.Writer) {
-	for _, f := range sh.fns {
+func (shell *Shell) dumpFns(file io.Writer) {
+	for _, f := range shell.fns {
 		fmt.Fprintf(file, "%s\n\n", f.String())
 	}
 }
 
-func (sh *Shell) dump(out io.Writer) {
-	sh.dumpVar(out)
-	sh.dumpEnv(out)
-	sh.dumpFns(out)
+func (shell *Shell) dump(out io.Writer) {
+	shell.dumpVar(out)
+	shell.dumpEnv(out)
+	shell.dumpFns(out)
 }
 
-func (sh *Shell) executeDump(n *ast.DumpNode) error {
+func (shell *Shell) executeDump(n *ast.DumpNode) error {
 	var (
-		err  error
-		file io.Writer
-		obj  *Obj
+		err    error
+		file   io.Writer
+		obj    sh.Obj
+		objstr *sh.StrObj
 	)
 
 	fnameArg := n.Filename()
 
 	if fnameArg == nil {
-		file = sh.stdout
+		file = shell.stdout
 		goto execDump
 	}
 
-	obj, err = sh.evalExpr(fnameArg)
+	obj, err = shell.evalExpr(fnameArg)
 
 	if err != nil {
 		return err
 	}
 
-	if obj.Type() != StringType {
+	if obj.Type() != sh.StringType {
 		return errors.NewError("dump does not support argument of type %s", obj.Type())
 	}
 
-	file, err = os.OpenFile(obj.Str(), os.O_CREATE|os.O_RDWR, 0644)
+	objstr = obj.(*sh.StrObj)
+	file, err = os.OpenFile(objstr.Str(), os.O_CREATE|os.O_RDWR, 0644)
 
 	if err != nil {
 		return err
 	}
 
 execDump:
-	sh.dump(file)
+	shell.dump(file)
 
 	return nil
 }
 
-func (sh *Shell) executeBindFn(n *ast.BindFnNode) error {
-	if fn, ok := sh.GetFn(n.Name()); ok {
-		sh.Setbindfn(n.CmdName(), fn)
+func (shell *Shell) executeBindFn(n *ast.BindFnNode) error {
+	if fn, ok := shell.GetFn(n.Name()); ok {
+		shell.Setbindfn(n.CmdName(), fn)
 	} else {
 		return errors.NewError("No such function '%s'", n.Name())
 	}
@@ -1890,13 +1925,13 @@ func (sh *Shell) executeBindFn(n *ast.BindFnNode) error {
 	return nil
 }
 
-func (sh *Shell) executeIf(n *ast.IfNode) (*Obj, error) {
+func (shell *Shell) executeIf(n *ast.IfNode) (sh.Obj, error) {
 	op := n.Op()
 
 	if op == "==" {
-		return sh.executeIfEqual(n)
+		return shell.executeIfEqual(n)
 	} else if op == "!=" {
-		return sh.executeIfNotEqual(n)
+		return shell.executeIfNotEqual(n)
 	}
 
 	return nil, fmt.Errorf("Invalid operation '%s'.", op)

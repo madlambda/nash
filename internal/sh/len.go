@@ -4,8 +4,8 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
+	"github.com/NeowayLabs/nash/sh"
 )
 
 type (
@@ -17,7 +17,7 @@ type (
 		err     error
 		results int
 
-		arg []*Obj
+		arg sh.Obj
 	}
 )
 
@@ -38,7 +38,14 @@ func (lenfn *LenFn) ArgNames() []string {
 }
 
 func (lenfn *LenFn) run() error {
-	lenfn.results = len(lenfn.arg)
+	if lenfn.arg.Type() == sh.ListType {
+		arglist := lenfn.arg.(*sh.ListObj)
+		lenfn.results = len(arglist.List())
+	} else {
+		argstr := lenfn.arg.(*sh.StrObj)
+		lenfn.results = len(argstr.Str())
+	}
+
 	return nil
 }
 
@@ -58,26 +65,22 @@ func (lenfn *LenFn) Wait() error {
 	return lenfn.err
 }
 
-func (lenfn *LenFn) Results() *Obj {
-	return NewStrObj(strconv.Itoa(lenfn.results))
+func (lenfn *LenFn) Results() sh.Obj {
+	return sh.NewStrObj(strconv.Itoa(lenfn.results))
 }
 
-func (lenfn *LenFn) SetArgs(args []ast.Expr, envShell *Shell) error {
+func (lenfn *LenFn) SetArgs(args []sh.Obj) error {
 	if len(args) != 1 {
 		return errors.NewError("lenfn expects one argument")
 	}
 
-	obj, err := envShell.evalExpr(args[0])
+	obj := args[0]
 
-	if err != nil {
-		return err
+	if obj.Type() != sh.ListType && obj.Type() != sh.StringType {
+		return errors.NewError("lenfn expects a list or a string, but a %s was provided", obj.Type())
 	}
 
-	if obj.Type() != ListType {
-		return errors.NewError("lenfn expects a list, but a %s was provided", obj.Type())
-	}
-
-	lenfn.arg = obj.List()
+	lenfn.arg = obj
 	return nil
 }
 

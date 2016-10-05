@@ -5,15 +5,15 @@ import (
 	"io"
 	"os"
 
-	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
+	"github.com/NeowayLabs/nash/sh"
 )
 
 type (
 	UserFn struct {
 		argNames []string   // argNames store parameter name
 		done     chan error // for async execution
-		results  *Obj
+		results  sh.Obj
 
 		closeAfterWait []io.Closer
 
@@ -47,23 +47,16 @@ func (fn *UserFn) AddArgName(name string) {
 	fn.argNames = append(fn.argNames, name)
 }
 
-func (fn *UserFn) SetArgs(nodeArgs []ast.Expr, envShell *Shell) error {
-	if len(fn.argNames) != len(nodeArgs) {
+func (fn *UserFn) SetArgs(args []sh.Obj) error {
+	if len(fn.argNames) != len(args) {
 		return errors.NewError("Wrong number of arguments for function %s. Expected %d but found %d",
-			fn.name, len(fn.argNames), len(nodeArgs))
+			fn.name, len(fn.argNames), len(args))
 	}
 
-	for i := 0; i < len(nodeArgs); i++ {
-		arg := nodeArgs[i]
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
 		argName := fn.argNames[i]
-
-		obj, err := envShell.evalExpr(arg)
-
-		if err != nil {
-			return err
-		}
-
-		fn.Setvar(argName, obj)
+		fn.Setvar(argName, arg)
 	}
 
 	return nil
@@ -75,7 +68,7 @@ func (fn *UserFn) closeDescriptors(closers []io.Closer) {
 	}
 }
 
-func (fn *UserFn) execute() (*Obj, error) {
+func (fn *UserFn) execute() (sh.Obj, error) {
 	if fn.root != nil {
 		return fn.ExecuteTree(fn.root)
 	}
@@ -95,7 +88,7 @@ func (fn *UserFn) Start() error {
 	return nil
 }
 
-func (fn *UserFn) Results() *Obj { return fn.results }
+func (fn *UserFn) Results() sh.Obj { return fn.results }
 
 func (fn *UserFn) Wait() error {
 	err := <-fn.done

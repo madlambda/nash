@@ -1,196 +1,98 @@
 package main
 
 import (
-	"io/ioutil"
+	"fmt"
 	"os"
-	"strings"
+	"strconv"
 
+	"github.com/NeowayLabs/nash"
+	"github.com/NeowayLabs/nash/sh"
 	"github.com/chzyer/readline"
 )
 
 var runes = readline.Runes{}
 
 type Completer struct {
-	prefixCompleter readline.PrefixCompleterInterface
+	op   *readline.Operation
+	term *readline.Terminal
+	sh   *nash.Shell
 }
 
-func NewCompleter(p ...readline.PrefixCompleterInterface) *Completer {
-	return &Completer{
-		prefixCompleter: readline.NewPrefixCompleter(p...),
-	}
+func NewCompleter(op *readline.Operation, term *readline.Terminal, sh *nash.Shell) *Completer {
+	return &Completer{op, term, sh}
 }
 
-func (c *Completer) Do(line []rune, pos int) (newLine [][]rune, offset int) {
-	line = runes.TrimSpaceLeft(line[:pos])
+func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
+	var (
+		newLine [][]rune
+		offset  int
+		lineArg = sh.NewStrObj(string(line))
+		posArg  = sh.NewStrObj(strconv.Itoa(pos))
+	)
 
-	if len(line) >= 1 && (line[0] == '/' || line[0] == '.') {
-		return completeFile(line, pos, "")
-	} else if len(line) == 0 {
-		return
+	defer c.op.Refresh()
+	defer c.term.PauseRead(false)
+
+	nashFunc, ok := c.sh.GetFn("nash_complete")
+
+	if !ok {
+		// no complete available
+		return [][]rune{[]rune{'\t'}}, offset
 	}
 
-	pathVal := os.Getenv("PATH")
-	path := make([]string, 0, 256)
-
-	pathparts := strings.Split(pathVal, ":")
-	if len(pathparts) == 1 {
-		path = append(path, pathparts[0])
-	} else {
-		for _, p := range pathparts {
-			path = append(path, p)
-		}
-	}
-
-	return completeInPathList(path, line, pos)
-}
-
-func completeInPath(path string, line []rune, offset int) ([][]rune, int, bool) {
-	var found bool
-
-	newLine := make([][]rune, 0, 256)
-
-	if len(line) == 0 {
-		return newLine, offset, found
-	}
-
-	files, err := ioutil.ReadDir(path)
+	err := nashFunc.SetArgs([]sh.Obj{lineArg, posArg})
 
 	if err != nil {
-		return newLine, offset, found
-	}
-
-	for _, file := range files {
-		fname := file.Name()
-
-		if len(string(line)) <= len(fname) && strings.HasPrefix(fname, string(line)) {
-			if len(string(line)) == len(fname) {
-				newLine = append(newLine, []rune{' '})
-				offset = len(fname)
-				found = true
-				break
-			} else {
-				newLine = append(newLine, []rune(fname[len(string(line)):]))
-			}
-		}
-	}
-
-	return newLine, offset, found
-}
-
-func completeInPathList(pathList []string, line []rune, offset int) ([][]rune, int) {
-	var newOffset int
-
-	newLine := make([][]rune, 0, 256)
-
-	for _, path := range pathList {
-		tmpNewLine, tmpOffset, found := completeInPath(path, line, offset)
-
-		if len(tmpNewLine) > 0 {
-			newLine = append(newLine, tmpNewLine...)
-			newOffset = tmpOffset
-		}
-
-		if found {
-			break
-		}
-	}
-
-	return newLine, newOffset
-}
-
-func completeCurrentPath(line []rune, offset int) ([][]rune, int) {
-	lineStr := string(line[2:])
-	dirParts := strings.Split(lineStr, "/")
-	directory := "./" + strings.Join(dirParts[0:len(dirParts)-1], "/")
-
-	newLine := make([][]rune, 0, 256)
-
-	files, err := ioutil.ReadDir(directory)
-
-	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
 		return newLine, offset
 	}
 
-	for _, file := range files {
-		var cmpStr string
+	nashFunc.SetStdin(c.sh.Stdin())
+	nashFunc.SetStdout(c.sh.Stdout())
+	nashFunc.SetStderr(c.sh.Stderr())
 
-		fname := file.Name()
-
-		if directory[len(directory)-1] == '/' {
-			cmpStr = directory + fname
-		} else {
-			cmpStr = directory + "/" + fname
-		}
-
-		if len(cmpStr) >= len(string(line)) &&
-			strings.HasPrefix(cmpStr, string(line)) {
-
-			if len(cmpStr) == len(string(line)) {
-				newLine = append(newLine, []rune{' '})
-
-				offset = len(cmpStr)
-			} else {
-				newLine = append(newLine, []rune(cmpStr[len(string(line)):]))
-			}
-		}
-	}
-
-	return newLine, offset
-}
-
-func completeAbsolutePath(line []rune, offset int, prefix string) ([][]rune, int) {
-	lineStr := string(line[1:]) // ignore first '/'
-	dirParts := strings.Split(lineStr, "/")
-	directory := "/" + strings.Join(dirParts[0:len(dirParts)-1], "/")
-
-	newLine := make([][]rune, 0, 256)
-
-	files, err := ioutil.ReadDir(directory)
-
-	if err != nil {
+	if err = nashFunc.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
 		return newLine, offset
 	}
 
-	for _, file := range files {
-		var cmpStr string
-
-		fname := file.Name()
-
-		if directory[len(directory)-1] == '/' {
-			cmpStr = directory + fname
-		} else {
-			cmpStr = directory + "/" + fname
-		}
-
-		if len(cmpStr) >= len(string(line)) && strings.HasPrefix(cmpStr, string(line)) {
-			if len(cmpStr) == len(string(line)) {
-				newLine = append(newLine, []rune{' '})
-
-				offset = len(cmpStr)
-			} else {
-				newLine = append(newLine, []rune(prefix+cmpStr[len(string(line)):]))
-			}
-		}
+	if err = nashFunc.Wait(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
+		return newLine, offset
 	}
 
-	return newLine, offset
-}
+	ret := nashFunc.Results()
 
-func completeFile(line []rune, offset int, prefix string) ([][]rune, int) {
-	llen := len(line)
-
-	if llen >= 1 {
-		if line[0] != '/' {
-			if llen >= 2 && line[0] == '.' && line[1] == '/' {
-				return completeCurrentPath(line, offset)
-			}
-
-			return [][]rune{}, offset
-		}
-
-		return completeAbsolutePath(line, offset, prefix)
-
-	} else {
-		return completeFile([]rune{'/'}, 1, prefix)
+	if ret == nil || ret.Type() != sh.ListType {
+		fmt.Fprintf(os.Stderr, "ignoring autocomplete value: %v\n", ret)
+		return newLine, offset
 	}
+
+	retlist := ret.(*sh.ListObj)
+
+	if len(retlist.List()) != 2 {
+		return newLine, pos
+	}
+
+	newline := retlist.List()[0]
+	newpos := retlist.List()[1]
+
+	if newline.Type() != sh.StringType || newpos.Type() != sh.StringType {
+		fmt.Fprintf(os.Stderr, "ignoring autocomplete value: (%s) (%s)\n", newline, newpos)
+		return newLine, offset
+	}
+
+	objline := newline.(*sh.StrObj)
+	objpos := newpos.(*sh.StrObj)
+
+	newoffset, err := strconv.Atoi(objpos.Str())
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
+		return newLine, offset
+	}
+
+	newLine = append(newLine, []rune(objline.Str()))
+
+	return newLine, newoffset
 }

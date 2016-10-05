@@ -3,6 +3,8 @@ package sh
 import (
 	"sort"
 	"testing"
+
+	"github.com/NeowayLabs/nash/sh"
 )
 
 func TestBuildEnv(t *testing.T) {
@@ -18,7 +20,7 @@ func TestBuildEnv(t *testing.T) {
 	}
 
 	env = Env{
-		"PATH": NewStrObj("/bin:/usr/bin"),
+		"PATH": sh.NewStrObj("/bin:/usr/bin"),
 	}
 
 	penv = buildenv(env)
@@ -34,9 +36,9 @@ func TestBuildEnv(t *testing.T) {
 	}
 
 	env = Env{
-		"PATH": NewListObj([]*Obj{
-			NewStrObj("/bin"),
-			NewStrObj("/usr/bin"),
+		"PATH": sh.NewListObj([]sh.Obj{
+			sh.NewStrObj("/bin"),
+			sh.NewStrObj("/usr/bin"),
 		}),
 	}
 
@@ -53,11 +55,11 @@ func TestBuildEnv(t *testing.T) {
 	}
 
 	env = Env{
-		"PATH": NewListObj([]*Obj{
-			NewStrObj("/bin"),
-			NewStrObj("/usr/bin"),
+		"PATH": sh.NewListObj([]sh.Obj{
+			sh.NewStrObj("/bin"),
+			sh.NewStrObj("/usr/bin"),
 		}),
-		"path": NewStrObj("abracadabra"),
+		"path": sh.NewStrObj("abracadabra"),
 	}
 
 	penv = buildenv(env)
