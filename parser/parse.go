@@ -466,7 +466,31 @@ func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
 		arg = ast.NewStringExpr(firstToken.FileInfo, firstToken.Value(), true)
 	} else {
 		// Arg && Ident
-		arg = ast.NewStringExpr(firstToken.FileInfo, firstToken.Value(), false)
+		it = p.peek()
+
+		var argstr string
+
+		if it.Type() == token.Assign &&
+			// check if '=' is close to arg
+			firstToken.Column()+len(firstToken.Value()) == it.Column() {
+			assignIt := p.next()
+
+			it = p.peek()
+
+			if (it.Type() == token.Ident || it.Type() == token.Arg) &&
+				// check if next token "touchs" the '='
+				assignIt.Column()+1 == it.Column() {
+				p.next()
+				argstr = firstToken.Value() + "=" + it.Value()
+			} else {
+				argstr = firstToken.Value() + "="
+			}
+
+		} else {
+			argstr = firstToken.Value()
+		}
+
+		arg = ast.NewStringExpr(firstToken.FileInfo, argstr, false)
 	}
 
 	it = p.peek()

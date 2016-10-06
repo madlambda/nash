@@ -1165,3 +1165,26 @@ func TestMultiPipe(t *testing.T) {
 	awk "{print AAAAAAAAAAAAAAAAAAAAAA}"
 )`, expected, t, true)
 }
+
+func TestParseCommandWithEqual(t *testing.T) {
+	expected := ast.NewTree("parser argument containing equal")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+	cmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "echo", false)
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 5), "hello=world", false))
+	ln.Push(cmd)
+
+	expected.Root = ln
+
+	parserTestTable("parser simple", `echo hello=world`, expected, t, true)
+
+	expected = ast.NewTree("parser argument containing equal")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	cmd = ast.NewCommandNode(token.NewFileInfo(1, 0), "echo", false)
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 5), "hello=", false))
+	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 12), "world", false))
+	ln.Push(cmd)
+
+	expected.Root = ln
+
+	parserTestTable("parser simple", `echo hello= world`, expected, t, true)
+}

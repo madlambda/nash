@@ -341,7 +341,6 @@ func lexStart(l *Lexer) stateFn {
 		l.emit(token.Comma)
 		return lexStart
 	case isIdentifier(r):
-		// nash literals are lowercase
 		absorbIdentifier(l)
 
 		next := l.peek()
@@ -353,6 +352,7 @@ func lexStart(l *Lexer) stateFn {
 			lit := scanIdentifier(l)
 
 			if len(lit) > 1 && r >= 'a' && r <= 'z' {
+				// nash literals are lowercase
 				l.emit(token.Lookup(lit))
 			} else {
 				l.emit(token.Ident)
