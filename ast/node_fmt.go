@@ -277,6 +277,10 @@ func (n *CommandNode) toStringParts() ([]string, int) {
 		content = append(content, line)
 	}
 
+	if len(content) == 0 {
+		content = append(content, n.name)
+	}
+
 	for i := 0; i < len(n.redirs); i++ {
 		rstr := n.redirs[i].String()
 		totalLen += len(rstr) + 1
@@ -372,6 +376,7 @@ func (n *PipeNode) multiString() string {
 
 	for i := 0; i < len(content); i++ {
 		cmdContent := content[i].content
+
 		cmdContent[0] = "\t" + cmdContent[0]
 		tabLen := (len(cmdContent[0]) + 7) / 8
 
