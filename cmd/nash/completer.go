@@ -43,7 +43,7 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	err := nashFunc.SetArgs([]sh.Obj{lineArg, posArg})
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
 		return newLine, offset
 	}
 
@@ -52,12 +52,12 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	nashFunc.SetStderr(c.sh.Stderr())
 
 	if err = nashFunc.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
 		return newLine, offset
 	}
 
 	if err = nashFunc.Wait(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
 		return newLine, offset
 	}
 
@@ -88,7 +88,7 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	newoffset, err := strconv.Atoi(objpos.Str())
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s", err.Error())
+		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
 		return newLine, offset
 	}
 
