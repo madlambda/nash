@@ -73,7 +73,6 @@ type Config struct {
 	// private fields
 	inited    bool
 	opHistory *opHistory
-	opSearch  *opSearch
 }
 
 func (c *Config) useInteractive() bool {
@@ -137,7 +136,6 @@ func (c *Config) Init() error {
 
 func (c Config) Clone() *Config {
 	c.opHistory = nil
-	c.opSearch = nil
 	return &c
 }
 
