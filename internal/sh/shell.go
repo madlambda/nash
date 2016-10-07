@@ -1537,17 +1537,40 @@ func (shell *Shell) executeAssignment(v *ast.AssignmentNode) error {
 	return nil
 }
 
-func (shell *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
-	lvalue := n.Lvalue()
-	rvalue := n.Rvalue()
+func (shell *Shell) evalIfArgument(arg ast.Node) (sh.Obj, error) {
+	var (
+		obj sh.Obj
+		err error
+	)
 
-	lobj, err := shell.evalExpr(lvalue)
+	if arg.Type() == ast.NodeFnInv {
+		obj, err = shell.executeFnInv(arg.(*ast.FnInvNode))
+	} else {
+		obj, err = shell.evalExpr(arg)
+	}
+
+	if err != nil {
+		return nil, err
+	} else if obj == nil {
+		return nil, errors.NewError("lvalue doesn't yield value (%s)", arg)
+	}
+
+	return obj, nil
+}
+
+func (shell *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
+	var (
+		lobj, robj sh.Obj
+		err        error
+	)
+
+	lobj, err = shell.evalIfArgument(n.Lvalue())
 
 	if err != nil {
 		return "", "", err
 	}
 
-	robj, err := shell.evalExpr(rvalue)
+	robj, err = shell.evalIfArgument(n.Rvalue())
 
 	if err != nil {
 		return "", "", err
@@ -1558,7 +1581,7 @@ func (shell *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
 	}
 
 	if robj.Type() != sh.StringType {
-		return "", "", errors.NewError("rvalue is not comparable")
+		return "", "", errors.NewError("rvalue is not comparable: (%v) -> %s.", lobj, lobj.Type())
 	}
 
 	lobjstr := lobj.(*sh.StrObj)

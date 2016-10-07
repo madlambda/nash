@@ -37,6 +37,10 @@ func (s *StringExpr) Value() string {
 	return s.str
 }
 
+func (s *StringExpr) SetValue(a string) {
+	s.str = a
+}
+
 func (s *StringExpr) IsEqual(other Node) bool {
 	if s == other {
 		return true

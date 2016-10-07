@@ -60,8 +60,6 @@ func cli(sh *nash.Shell) error {
 
 	defer l.Close()
 
-	//	log.SetOutput(l.Stderr())
-
 	var content bytes.Buffer
 	var lineidx int
 	var line string

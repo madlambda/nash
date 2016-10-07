@@ -617,7 +617,7 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 			// <ident>()
 			// <arg>()
 			// <var>()
-			exec, err = p.parseFnInv(it)
+			exec, err = p.parseFnInv(it, true)
 		}
 	}
 
@@ -667,28 +667,42 @@ func (p *Parser) parseRfork(it scanner.Token) (ast.Node, error) {
 	return n, nil
 }
 
-func (p *Parser) parseIf(it scanner.Token) (ast.Node, error) {
-	n := ast.NewIfNode(it.FileInfo)
+func (p *Parser) parseIfExpr() (ast.Node, error) {
+	var (
+		arg ast.Node
+		err error
+	)
 
-	it = p.peek()
+	it := p.peek()
 
-	if it.Type() != token.String && it.Type() != token.Variable {
-		return nil, newParserError(it, p.name, "if requires an lvalue of type string or variable. Found %v", it)
+	if it.Type() != token.Ident && it.Type() != token.String &&
+		it.Type() != token.Variable {
+		return nil, newParserError(it, p.name, "if requires lhs/rhs of type string, variable of function invocation. Found %v", it)
 	}
 
 	if it.Type() == token.String {
 		p.next()
-		arg := ast.NewStringExpr(it.FileInfo, it.Value(), true)
-		n.SetLvalue(arg)
+		arg = ast.NewStringExpr(it.FileInfo, it.Value(), true)
+	} else if it.Type() == token.Ident {
+		p.next()
+		arg, err = p.parseFnInv(it, false)
 	} else {
-		arg, err := p.parseVariable()
-
-		if err != nil {
-			return nil, err
-		}
-
-		n.SetLvalue(arg)
+		arg, err = p.parseVariable()
 	}
+
+	return arg, err
+}
+
+func (p *Parser) parseIf(it scanner.Token) (ast.Node, error) {
+	n := ast.NewIfNode(it.FileInfo)
+
+	lvalue, err := p.parseIfExpr()
+
+	if err != nil {
+		return nil, err
+	}
+
+	n.SetLvalue(lvalue)
 
 	it = p.next()
 
@@ -703,25 +717,13 @@ func (p *Parser) parseIf(it scanner.Token) (ast.Node, error) {
 
 	n.SetOp(it.Value())
 
-	it = p.peek()
+	rvalue, err := p.parseIfExpr()
 
-	if it.Type() != token.String && it.Type() != token.Variable {
-		return nil, newParserError(it, p.name, "if requires an rvalue of type string or variable. Found %v", it)
+	if err != nil {
+		return nil, err
 	}
 
-	if it.Type() == token.String {
-		p.next()
-		arg := ast.NewStringExpr(it.FileInfo, it.Value(), true)
-		n.SetRvalue(arg)
-	} else {
-		arg, err := p.parseVariable()
-
-		if err != nil {
-			return nil, err
-		}
-
-		n.SetRvalue(arg)
-	}
+	n.SetRvalue(rvalue)
 
 	it = p.next()
 
@@ -855,7 +857,7 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 
 }
 
-func (p *Parser) parseFnInv(ident scanner.Token) (ast.Node, error) {
+func (p *Parser) parseFnInv(ident scanner.Token, allowSemicolon bool) (ast.Node, error) {
 	n := ast.NewFnInvNode(ident.FileInfo, ident.Value())
 
 	it := p.next()
@@ -891,7 +893,7 @@ func (p *Parser) parseFnInv(ident scanner.Token) (ast.Node, error) {
 	}
 
 	// semicolon is optional here
-	if p.peek().Type() == token.Semicolon {
+	if allowSemicolon && p.peek().Type() == token.Semicolon {
 		p.next()
 	}
 
@@ -1128,7 +1130,7 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 	// - Command
 
 	if (it.Type() == token.Ident || it.Type() == token.Variable) && next.Type() == token.LParen {
-		return p.parseFnInv(it)
+		return p.parseFnInv(it, true)
 	}
 
 	if it.Type() == token.Ident {
