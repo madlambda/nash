@@ -949,6 +949,29 @@ func TestLexerIfWithConcat(t *testing.T) {
 }`, expected, t)
 }
 
+func TestLexerIfWithFuncInvocation(t *testing.T) {
+	expected := []Token{
+		{typ: token.If, val: "if"},
+		{typ: token.Ident, val: "test"},
+		{typ: token.LParen, val: "("},
+		{typ: token.String, val: "some val"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.NotEqual, val: "!="},
+		{typ: token.String, val: "value001"},
+		{typ: token.LBrace, val: "{"},
+		{typ: token.Ident, val: "rm"},
+		{typ: token.Arg, val: "-rf"},
+		{typ: token.Arg, val: "/"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.RBrace, val: "}"},
+		{typ: token.EOF},
+	}
+
+	testTable("test if concat", `if test("some val") != "value001" {
+        rm -rf /
+}`, expected, t)
+}
+
 func TestLexerIfElse(t *testing.T) {
 	expected := []Token{
 		{typ: token.If, val: "if"},
