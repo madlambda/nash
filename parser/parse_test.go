@@ -663,6 +663,57 @@ func TestParseIf(t *testing.T) {
 }`, expected, t, true)
 }
 
+func TestParseIfFnInv(t *testing.T) {
+	expected := ast.NewTree("test if")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+	ifDecl := ast.NewIfNode(token.NewFileInfo(1, 0))
+	ifDecl.SetLvalue(ast.NewFnInvNode(token.NewFileInfo(1, 3), "test"))
+	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 14), "other", true))
+	ifDecl.SetOp("==")
+
+	subBlock := ast.NewBlockNode(token.NewFileInfo(1, 21))
+	cmd := ast.NewCommandNode(token.NewFileInfo(2, 1), "pwd", false)
+	subBlock.Push(cmd)
+
+	ifTree := ast.NewTree("if block")
+	ifTree.Root = subBlock
+
+	ifDecl.SetIfTree(ifTree)
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("test if", `if test() == "other" {
+	pwd
+}`, expected, t, true)
+
+	expected = ast.NewTree("test if")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	ifDecl = ast.NewIfNode(token.NewFileInfo(1, 0))
+
+	fnInv := ast.NewFnInvNode(token.NewFileInfo(1, 3), "test")
+	fnInv.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 9), "bleh", true))
+	ifDecl.SetLvalue(fnInv)
+	ifDecl.SetRvalue(ast.NewStringExpr(token.NewFileInfo(1, 20), "other", true))
+	ifDecl.SetOp("!=")
+
+	subBlock = ast.NewBlockNode(token.NewFileInfo(1, 27))
+	cmd = ast.NewCommandNode(token.NewFileInfo(2, 1), "pwd", false)
+	subBlock.Push(cmd)
+
+	ifTree = ast.NewTree("if block")
+	ifTree.Root = subBlock
+
+	ifDecl.SetIfTree(ifTree)
+
+	ln.Push(ifDecl)
+	expected.Root = ln
+
+	parserTestTable("test if", `if test("bleh") != "other" {
+	pwd
+}`, expected, t, true)
+}
+
 func TestParseIfLvariable(t *testing.T) {
 	expected := ast.NewTree("test if with variable")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
