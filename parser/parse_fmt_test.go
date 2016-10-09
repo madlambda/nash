@@ -315,6 +315,29 @@ func TestFmtPipes(t *testing.T) {
 		>[2] /dev/null
 )`,
 		},
+		{
+			`choice <= (
+                -find $dir+"/" -maxdepth 1 |
+                sed "s#.*/##" |
+                sort |
+                uniq |
+                -fzf --exact -q "^"+$query -1 -0 --inline-info --header "select file: "
+       )`,
+			`choice <= (
+	-find $dir+"/"
+		-maxdepth
+		1 |
+	sed "s#.*/##" |
+	sort |
+	uniq |
+	-fzf --exact
+		-q
+		"^"+$query -1
+		-0
+		--inline-info
+		--header "select file: "
+)`,
+		},
 	}
 
 	testFmtTable(testTable, t)
