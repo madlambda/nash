@@ -2,19 +2,7 @@
 
 [![Build Status](https://travis-ci.org/NeowayLabs/nash.svg?branch=master)](https://travis-ci.org/NeowayLabs/nash) [![Go Report Card](https://goreportcard.com/badge/github.com/NeowayLabs/nash)](https://goreportcard.com/report/github.com/NeowayLabs/nash)
 
-Nash is a system shell that attempts to be more safe and give
-more power to user. It's safe in the sense of it's far more hard to
-shoot yourself in the foot. It gives power to user in the sense
-that you really can use `nash` to script deploys taking advantage
-of namespaces (on linux and plan9) in an idiomatic way.
-
-It's more safe for scripts because it doesn't have the unsafe
-features of all former shells and it aim to have a very simple, safe
-and frozen syntax specification. Every shell feature considered
-harmful was left behind.
-
-Nash is inspired by Plan 9 `rc` shell, but with very different syntax
-and purpose.
+Nash is a system shell, inspired by plan9 `rc`, that makes it easy to create reliable and safe scripts taking advantages of operating systems namespaces (on linux and plan9) in an idiomatic way.
 
 # Show time!
 
@@ -27,11 +15,32 @@ and purpose.
 - [Dotnash](https://github.com/tiago4orion/dotnash): Nash profile customizations (e.g: prompt, aliases, etc)
 - [nash-mode](https://github.com/tiago4orion/nash-mode.el): Emacs major mode integrated with `nashfmt`.
 
-Go ahead:
+## Why nash scripts are reliable?
+
+1. Nash aborts at first non-success status of commands;
+2. Nash aborts at first unbound variable;
+3. It's possible to check the result status of every component of a pipe;
+4. **no eval**;
+5. Strings are pure strings (no evaluation of variables);
+6. No wildcards (globbing) of files; ('rm \*' removes a file called '\*');
+7. No [obscure](http://explainshell.com/) syntax;
+8. Support tooling for indent/format and statically analyze the scripts;
+
+## Installation
+
+If you have Go, go-get it:
 
 ```sh
+# Make sure GOPATH/bin is in your PATH
 go get github.com/NeowayLabs/nash/cmd/nash
-# Make sure GOPATH/bin is in yout PATH
+```
+If not, [download the latest binary release](https://github.com/NeowayLabs/nash/releases) and copy to somewhere in your PATH.
+
+## Getting started
+
+Nash syntax resembles a common shell:
+
+```
 nash
 λ> echo "hello world"
 hello world
