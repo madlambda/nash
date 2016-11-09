@@ -366,7 +366,7 @@ has the files required for it (nothing more).
 What's missing is a safe and robust shell for natural usage of
 namespace/container ideas for everyone (programmers, sysadmins, etc).
 
-Nasn is a way for you, that understand the game rules, to make
+Nash is a way for you, that understand the game rules, to make
 reliable deploy scripts using the good parts of the container
 technologies. If you are a programmer, you can use a good language to
 automate the devops instead of relying on lots of different
