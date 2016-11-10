@@ -723,17 +723,16 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 
 	if len(fname) > 0 && fname[0] == '/' {
 		return shell.ExecFile(fname)
+	} else if len(fname) > 1 && fname[0] == '.' && fname[1] == '/' {
+		return shell.ExecFile(fname)
 	}
 
 	tries := make([]string, 0, 5)
-	tries = append(tries, fname)
 
 	var hasExt bool
 
 	if len(fname) > 3 && fname[len(fname)-3:] == ".sh" {
 		hasExt = true
-	} else {
-		tries = append(tries, fname+".sh")
 	}
 
 	if shell.currentFile != "" {
