@@ -31,6 +31,8 @@ func init() {
 	if _, err := os.Stat(nashdPath); err != nil {
 		panic("Please, run make build before running tests")
 	}
+
+	os.Setenv("NASHPATH", "/tmp/.nash")
 }
 
 func TestExecuteFile(t *testing.T) {
