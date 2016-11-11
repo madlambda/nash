@@ -131,7 +131,8 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 	it := p.next()
 
 	if it.Type() != token.Variable {
-		return nil, errors.NewError("Unexpected token %v. Expected VARIABLE", it)
+		return nil, newParserError(it, p.name,
+			"Unexpected token %v. Expected VARIABLE", it)
 	}
 
 	variable := ast.NewVarExpr(it.FileInfo, it.Value())
@@ -143,7 +144,8 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 		it = p.next()
 
 		if it.Type() != token.Number && it.Type() != token.Variable {
-			return nil, errors.NewError("Expected number or variable in index. Found %v", it)
+			return nil, newParserError(it, p.name,
+				"Expected number or variable in index. Found %v", it)
 		}
 
 		var index ast.Expr
@@ -170,7 +172,8 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 		it = p.next()
 
 		if it.Type() != token.RBrack {
-			return nil, errors.NewError("Unexpected token %v. Expecting ']'", it)
+			return nil, newParserError(it, p.name,
+				"Unexpected token %v. Expecting ']'", it)
 		}
 
 		return ast.NewIndexExpr(variable.FileInfo, variable, index), nil
@@ -256,7 +259,8 @@ cmdLoop:
 
 			n.AddArg(arg)
 		case typ == token.Plus:
-			return nil, errors.NewError("%s:%d:%d: Unexpected '+'", p.name, it.Line(), it.Column())
+			return nil, newParserError(it, p.name,
+				"Unexpected '+'", p.name, it.Line(), it.Column())
 		case typ == token.Gt:
 			p.next()
 			redir, err := p.parseRedirection(it)
@@ -513,7 +517,8 @@ func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
 	it := p.next()
 
 	if it.Type() != token.Assign && it.Type() != token.AssignCmd {
-		return nil, errors.NewError("Unexpected token %v, expected '=' or '<='", it)
+		return nil, newParserError(it, p.name,
+			"Unexpected token %v, expected '=' or '<='", it)
 	}
 
 	if it.Type() == token.Assign {
@@ -601,7 +606,8 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 	it := p.next()
 
 	if it.Type() != token.Ident && it.Type() != token.Arg && it.Type() != token.Variable && it.Type() != token.LParen {
-		return nil, errors.NewError("Invalid token %v. Expected command or function invocation", it)
+		return nil, newParserError(it, p.name,
+			"Invalid token %v. Expected command or function invocation", it)
 	}
 
 	if it.Type() == token.LParen {
@@ -820,7 +826,8 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 	}
 
 	if it.Type() != token.LParen {
-		return nil, errors.NewError("Unexpected token %v. Expected '('", it)
+		return nil, newParserError(it, p.name,
+			"Unexpected token %v. Expected '('", it)
 	}
 
 	args, err := p.parseFnArgs()
@@ -836,7 +843,8 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 	it = p.next()
 
 	if it.Type() != token.LBrace {
-		return nil, errors.NewError("Unexpected token %v. Expected '{'", it)
+		return nil, newParserError(it, p.name,
+			"Unexpected token %v. Expected '{'", it)
 	}
 
 	p.openblocks++
@@ -935,13 +943,14 @@ func (p *Parser) parseBindFn(bindIt scanner.Token) (ast.Node, error) {
 	nameIt := p.next()
 
 	if nameIt.Type() != token.Ident {
-		return nil, errors.NewError("Expected identifier, but found '%v'", nameIt)
+		return nil, newParserError(nameIt, p.name,
+			"Expected identifier, but found '%v'", nameIt)
 	}
 
 	cmdIt := p.next()
 
 	if cmdIt.Type() != token.Ident {
-		return nil, errors.NewError("Expected identifier, but found '%v'", cmdIt)
+		return nil, newParserError(cmdIt, p.name, "Expected identifier, but found '%v'", cmdIt)
 	}
 
 	if p.peek().Type() == token.Semicolon {
@@ -1075,13 +1084,15 @@ func (p *Parser) parseFor(it scanner.Token) (ast.Node, error) {
 	it = p.next()
 
 	if it.Type() != token.Ident || it.Value() != "in" {
-		return nil, errors.NewError("Expected 'in' but found %q", it)
+		return nil, newParserError(it, p.name,
+			"Expected 'in' but found %q", it)
 	}
 
 	it = p.next()
 
 	if it.Type() != token.Variable {
-		return nil, errors.NewError("Expected variable but found %q", it)
+		return nil, newParserError(it, p.name,
+			"Expected variable but found %q", it)
 	}
 
 	forStmt.SetInVar(it.Value())
@@ -1089,7 +1100,8 @@ forBlockParse:
 	it = p.peek()
 
 	if it.Type() != token.LBrace {
-		return nil, errors.NewError("Expected '{' but found %q", it)
+		return nil, newParserError(it, p.name,
+			"Expected '{' but found %q", it)
 	}
 
 	blockPos := it.FileInfo
@@ -1169,12 +1181,14 @@ func (p *Parser) parseBlock(lineStart, columnStart int) (*ast.BlockNode, error) 
 		case token.LBrace:
 			p.ignore()
 
-			return nil, errors.NewError("Parser error: Unexpected '{'")
+			return nil, newParserError(it, p.name,
+				"Unexpected '{'")
 		case token.RBrace:
 			p.ignore()
 
 			if p.openblocks <= 0 {
-				return nil, errors.NewError("Parser error: No block open for close")
+				return nil, newParserError(it, p.name,
+					"No block open for close")
 			}
 
 			p.openblocks--
