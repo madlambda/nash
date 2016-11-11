@@ -294,13 +294,13 @@ func (shell *Shell) SetEnviron(processEnv []string) {
 	}
 }
 
-func (shell *Shell) GetVar(name string) (sh.Obj, bool) {
+func (shell *Shell) Getvar(name string) (sh.Obj, bool) {
 	if value, ok := shell.vars[name]; ok {
 		return value, ok
 	}
 
 	if shell.parent != nil {
-		return shell.parent.GetVar(name)
+		return shell.parent.Getvar(name)
 	}
 
 	return nil, false
@@ -1355,7 +1355,7 @@ func (shell *Shell) evalVariable(a ast.Expr) (sh.Obj, error) {
 	vexpr := a.(*ast.VarExpr)
 	varName := vexpr.Name()
 
-	if v, ok = shell.GetVar(varName[1:]); !ok {
+	if v, ok = shell.Getvar(varName[1:]); !ok {
 		return nil, fmt.Errorf("Variable %s not set on shell %s", varName, shell.name)
 	}
 
@@ -1419,7 +1419,7 @@ func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 
 	varName := v.Identifier()
 
-	if varValue, ok = shell.GetVar(varName); !ok {
+	if varValue, ok = shell.Getvar(varName); !ok {
 		return fmt.Errorf("Variable '%s' not set on shell %s", varName, shell.name)
 	}
 
@@ -1492,7 +1492,7 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 
 	outStr := string(varOut.Bytes())
 
-	if ifs, ok := shell.GetVar("IFS"); ok && ifs.Type() == sh.ListType {
+	if ifs, ok := shell.Getvar("IFS"); ok && ifs.Type() == sh.ListType {
 		ifslist := ifs.(*sh.ListObj)
 
 		if len(ifslist.List()) > 0 {
