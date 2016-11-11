@@ -141,3 +141,13 @@ func (nash *Shell) SetStdin(in io.Reader) {
 func (nash *Shell) Stdin() io.Reader  { return nash.interp.Stdin() }
 func (nash *Shell) Stdout() io.Writer { return nash.interp.Stdout() }
 func (nash *Shell) Stderr() io.Writer { return nash.interp.Stderr() }
+
+// Setvar sets or updates the variable in the nash session
+func (nash *Shell) Setvar(name string, value sh.Obj) {
+	nash.interp.Setvar(name, value)
+}
+
+// Getvar retrieves a variable from nash session
+func (nash *Shell) Getvar(name string) (sh.Obj, bool) {
+	return nash.interp.Getvar(name)
+}

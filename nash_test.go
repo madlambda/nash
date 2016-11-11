@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"os"
 	"testing"
+
+	"github.com/NeowayLabs/nash/sh"
 )
 
 // only testing the public API
@@ -33,19 +35,19 @@ func TestExecuteFile(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh, err := New()
+	shell, err := New()
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
-	sh.SetStdout(&out)
-	sh.SetStderr(os.Stderr)
-	sh.SetStdin(os.Stdin)
+	shell.SetNashdPath(nashdPath)
+	shell.SetStdout(&out)
+	shell.SetStderr(os.Stderr)
+	shell.SetStdin(os.Stdin)
 
-	err = sh.ExecuteFile(testfile)
+	err = shell.ExecuteFile(testfile)
 
 	if err != nil {
 		t.Error(err)
@@ -59,7 +61,7 @@ func TestExecuteFile(t *testing.T) {
 }
 
 func TestExecuteString(t *testing.T) {
-	sh, err := New()
+	shell, err := New()
 
 	if err != nil {
 		t.Error(err)
@@ -68,9 +70,9 @@ func TestExecuteString(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	err = sh.ExecuteString("-ínput-", "echo -n AAA")
+	err = shell.ExecuteString("-ínput-", "echo -n AAA")
 
 	if err != nil {
 		t.Error(err)
@@ -84,7 +86,7 @@ func TestExecuteString(t *testing.T) {
 
 	out.Reset()
 
-	err = sh.ExecuteString("-input-", `
+	err = shell.ExecuteString("-input-", `
         PROMPT="humpback> "
         setenv PROMPT
         `)
@@ -94,7 +96,7 @@ func TestExecuteString(t *testing.T) {
 		return
 	}
 
-	prompt := sh.Prompt()
+	prompt := shell.Prompt()
 
 	if prompt != "humpback> " {
 		t.Errorf("Invalid prompt = %s", prompt)
@@ -104,7 +106,7 @@ func TestExecuteString(t *testing.T) {
 }
 
 func TestSetDotDir(t *testing.T) {
-	sh, err := New()
+	shell, err := New()
 
 	if err != nil {
 		t.Error(err)
@@ -113,18 +115,18 @@ func TestSetDotDir(t *testing.T) {
 
 	var out bytes.Buffer
 
-	sh.SetStdout(&out)
+	shell.SetStdout(&out)
 
-	sh.SetDotDir("/tmp")
+	shell.SetDotDir("/tmp")
 
-	dotDir := sh.DotDir()
+	dotDir := shell.DotDir()
 
 	if dotDir != "/tmp" {
 		t.Errorf("Invalid .nash = %s", dotDir)
 		return
 	}
 
-	err = sh.ExecuteString("-ínput-", "echo -n $NASHPATH")
+	err = shell.ExecuteString("-ínput-", "echo -n $NASHPATH")
 
 	if err != nil {
 		t.Error(err)
@@ -133,6 +135,39 @@ func TestSetDotDir(t *testing.T) {
 
 	if string(out.Bytes()) != "/tmp" {
 		t.Errorf("Unexpected '%s'", string(out.Bytes()))
+		return
+	}
+}
+
+func TestSetvar(t *testing.T) {
+	shell, err := New()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	shell.Setvar("__TEST__", sh.NewStrObj("something"))
+
+	var out bytes.Buffer
+	shell.SetStdout(&out)
+
+	err = shell.Exec("TestSetvar", `echo -n $__TEST__`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(out.Bytes()) != "something" {
+		t.Errorf("Value differ: '%s' != '%s'", string(out.Bytes()), "something")
+		return
+	}
+
+	val, ok := shell.Getvar("__TEST__")
+
+	if !ok || val.String() != "something" {
+		t.Errorf("Getvar doesn't work: '%s' != '%s'", val, "something")
 		return
 	}
 }
