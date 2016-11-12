@@ -329,26 +329,8 @@ for i in $range {
     echo "i = " + $i
 }`)
 
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	expected := `i = 1
-i = 2
-i = 3
-i = 4
-i = 5
-i = 6
-i = 7
-i = 8
-i = 9
-i = 10`
-
-	if strings.TrimSpace(string(out.Bytes())) != expected {
-		t.Error("assignment not work")
-		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), expected)
-
+	if err == nil {
+		t.Errorf("Must fail. IFS doesn't works anymore")
 		return
 	}
 
@@ -361,10 +343,8 @@ for i in $range {
     echo "i = " + $i
 }`)
 
-	if strings.TrimSpace(string(out.Bytes())) != expected {
-		t.Error("assignment not work")
-		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), expected)
-
+	if err == nil {
+		t.Errorf("Must fail. IFS doesn't works anymore")
 		return
 	}
 
@@ -377,10 +357,8 @@ for i in $range {
     echo "i = " + $i
 }`)
 
-	if strings.TrimSpace(string(out.Bytes())) != expected {
-		t.Error("assignment not work")
-		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), expected)
-
+	if err == nil {
+		t.Errorf("Must fail. IFS doesn't works anymore")
 		return
 	}
 
@@ -393,14 +371,10 @@ for i in $range {
     echo "i = " + $i
 }`)
 
-	expected = "i = 1;2;3;4;5;6;7;8;9;10"
-
-	if strings.TrimSpace(string(out.Bytes())) != expected {
-		t.Error("assignment not work")
-		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), expected)
+	if err == nil {
+		t.Errorf("Must fail. IFS doesn't works anymore")
 		return
 	}
-
 }
 
 func TestExecuteRedirection(t *testing.T) {
@@ -1744,8 +1718,8 @@ echo -n $list[$i]`)
 
 	out.Reset()
 
-	err = shell.Exec("indexing", `IFS = ("\n")
-seq <= seq 0 2
+	err = shell.Exec("indexing", `tmp <= seq 0 2
+seq <= split($tmp, "\n")
 
 for i in $seq {
     echo -n $list[$i]
@@ -1812,6 +1786,7 @@ setenv SHELL`)
 	shell.SetStdout(&out)
 
 	err = shell.Exec("set env from fn", `fn test() {
+        # test() should no call the setup func in Nash
 }
 
 test()
