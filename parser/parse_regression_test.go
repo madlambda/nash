@@ -244,3 +244,20 @@ func TestParseIssue108(t *testing.T) {
 
 	parserTestTable("parse issue #108", `cat spec.ebnf | grep -i rfork`, expected, t, false)
 }
+
+func TestParseIssue123(t *testing.T) {
+	parser := NewParser("invalid cmd assignment", `IFS <= ("\n")`)
+
+	_, err := parser.Parse()
+
+	if err == nil {
+		t.Errorf("Must fail...")
+		return
+	}
+
+	expected := "invalid cmd assignment:1:9: Unexpected token STRING. Expecting IDENT or ARG"
+	if err.Error() != expected {
+		t.Fatalf("Error string differs. Expecting '%s' but got '%s'",
+			expected, err.Error())
+	}
+}

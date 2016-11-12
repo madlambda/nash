@@ -36,7 +36,7 @@ func main() {
 	file, err = os.Open(fname)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] "+err.Error())
+		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
 		os.Exit(1)
 	}
 
@@ -44,7 +44,7 @@ func main() {
 
 	if err != nil {
 		file.Close()
-		fmt.Fprintf(os.Stderr, "[ERROR] "+err.Error())
+		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
 		os.Exit(1)
 	}
 
@@ -53,7 +53,7 @@ func main() {
 	ast, err := parser.Parse()
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] "+err.Error())
+		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		file.Close()
 		os.Exit(1)
 	}
@@ -69,7 +69,7 @@ func main() {
 		err = ioutil.WriteFile(fname, []byte(fmt.Sprintf("%s\n", ast.String())), 0666)
 
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "[ERROR] "+err.Error())
+			fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
 			return
 		}
 	}
