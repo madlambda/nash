@@ -372,7 +372,11 @@ func lexStart(l *Lexer) stateFn {
 			l.emit(token.Arg)
 		}
 
-		l.addSemicolon = true
+		if next == eof && l.openParens > 0 {
+			l.addSemicolon = false
+		} else {
+			l.addSemicolon = true
+		}
 
 		return lexStart
 	case isArgument(r):

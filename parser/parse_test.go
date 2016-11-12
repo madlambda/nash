@@ -947,6 +947,46 @@ func TestParseFnBasic(t *testing.T) {
 }`, expected, t, true)
 }
 
+func TestParseInlineFnDecl(t *testing.T) {
+	expected := ast.NewTree("fn")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+
+	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 0), "cd")
+	tree := ast.NewTree("fn body")
+	lnBody := ast.NewBlockNode(token.NewFileInfo(1, 0))
+	echo := ast.NewCommandNode(token.NewFileInfo(1, 11), "echo", false)
+	echo.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 16), "hello", true))
+	lnBody.Push(echo)
+
+	tree.Root = lnBody
+	fn.SetTree(tree)
+
+	// root
+	ln.Push(fn)
+	expected.Root = ln
+
+	parserTestTable("inline fn", `fn cd() { echo "hello" }`,
+		expected, t, false)
+
+	test := ast.NewCommandNode(token.NewFileInfo(1, 26), "test", false)
+	test.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 32), "-d", false))
+	test.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 35), "/etc", false))
+
+	pipe := ast.NewPipeNode(token.NewFileInfo(1, 11), false)
+	pipe.AddCmd(echo)
+	pipe.AddCmd(test)
+	lnBody = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	lnBody.Push(pipe)
+	tree.Root = lnBody
+	fn.SetTree(tree)
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	ln.Push(fn)
+	expected.Root = ln
+
+	parserTestTable("inline fn", `fn cd() { echo "hello" | test -d /etc }`,
+		expected, t, false)
+}
+
 func TestParseBindFn(t *testing.T) {
 	expected := ast.NewTree("bindfn")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -1215,4 +1255,16 @@ func TestMultiPipe(t *testing.T) {
 	echo "hello world" |
 	awk "{print AAAAAAAAAAAAAAAAAAAAAA}"
 )`, expected, t, true)
+}
+
+func TestFunctionPipes(t *testing.T) {
+	parser := NewParser("invalid pipe with functions",
+		`echo "some thing" | replace(" ", "|")`)
+
+	_, err := parser.Parse()
+
+	if err == nil {
+		t.Error("Must fail. Function must be bind'ed to command name to use in pipe.")
+		return
+	}
 }

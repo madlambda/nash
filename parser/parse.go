@@ -208,7 +208,11 @@ func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
 	if n.IsMulti() {
 		it = p.peek()
 		if it.Type() != token.RParen {
-			return nil, errors.NewUnfinishedCmdError(p.name, it)
+			if it.Type() == token.EOF {
+				return nil, errors.NewUnfinishedCmdError(p.name, it)
+			}
+
+			return nil, newParserError(it, p.name, "Unexpected symbol '%s'", it)
 		}
 
 		p.ignore()
@@ -216,9 +220,15 @@ func (p *Parser) parsePipe(first *ast.CommandNode) (ast.Node, error) {
 
 	it = p.peek()
 
-	if it.Type() == token.Semicolon {
-		p.ignore()
+	if it.Type() == token.RBrace {
+		return n, nil
 	}
+
+	if it.Type() != token.Semicolon {
+		return nil, newParserError(it, p.name, "Unexpected symbol %s", it)
+	}
+
+	p.ignore()
 
 	return n, nil
 }
@@ -234,7 +244,7 @@ func (p *Parser) parseCommand(it scanner.Token) (ast.Node, error) {
 	}
 
 	if it.Type() != token.Ident && it.Type() != token.Arg {
-		if isMulti {
+		if isMulti && it.Type() == token.EOF {
 			return nil, errors.NewUnfinishedCmdError(p.name, it)
 		}
 
@@ -249,6 +259,14 @@ cmdLoop:
 
 		switch typ := it.Type(); {
 		case typ == token.RBrace:
+			if p.openblocks > 0 {
+				if p.insidePipe {
+					p.insidePipe = false
+				}
+
+				return n, nil
+			}
+
 			break cmdLoop
 		case isValidArgument(it):
 			arg, err := p.getArgument(true, true)
@@ -288,15 +306,15 @@ cmdLoop:
 		}
 	}
 
-	if p.insidePipe {
-		p.insidePipe = false
-	}
-
 	it = p.peek()
 
 	if isMulti {
 		if it.Type() != token.RParen {
-			return nil, errors.NewUnfinishedCmdError(p.name, it)
+			if it.Type() == token.EOF {
+				return nil, errors.NewUnfinishedCmdError(p.name, it)
+			}
+
+			return nil, newParserError(it, p.name, "Unexpected symbol '%s'", it)
 		}
 
 		p.ignore()
@@ -304,9 +322,16 @@ cmdLoop:
 		it = p.peek()
 	}
 
-	if it.Type() == token.Semicolon {
-		p.ignore()
+	if p.insidePipe {
+		p.insidePipe = false
+		return n, nil
 	}
+
+	if it.Type() != token.Semicolon {
+		return nil, newParserError(it, p.name, "Unexpected symbol '%s'", it)
+	}
+
+	p.ignore()
 
 	return n, nil
 }

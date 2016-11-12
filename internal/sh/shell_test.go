@@ -2041,7 +2041,7 @@ func TestExecuteMultilineCmdAssign(t *testing.T) {
 	}
 }
 
-func TestExecuteMuliReturnUnfinished(t *testing.T) {
+func TestExecuteMultiReturnUnfinished(t *testing.T) {
 	shell, err := NewShell()
 
 	if err != nil {

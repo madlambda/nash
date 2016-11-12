@@ -484,6 +484,26 @@ func TestLexerPipe(t *testing.T) {
 	testTable("testPipe with redirection", `go tool vet -h > out.log | grep log`, expected, t)
 }
 
+func TestPipeFunctions(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "echo"},
+		{typ: token.String, val: "some thing"},
+		{typ: token.Pipe, val: "|"},
+		{typ: token.Ident, val: "replace"},
+		{typ: token.LParen, val: "("},
+		{typ: token.String, val: " "},
+		{typ: token.Comma, val: ","},
+		{typ: token.String, val: "|"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test pipe with function",
+		`echo "some thing" | replace(" ", "|")`,
+		expected, t)
+}
+
 func TestLexerUnquoteArg(t *testing.T) {
 	expected := []Token{
 		{typ: token.Ident, val: "echo"},
