@@ -79,13 +79,12 @@ echo $fullpath
 The symbol '<=' redirects the stdout of the command or function invocation in the
 right-hand side to the variable name specified.
 
-If you want the command output splited into an array, use the IFS
-special variable to store the delimiter (like bash, but use a list
-instead of a string).
+If you want the command output splited into an array, then you'll need
+to store it in a temporary variable and then use the builtin `split` function.
 
 ```sh
-IFS = ("\n")
-files <= find .
+out <= find .
+files <= split($out, "\n")
 
 for f in $files {
         echo "File: " + $f

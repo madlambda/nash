@@ -411,6 +411,10 @@ func (shell *Shell) setupBuiltin() error {
 	shell.builtins["append"] = appendfn
 	shell.Setvar("append", sh.NewFnObj(appendfn))
 
+	splitfn := NewSplitFn(shell)
+	shell.builtins["split"] = splitfn
+	shell.Setvar("split", sh.NewFnObj(splitfn))
+
 	chdir := NewChdir(shell)
 	shell.builtins["chdir"] = chdir
 	shell.Setvar("chdir", sh.NewFnObj(chdir))
@@ -1485,42 +1489,16 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 		err = errors.NewError("Unexpected node in assignment: %s", assign.String())
 	}
 
-	var strelems []string
+	output := varOut.Bytes()
 
-	outStr := string(varOut.Bytes())
+	if len(output) > 0 && output[len(output)-1] == '\n' {
+		// remove the trailing new line
+		// Why? because it's what user wants in 99% of times...
 
-	if ifs, ok := shell.Getvar("IFS"); ok && ifs.Type() == sh.ListType {
-		ifslist := ifs.(*sh.ListObj)
-
-		if len(ifslist.List()) > 0 {
-			strelems = strings.FieldsFunc(outStr, func(r rune) bool {
-				for _, delim := range ifslist.List() {
-					if delim.Type() != sh.StringType {
-						continue
-					}
-
-					objstr := delim.(*sh.StrObj)
-
-					if len(objstr.Str()) > 0 && rune(objstr.Str()[0]) == r {
-						return true
-					}
-				}
-
-				return false
-			})
-
-			objelems := make([]sh.Obj, len(strelems))
-
-			for i := 0; i < len(strelems); i++ {
-				objelems[i] = sh.NewStrObj(strelems[i])
-			}
-
-			shell.Setvar(v.Identifier(), sh.NewListObj(objelems))
-			return nil
-		}
+		output = output[0 : len(output)-1]
 	}
 
-	shell.Setvar(v.Identifier(), sh.NewStrObj(outStr))
+	shell.Setvar(v.Identifier(), sh.NewStrObj(string(output)))
 
 	return err
 }
