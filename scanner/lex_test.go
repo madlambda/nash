@@ -1211,6 +1211,19 @@ func TestLexerFnInvocation(t *testing.T) {
 	}
 
 	testTable("test fn invocation", `build($debug)`, expected, t)
+
+	expected = []Token{
+		{typ: token.Ident, val: "a"},
+		{typ: token.LParen, val: "("},
+		{typ: token.Ident, val: "b"},
+		{typ: token.LParen, val: "("},
+		{typ: token.RParen, val: ")"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test fn composition", `a(b())`, expected, t)
 }
 
 func TestLexerAssignCmdOut(t *testing.T) {
