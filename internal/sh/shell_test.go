@@ -772,33 +772,33 @@ path="AAA"
 }
 
 func TestFnComposition(t *testing.T) {
-	shell, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-
-	var out bytes.Buffer
-
-	shell.SetStdout(&out)
-
-	err = shell.Exec("composition", `
+	for _, test := range []execTest{
+		{
+			"composition",
+			`
                 fn a(b) { echo -n $b }
                 fn b()  { return "hello" }
                 a(b())
-        `)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	expected := "hello"
-
-	if string(out.Bytes()) != expected {
-		t.Fatalf("Output differ: '%s' != '%s'", string(out.Bytes()), expected)
+        `,
+			"hello", "", "",
+		},
+		{
+			"composition",
+			`
+                fn a(b, c) { echo -n $b $c  }
+                fn b()     { return "hello" }
+                fn c()     { return "world" }
+                a(b(), c())
+        `,
+			"hello world", "", "",
+		},
+	} {
+		testExec(t, test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
 	}
 }
 
