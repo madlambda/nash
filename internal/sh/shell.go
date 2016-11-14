@@ -451,7 +451,7 @@ func (shell *Shell) setup() error {
 
 func (shell *Shell) setupSignals() {
 	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGCHLD)
+	signal.Notify(sigs, syscall.SIGINT)
 
 	go func() {
 		for {
@@ -468,9 +468,6 @@ func (shell *Shell) setupSignals() {
 				}
 
 				shell.Unlock()
-			case syscall.SIGCHLD:
-				// dont need reaping because we dont have job control yet
-				// every command is wait'ed.
 			default:
 				fmt.Printf("%s\n", sig)
 			}

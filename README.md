@@ -1,5 +1,6 @@
 # nash
 
+[![Join the chat at https://gitter.im/NeowayLabs/nash](https://badges.gitter.im/NeowayLabs/nash.svg)](https://gitter.im/NeowayLabs/nash?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Build Status](https://travis-ci.org/NeowayLabs/nash.svg?branch=master)](https://travis-ci.org/NeowayLabs/nash) [![Go Report Card](https://goreportcard.com/badge/github.com/NeowayLabs/nash)](https://goreportcard.com/report/github.com/NeowayLabs/nash)
 
 Nash is a system shell, inspired by plan9 `rc`, that makes it easy to create reliable and safe scripts taking advantages of operating systems namespaces (on linux and plan9) in an idiomatic way.
@@ -78,13 +79,12 @@ echo $fullpath
 The symbol '<=' redirects the stdout of the command or function invocation in the
 right-hand side to the variable name specified.
 
-If you want the command output splited into an array, use the IFS
-special variable to store the delimiter (like bash, but use a list
-instead of a string).
+If you want the command output splited into an array, then you'll need
+to store it in a temporary variable and then use the builtin `split` function.
 
 ```sh
-IFS = ("\n")
-files <= find .
+out <= find .
+files <= split($out, "\n")
 
 for f in $files {
         echo "File: " + $f

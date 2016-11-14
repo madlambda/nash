@@ -31,5 +31,11 @@ before_install:
 after_success:
   codecov
 notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/52ad02845e880cdca2cf
+    on_success: change
+    on_failure: always
+    on_start: never
   email:
     - tiago.natel@neoway.com.br
