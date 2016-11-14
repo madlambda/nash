@@ -420,87 +420,48 @@ func TestExecuteRedirectionMap(t *testing.T) {
 }
 
 func TestExecuteCd(t *testing.T) {
-	var out bytes.Buffer
-
-	shell, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-	shell.SetStdout(&out)
-
-	err = shell.Exec("test cd", `
-        cd /tmp
-        pwd
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "/tmp" {
-		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "/tmp")
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("test cd", `
-        HOME="/"
+	for _, test := range []execTest{
+		{
+			"test cd",
+			`cd /tmp
+        pwd`,
+			"/tmp\n", "", "",
+		},
+		{
+			"test cd",
+			`HOME="/"
         setenv HOME
         cd
-        pwd
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "/" {
-		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "/")
-		return
-	}
-
-	// test cd into $var
-	out.Reset()
-
-	err = shell.Exec("test cd", `
+        pwd`,
+			"/\n",
+			"", "",
+		},
+		{
+			"test cd into $var",
+			`
         var="/tmp"
         cd $var
-        pwd
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "/tmp" {
-		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "/tmp")
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("test error", `
-        var=("val1" "val2" "val3")
+        pwd`,
+			"/tmp\n",
+			"",
+			"",
+		},
+		{
+			"test error",
+			`var=("val1" "val2" "val3")
         cd $var
-        pwd
-        `)
-
-	if err == nil {
-		t.Error("Must fail... Impossible to cd into variable containing a list")
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "" {
-		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "")
-		return
+        pwd`,
+			"", "",
+			"lvalue is not comparable: (val1 val2 val3) -> ListType.",
+		},
+	} {
+		testExec(t,
+			test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
 	}
 }
 
@@ -1740,7 +1701,7 @@ setenv SHELL`)
 	shell.SetStdout(&out)
 
 	err = shell.Exec("set env from fn", `fn test() {
-        # test() should no call the setup func in Nash
+        # test() should not call the setup func in Nash
 }
 
 test()
