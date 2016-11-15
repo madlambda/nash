@@ -3,6 +3,7 @@ package errors
 import (
 	"fmt"
 
+	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/scanner"
 )
 
@@ -34,6 +35,11 @@ func NewError(format string, arg ...interface{}) *NashError {
 	e := &NashError{}
 	e.SetReason(format, arg...)
 	return e
+}
+
+func NewEvalError(path string, node ast.Node, format string, arg ...interface{}) *NashError {
+	linenum := fmt.Sprintf("%s:%d:%d: ", path, node.Line(), node.Column())
+	return NewError(linenum+format, arg...)
 }
 
 func (e *NashError) SetReason(format string, arg ...interface{}) {

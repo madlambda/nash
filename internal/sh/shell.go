@@ -115,19 +115,20 @@ func (e *errStopWalking) StopWalking() bool { return true }
 // NewShell creates a new shell object
 func NewShell() (*Shell, error) {
 	shell := &Shell{
-		name:      "parent scope",
-		isFn:      false,
-		logf:      NewLog(logNS, false),
-		nashdPath: nashdAutoDiscover(),
-		stdout:    os.Stdout,
-		stderr:    os.Stderr,
-		stdin:     os.Stdin,
-		env:       make(Env),
-		vars:      make(Var),
-		fns:       make(Fns),
-		builtins:  make(Fns),
-		binds:     make(Fns),
-		Mutex:     &sync.Mutex{},
+		name:        "parent scope",
+		isFn:        false,
+		logf:        NewLog(logNS, false),
+		nashdPath:   nashdAutoDiscover(),
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+		stdin:       os.Stdin,
+		env:         make(Env),
+		vars:        make(Var),
+		fns:         make(Fns),
+		builtins:    make(Fns),
+		binds:       make(Fns),
+		Mutex:       &sync.Mutex{},
+		currentFile: "<interactive>",
 	}
 
 	err := shell.setup()
@@ -151,20 +152,21 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 	}
 
 	sh := &Shell{
-		name:      name,
-		isFn:      true,
-		parent:    parent,
-		logf:      NewLog(logNS, false),
-		nashdPath: nashdAutoDiscover(),
-		stdout:    parent.Stdout(),
-		stderr:    parent.Stderr(),
-		stdin:     parent.Stdin(),
-		env:       make(Env),
-		vars:      make(Var),
-		fns:       make(Fns),
-		binds:     make(Fns),
-		builtins:  nil, // subshell does not have builtins
-		Mutex:     parent.Mutex,
+		name:        name,
+		isFn:        true,
+		parent:      parent,
+		logf:        NewLog(logNS, false),
+		nashdPath:   nashdAutoDiscover(),
+		stdout:      parent.Stdout(),
+		stderr:      parent.Stderr(),
+		stdin:       parent.Stdin(),
+		env:         make(Env),
+		vars:        make(Var),
+		fns:         make(Fns),
+		binds:       make(Fns),
+		builtins:    nil, // subshell does not have builtins
+		Mutex:       parent.Mutex,
+		currentFile: parent.currentFile,
 	}
 
 	return sh, nil
@@ -1304,7 +1306,7 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 	}
 
 	if v.Type() != sh.ListType {
-		return nil, errors.NewError("Invalid indexing of non-list variable: %s", v.Type())
+		return nil, errors.NewEvalError(shell.currentFile, variable, "Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
 	}
 
 	if index.Type() == ast.NodeIntExpr {
