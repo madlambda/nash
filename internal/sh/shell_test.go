@@ -14,6 +14,14 @@ import (
 	"github.com/NeowayLabs/nash/sh"
 )
 
+type execTest struct {
+	desc           string
+	execStr        string
+	expectedStdout string
+	expectedStderr string
+	expectedErr    string
+}
+
 var (
 	testDir, gopath, nashdPath string
 )
@@ -35,9 +43,7 @@ func init() {
 	os.Setenv("NASHPATH", "/tmp/.nash")
 }
 
-func TestExecuteFile(t *testing.T) {
-	testfile := testDir + "/ex1.sh"
-
+func testExecuteFile(t *testing.T, path, expected string) {
 	var out bytes.Buffer
 
 	shell, err := NewShell()
@@ -50,165 +56,129 @@ func TestExecuteFile(t *testing.T) {
 	shell.SetNashdPath(nashdPath)
 	shell.SetStdout(&out)
 
-	err = shell.ExecFile(testfile)
+	err = shell.ExecFile(path)
 
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	if string(out.Bytes()) != "hello world\n" {
-		t.Errorf("Wrong command output: '%s'", string(out.Bytes()))
+	if string(out.Bytes()) != expected {
+		t.Errorf("Wrong command output: '%s' != '%s'",
+			string(out.Bytes()), expected)
 		return
+	}
+}
+
+func testExec(t *testing.T, desc, execStr, expectedStdout, expectedStderr, expectedErr string) {
+	shell, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	shell.SetNashdPath(nashdPath)
+
+	var bout bytes.Buffer
+	var berr bytes.Buffer
+	shell.SetStderr(&berr)
+	shell.SetStdout(&bout)
+
+	err = shell.Exec(desc, execStr)
+
+	if err != nil && expectedErr != "" {
+		if err.Error() != expectedErr {
+			t.Errorf("Error differs: Expected '%s' but got '%s'",
+				expectedErr, err.Error())
+		}
+	}
+
+	if expectedStdout != string(bout.Bytes()) {
+		t.Errorf("Stdout differs: '%s' != '%s'", expectedStdout,
+			string(bout.Bytes()))
+		return
+	}
+
+	if expectedStderr != string(berr.Bytes()) {
+		t.Errorf("Stdout differs: '%s' != '%s'", expectedStderr,
+			string(berr.Bytes()))
+		return
+	}
+}
+
+func TestExecuteFile(t *testing.T) {
+	type fileTests struct {
+		path     string
+		expected string
+	}
+
+	for _, ftest := range []fileTests{
+		{path: "/ex1.sh", expected: "hello world\n"},
+	} {
+		testExecuteFile(t, testDir+ftest.path, ftest.expected)
 	}
 }
 
 func TestExecuteCommand(t *testing.T) {
-	shell, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-	shell.SetStderr(ioutil.Discard)
-
-	err = shell.Exec("command failed", `
-        non-existent-program
-        `)
-
-	if err == nil {
-		t.Error("Must fail")
-		return
-	}
-
-	// test ignore works
-	err = shell.Exec("command failed", `
-        -non-existent-program
-        `)
-
-	if err != nil {
-		t.Errorf("Dash at beginning must ignore errors: ERROR: %s", err.Error())
-		return
-	}
-
-	var out bytes.Buffer
-	shell.SetStderr(os.Stderr)
-	shell.SetStdout(&out)
-
-	err = shell.Exec("command failed", `
-        echo -n "hello world"
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if string(out.Bytes()) != "hello world" {
-		t.Errorf("Invalid output: '%s'", string(out.Bytes()))
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("cmd with concat", `echo -n "hello " + "world"`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if string(out.Bytes()) != "hello world" {
-		t.Errorf("Error: '%s' != '%s'", string(out.Bytes()), "hello world")
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("cmd with concat", `echo -n $notexits`)
-
-	if err == nil {
-		t.Errorf("Must fail")
-		return
+	for _, test := range []execTest{
+		{
+			"command failed",
+			`non-existing-program`,
+			"", "",
+			`exec: "non-existing-program": executable file not found in $PATH`,
+		},
+		{
+			"err ignored",
+			`-non-existing-program`,
+			"", "", "",
+		},
+		{
+			"hello world",
+			"echo -n hello world",
+			"hello world", "", "",
+		},
+		{
+			"cmd with concat",
+			`echo -n "hello " + "world"`,
+			"hello world", "", "",
+		},
+	} {
+		testExec(t,
+			test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
 	}
 }
 
 func TestExecuteAssignment(t *testing.T) {
-	var out bytes.Buffer
-
-	shell, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-	shell.SetStdout(&out)
-
-	err = shell.Exec("assignment", `
-        name="i4k"
-        echo $name
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "i4k" {
-		t.Error("assignment not work")
-		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), "i4k")
-
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("list assignment", `
-        name=(honda civic)
-        echo $name
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "honda civic" {
-		t.Error("assignment not work")
-		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), "honda civic")
-
-		return
-	}
-
-	out.Reset()
-
-	shell, err = NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-
-	err = shell.Exec("assignment", `
-        name=i4k
-        `)
-
-	if err == nil {
-		t.Error("Must fail")
-		return
-	}
-
-	out.Reset()
-
-	shell.SetStdout(&out)
-
-	err = shell.Exec("list of lists", `l = (
+	for _, test := range []execTest{
+		{ // wrong assignment
+			"wrong assignment",
+			`name=i4k`,
+			"", "",
+			"wrong assignment:1:5: Unexpected token IDENT. Expecting VARIABLE or STRING or (",
+		},
+		{
+			"assignment",
+			`name="i4k"
+                         echo $name`,
+			"i4k\n", "",
+			"",
+		},
+		{
+			"list assignment",
+			`name=(honda civic)
+                         echo -n $name`,
+			"honda civic", "",
+			"",
+		},
+		{
+			"list of lists",
+			`l = (
 		(name Archlinux)
 		(arch amd64)
 		(kernel 4.7.1)
@@ -216,164 +186,117 @@ func TestExecuteAssignment(t *testing.T) {
 
 	echo $l[0]
 	echo $l[1]
-	echo -n $l[2]`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	expected := `name Archlinux
+	echo -n $l[2]`,
+			`name Archlinux
 arch amd64
-kernel 4.7.1`
-
-	if expected != string(out.Bytes()) {
-		t.Errorf("expected '%s' but got '%s'", expected, string(out.Bytes()))
-		return
+kernel 4.7.1`,
+			"",
+			"",
+		},
+	} {
+		testExec(t,
+			test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
 	}
 }
 
 func TestExecuteCmdAssignment(t *testing.T) {
-	var out bytes.Buffer
-
-	shell, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-	shell.SetStdout(&out)
-
-	err = shell.Exec("assignment", `
-        name <= echo i4k
-        echo $name
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "i4k" {
-		t.Error("assignment not work")
-		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), "i4k")
-
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("list assignment", `
-        name <= echo "honda civic"
-        echo $name
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "honda civic" {
-		t.Error("assignment not work")
-		fmt.Printf("'%s' != '%s'\n", strings.TrimSpace(string(out.Bytes())), "honda civic")
-
-		return
-	}
-
-	shell, err = NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-
-	err = shell.Exec("assignment", `
-        name <= ""
-        `)
-
-	if err == nil {
-		t.Error("Must fail")
-		return
-	}
-
-	err = shell.Exec("fn must return value", `fn e() {}
-v <= e()`)
-
-	if err == nil {
-		t.Errorf("Must fail")
-		return
+	for _, test := range []execTest{
+		{
+			"cmd assignment",
+			`name <= echo -n i4k
+                         echo -n $name`,
+			"i4k", "",
+			"",
+		},
+		{
+			"list cmd assignment",
+			`name <= echo "honda civic"
+                         echo -n $name`,
+			"honda civic", "", "",
+		},
+		{
+			"wrong cmd assignment",
+			`name <= ""`,
+			"", "", "wrong cmd assignment:1:9: Invalid token STRING. Expected command or function invocation",
+		},
+		{
+			"fn must return value",
+			`fn e() {}
+                         v <= e()`,
+			"",
+			"",
+			"Invalid assignment from function that does not return values: e()",
+		},
+	} {
+		testExec(t,
+			test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
 	}
 }
 
 func TestExecuteCmdAssignmentIFS(t *testing.T) {
-	var out bytes.Buffer
-
-	shell, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-	shell.SetStdout(&out)
-
-	err = shell.Exec("assignment", `IFS = (" ")
+	for _, test := range []execTest{
+		{
+			"ifs",
+			`IFS = (" ")
 range <= echo 1 2 3 4 5 6 7 8 9 10
 
 for i in $range {
     echo "i = " + $i
-}`)
-
-	if err == nil {
-		t.Errorf("Must fail. IFS doesn't works anymore")
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("assignment", `IFS = (";")
+}`,
+			"", "",
+			"Invalid variable type in for range: StringType",
+		},
+		{
+			"ifs",
+			`IFS = (";")
 range <= echo "1;2;3;4;5;6;7;8;9;10"
 
 for i in $range {
     echo "i = " + $i
-}`)
-
-	if err == nil {
-		t.Errorf("Must fail. IFS doesn't works anymore")
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("assignment", `IFS = (" " ";")
-range <= echo "1;2;3;4;5;6;7;8;9;10"
+}`,
+			"", "",
+			"Invalid variable type in for range: StringType",
+		},
+		{
+			"ifs",
+			`IFS = (" " ";")
+range <= echo "1;2;3;4;5;6 7;8;9;10"
 
 for i in $range {
     echo "i = " + $i
-}`)
-
-	if err == nil {
-		t.Errorf("Must fail. IFS doesn't works anymore")
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("assignment", `IFS = (" " "-")
-range <= echo "1;2;3;4;5;6;7;8;9;10"
+}`,
+			"", "",
+			"Invalid variable type in for range: StringType",
+		},
+		{
+			"ifs",
+			`IFS = (" " "-")
+range <= echo "1;2;3;4;5;6;7-8;9;10"
 
 for i in $range {
     echo "i = " + $i
-}`)
-
-	if err == nil {
-		t.Errorf("Must fail. IFS doesn't works anymore")
-		return
+}`,
+			"", "",
+			"Invalid variable type in for range: StringType",
+		},
+	} {
+		testExec(t,
+			test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
 	}
 }
 
@@ -497,87 +420,48 @@ func TestExecuteRedirectionMap(t *testing.T) {
 }
 
 func TestExecuteCd(t *testing.T) {
-	var out bytes.Buffer
-
-	shell, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-	shell.SetStdout(&out)
-
-	err = shell.Exec("test cd", `
-        cd /tmp
-        pwd
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "/tmp" {
-		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "/tmp")
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("test cd", `
-        HOME="/"
+	for _, test := range []execTest{
+		{
+			"test cd",
+			`cd /tmp
+        pwd`,
+			"/tmp\n", "", "",
+		},
+		{
+			"test cd",
+			`HOME="/"
         setenv HOME
         cd
-        pwd
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "/" {
-		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "/")
-		return
-	}
-
-	// test cd into $var
-	out.Reset()
-
-	err = shell.Exec("test cd", `
+        pwd`,
+			"/\n",
+			"", "",
+		},
+		{
+			"test cd into $var",
+			`
         var="/tmp"
         cd $var
-        pwd
-        `)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "/tmp" {
-		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "/tmp")
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("test error", `
-        var=("val1" "val2" "val3")
+        pwd`,
+			"/tmp\n",
+			"",
+			"",
+		},
+		{
+			"test error",
+			`var=("val1" "val2" "val3")
         cd $var
-        pwd
-        `)
-
-	if err == nil {
-		t.Error("Must fail... Impossible to cd into variable containing a list")
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "" {
-		t.Errorf("Cd failed. '%s' != '%s'", string(out.Bytes()), "")
-		return
+        pwd`,
+			"", "",
+			"lvalue is not comparable: (val1 val2 val3) -> ListType.",
+		},
+	} {
+		testExec(t,
+			test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
 	}
 }
 
@@ -885,6 +769,37 @@ path="AAA"
 		return
 	}
 
+}
+
+func TestFnComposition(t *testing.T) {
+	for _, test := range []execTest{
+		{
+			"composition",
+			`
+                fn a(b) { echo -n $b }
+                fn b()  { return "hello" }
+                a(b())
+        `,
+			"hello", "", "",
+		},
+		{
+			"composition",
+			`
+                fn a(b, c) { echo -n $b $c  }
+                fn b()     { return "hello" }
+                fn c()     { return "world" }
+                a(b(), c())
+        `,
+			"hello world", "", "",
+		},
+	} {
+		testExec(t, test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
+	}
 }
 
 func TestExecuteFnInvOthers(t *testing.T) {
@@ -1786,7 +1701,7 @@ setenv SHELL`)
 	shell.SetStdout(&out)
 
 	err = shell.Exec("set env from fn", `fn test() {
-        # test() should no call the setup func in Nash
+        # test() should not call the setup func in Nash
 }
 
 test()

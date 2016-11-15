@@ -663,6 +663,50 @@ func TestParseIf(t *testing.T) {
 }`, expected, t, true)
 }
 
+func TestParseFnInv(t *testing.T) {
+	expected := ast.NewTree("fn inv")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+	aFn := ast.NewFnInvNode(token.NewFileInfo(1, 0), "a")
+	ln.Push(aFn)
+	expected.Root = ln
+
+	parserTestTable("test basic fn inv", `a()`, expected, t, true)
+
+	expected = ast.NewTree("fn inv")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	aFn = ast.NewFnInvNode(token.NewFileInfo(1, 0), "a")
+	bFn := ast.NewFnInvNode(token.NewFileInfo(1, 2), "b")
+	aFn.AddArg(bFn)
+	ln.Push(aFn)
+	expected.Root = ln
+
+	parserTestTable("test fn composition", `a(b())`, expected, t, true)
+
+	expected = ast.NewTree("fn inv")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	aFn = ast.NewFnInvNode(token.NewFileInfo(1, 0), "a")
+	bFn = ast.NewFnInvNode(token.NewFileInfo(1, 2), "b")
+	b2Fn := ast.NewFnInvNode(token.NewFileInfo(1, 7), "b")
+	aFn.AddArg(bFn)
+	aFn.AddArg(b2Fn)
+	ln.Push(aFn)
+	expected.Root = ln
+
+	parserTestTable("test fn composition", `a(b(), b())`, expected, t, true)
+
+	expected = ast.NewTree("fn inv")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	aFn = ast.NewFnInvNode(token.NewFileInfo(1, 0), "a")
+	bFn = ast.NewFnInvNode(token.NewFileInfo(1, 2), "b")
+	b2Fn = ast.NewFnInvNode(token.NewFileInfo(1, 4), "b")
+	bFn.AddArg(b2Fn)
+	aFn.AddArg(bFn)
+	ln.Push(aFn)
+	expected.Root = ln
+
+	parserTestTable("test fn composition", `a(b(b()))`, expected, t, true)
+}
+
 func TestParseIfFnInv(t *testing.T) {
 	expected := ast.NewTree("test if")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))

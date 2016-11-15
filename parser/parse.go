@@ -913,9 +913,24 @@ func (p *Parser) parseFnInv(ident scanner.Token, allowSemicolon bool) (ast.Node,
 		} else if it.Type() == token.RParen {
 			p.next()
 			break
+		} else if it.Type() == token.Ident {
+			ident := it
+			p.next()
+			it = p.peek()
+
+			if it.Type() == token.LParen {
+				arg, err := p.parseFnInv(ident, false)
+
+				if err != nil {
+					return nil, err
+				}
+
+				n.AddArg(arg)
+			} else {
+				goto parseError
+			}
 		} else {
-			return nil, newParserError(it, p.name,
-				"Unexpected token %v. Expecting STRING, VARIABLE or )", it)
+			goto parseError
 		}
 
 		if p.peek().Type() == token.Comma {
@@ -931,6 +946,10 @@ func (p *Parser) parseFnInv(ident scanner.Token, allowSemicolon bool) (ast.Node,
 	}
 
 	return n, nil
+
+parseError:
+	return nil, newParserError(it, p.name,
+		"Unexpected token %v. Expecting STRING, VARIABLE or )", it)
 }
 
 func (p *Parser) parseElse() (*ast.BlockNode, bool, error) {

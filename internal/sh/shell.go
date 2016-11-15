@@ -1382,34 +1382,48 @@ func (shell *Shell) evalExprs(exprs []ast.Expr) ([]sh.Obj, error) {
 func (shell *Shell) evalExpr(expr ast.Expr) (sh.Obj, error) {
 	switch expr.Type() {
 	case ast.NodeStringExpr:
-		str := expr.(*ast.StringExpr)
-		return sh.NewStrObj(str.Value()), nil
-	case ast.NodeConcatExpr:
-		concat := expr.(*ast.ConcatExpr)
-		argVal, err := shell.evalConcat(concat)
-
-		if err != nil {
-			return nil, err
+		if str, ok := expr.(*ast.StringExpr); ok {
+			return sh.NewStrObj(str.Value()), nil
 		}
+	case ast.NodeConcatExpr:
+		if concat, ok := expr.(*ast.ConcatExpr); ok {
+			argVal, err := shell.evalConcat(concat)
 
-		return sh.NewStrObj(argVal), nil
+			if err != nil {
+				return nil, err
+			}
+
+			return sh.NewStrObj(argVal), nil
+		}
 	case ast.NodeVarExpr:
 		return shell.evalVariable(expr)
 	case ast.NodeIndexExpr:
-		indexedVar, ok := expr.(*ast.IndexExpr)
-
-		if !ok {
-			return nil, errors.NewError("Failed to eval indexed variable")
+		if indexedVar, ok := expr.(*ast.IndexExpr); ok {
+			return shell.evalIndexedVar(indexedVar)
 		}
-
-		return shell.evalIndexedVar(indexedVar)
 	case ast.NodeListExpr:
-		argList := expr.(*ast.ListExpr)
+		if listExpr, ok := expr.(*ast.ListExpr); ok {
+			return shell.evalList(listExpr)
+		}
+	case ast.NodeFnInv:
+		if fnInv, ok := expr.(*ast.FnInvNode); ok {
+			obj, err := shell.executeFnInv(fnInv)
 
-		return shell.evalList(argList)
+			if err != nil {
+				return nil, err
+			}
+
+			if obj == nil {
+				return nil, errors.NewError("Function used in"+
+					" expression but do not return any value: %s",
+					fnInv)
+			}
+
+			return obj, nil
+		}
 	}
 
-	return nil, errors.NewError("Invalid argument type: %+v", expr)
+	return nil, errors.NewError("Failed to eval expression: %+v", expr)
 }
 
 func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {

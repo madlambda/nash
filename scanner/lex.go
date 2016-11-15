@@ -204,7 +204,6 @@ func Lex(name, input string) *Lexer {
 }
 
 func lexStart(l *Lexer) stateFn {
-
 	r := l.next()
 
 	switch {

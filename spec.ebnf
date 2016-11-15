@@ -54,7 +54,10 @@ fnArg  = identifier .
 returnDecl = "return" [ ( variable | string_lit | list ) ] .
 
 /* Function invocation */
-fnInv = ( variable | identifier ) "(" fnArgs ")" .
+fnInv = ( variable | identifier ) "(" fnArgValues ")" .
+
+fnArgValues = { fnArgValue [ "," ] } .
+fnArgValue  = [ string_lit | stringConcat | variable | fnInv ] .
 
 /* Function binding */
 bindfn = "bindfn" identifier identifier .
@@ -89,7 +92,6 @@ variable    = "$" identifier .
 comparison  = "==" | "!=" .
 
 string_lit   = "\"" { unicode_char | newline } "\"" .
-
 
 stringConcat = ( string_lit "+" string_lit ) |
                ( variable "+" string_lit ) |
