@@ -37,13 +37,13 @@ type (
 
 	// Shell is the core data structure.
 	Shell struct {
-		name        string
-		debug       bool
-		lambdas     uint
-		logf        LogFn
-		nashdPath   string
-		isFn        bool
-		currentFile string // current file being executed or imported
+		name      string
+		debug     bool
+		lambdas   uint
+		logf      LogFn
+		nashdPath string
+		isFn      bool
+		filename  string // current file being executed or imported
 
 		interrupted bool
 		looping     bool
@@ -115,20 +115,20 @@ func (e *errStopWalking) StopWalking() bool { return true }
 // NewShell creates a new shell object
 func NewShell() (*Shell, error) {
 	shell := &Shell{
-		name:        "parent scope",
-		isFn:        false,
-		logf:        NewLog(logNS, false),
-		nashdPath:   nashdAutoDiscover(),
-		stdout:      os.Stdout,
-		stderr:      os.Stderr,
-		stdin:       os.Stdin,
-		env:         make(Env),
-		vars:        make(Var),
-		fns:         make(Fns),
-		builtins:    make(Fns),
-		binds:       make(Fns),
-		Mutex:       &sync.Mutex{},
-		currentFile: "<interactive>",
+		name:      "parent scope",
+		isFn:      false,
+		logf:      NewLog(logNS, false),
+		nashdPath: nashdAutoDiscover(),
+		stdout:    os.Stdout,
+		stderr:    os.Stderr,
+		stdin:     os.Stdin,
+		env:       make(Env),
+		vars:      make(Var),
+		fns:       make(Fns),
+		builtins:  make(Fns),
+		binds:     make(Fns),
+		Mutex:     &sync.Mutex{},
+		filename:  "<interactive>",
 	}
 
 	err := shell.setup()
@@ -152,21 +152,21 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 	}
 
 	sh := &Shell{
-		name:        name,
-		isFn:        true,
-		parent:      parent,
-		logf:        NewLog(logNS, false),
-		nashdPath:   nashdAutoDiscover(),
-		stdout:      parent.Stdout(),
-		stderr:      parent.Stderr(),
-		stdin:       parent.Stdin(),
-		env:         make(Env),
-		vars:        make(Var),
-		fns:         make(Fns),
-		binds:       make(Fns),
-		builtins:    nil, // subshell does not have builtins
-		Mutex:       parent.Mutex,
-		currentFile: parent.currentFile,
+		name:      name,
+		isFn:      true,
+		parent:    parent,
+		logf:      NewLog(logNS, false),
+		nashdPath: nashdAutoDiscover(),
+		stdout:    parent.Stdout(),
+		stderr:    parent.Stderr(),
+		stdin:     parent.Stdin(),
+		env:       make(Env),
+		vars:      make(Var),
+		fns:       make(Fns),
+		binds:     make(Fns),
+		builtins:  nil, // subshell does not have builtins
+		Mutex:     parent.Mutex,
+		filename:  parent.filename,
 	}
 
 	return sh, nil
@@ -522,7 +522,7 @@ func (shell *Shell) Exec(path, content string) error {
 
 // Execute the nash file at given path
 func (shell *Shell) ExecFile(path string) error {
-	bkCurFile := shell.currentFile
+	bkCurFile := shell.filename
 
 	content, err := ioutil.ReadFile(path)
 
@@ -530,10 +530,10 @@ func (shell *Shell) ExecFile(path string) error {
 		return err
 	}
 
-	shell.currentFile = path
+	shell.filename = path
 
 	defer func() {
-		shell.currentFile = bkCurFile
+		shell.filename = bkCurFile
 	}()
 
 	return shell.Exec(path, string(content))
@@ -557,7 +557,8 @@ func (shell *Shell) evalConcat(path ast.Expr) (string, error) {
 		switch part.Type() {
 
 		case ast.NodeConcatExpr:
-			return "", errors.NewError("Nested concat is not allowed")
+			return "", errors.NewEvalError(shell.filename, part,
+				"Nested concat is not allowed: %s", part)
 		case ast.NodeVarExpr, ast.NodeIndexExpr:
 			partValues, err := shell.evalVariable(part)
 
@@ -566,9 +567,12 @@ func (shell *Shell) evalConcat(path ast.Expr) (string, error) {
 			}
 
 			if partValues.Type() == sh.ListType {
-				return "", fmt.Errorf("Concat of list variables is not allowed: %v = %v", part, partValues)
+				return "", errors.NewEvalError(shell.filename,
+					part, "Concat of list variables is not allowed: %v = %v",
+					part, partValues)
 			} else if partValues.Type() != sh.StringType {
-				return "", fmt.Errorf("Invalid concat element: %v", partValues)
+				return "", errors.NewEvalError(shell.filename, part,
+					"Invalid concat element: %v", partValues)
 			}
 
 			strval := partValues.(*sh.StrObj)
@@ -577,14 +581,17 @@ func (shell *Shell) evalConcat(path ast.Expr) (string, error) {
 			str, ok := part.(*ast.StringExpr)
 
 			if !ok {
-				return "", fmt.Errorf("Failed to eval string.")
+				return "", errors.NewEvalError(shell.filename, part,
+					"Failed to eval string: %s", part)
 			}
 
 			pathStr += str.Value()
 		case ast.NodeListExpr:
-			return "", errors.NewError("Concat of lists is not allowed: %+v", part.String())
+			return "", errors.NewEvalError(shell.filename, part,
+				"Concat of lists is not allowed: %+v", part.String())
 		default:
-			return "", fmt.Errorf("Invalid argument: %+v", part)
+			return "", errors.NewEvalError(shell.filename, part,
+				"Invalid argument: %+v", part)
 		}
 	}
 
@@ -633,11 +640,14 @@ func (shell *Shell) executeNode(node ast.Node, builtin bool) (sh.Obj, error) {
 		if shell.IsFn() {
 			obj, err = shell.executeReturn(node.(*ast.ReturnNode))
 		} else {
-			err = errors.NewError("Unexpected return outside of function declaration.")
+			err = errors.NewEvalError(shell.filename,
+				node,
+				"Unexpected return outside of function declaration.")
 		}
 	default:
 		// should never get here
-		return nil, errors.NewError("invalid node: %v.", node.Type())
+		return nil, errors.NewEvalError(shell.filename, node,
+			"invalid node: %v.", node.Type())
 	}
 
 	return obj, err
@@ -716,7 +726,9 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	}
 
 	if obj.Type() != sh.StringType {
-		return errors.NewError("Invalid type on import argument: %s", obj.Type())
+		return errors.NewEvalError(shell.filename,
+			arg,
+			"Invalid type on import argument: %s", obj.Type())
 	}
 
 	objstr := obj.(*sh.StrObj)
@@ -743,11 +755,11 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		}
 	}
 
-	if shell.currentFile != "" {
-		tries = append(tries, path.Dir(shell.currentFile)+"/"+fname)
+	if shell.filename != "" {
+		tries = append(tries, path.Dir(shell.filename)+"/"+fname)
 
 		if !hasExt {
-			tries = append(tries, path.Dir(shell.currentFile)+"/"+fname+".sh")
+			tries = append(tries, path.Dir(shell.filename)+"/"+fname+".sh")
 		}
 	}
 
@@ -781,7 +793,8 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		}
 	}
 
-	return errors.NewError("Failed to import path '%s'. The locations below have been tried:\n \"%s\"",
+	return errors.NewEvalError(shell.filename, node,
+		"Failed to import path '%s'. The locations below have been tried:\n \"%s\"",
 		fname,
 		strings.Join(tries, `", "`))
 }
@@ -810,7 +823,8 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) error {
 	nodeCommands := pipe.Commands()
 
 	if len(nodeCommands) < 2 {
-		return errors.NewError("Pipe requires at least two commands.")
+		return errors.NewEvalError(shell.filename,
+			pipe, "Pipe requires at least two commands.")
 	}
 
 	cmds := make([]sh.Runner, len(nodeCommands))
@@ -952,7 +966,8 @@ pipeError:
 
 	cods[errIndex] = getErrStatus(err, cods[errIndex])
 
-	err = errors.NewError(strings.Join(errs, "|"))
+	err = errors.NewEvalError(shell.filename,
+		pipe, strings.Join(errs, "|"))
 
 	// verify if all status codes are the same
 	uniqCodes := make(map[string]struct{})
@@ -989,7 +1004,9 @@ func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, err
 	}
 
 	if locationObj.Type() != sh.StringType {
-		return nil, errors.NewError("Redirection to invalid object type: %v (%s)", locationObj, locationObj.Type())
+		return nil, errors.NewEvalError(shell.filename,
+			location,
+			"Redirection to invalid object type: %v (%s)", locationObj, locationObj.Type())
 	}
 
 	objstr := locationObj.(*sh.StrObj)
@@ -1014,7 +1031,9 @@ func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, err
 		netParts := strings.Split(locationStr[6:], ":")
 
 		if len(netParts) != 2 {
-			return nil, errors.NewError("Invalid tcp/udp address: %s", locationStr)
+			return nil, errors.NewEvalError(shell.filename,
+				location,
+				"Invalid tcp/udp address: %s", locationStr)
 		}
 
 		url := netParts[0] + ":" + netParts[1]
@@ -1024,7 +1043,8 @@ func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, err
 		return net.Dial(protocol, locationStr[7:])
 	}
 
-	return nil, errors.NewError("Unexpected redirection value: %s", locationStr)
+	return nil, errors.NewEvalError(shell.filename, location,
+		"Unexpected redirection value: %s", locationStr)
 }
 
 func (shell *Shell) setRedirects(cmd sh.Runner, redirDecls []*ast.RedirectNode) ([]io.Closer, error) {
@@ -1046,11 +1066,15 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 	var closeAfterWait []io.Closer
 
 	if redirDecl.LeftFD() > 2 || redirDecl.LeftFD() < ast.RedirMapSupress {
-		return closeAfterWait, errors.NewError("Invalid file descriptor redirection: fd=%d", redirDecl.LeftFD())
+		return closeAfterWait, errors.NewEvalError(shell.filename,
+			redirDecl,
+			"Invalid file descriptor redirection: fd=%d", redirDecl.LeftFD())
 	}
 
 	if redirDecl.RightFD() > 2 || redirDecl.RightFD() < ast.RedirMapSupress {
-		return closeAfterWait, errors.NewError("Invalid file descriptor redirection: fd=%d", redirDecl.RightFD())
+		return closeAfterWait, errors.NewEvalError(shell.filename,
+			redirDecl,
+			"Invalid file descriptor redirection: fd=%d", redirDecl.RightFD())
 	}
 
 	var err error
@@ -1062,13 +1086,17 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 	case 1:
 		switch redirDecl.RightFD() {
 		case 0:
-			return closeAfterWait, errors.NewError("Invalid redirect mapping: %d -> %d", 1, 0)
+			return closeAfterWait, errors.NewEvalError(shell.filename,
+				redirDecl,
+				"Invalid redirect mapping: %d -> %d", 1, 0)
 		case 1: // do nothing
 		case 2:
 			cmd.SetStdout(cmd.Stderr())
 		case ast.RedirMapNoValue:
 			if redirDecl.Location() == nil {
-				return closeAfterWait, errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
+				return closeAfterWait, errors.NewEvalError(shell.filename,
+					redirDecl,
+					"Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
 			}
 
 			file, err := shell.openRedirectLocation(redirDecl.Location())
@@ -1091,13 +1119,16 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 	case 2:
 		switch redirDecl.RightFD() {
 		case 0:
-			return closeAfterWait, errors.NewError("Invalid redirect mapping: %d -> %d", 2, 1)
+			return closeAfterWait, errors.NewEvalError(shell.filename,
+				redirDecl, "Invalid redirect mapping: %d -> %d", 2, 1)
 		case 1:
 			cmd.SetStderr(cmd.Stdout())
 		case 2: // do nothing
 		case ast.RedirMapNoValue:
 			if redirDecl.Location() == nil {
-				return closeAfterWait, errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
+				return closeAfterWait, errors.NewEvalError(shell.filename,
+					redirDecl,
+					"Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
 			}
 
 			file, err := shell.openRedirectLocation(redirDecl.Location())
@@ -1119,7 +1150,8 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 		}
 	case ast.RedirMapNoValue:
 		if redirDecl.Location() == nil {
-			return closeAfterWait, errors.NewError("Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
+			return closeAfterWait, errors.NewEvalError(shell.filename,
+				redirDecl, "Missing file in redirection: >[%d] <??>", redirDecl.LeftFD())
 		}
 
 		file, err := shell.openRedirectLocation(redirDecl.Location())
@@ -1154,7 +1186,8 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 	}
 
 	if cmdName == "" {
-		return nil, false, errors.NewError("Empty command name...") // TODO: add context to error
+		return nil, false, errors.NewEvalError(shell.filename,
+			c, "Empty command name...")
 	}
 
 	cmd, err = NewCmd(cmdName)
@@ -1172,8 +1205,9 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 				shell.logf("%s bind to %s", cmdName, fn)
 
 				if len(c.Args()) > len(fn.ArgNames()) {
-					err = errors.NewError("Too much arguments for"+
-						" function '%s'. It expects %d args, but given %d. Arguments: %q",
+					err = errors.NewEvalError(shell.filename,
+						c, "Too much arguments for"+
+							" function '%s'. It expects %d args, but given %d. Arguments: %q",
 						fn.Name(),
 						len(fn.ArgNames()),
 						len(c.Args()), c.Args())
@@ -1306,7 +1340,7 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 	}
 
 	if v.Type() != sh.ListType {
-		return nil, errors.NewEvalError(shell.currentFile, variable, "Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
+		return nil, errors.NewEvalError(shell.filename, variable, "Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
 	}
 
 	if index.Type() == ast.NodeIntExpr {
@@ -1320,7 +1354,8 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		}
 
 		if idxObj.Type() != sh.StringType {
-			return nil, errors.NewError("Invalid object type on index value: %s", idxObj.Type())
+			return nil, errors.NewEvalError(shell.filename,
+				index, "Invalid object type on index value: %s", idxObj.Type())
 		}
 
 		objstr := idxObj.(*sh.StrObj)
@@ -1335,7 +1370,9 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 	values := vlist.List()
 
 	if indexNum < 0 || indexNum >= len(values) {
-		return nil, errors.NewError("Index out of bounds. len(%s) == %d, but given %d", variable.Name(), len(values), indexNum)
+		return nil, errors.NewEvalError(shell.filename,
+			variable,
+			"Index out of bounds. len(%s) == %d, but given %d", variable.Name(), len(values), indexNum)
 	}
 
 	return values[indexNum], nil
@@ -1352,14 +1389,16 @@ func (shell *Shell) evalVariable(a ast.Expr) (sh.Obj, error) {
 	}
 
 	if a.Type() != ast.NodeVarExpr {
-		return nil, errors.NewError("Invalid eval of non variable argument: %s", a)
+		return nil, errors.NewEvalError(shell.filename,
+			a, "Invalid eval of non variable argument: %s", a)
 	}
 
 	vexpr := a.(*ast.VarExpr)
 	varName := vexpr.Name()
 
 	if v, ok = shell.Getvar(varName[1:]); !ok {
-		return nil, fmt.Errorf("Variable %s not set on shell %s", varName, shell.name)
+		return nil, errors.NewEvalError(shell.filename,
+			a, "Variable %s not set on shell %s", varName, shell.name)
 	}
 
 	return v, nil
@@ -1416,8 +1455,10 @@ func (shell *Shell) evalExpr(expr ast.Expr) (sh.Obj, error) {
 			}
 
 			if obj == nil {
-				return nil, errors.NewError("Function used in"+
-					" expression but do not return any value: %s",
+				return nil, errors.NewEvalError(shell.filename,
+					expr,
+					"Function used in"+
+						" expression but do not return any value: %s",
 					fnInv)
 			}
 
@@ -1425,7 +1466,8 @@ func (shell *Shell) evalExpr(expr ast.Expr) (sh.Obj, error) {
 		}
 	}
 
-	return nil, errors.NewError("Failed to eval expression: %+v", expr)
+	return nil, errors.NewEvalError(shell.filename,
+		expr, "Failed to eval expression: %+v", expr)
 }
 
 func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
@@ -1460,7 +1502,8 @@ func (shell *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 		}
 
 		if obj.Type() != sh.StringType {
-			return "", errors.NewError("Impossible to concat elements of type %s", obj.Type())
+			return "", errors.NewEvalError(shell.filename,
+				expr, "Impossible to concat elements of type %s", obj.Type())
 		}
 
 		value = value + obj.String()
@@ -1496,13 +1539,15 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 		}
 
 		if fnValues == nil {
-			return errors.NewError("Invalid assignment from function that does not return values: %s", assign)
+			return errors.NewEvalError(shell.filename,
+				v, "Invalid assignment from function that does not return values: %s", assign)
 		}
 
 		shell.Setvar(v.Identifier(), fnValues)
 		return nil
 	default:
-		err = errors.NewError("Unexpected node in assignment: %s", assign.String())
+		err = errors.NewEvalError(shell.filename,
+			assign, "Unexpected node in assignment: %s", assign.String())
 	}
 
 	output := varOut.Bytes()
@@ -1547,7 +1592,8 @@ func (shell *Shell) evalIfArgument(arg ast.Node) (sh.Obj, error) {
 	if err != nil {
 		return nil, err
 	} else if obj == nil {
-		return nil, errors.NewError("lvalue doesn't yield value (%s)", arg)
+		return nil, errors.NewEvalError(shell.filename,
+			arg, "lvalue doesn't yield value (%s)", arg)
 	}
 
 	return obj, nil
@@ -1572,11 +1618,13 @@ func (shell *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
 	}
 
 	if lobj.Type() != sh.StringType {
-		return "", "", errors.NewError("lvalue is not comparable: (%v) -> %s.", lobj, lobj.Type())
+		return "", "", errors.NewEvalError(shell.filename,
+			n, "lvalue is not comparable: (%v) -> %s.", lobj, lobj.Type())
 	}
 
 	if robj.Type() != sh.StringType {
-		return "", "", errors.NewError("rvalue is not comparable: (%v) -> %s.", lobj, lobj.Type())
+		return "", "", errors.NewEvalError(shell.filename,
+			n, "rvalue is not comparable: (%v) -> %s.", lobj, lobj.Type())
 	}
 
 	lobjstr := lobj.(*sh.StrObj)
@@ -1663,7 +1711,8 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) (sh.Obj, error) {
 		}
 
 		if obj.Type() != sh.FnType {
-			return nil, errors.NewError("Variable '%s' isnt a function.", fnName)
+			return nil, errors.NewEvalError(shell.filename,
+				n, "Variable '%s' isnt a function.", fnName)
 		}
 
 		objfn := obj.(*sh.FnObj)
@@ -1675,7 +1724,8 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) (sh.Obj, error) {
 			fn, ok = shell.GetFn(fnName)
 
 			if !ok {
-				return nil, errors.NewError("no such function '%s'", fnName)
+				return nil, errors.NewEvalError(shell.filename,
+					n, "no such function '%s'", fnName)
 			}
 		}
 	}
@@ -1786,7 +1836,8 @@ func (shell *Shell) executeFor(n *ast.ForNode) (sh.Obj, error) {
 	}
 
 	if obj.Type() != sh.ListType {
-		return nil, errors.NewError("Invalid variable type in for range: %s", obj.Type())
+		return nil, errors.NewEvalError(shell.filename,
+			argVar, "Invalid variable type in for range: %s", obj.Type())
 	}
 
 	objlist := obj.(*sh.ListObj)
@@ -1917,7 +1968,9 @@ func (shell *Shell) executeDump(n *ast.DumpNode) error {
 	}
 
 	if obj.Type() != sh.StringType {
-		return errors.NewError("dump does not support argument of type %s", obj.Type())
+		return errors.NewEvalError(shell.filename,
+			fnameArg,
+			"dump does not support argument of type %s", obj.Type())
 	}
 
 	objstr = obj.(*sh.StrObj)
@@ -1937,7 +1990,8 @@ func (shell *Shell) executeBindFn(n *ast.BindFnNode) error {
 	if fn, ok := shell.GetFn(n.Name()); ok {
 		shell.Setbindfn(n.CmdName(), fn)
 	} else {
-		return errors.NewError("No such function '%s'", n.Name())
+		return errors.NewEvalError(shell.filename,
+			n, "No such function '%s'", n.Name())
 	}
 
 	return nil
