@@ -230,7 +230,7 @@ func TestExecuteCmdAssignment(t *testing.T) {
                          v <= e()`,
 			"",
 			"",
-			"Invalid assignment from function that does not return values: e()",
+			"<interactive>:2:25: Invalid assignment from function that does not return values: e()",
 		},
 	} {
 		testExec(t,
@@ -254,7 +254,7 @@ for i in $range {
     echo "i = " + $i
 }`,
 			"", "",
-			"Invalid variable type in for range: StringType",
+			"<interactive>:4:0: Invalid variable type in for range: StringType",
 		},
 		{
 			"ifs",
@@ -265,7 +265,7 @@ for i in $range {
     echo "i = " + $i
 }`,
 			"", "",
-			"Invalid variable type in for range: StringType",
+			"<interactive>:4:0: Invalid variable type in for range: StringType",
 		},
 		{
 			"ifs",
@@ -276,7 +276,7 @@ for i in $range {
     echo "i = " + $i
 }`,
 			"", "",
-			"Invalid variable type in for range: StringType",
+			"<interactive>:4:0: Invalid variable type in for range: StringType",
 		},
 		{
 			"ifs",
@@ -287,7 +287,7 @@ for i in $range {
     echo "i = " + $i
 }`,
 			"", "",
-			"Invalid variable type in for range: StringType",
+			"<interactive>:4:0: Invalid variable type in for range: StringType",
 		},
 	} {
 		testExec(t,
@@ -452,7 +452,7 @@ func TestExecuteCd(t *testing.T) {
         cd $var
         pwd`,
 			"", "",
-			"lvalue is not comparable: (val1 val2 val3) -> ListType.",
+			"<interactive>:2:12: lvalue is not comparable: (val1 val2 val3) -> ListType.",
 		},
 	} {
 		testExec(t,
@@ -1783,7 +1783,9 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 		return
 	}
 
-	if err.Error() != "not started|exec: \"cmd-does-not-exists\": executable file not found in $PATH" {
+	expectedError := `<interactive>:1:11: not started|exec: "cmd-does-not-exists": executable file not found in $PATH`
+
+	if err.Error() != expectedError {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return
 	}
