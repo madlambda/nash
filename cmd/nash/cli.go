@@ -99,10 +99,12 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 	)
 
 	for {
-		prompt := shell.Prompt()
 		if fn, ok := shell.GetFn("nash_repl_before"); ok {
 			execFn(shell, fn)
 		}
+
+		prompt := shell.Prompt()
+		rline.SetPrompt(prompt)
 
 		line, err = rline.Readline()
 
