@@ -582,7 +582,11 @@ func (p *Parser) parseList() (ast.Node, error) {
 	}
 
 	if it.Type() != token.RParen {
-		return nil, errors.NewUnfinishedListError(p.name, it)
+		if it.Type() == token.EOF {
+			return nil, errors.NewUnfinishedListError(p.name, it)
+		}
+
+		return nil, newParserError(it, p.name, "Expected ) but found %s", it)
 	}
 
 	p.ignore()
