@@ -1474,7 +1474,26 @@ func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 	var (
 		varValue sh.Obj
 		ok       bool
+		assign   = v.Assignment()
+		err      error
 	)
+
+	if assign != nil {
+		switch assign.Type() {
+		case ast.NodeAssignment:
+			err = shell.executeAssignment(assign.(*ast.AssignmentNode))
+		case ast.NodeExecAssign:
+			err = shell.executeExecAssign(assign.(*ast.ExecAssignNode))
+		default:
+			err = errors.NewEvalError(shell.filename,
+				v, "Failed to eval setenv, invalid assignment type: %+v",
+				assign)
+		}
+
+		if err != nil {
+			return err
+		}
+	}
 
 	varName := v.Identifier()
 

@@ -68,6 +68,7 @@ type (
 		token.FileInfo
 
 		varName string
+		assign  Node
 	}
 
 	// AssignmentNode is a node for variable assignments
@@ -455,17 +456,26 @@ func (n *ImportNode) IsEqual(other Node) bool {
 }
 
 // NewSetenvNode creates a new assignment node
-func NewSetenvNode(info token.FileInfo, name string) *SetenvNode {
+func NewSetenvNode(info token.FileInfo, name string, assign Node) (*SetenvNode, error) {
+	if assign != nil && assign.Type() != NodeAssignment &&
+		assign.Type() != NodeExecAssign {
+		return nil, errors.New("Invalid assignment in setenv")
+	}
+
 	return &SetenvNode{
 		NodeType: NodeSetenv,
 		FileInfo: info,
 
 		varName: name,
-	}
+		assign:  assign,
+	}, nil
 }
 
 // Identifier returns the environment name.
 func (n *SetenvNode) Identifier() string { return n.varName }
+
+// Assignment returns the setenv assignment (if any)
+func (n *SetenvNode) Assignment() Node { return n.assign }
 
 // IsEqual returns if it is equal to the other node.
 func (n *SetenvNode) IsEqual(other Node) bool {
@@ -482,6 +492,12 @@ func (n *SetenvNode) IsEqual(other Node) bool {
 
 	if !cmpInfo(n, other) {
 		return false
+	}
+
+	if n.assign != o.assign {
+		if !n.assign.IsEqual(o.assign) {
+			return false
+		}
 	}
 
 	return n.varName == o.varName

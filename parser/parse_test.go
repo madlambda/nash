@@ -111,12 +111,55 @@ func TestParsePipe(t *testing.T) {
 func TestBasicSetAssignment(t *testing.T) {
 	expected := ast.NewTree("simple set assignment")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
-	set := ast.NewSetenvNode(token.NewFileInfo(1, 0), "test")
+	set, err := ast.NewSetenvNode(token.NewFileInfo(1, 0), "test", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	ln.Push(set)
 	expected.Root = ln
 
 	parserTestTable("simple set assignment", `setenv test`, expected, t, true)
+
+	// setenv with assignment
+	expected = ast.NewTree("setenv with simple assignment")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 7),
+		"test",
+		ast.NewStringExpr(token.NewFileInfo(1, 15), "hello", true))
+	set, err = ast.NewSetenvNode(token.NewFileInfo(1, 0), "test", assign)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ln.Push(set)
+	expected.Root = ln
+
+	parserTestTable("setenv with simple assignment", `setenv test = "hello"`, expected, t, true)
+
+	expected = ast.NewTree("setenv with simple cmd assignment")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+
+	cmd := ast.NewCommandNode(token.NewFileInfo(1, 15), "ls", false)
+
+	cmdAssign, err := ast.NewExecAssignNode(token.NewFileInfo(1, 7), "test", cmd)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	set, err = ast.NewSetenvNode(token.NewFileInfo(1, 0), "test", cmdAssign)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ln.Push(set)
+	expected.Root = ln
+
+	parserTestTable("simple assignment", `setenv test <= ls`, expected, t, true)
 }
 
 func TestBasicAssignment(t *testing.T) {
@@ -436,7 +479,12 @@ func TestParseCd(t *testing.T) {
 
 	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0), "HOME", ast.NewStringExpr(token.NewFileInfo(1, 8), "/", true))
 
-	set := ast.NewSetenvNode(token.NewFileInfo(3, 0), "HOME")
+	set, err := ast.NewSetenvNode(token.NewFileInfo(3, 0), "HOME", nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	cd = ast.NewCommandNode(token.NewFileInfo(5, 0), "cd", false)
 	pwd := ast.NewCommandNode(token.NewFileInfo(6, 0), "pwd", false)
 

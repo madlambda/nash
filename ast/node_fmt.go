@@ -151,7 +151,11 @@ func (n *ImportNode) String() string {
 
 // String returns the string representation of assignment
 func (n *SetenvNode) String() string {
-	return "setenv " + n.varName
+	if n.assign == nil {
+		return "setenv " + n.varName
+	}
+
+	return "setenv " + n.assign.String()
 }
 
 func (n *AssignmentNode) string() (string, bool) {

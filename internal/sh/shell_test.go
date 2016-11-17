@@ -419,6 +419,44 @@ func TestExecuteRedirectionMap(t *testing.T) {
 	}
 }
 
+func TestExecuteSetenv(t *testing.T) {
+	for _, test := range []execTest{
+		{
+			"test setenv basic",
+			`test = "hello"
+                         setenv test
+                         nash -c "echo $test"`,
+			"hello\n", "", "",
+		},
+		{
+			"test setenv assignment",
+			`setenv test = "hello"
+                         nash -c "echo $test"`,
+			"hello\n", "", "",
+		},
+		{
+			"test setenv exec cmd",
+			`setenv test <= echo -n "hello"
+                         nash -c "echo $test"`,
+			"hello\n", "", "",
+		},
+		{
+			"test setenv semicolon",
+			`setenv a setenv b`,
+			"", "",
+			"test setenv semicolon:1:9: Unexpected token setenv, expected semicolon (;) or EOL",
+		},
+	} {
+		testExec(t,
+			test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
+	}
+}
+
 func TestExecuteCd(t *testing.T) {
 	for _, test := range []execTest{
 		{
@@ -1689,8 +1727,7 @@ func TestExecuteSubShellDoesNotOverwriteparentEnv(t *testing.T) {
 		return
 	}
 
-	err = shell.Exec("set env", `SHELL = "bleh"
-setenv SHELL`)
+	err = shell.Exec("set env", `setenv SHELL = "bleh"`)
 
 	if err != nil {
 		t.Error(err)
