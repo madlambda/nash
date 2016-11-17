@@ -425,19 +425,19 @@ func TestExecuteSetenv(t *testing.T) {
 			"test setenv basic",
 			`test = "hello"
                          setenv test
-                         nash -c "echo $test"`,
+                         ` + nashdPath + ` -c "echo $test"`,
 			"hello\n", "", "",
 		},
 		{
 			"test setenv assignment",
 			`setenv test = "hello"
-                         nash -c "echo $test"`,
+                         ` + nashdPath + ` -c "echo $test"`,
 			"hello\n", "", "",
 		},
 		{
 			"test setenv exec cmd",
 			`setenv test <= echo -n "hello"
-                         nash -c "echo $test"`,
+                         ` + nashdPath + ` -c "echo $test"`,
 			"hello\n", "", "",
 		},
 		{
