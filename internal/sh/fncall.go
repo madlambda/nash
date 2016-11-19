@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
 	"github.com/NeowayLabs/nash/sh"
 )
@@ -19,14 +20,47 @@ type (
 
 		*Shell // sub-shell
 	}
+
+	FnSpec struct {
+		name   string
+		parent *Shell
+
+		root     *ast.Tree
+		argNames []string
+	}
 )
 
-func NewUserFn(name string, parent *Shell) (*UserFn, error) {
+func NewFnSpec(name string, parent *Shell) *FnSpec {
+	return &FnSpec{
+		name:   name,
+		parent: parent,
+	}
+}
+
+func (fnSpec *FnSpec) SetArgNames(args []string) {
+	fnSpec.argNames = args
+}
+
+func (fnSpec *FnSpec) SetTree(t *ast.Tree) {
+	fnSpec.root = t
+}
+
+func (fnSpec *FnSpec) Parent() *Shell {
+	return fnSpec.parent
+}
+
+func (fnSpec *FnSpec) Name() string {
+	return fnSpec.name
+}
+
+func NewUserFn(fnSpec *FnSpec) (*UserFn, error) {
 	fn := UserFn{
 		done: make(chan error),
 	}
 
-	subshell, err := NewSubShell(name, parent)
+	parent := fnSpec.Parent()
+
+	subshell, err := NewSubShell(fnSpec.Name(), parent)
 
 	if err != nil {
 		return nil, err

@@ -29,9 +29,10 @@ const (
 
 type (
 	// Env is the environment map of lists
-	Env map[string]sh.Obj
-	Var Env
-	Fns map[string]sh.Fn
+	Env     map[string]sh.Obj
+	Var     Env
+	UserFns map[string]*FnSpec
+	Fns     map[string]sh.Fn
 
 	StatusCode uint8
 
@@ -54,7 +55,7 @@ type (
 
 		env  Env
 		vars Var
-		fns  Fns
+		fns  UserFns
 
 		builtins Fns
 		binds    Fns
@@ -124,7 +125,7 @@ func NewShell() (*Shell, error) {
 		stdin:     os.Stdin,
 		env:       make(Env),
 		vars:      make(Var),
-		fns:       make(Fns),
+		fns:       make(UserFns),
 		builtins:  make(Fns),
 		binds:     make(Fns),
 		Mutex:     &sync.Mutex{},
@@ -162,7 +163,7 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 		stdin:     parent.Stdin(),
 		env:       make(Env),
 		vars:      make(Var),
-		fns:       make(Fns),
+		fns:       make(UserFns),
 		binds:     make(Fns),
 		builtins:  nil, // subshell does not have builtins
 		Mutex:     parent.Mutex,
@@ -229,7 +230,7 @@ func (shell *Shell) initEnv(processEnv []string) error {
 
 // Reset internal state
 func (shell *Shell) Reset() {
-	shell.fns = make(Fns)
+	shell.fns = make(UserFns)
 	shell.vars = make(Var)
 	shell.env = make(Env)
 	shell.binds = make(Fns)
@@ -322,7 +323,7 @@ func (shell *Shell) GetBuiltin(name string) (sh.Fn, bool) {
 	return nil, false
 }
 
-func (shell *Shell) GetFn(name string) (sh.Fn, bool) {
+func (shell *Shell) GetFn(name string) (*FnSpec, bool) {
 	shell.logf("Looking for function '%s' on shell '%s'\n", name, shell.name)
 
 	if fn, ok := shell.fns[name]; ok {
@@ -1695,8 +1696,9 @@ func (shell *Shell) executeFn(fn sh.Fn, nodeArgs []ast.Expr) (sh.Obj, error) {
 
 func (shell *Shell) executeFnInv(n *ast.FnInvNode) (sh.Obj, error) {
 	var (
-		fn sh.Runner
-		ok bool
+		fn     sh.Runner
+		fnSpec *FnSpec
+		ok     bool
 	)
 
 	fnName := n.Name()
@@ -1721,12 +1723,12 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) (sh.Obj, error) {
 		fn, ok = shell.GetBuiltin(fnName)
 
 		if !ok {
-			fn, ok = shell.GetFn(fnName)
-
-			if !ok {
+			if fnSpec, ok = shell.GetFn(fnName); !ok {
 				return nil, errors.NewEvalError(shell.filename,
 					n, "no such function '%s'", fnName)
 			}
+
+			fn = NewUserFn(fnSpec)
 		}
 	}
 
@@ -1889,24 +1891,6 @@ func (shell *Shell) executeFor(n *ast.ForNode) (sh.Obj, error) {
 }
 
 func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
-	fn, err := NewUserFn(n.Name(), shell)
-
-	if err != nil {
-		return err
-	}
-
-	fn.SetRepr(n.String())
-
-	args := n.Args()
-
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-
-		fn.AddArgName(arg)
-	}
-
-	fn.SetTree(n.Tree())
-
 	fnName := n.Name()
 
 	if fnName == "" {
@@ -1914,9 +1898,13 @@ func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 		shell.lambdas++
 	}
 
-	shell.fns[fnName] = fn
+	fnSpec := NewFnSpec(fnName, shell)
+	fnSpec.SetArgNames(n.Args())
+	fnSpec.SetTree(n.Tree())
 
-	shell.Setvar(fnName, sh.NewFnObj(fn))
+	shell.fns[fnName] = fnSpec
+
+	shell.Setvar(fnName, sh.NewFnObj(fnSpec))
 	shell.logf("Function %s declared on '%s'", fnName, shell.name)
 
 	return nil
