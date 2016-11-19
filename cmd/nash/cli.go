@@ -90,20 +90,25 @@ func cli(shell *nash.Shell) error {
 
 func docli(shell *nash.Shell, rline *readline.Instance) error {
 	var (
-		content bytes.Buffer
-		lineidx int
-		line    string
-		parse   *parser.Parser
-		tr      *ast.Tree
-		err     error
+		content    bytes.Buffer
+		lineidx    int
+		line       string
+		parse      *parser.Parser
+		tr         *ast.Tree
+		err        error
+		unfinished bool
+		prompt     string
 	)
 
 	for {
-		if fn, ok := shell.GetFn("nash_repl_before"); ok {
+		if fn, ok := shell.GetFn("nash_repl_before"); ok && !unfinished {
 			execFn(shell, fn)
 		}
 
-		prompt := shell.Prompt()
+		if !unfinished {
+			prompt = shell.Prompt()
+		}
+
 		rline.SetPrompt(prompt)
 
 		line, err = rline.Readline()
@@ -160,6 +165,7 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 				goto cont
 			} else if errBlock, ok := err.(BlockNotFinished); ok && errBlock.Unfinished() {
 				prompt = ">>> "
+				unfinished = true
 				goto cont
 			}
 
@@ -169,6 +175,7 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 			goto cont
 		}
 
+		unfinished = false
 		content.Reset()
 
 		_, err = shell.ExecuteTree(tr)
@@ -178,7 +185,7 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 		}
 
 	cont:
-		if fn, ok := shell.GetFn("nash_repl_after"); ok {
+		if fn, ok := shell.GetFn("nash_repl_after"); ok && !unfinished {
 			var status sh.Obj
 			var ok bool
 
