@@ -454,19 +454,46 @@ func (p *Parser) parseImport(importToken scanner.Token) (ast.Node, error) {
 }
 
 func (p *Parser) parseSetenv(it scanner.Token) (ast.Node, error) {
-	fileInfo := it.FileInfo
+	var (
+		setenv   *ast.SetenvNode
+		assign   ast.Node
+		err      error
+		fileInfo = it.FileInfo
+	)
 
 	it = p.next()
+	next := p.peek()
 
 	if it.Type() != token.Ident {
-		return nil, newParserError(it, p.name, "Unexpected token %v, expected VARIABLE", it)
+		return nil, newParserError(it, p.name, "Unexpected token %v, expected identifier", it)
 	}
 
-	if p.peek().Type() == token.Semicolon {
+	if next.Type() == token.Assign || next.Type() == token.AssignCmd {
+		assign, err = p.parseAssignment(it)
+
+		if err != nil {
+			return nil, err
+		}
+
+		setenv, err = ast.NewSetenvNode(fileInfo, it.Value(), assign)
+	} else {
+		setenv, err = ast.NewSetenvNode(fileInfo, it.Value(), nil)
+
+		if p.peek().Type() != token.Semicolon {
+			return nil, newParserError(p.peek(),
+				p.name,
+				"Unexpected token %v, expected semicolon (;) or EOL",
+				p.peek())
+		}
+
 		p.ignore()
 	}
 
-	return ast.NewSetenvNode(fileInfo, it.Value()), nil
+	if err != nil {
+		return nil, err
+	}
+
+	return setenv, nil
 }
 
 func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
