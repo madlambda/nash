@@ -1078,11 +1078,13 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 	// return $v
 	// return "<some>"
 	// return ( ... values ... )
+	// return <fn name>()
 	if valueIt.Type() != token.Semicolon &&
 		valueIt.Type() != token.RBrace &&
 		valueIt.Type() != token.Variable &&
 		valueIt.Type() != token.String &&
-		valueIt.Type() != token.LParen {
+		valueIt.Type() != token.LParen &&
+		valueIt.Type() != token.Ident {
 		return nil, newParserError(valueIt, p.name,
 			"Expected ';', STRING, VARIABLE or LPAREN, but found %v",
 			valueIt)
@@ -1125,6 +1127,26 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 
 		listArg := ast.NewListExpr(listInfo, values)
 		ret.SetReturn(listArg)
+		return ret, nil
+	}
+
+	if valueIt.Type() == token.Ident {
+		p.next()
+		next := p.peek()
+
+		if next.Type() != token.LParen {
+			return nil, newParserError(valueIt, p.name,
+				"Expected FUNCALL, STRING, VARIABLE or LPAREN, but found %v %v",
+				valueIt, next)
+		}
+
+		arg, err := p.parseFnInv(valueIt, true)
+
+		if err != nil {
+			return nil, err
+		}
+
+		ret.SetReturn(arg)
 		return ret, nil
 	}
 
