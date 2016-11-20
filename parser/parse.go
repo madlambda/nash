@@ -1086,7 +1086,7 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 		valueIt.Type() != token.LParen &&
 		valueIt.Type() != token.Ident {
 		return nil, newParserError(valueIt, p.name,
-			"Expected ';', STRING, VARIABLE or LPAREN, but found %v",
+			"Expected ';', STRING, VARIABLE, FUNCALL or LPAREN, but found %v",
 			valueIt)
 	}
 
