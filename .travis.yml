@@ -7,10 +7,6 @@ matrix:
     - os: osx
 
 language: go
-sudo: required
-
-services:
-  - docker
 
 go:
   - tip
