@@ -13,6 +13,8 @@ services:
   - docker
 
 go:
+  - tip
+  - 1.7
   - 1.6
   - 1.5
 install:
@@ -27,7 +29,7 @@ script:
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update ; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install go ; fi
-  - sudo pip install codecov
+  - pip install codecov
 after_success:
   codecov
 notifications:
