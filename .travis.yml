@@ -7,12 +7,11 @@ matrix:
     - os: osx
 
 language: go
-sudo: required
-
-services:
-  - docker
+sudo: false
 
 go:
+  - tip
+  - 1.7
   - 1.6
   - 1.5
 install:
@@ -23,13 +22,8 @@ script:
   - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
   - make test
-#  - goveralls -coverprofile=coverage.txt -service=travis-ci
-before_install:
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update ; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install go ; fi
-  - sudo pip install codecov
 after_success:
-  codecov
+  - bash <(curl -s https://codecov.io/bash)
 notifications:
   webhooks:
     urls:

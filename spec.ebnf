@@ -51,7 +51,7 @@ fnArgs = { fnArg [ "," ] } .
 fnArg  = identifier .
 
 /* return declaration */
-returnDecl = "return" [ ( variable | string_lit | list ) ] .
+returnDecl = "return" [ ( variable | string_lit | list | fnInv ) ] .
 
 /* Function invocation */
 fnInv = ( variable | identifier ) "(" fnArgValues ")" .

@@ -1169,6 +1169,20 @@ func TestParseReturn(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("return", `return "value"`, expected, t, true)
+
+	expected = ast.NewTree("return funcall")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+
+	ret = ast.NewReturnNode(token.NewFileInfo(1, 0))
+
+	aFn := ast.NewFnInvNode(token.NewFileInfo(1, 7), "a")
+
+	ret.SetReturn(aFn)
+
+	ln.Push(ret)
+	expected.Root = ln
+
+	parserTestTable("return", `return a()`, expected, t, true)
 }
 
 func TestParseIfInvalid(t *testing.T) {
