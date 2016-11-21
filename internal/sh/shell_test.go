@@ -1175,35 +1175,22 @@ func TestExecuteUDPRedirection(t *testing.T) {
 }
 
 func TestExecuteReturn(t *testing.T) {
-	shell, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-
-	err = shell.Exec("test return fail", "return")
-
-	if err == nil {
-		t.Errorf("Must fail. Return is only valid inside function")
-		return
-	}
-
-	err = shell.Exec("test return", `fn test() { return }
-test()`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	var out bytes.Buffer
-
-	shell.SetStdout(&out)
-
-	err = shell.Exec("test return", `fn test() {
+	for _, test := range []execTest{
+		{
+			"return invalid",
+			`return`,
+			"", "",
+			"<interactive>:1:0: Unexpected return outside of function declaration.",
+		},
+		{
+			"test simple return",
+			`fn test() { return }
+test()`,
+			"", "", "",
+		},
+		{
+			"return must finish func evaluation",
+			`fn test() {
 	if "1" == "1" {
 		return "1"
 	}
@@ -1212,23 +1199,12 @@ test()`)
 }
 
 res <= test()
-echo -n $res`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	got := string(out.Bytes())
-
-	if got != "1" {
-		t.Errorf("Expected '1' but got '%s'", got)
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("ret from for", `fn test() {
+echo -n $res`,
+			"1", "", "",
+		},
+		{
+			"ret from for",
+			`fn test() {
 	values = (0 1 2 3 4 5 6 7 8 9)
 
 	for i in $values {
@@ -1240,23 +1216,12 @@ echo -n $res`)
 	return "0"
 }
 a <= test()
-echo -n $a`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	got = string(out.Bytes())
-
-	if "5" != got {
-		t.Errorf("Expected '5' but got '%s'", got)
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("inf loop ret", `fn test() {
+echo -n $a`,
+			"5", "", "",
+		},
+		{
+			"inf loop ret",
+			`fn test() {
 	for {
 		if "1" == "1" {
 			return "1"
@@ -1267,18 +1232,25 @@ echo -n $a`)
 	return "bleh"
 }
 a <= test()
-echo -n $a`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	got = string(out.Bytes())
-
-	if got != "1" {
-		t.Errorf("Expected '1' but got '%s'", got)
-		return
+echo -n $a`,
+			"1", "", "",
+		},
+		{
+			"test returning funcall",
+			`fn a() { return "1" }
+                         fn b() { return a() }
+                         c <= b()
+                         echo -n $c`,
+			"1", "", "",
+		},
+	} {
+		testExec(t,
+			test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
 	}
 }
 
