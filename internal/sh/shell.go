@@ -189,14 +189,14 @@ func (shell *Shell) initEnv(processEnv []string) error {
 		var value sh.Obj
 		p := strings.Split(penv, "=")
 
-		if len(p) == 2 {
+		if len(p) >= 2 {
 			// TODO(i4k): handle lists correctly in the future
 			// argv is not special, every list must be handled correctly
 			if p[0] == "argv" {
 				continue
 			}
 
-			value = sh.NewStrObj(p[1])
+			value = sh.NewStrObj(strings.Join(p[1:], "="))
 
 			shell.Setvar(p[0], value)
 			shell.Setenv(p[0], value)

@@ -107,6 +107,26 @@ func testExec(t *testing.T, desc, execStr, expectedStdout, expectedStderr, expec
 	}
 }
 
+func TestInitEnv(t *testing.T) {
+
+	os.Setenv("TEST", "abc=123=")
+
+	shell, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	testEnv, _ := shell.Getenv("TEST")
+	expectedTestEnv := "abc=123="
+
+	if testEnv.String() != expectedTestEnv {
+		t.Errorf("Expected TEST Env differs: '%s' != '%s'", testEnv, expectedTestEnv)
+		return
+	}
+}
+
 func TestExecuteFile(t *testing.T) {
 	type fileTests struct {
 		path     string
