@@ -1190,6 +1190,29 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 			c, "Empty command name...")
 	}
 
+	if fn, ok := shell.Getbindfn(cmdName); ok {
+		shell.logf("Executing bind %s", cmdName)
+		shell.logf("%s bind to %s", cmdName, fn)
+
+		if len(c.Args()) > len(fn.ArgNames()) {
+			err = errors.NewEvalError(shell.filename,
+				c, "Too much arguments for"+
+					" function '%s'. It expects %d args, but given %d. Arguments: %q",
+				fn.Name(),
+				len(fn.ArgNames()),
+				len(c.Args()), c.Args())
+			return nil, ignoreError, err
+		}
+
+		for i := 0 + len(c.Args()); i < len(fn.ArgNames()); i++ {
+			// fill missing args with empty string
+			// safe?
+			c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
+		}
+
+		return fn, ignoreError, nil
+	}
+
 	cmd, err = NewCmd(cmdName)
 
 	if err != nil {
@@ -1200,29 +1223,6 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 		shell.logf("Command fails: %s", err.Error())
 
 		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
-			if fn, ok := shell.Getbindfn(cmdName); ok {
-				shell.logf("Executing bind %s", cmdName)
-				shell.logf("%s bind to %s", cmdName, fn)
-
-				if len(c.Args()) > len(fn.ArgNames()) {
-					err = errors.NewEvalError(shell.filename,
-						c, "Too much arguments for"+
-							" function '%s'. It expects %d args, but given %d. Arguments: %q",
-						fn.Name(),
-						len(fn.ArgNames()),
-						len(c.Args()), c.Args())
-					return nil, ignoreError, err
-				}
-
-				for i := 0 + len(c.Args()); i < len(fn.ArgNames()); i++ {
-					// fill missing args with empty string
-					// safe?
-					c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
-				}
-
-				return fn, ignoreError, nil
-			}
-
 			return nil, ignoreError, err
 		}
 
