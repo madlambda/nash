@@ -481,9 +481,9 @@ func TestExecuteCd(t *testing.T) {
 	for _, test := range []execTest{
 		{
 			"test cd",
-			`cd /tmp
+			`cd /
         pwd`,
-			"/tmp\n", "", "",
+			"/\n", "", "",
 		},
 		{
 			"test cd",
@@ -497,10 +497,10 @@ func TestExecuteCd(t *testing.T) {
 		{
 			"test cd into $var",
 			`
-        var="/tmp"
+        var="/"
         cd $var
         pwd`,
-			"/tmp\n",
+			"/\n",
 			"",
 			"",
 		},
