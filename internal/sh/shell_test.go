@@ -87,7 +87,7 @@ func testExec(t *testing.T, desc, execStr, expectedStdout, expectedStderr, expec
 
 	err = shell.Exec(desc, execStr)
 
-	if err != nil && expectedErr != "" {
+	if err != nil {
 		if err.Error() != expectedErr {
 			t.Errorf("Error differs: Expected '%s' but got '%s'",
 				expectedErr, err.Error())
@@ -901,34 +901,37 @@ echo -n $integers
 }
 
 func TestExecuteBindFn(t *testing.T) {
-	var out bytes.Buffer
-
-	shell, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-	shell.SetStdout(&out)
-
-	err = shell.Exec("test bindfn", `
+	for _, test := range []execTest{
+		{
+			"test bindfn",
+			`
         fn cd(path) {
                 echo "override builtin cd"
         }
 
         bindfn cd cd
-        cd`)
+        cd`,
+			"override builtin cd\n", "", "",
+		},
+		{
+			"test bindfn args",
+			`
+        fn foo(line) {
+                echo $line
+        }
 
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "override builtin cd" {
-		t.Errorf("Error: '%s' != 'override builtin cd'", strings.TrimSpace(string(out.Bytes())))
-		return
+        bindfn foo bar
+        bar test test`,
+			"", "", "<interactive>:7:8: Too much arguments for function 'foo'. It expects 1 args, but given 2. Arguments: [\"test\" \"test\"]",
+		},
+	} {
+		testExec(t,
+			test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
 	}
 }
 
