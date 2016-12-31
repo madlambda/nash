@@ -101,7 +101,7 @@ func testExec(t *testing.T, desc, execStr, expectedStdout, expectedStderr, expec
 	}
 
 	if expectedStderr != string(berr.Bytes()) {
-		t.Errorf("Stdout differs: '%s' != '%s'", expectedStderr,
+		t.Errorf("Stderr differs: '%s' != '%s'", expectedStderr,
 			string(berr.Bytes()))
 		return
 	}
@@ -897,6 +897,69 @@ echo -n $integers
 	if string(out.Bytes()) != "1 2 3 4 5 6 7 8 9 0" {
 		t.Errorf("'%s' != '%s'", string(out.Bytes()), "1 2 3 4 5 6 7 8 9 0")
 		return
+	}
+}
+
+func TestNonInteractive(t *testing.T) {
+	shell, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	shell.SetNashdPath(nashdPath)
+
+	var out bytes.Buffer
+
+	shell.SetStdout(&out)
+
+	err = shell.Exec("test bindfn interactive", `
+        fn greeting() {
+                echo "Hello"
+        }
+
+        bindfn greeting hello`)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	shell.SetInteractive(false)
+	shell.filename = "<non-interactive>"
+
+	expectedErr := "<non-interactive>:2:8: "+
+		"'hello' is a bind to 'greeting'."+
+		" No binds allowed in non-interactive mode."
+	err = shell.Exec("test 'binded' function non-interactive", `
+        hello`)
+	if err != nil {
+		if err.Error() != expectedErr {
+			t.Errorf("Error differs: Expected '%s' but got '%s'",
+				expectedErr, err.Error())
+		}
+	} else {
+		t.Errorf("An error was expected: '%s'. But did not occured.",
+			expectedErr)
+	}
+
+	expectedErr = "<non-interactive>:6:8: 'bindfn' is not allowed in"+
+		" non-interactive mode."
+	err = shell.Exec("test bindfn non-interactive", `
+        fn goodbye() {
+                echo "Ciao"
+        }
+
+        bindfn goodbye ciao`)
+	if err != nil {
+		if err.Error() != expectedErr {
+			t.Errorf("Error differs: Expected '%s' but got '%s'",
+				expectedErr, err.Error())
+		}
+	} else {
+		t.Errorf("An error was expected: '%s'. But did not occured.",
+			expectedErr)
 	}
 }
 

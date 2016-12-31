@@ -129,6 +129,7 @@ func initShell() (*nash.Shell, error) {
 	}
 
 	shell.SetDebug(debug)
+	shell.SetInteractive(interactive)
 
 	nashpath, err := getnashpath()
 

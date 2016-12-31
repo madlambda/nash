@@ -37,6 +37,11 @@ func (nash *Shell) SetDebug(b bool) {
 	nash.interp.SetDebug(b)
 }
 
+// SetInteractive enables interactive (shell) mode.
+func (nash *Shell) SetInteractive(b bool) {
+	nash.interp.SetInteractive(b)
+}
+
 // SetDotDir sets the NASHPATH environment variable. The NASHPATH variable
 // points to the location where nash will lookup for the init script and
 // libraries installed.
