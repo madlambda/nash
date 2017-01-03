@@ -117,7 +117,7 @@ func (e *errStopWalking) StopWalking() bool { return true }
 func NewShell() (*Shell, error) {
 	shell := &Shell{
 		name:        "parent scope",
-		interactive: true,
+		interactive: false,
 		isFn:        false,
 		logf:        NewLog(logNS, false),
 		nashdPath:   nashdAutoDiscover(),
@@ -246,6 +246,18 @@ func (shell *Shell) SetDebug(d bool) {
 // SetInteractive enable/disable shell interactive mode
 func (shell *Shell) SetInteractive(i bool) {
 	shell.interactive = i
+
+	if i {
+		_ = shell.setupDefaultBindings()
+	}
+}
+
+func (shell *Shell) Interactive() bool {
+	if shell.parent != nil {
+		return shell.parent.Interactive()
+	}
+
+	return shell.interactive
 }
 
 func (shell *Shell) SetName(a string) {
@@ -411,7 +423,7 @@ func (shell *Shell) String() string {
 	return string(out.Bytes())
 }
 
-func (shell *Shell) setupBuiltin() error {
+func (shell *Shell) setupBuiltin() {
 	lenfn := NewLenFn(shell)
 	shell.builtins["len"] = lenfn
 	shell.Setvar("len", sh.NewFnObj(lenfn))
@@ -427,7 +439,9 @@ func (shell *Shell) setupBuiltin() error {
 	chdir := NewChdir(shell)
 	shell.builtins["chdir"] = chdir
 	shell.Setvar("chdir", sh.NewFnObj(chdir))
+}
 
+func (shell *Shell) setupDefaultBindings() error {
 	// only one builtin fn... no need for advanced machinery yet
 	err := shell.Exec(shell.name, `fn nash_builtin_cd(path) {
             if $path == "" {
@@ -455,7 +469,8 @@ func (shell *Shell) setup() error {
 		shell.Setvar("PROMPT", pobj)
 	}
 
-	return shell.setupBuiltin()
+	shell.setupBuiltin()
+	return err
 }
 
 func (shell *Shell) setupSignals() {
@@ -1201,7 +1216,7 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 		shell.logf("Executing bind %s", cmdName)
 		shell.logf("%s bind to %s", cmdName, fn)
 
-		if !shell.interactive {
+		if !shell.Interactive() {
 			err = errors.NewEvalError(shell.filename,
 				c, "'%s' is a bind to '%s'. "+
 					"No binds allowed in non-interactive mode.",
@@ -2022,7 +2037,7 @@ execDump:
 }
 
 func (shell *Shell) executeBindFn(n *ast.BindFnNode) error {
-	if !shell.interactive {
+	if !shell.Interactive() {
 		return errors.NewEvalError(shell.filename,
 			n, "'bindfn' is not allowed in non-interactive mode.")
 	}
