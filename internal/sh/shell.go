@@ -37,13 +37,14 @@ type (
 
 	// Shell is the core data structure.
 	Shell struct {
-		name      string
-		debug     bool
-		lambdas   uint
-		logf      LogFn
-		nashdPath string
-		isFn      bool
-		filename  string // current file being executed or imported
+		name        string
+		debug       bool
+		interactive bool
+		lambdas     uint
+		logf        LogFn
+		nashdPath   string
+		isFn        bool
+		filename    string // current file being executed or imported
 
 		interrupted bool
 		looping     bool
@@ -115,20 +116,21 @@ func (e *errStopWalking) StopWalking() bool { return true }
 // NewShell creates a new shell object
 func NewShell() (*Shell, error) {
 	shell := &Shell{
-		name:      "parent scope",
-		isFn:      false,
-		logf:      NewLog(logNS, false),
-		nashdPath: nashdAutoDiscover(),
-		stdout:    os.Stdout,
-		stderr:    os.Stderr,
-		stdin:     os.Stdin,
-		env:       make(Env),
-		vars:      make(Var),
-		fns:       make(Fns),
-		builtins:  make(Fns),
-		binds:     make(Fns),
-		Mutex:     &sync.Mutex{},
-		filename:  "<interactive>",
+		name:        "parent scope",
+		interactive: false,
+		isFn:        false,
+		logf:        NewLog(logNS, false),
+		nashdPath:   nashdAutoDiscover(),
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+		stdin:       os.Stdin,
+		env:         make(Env),
+		vars:        make(Var),
+		fns:         make(Fns),
+		builtins:    make(Fns),
+		binds:       make(Fns),
+		Mutex:       &sync.Mutex{},
+		filename:    "<interactive>",
 	}
 
 	err := shell.setup()
@@ -239,6 +241,23 @@ func (shell *Shell) Reset() {
 func (shell *Shell) SetDebug(d bool) {
 	shell.debug = d
 	shell.logf = NewLog(logNS, d)
+}
+
+// SetInteractive enable/disable shell interactive mode
+func (shell *Shell) SetInteractive(i bool) {
+	shell.interactive = i
+
+	if i {
+		_ = shell.setupDefaultBindings()
+	}
+}
+
+func (shell *Shell) Interactive() bool {
+	if shell.parent != nil {
+		return shell.parent.Interactive()
+	}
+
+	return shell.interactive
 }
 
 func (shell *Shell) SetName(a string) {
@@ -404,7 +423,7 @@ func (shell *Shell) String() string {
 	return string(out.Bytes())
 }
 
-func (shell *Shell) setupBuiltin() error {
+func (shell *Shell) setupBuiltin() {
 	lenfn := NewLenFn(shell)
 	shell.builtins["len"] = lenfn
 	shell.Setvar("len", sh.NewFnObj(lenfn))
@@ -420,7 +439,9 @@ func (shell *Shell) setupBuiltin() error {
 	chdir := NewChdir(shell)
 	shell.builtins["chdir"] = chdir
 	shell.Setvar("chdir", sh.NewFnObj(chdir))
+}
 
+func (shell *Shell) setupDefaultBindings() error {
 	// only one builtin fn... no need for advanced machinery yet
 	err := shell.Exec(shell.name, `fn nash_builtin_cd(path) {
             if $path == "" {
@@ -448,7 +469,8 @@ func (shell *Shell) setup() error {
 		shell.Setvar("PROMPT", pobj)
 	}
 
-	return shell.setupBuiltin()
+	shell.setupBuiltin()
+	return err
 }
 
 func (shell *Shell) setupSignals() {
@@ -1190,6 +1212,38 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 			c, "Empty command name...")
 	}
 
+	if fn, ok := shell.Getbindfn(cmdName); ok {
+		shell.logf("Executing bind %s", cmdName)
+		shell.logf("%s bind to %s", cmdName, fn)
+
+		if !shell.Interactive() {
+			err = errors.NewEvalError(shell.filename,
+				c, "'%s' is a bind to '%s'. "+
+					"No binds allowed in non-interactive mode.",
+				cmdName,
+				fn.Name())
+			return nil, ignoreError, err
+		}
+
+		if len(c.Args()) > len(fn.ArgNames()) {
+			err = errors.NewEvalError(shell.filename,
+				c, "Too much arguments for"+
+					" function '%s'. It expects %d args, but given %d. Arguments: %q",
+				fn.Name(),
+				len(fn.ArgNames()),
+				len(c.Args()), c.Args())
+			return nil, ignoreError, err
+		}
+
+		for i := 0 + len(c.Args()); i < len(fn.ArgNames()); i++ {
+			// fill missing args with empty string
+			// safe?
+			c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
+		}
+
+		return fn, ignoreError, nil
+	}
+
 	cmd, err = NewCmd(cmdName)
 
 	if err != nil {
@@ -1200,29 +1254,6 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 		shell.logf("Command fails: %s", err.Error())
 
 		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
-			if fn, ok := shell.Getbindfn(cmdName); ok {
-				shell.logf("Executing bind %s", cmdName)
-				shell.logf("%s bind to %s", cmdName, fn)
-
-				if len(c.Args()) > len(fn.ArgNames()) {
-					err = errors.NewEvalError(shell.filename,
-						c, "Too much arguments for"+
-							" function '%s'. It expects %d args, but given %d. Arguments: %q",
-						fn.Name(),
-						len(fn.ArgNames()),
-						len(c.Args()), c.Args())
-					return nil, ignoreError, err
-				}
-
-				for i := 0 + len(c.Args()); i < len(fn.ArgNames()); i++ {
-					// fill missing args with empty string
-					// safe?
-					c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
-				}
-
-				return fn, ignoreError, nil
-			}
-
 			return nil, ignoreError, err
 		}
 
@@ -2006,6 +2037,11 @@ execDump:
 }
 
 func (shell *Shell) executeBindFn(n *ast.BindFnNode) error {
+	if !shell.Interactive() {
+		return errors.NewEvalError(shell.filename,
+			n, "'bindfn' is not allowed in non-interactive mode.")
+	}
+
 	if fn, ok := shell.GetFn(n.Name()); ok {
 		shell.Setbindfn(n.CmdName(), fn)
 	} else {

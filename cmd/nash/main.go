@@ -41,7 +41,11 @@ func init() {
 }
 
 func main() {
-	var args []string
+	var args  []string
+	var shell *nash.Shell
+	var err   error
+
+	cliMode := false
 
 	flag.Parse()
 
@@ -55,11 +59,18 @@ func main() {
 		file = args[0]
 	}
 
-	shell, err := initShell()
+	if (file == "" && command == "") || interactive {
+		cliMode = true
+		shell, err = initShell()
+	} else {
+		shell, err = nash.New()
+	}
 
 	if err != nil {
 		goto Error
 	}
+
+	shell.SetDebug(debug)
 
 	if addr != "" {
 		startNashd(shell, addr)
@@ -83,7 +94,7 @@ func main() {
 		}
 	}
 
-	if (file == "" && command == "") || interactive {
+	if cliMode {
 		err = cli(shell)
 
 		if err != nil {
@@ -128,7 +139,9 @@ func initShell() (*nash.Shell, error) {
 		return nil, err
 	}
 
-	shell.SetDebug(debug)
+	// initShell will run only if the nash command is ran
+	// without arguments or interactive flag, hence interactive mode
+	shell.SetInteractive(true)
 
 	nashpath, err := getnashpath()
 
