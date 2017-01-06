@@ -192,6 +192,27 @@ Long commands can be splited in multiple lines:
 λ> echo $instanceId
 ```
 
+# Accessing command line args
+
+When you run a nash script like:
+
+```
+λ> nash ./examples/args.sh --arg value
+```
+
+You can get the args using the **ARGS** variable, that is a list:
+
+```
+#!/usr/bin/env nash
+
+echo "iterating through the arguments list"
+echo ""
+for arg in $ARGS {
+	echo $arg
+}
+```
+
+
 # Namespace features
 
 Nash is built with namespace support only on Linux (Plan9 soon). If
