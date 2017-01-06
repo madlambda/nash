@@ -41,9 +41,9 @@ func init() {
 }
 
 func main() {
-	var args  []string
+	var args []string
 	var shell *nash.Shell
-	var err   error
+	var err error
 
 	cliMode := false
 
@@ -79,7 +79,7 @@ func main() {
 	}
 
 	if file != "" {
-		err = executeFilename(shell, file, args)
+		err = shell.ExecFileArgs(file, args)
 
 		if err != nil {
 			goto Error
@@ -166,36 +166,4 @@ func initShell() (*nash.Shell, error) {
 	}
 
 	return shell, nil
-}
-
-func executeFilename(shell *nash.Shell, file string, args []string) error {
-	err := shell.ExecuteString("setting args", `ARGS = `+args2Nash(args))
-
-	if err != nil {
-		err = fmt.Errorf("Failed to set nash arguments: %s", err.Error())
-
-		return err
-	}
-
-	err = shell.ExecuteFile(file)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func args2Nash(args []string) string {
-	ret := "("
-
-	for i := 0; i < len(args); i++ {
-		ret += `"` + args[i] + `"`
-
-		if i < (len(args) - 1) {
-			ret += " "
-		}
-	}
-
-	return ret + ")"
 }
