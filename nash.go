@@ -3,6 +3,7 @@
 package nash
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/NeowayLabs/nash/ast"
@@ -104,9 +105,15 @@ func (nash *Shell) ExecuteString(path, content string) error {
 	return nash.interp.Exec(path, content)
 }
 
-// ExecFile executes the script content of the file specified by path.
-// See Exec for more information.
-func (nash *Shell) ExecFile(path string) error {
+// ExecFile executes the script content of the file specified by path
+// and passes as arguments to the script the given args slice.
+func (nash *Shell) ExecFile(path string, args ...string) error {
+	if len(args) > 0 {
+		err := nash.ExecuteString("setting args", `ARGS = `+args2Nash(args))
+		if err != nil {
+			return fmt.Errorf("Failed to set nash arguments: %s", err.Error())
+		}
+	}
 	return nash.interp.ExecFile(path)
 }
 
@@ -155,4 +162,18 @@ func (nash *Shell) Setvar(name string, value sh.Obj) {
 // Getvar retrieves a variable from nash session
 func (nash *Shell) Getvar(name string) (sh.Obj, bool) {
 	return nash.interp.Getvar(name)
+}
+
+func args2Nash(args []string) string {
+	ret := "("
+
+	for i := 0; i < len(args); i++ {
+		ret += `"` + args[i] + `"`
+
+		if i < (len(args) - 1) {
+			ret += " "
+		}
+	}
+
+	return ret + ")"
 }
