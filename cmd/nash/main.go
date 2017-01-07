@@ -79,7 +79,7 @@ func main() {
 	}
 
 	if file != "" {
-		err = shell.ExecFileArgs(file, args)
+		err = shell.ExecFile(file, args...)
 
 		if err != nil {
 			goto Error

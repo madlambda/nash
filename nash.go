@@ -105,20 +105,16 @@ func (nash *Shell) ExecuteString(path, content string) error {
 	return nash.interp.Exec(path, content)
 }
 
-// ExecFile executes the script content of the file specified by path.
-// See Exec for more information.
-func (nash *Shell) ExecFile(path string) error {
-	return nash.interp.ExecFile(path)
-}
-
-// ExecFileArgs executes the script content of the file specified by path
+// ExecFile executes the script content of the file specified by path
 // and passes as arguments to the script the given args slice.
-func (nash *Shell) ExecFileArgs(path string, args []string) error {
-	err := nash.ExecuteString("setting args", `ARGS = `+args2Nash(args))
-	if err != nil {
-		return fmt.Errorf("Failed to set nash arguments: %s", err.Error())
+func (nash *Shell) ExecFile(path string, args ...string) error {
+	if len(args) > 0 {
+		err := nash.ExecuteString("setting args", `ARGS = `+args2Nash(args))
+		if err != nil {
+			return fmt.Errorf("Failed to set nash arguments: %s", err.Error())
+		}
 	}
-	return nash.ExecFile(path)
+	return nash.interp.ExecFile(path)
 }
 
 // ExecuteFile executes the given file.
