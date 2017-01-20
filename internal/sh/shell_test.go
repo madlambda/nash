@@ -193,6 +193,15 @@ kernel 4.7.1`,
 			"",
 			"",
 		},
+		{
+			"list assignment",
+			`l = (0 1 2 3)
+                         l[0] = "666"
+                         echo -n $l`,
+			`666 1 2 3`,
+			"",
+			"",
+		},
 	} {
 		testExec(t,
 			test.desc,

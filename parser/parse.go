@@ -125,9 +125,49 @@ func (p *Parser) peek() scanner.Token {
 	return i
 }
 
-func (p *Parser) parseVariable() (ast.Expr, error) {
-	var err error
+func (p *Parser) parseIndexing() (ast.Expr, error) {
+	it := p.next()
 
+	if it.Type() != token.Number && it.Type() != token.Variable {
+		return nil, newParserError(it, p.name,
+			"Expected number or variable in index. Found %v", it)
+	}
+
+	var (
+		index ast.Expr
+		err   error
+	)
+
+	if it.Type() == token.Number {
+		// only supports base10
+		intval, err := strconv.Atoi(it.Value())
+
+		if err != nil {
+			return nil, err
+		}
+
+		index = ast.NewIntExpr(it.FileInfo, intval)
+	} else {
+		p.backup(it)
+
+		index, err = p.parseVariable()
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	it = p.next()
+
+	if it.Type() != token.RBrack {
+		return nil, newParserError(it, p.name,
+			"Unexpected token %v. Expecting ']'", it)
+	}
+
+	return index, nil
+}
+
+func (p *Parser) parseVariable() (ast.Expr, error) {
 	it := p.next()
 
 	if it.Type() != token.Variable {
@@ -141,39 +181,10 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 
 	if it.Type() == token.LBrack {
 		p.ignore()
-		it = p.next()
+		index, err := p.parseIndexing()
 
-		if it.Type() != token.Number && it.Type() != token.Variable {
-			return nil, newParserError(it, p.name,
-				"Expected number or variable in index. Found %v", it)
-		}
-
-		var index ast.Expr
-
-		if it.Type() == token.Number {
-			// only supports base10
-			intval, err := strconv.Atoi(it.Value())
-
-			if err != nil {
-				return nil, err
-			}
-
-			index = ast.NewIntExpr(it.FileInfo, intval)
-		} else {
-			p.backup(it)
-
-			index, err = p.parseVariable()
-
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		it = p.next()
-
-		if it.Type() != token.RBrack {
-			return nil, newParserError(it, p.name,
-				"Unexpected token %v. Expecting ']'", it)
+		if err != nil {
+			return nil, err
 		}
 
 		return ast.NewIndexExpr(variable.FileInfo, variable, index), nil
@@ -568,16 +579,32 @@ hasConcat:
 func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
 	it := p.next()
 
-	if it.Type() != token.Assign && it.Type() != token.AssignCmd {
+	if it.Type() != token.Assign && it.Type() != token.AssignCmd &&
+		it.Type() != token.LBrack {
 		return nil, newParserError(it, p.name,
-			"Unexpected token %v, expected '=' or '<='", it)
+			"Unexpected token %v, expected '=' ,'<=' or '['", it)
+	}
+
+	var (
+		index ast.Expr
+		err   error
+	)
+
+	if it.Type() == token.LBrack {
+		index, err = p.parseIndexing()
+
+		if err != nil {
+			return nil, err
+		}
+
+		it = p.next()
 	}
 
 	if it.Type() == token.Assign {
-		return p.parseAssignValue(ident)
+		return p.parseAssignValue(ident, index)
 	}
 
-	return p.parseAssignCmdOut(ident)
+	return p.parseAssignCmdOut(ident, index)
 }
 
 func (p *Parser) parseList() (ast.Node, error) {
@@ -620,7 +647,7 @@ func (p *Parser) parseList() (ast.Node, error) {
 	return ast.NewListExpr(lit.FileInfo, values), nil
 }
 
-func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
+func (p *Parser) parseAssignValue(name scanner.Token, index ast.Expr) (ast.Node, error) {
 	var err error
 
 	assignIdent := name
@@ -650,10 +677,14 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 		p.ignore()
 	}
 
+	if index != nil {
+		return ast.NewAssignmentIndexNode(assignIdent.FileInfo, assignIdent.Value(), index, value), nil
+	}
+
 	return ast.NewAssignmentNode(assignIdent.FileInfo, assignIdent.Value(), value), nil
 }
 
-func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
+func (p *Parser) parseAssignCmdOut(name scanner.Token, index ast.Expr) (ast.Node, error) {
 	var (
 		exec ast.Node
 		err  error
@@ -685,6 +716,10 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 
 	if err != nil {
 		return nil, err
+	}
+
+	if index != nil {
+		return ast.NewExecAssignIndexNode(name.FileInfo, name.Value(), index, exec)
 	}
 
 	return ast.NewExecAssignNode(name.FileInfo, name.Value(), exec)
@@ -1244,7 +1279,7 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 
 	if it.Type() == token.Ident {
 		switch next.Type() {
-		case token.Assign, token.AssignCmd:
+		case token.Assign, token.AssignCmd, token.LBrack:
 			return p.parseAssignment(it)
 		}
 
