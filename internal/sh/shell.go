@@ -1589,7 +1589,44 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 		output = output[0 : len(output)-1]
 	}
 
-	shell.Setvar(v.Identifier(), sh.NewStrObj(string(output)))
+	var obj sh.Obj
+
+	if v.Index() != nil {
+		if list, ok := shell.Getvar(v.Identifier()); ok {
+			index, err := shell.evalIndex(v.Index())
+
+			if err != nil {
+				return err
+			}
+
+			if list.Type() != sh.ListType {
+				return errors.NewEvalError(shell.filename,
+					v, "Indexed assigment on non-list type: Variable %s is %s",
+					v.Identifier(),
+					list.Type())
+			}
+
+			lobj := list.(*sh.ListObj)
+
+			lvalues := lobj.List()
+
+			if index >= len(lvalues) {
+				return errors.NewEvalError(shell.filename,
+					v, "List out of bounds error. List has %d elements, but trying to access index %d",
+					len(lvalues), index)
+			}
+
+			lvalues[index] = sh.NewStrObj(string(output))
+			obj = sh.NewListObj(lvalues)
+		} else {
+			return errors.NewEvalError(shell.filename,
+				v, "Variable %s not found", v.Identifier())
+		}
+	} else {
+		obj = sh.NewStrObj(string(output))
+	}
+
+	shell.Setvar(v.Identifier(), obj)
 
 	return err
 }

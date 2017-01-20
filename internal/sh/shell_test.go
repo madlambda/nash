@@ -202,6 +202,16 @@ kernel 4.7.1`,
 			"",
 			"",
 		},
+		{
+			"list assignment",
+			`l = (0 1 2 3)
+                         a = "2"
+                         l[$a] = "666"
+                         echo -n $l`,
+			`0 1 666 3`,
+			"",
+			"",
+		},
 	} {
 		testExec(t,
 			test.desc,
@@ -240,6 +250,25 @@ func TestExecuteCmdAssignment(t *testing.T) {
 			"",
 			"",
 			"<interactive>:2:25: Invalid assignment from function that does not return values: e()",
+		},
+		{
+			"list assignment",
+			`l = (0 1 2 3)
+                         l[0] <= echo -n 666
+                         echo -n $l`,
+			`666 1 2 3`,
+			"",
+			"",
+		},
+		{
+			"list assignment",
+			`l = (0 1 2 3)
+                         a = "2"
+                         l[$a] <= echo -n "666"
+                         echo -n $l`,
+			`0 1 666 3`,
+			"",
+			"",
 		},
 	} {
 		testExec(t,

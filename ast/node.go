@@ -622,6 +622,8 @@ func NewExecAssignIndexNode(info token.FileInfo, name string, index Expr, n Node
 	}, nil
 }
 
+func (n *ExecAssignNode) Index() Expr { return n.index }
+
 // Name returns the identifier (l-value)
 func (n *ExecAssignNode) Identifier() string {
 	return n.name
