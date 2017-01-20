@@ -162,9 +162,16 @@ func (n *AssignmentNode) string() (string, bool) {
 	var (
 		objStr string
 		multi  bool
+		lhs    string
 	)
 
 	obj := n.val
+
+	if n.index != nil {
+		lhs = n.name + "[" + n.index.String() + "]"
+	} else {
+		lhs = n.name
+	}
 
 	if obj.Type().IsExpr() {
 		if obj.Type() == NodeListExpr {
@@ -174,12 +181,12 @@ func (n *AssignmentNode) string() (string, bool) {
 			objStr = obj.String()
 		}
 
-		if n.eqSpace > len(n.name) && !multi {
-			ret := n.name + strings.Repeat(" ", n.eqSpace-len(n.name)) + "= " + objStr
+		if n.eqSpace > len(lhs) && !multi {
+			ret := lhs + strings.Repeat(" ", n.eqSpace-len(lhs)) + "= " + objStr
 			return ret, multi
 		}
 
-		ret := n.name + " = " + objStr
+		ret := lhs + " = " + objStr
 		return ret, multi
 	}
 
@@ -196,7 +203,14 @@ func (n *ExecAssignNode) string() (string, bool) {
 	var (
 		cmdStr string
 		multi  bool
+		lhs    string
 	)
+
+	if n.index != nil {
+		lhs = n.name + "[" + n.index.String() + "]"
+	} else {
+		lhs = n.name
+	}
 
 	if n.cmd.Type() == NodeCommand {
 		cmd := n.cmd.(*CommandNode)
@@ -210,11 +224,11 @@ func (n *ExecAssignNode) string() (string, bool) {
 	}
 
 	if n.eqSpace > len(n.name) {
-		ret := n.name + strings.Repeat(" ", n.eqSpace-len(n.name)) + "<= " + cmdStr
+		ret := lhs + strings.Repeat(" ", n.eqSpace-len(lhs)) + "<= " + cmdStr
 		return ret, multi
 	}
 
-	return n.name + " <= " + cmdStr, multi
+	return lhs + " <= " + cmdStr, multi
 }
 
 // String returns the string representation of command assignment statement

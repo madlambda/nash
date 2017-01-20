@@ -190,6 +190,25 @@ func TestBasicAssignment(t *testing.T) {
 
 	parserTestTable("test", `test = "hello"+$var`, expected, t, true)
 
+	// test indexed assignment
+
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+
+	concats = make([]ast.Expr, 2, 2)
+	concats[0] = ast.NewStringExpr(token.NewFileInfo(1, 11), "hello", true)
+	concats[1] = ast.NewVarExpr(token.NewFileInfo(1, 18), "$var")
+
+	arg1 = ast.NewConcatExpr(token.NewFileInfo(1, 11), concats)
+
+	index := ast.NewIntExpr(token.NewFileInfo(1, 5), 0)
+
+	assignIndexed := ast.NewAssignmentIndexNode(token.NewFileInfo(1, 0), "test", index, arg1)
+
+	ln.Push(assignIndexed)
+	expected.Root = ln
+
+	parserTestTable("test", `test[0] = "hello"+$var`, expected, t, true)
+
 	// invalid, requires quote
 	// test=hello
 	parser := NewParser("", `test = hello`)

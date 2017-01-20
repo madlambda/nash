@@ -77,6 +77,7 @@ type (
 		token.FileInfo
 
 		name    string
+		index   Expr
 		val     Expr
 		eqSpace int
 	}
@@ -87,6 +88,7 @@ type (
 		token.FileInfo
 
 		name    string
+		index   Expr
 		cmd     Node
 		eqSpace int
 	}
@@ -515,6 +517,21 @@ func NewAssignmentNode(info token.FileInfo, ident string, value Expr) *Assignmen
 	}
 }
 
+// NewAssignmentIndexNode creates a new assignment for list index
+func NewAssignmentIndexNode(info token.FileInfo, ident string, index Expr, value Expr) *AssignmentNode {
+	return &AssignmentNode{
+		NodeType: NodeAssignment,
+		FileInfo: info,
+		eqSpace:  -1,
+
+		name:  ident,
+		index: index,
+		val:   value,
+	}
+}
+
+func (n *AssignmentNode) Index() Expr { return n.index }
+
 // SetIdentifier sets the name of the variable
 func (n *AssignmentNode) SetIdentifier(a string) {
 	n.name = a
@@ -554,19 +571,19 @@ func (n *AssignmentNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.val == o.val {
-		return true
+	if n.val != nil && o.val != nil && !n.val.IsEqual(o.val) {
+		return false
+	}
+
+	if n.index != nil && o.index != nil && !n.index.IsEqual(o.index) {
+		return false
 	}
 
 	if !cmpInfo(n, other) {
 		return false
 	}
 
-	if n.val != nil {
-		return n.val.IsEqual(o.val)
-	}
-
-	return false
+	return true
 }
 
 // NewExecAssignNode creates a new node for executing something and store the
@@ -588,6 +605,24 @@ func NewExecAssignNode(info token.FileInfo, name string, n Node) (*ExecAssignNod
 		eqSpace: -1,
 	}, nil
 }
+
+func NewExecAssignIndexNode(info token.FileInfo, name string, index Expr, n Node) (*ExecAssignNode, error) {
+	if !n.Type().IsExecutable() {
+		return nil, errors.New("NewExecAssignNode expects a CommandNode, or PipeNode or FninvNode")
+	}
+
+	return &ExecAssignNode{
+		NodeType: NodeExecAssign,
+		FileInfo: info,
+
+		name:    name,
+		index:   index,
+		cmd:     n,
+		eqSpace: -1,
+	}, nil
+}
+
+func (n *ExecAssignNode) Index() Expr { return n.index }
 
 // Name returns the identifier (l-value)
 func (n *ExecAssignNode) Identifier() string {
@@ -630,18 +665,20 @@ func (n *ExecAssignNode) IsEqual(other Node) bool {
 	}
 
 	if !cmpInfo(n, other) {
+		debug("cmpInfo differs")
 		return false
 	}
 
-	if n.cmd == o.cmd {
-		return true
+	if n.cmd != nil && o.cmd != nil && !n.cmd.IsEqual(o.cmd) {
+		return false
 	}
 
-	if n.cmd != nil {
-		return n.cmd.IsEqual(o.cmd)
+	if n.index != nil && o.index != nil && !n.index.IsEqual(o.index) {
+		return false
+
 	}
 
-	return false
+	return true
 }
 
 // NewCommandNode creates a new node for commands

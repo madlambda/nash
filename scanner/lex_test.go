@@ -218,6 +218,19 @@ func TestLexerSimpleAssignment(t *testing.T) {
 
 	testTable("test concat with parenthesis", `PROMPT = "("+$path+")"+$PROMPT`, expected, t)
 
+	expected = []Token{
+		{typ: token.Ident, val: "a"},
+		{typ: token.LBrack, val: "["},
+		{typ: token.Number, val: "0"},
+		{typ: token.RBrack, val: "]"},
+		{typ: token.Assign, val: "="},
+		{typ: token.String, val: "test"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test index assignment", `a[0] = "test"`, expected, t)
+
 }
 
 func TestLexerListAssignment(t *testing.T) {

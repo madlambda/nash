@@ -1356,11 +1356,39 @@ func (shell *Shell) evalList(argList *ast.ListExpr) (sh.Obj, error) {
 	return sh.NewListObj(values), nil
 }
 
-func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
-	var (
-		indexNum int
-	)
+func (shell *Shell) evalIndex(index ast.Expr) (int, error) {
+	if index.Type() != ast.NodeIntExpr && index.Type() != ast.NodeVarExpr && index.Type() != ast.NodeIndexExpr {
+		return 0, errors.NewEvalError(shell.filename,
+			index, "Invalid indexing type: %s", index.Type())
+	}
 
+	if index.Type() == ast.NodeIntExpr {
+		idxArg := index.(*ast.IntExpr)
+		return idxArg.Value(), nil
+	}
+
+	idxObj, err := shell.evalVariable(index)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if idxObj.Type() != sh.StringType {
+		return 0, errors.NewEvalError(shell.filename,
+			index, "Invalid object type on index value: %s", idxObj.Type())
+	}
+
+	objstr := idxObj.(*sh.StrObj)
+	indexNum, err := strconv.Atoi(objstr.Str())
+
+	if err != nil {
+		return 0, err
+	}
+
+	return indexNum, nil
+}
+
+func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 	variable := indexVar.Var()
 	index := indexVar.Index()
 
@@ -1374,27 +1402,10 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, errors.NewEvalError(shell.filename, variable, "Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
 	}
 
-	if index.Type() == ast.NodeIntExpr {
-		idxArg := index.(*ast.IntExpr)
-		indexNum = idxArg.Value()
-	} else if index.Type() == ast.NodeVarExpr {
-		idxObj, err := shell.evalVariable(index)
+	indexNum, err := shell.evalIndex(index)
 
-		if err != nil {
-			return nil, err
-		}
-
-		if idxObj.Type() != sh.StringType {
-			return nil, errors.NewEvalError(shell.filename,
-				index, "Invalid object type on index value: %s", idxObj.Type())
-		}
-
-		objstr := idxObj.(*sh.StrObj)
-		indexNum, err = strconv.Atoi(objstr.Str())
-
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	vlist := v.(*sh.ListObj)
@@ -1609,7 +1620,44 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 		output = output[0 : len(output)-1]
 	}
 
-	shell.Setvar(v.Identifier(), sh.NewStrObj(string(output)))
+	var obj sh.Obj
+
+	if v.Index() != nil {
+		if list, ok := shell.Getvar(v.Identifier()); ok {
+			index, err := shell.evalIndex(v.Index())
+
+			if err != nil {
+				return err
+			}
+
+			if list.Type() != sh.ListType {
+				return errors.NewEvalError(shell.filename,
+					v, "Indexed assigment on non-list type: Variable %s is %s",
+					v.Identifier(),
+					list.Type())
+			}
+
+			lobj := list.(*sh.ListObj)
+
+			lvalues := lobj.List()
+
+			if index >= len(lvalues) {
+				return errors.NewEvalError(shell.filename,
+					v, "List out of bounds error. List has %d elements, but trying to access index %d",
+					len(lvalues), index)
+			}
+
+			lvalues[index] = sh.NewStrObj(string(output))
+			obj = sh.NewListObj(lvalues)
+		} else {
+			return errors.NewEvalError(shell.filename,
+				v, "Variable %s not found", v.Identifier())
+		}
+	} else {
+		obj = sh.NewStrObj(string(output))
+	}
+
+	shell.Setvar(v.Identifier(), obj)
 
 	return err
 }
@@ -1621,6 +1669,40 @@ func (shell *Shell) executeAssignment(v *ast.AssignmentNode) error {
 
 	if err != nil {
 		return err
+	}
+
+	if v.Index() != nil {
+		if list, ok := shell.Getvar(v.Identifier()); ok {
+			index, err := shell.evalIndex(v.Index())
+
+			if err != nil {
+				return err
+			}
+
+			if list.Type() != sh.ListType {
+				return errors.NewEvalError(shell.filename,
+					v, "Indexed assigment on non-list type: Variable %s is %s",
+					v.Identifier(),
+					list.Type())
+			}
+
+			lobj := list.(*sh.ListObj)
+
+			lvalues := lobj.List()
+
+			if index >= len(lvalues) {
+				return errors.NewEvalError(shell.filename,
+					v, "List out of bounds error. List has %d elements, but trying to access index %d",
+					len(lvalues), index)
+			}
+
+			lvalues[index] = obj
+			shell.Setvar(v.Identifier(), sh.NewListObj(lvalues))
+			return nil
+		}
+
+		return errors.NewEvalError(shell.filename,
+			v, "Variable %s not found", v.Identifier())
 	}
 
 	shell.Setvar(v.Identifier(), obj)
