@@ -1232,11 +1232,21 @@ func TestParseFor(t *testing.T) {
 }`, expected, t, true)
 
 	forStmt.SetIdentifier("f")
-	forStmt.SetInVar("$files")
+	forStmt.SetInExpr(ast.NewVarExpr(token.NewFileInfo(1, 1), "$files"))
 
 	parserTestTable("for", `for f in $files {
 
-}`, expected, t, true)
+		}`, expected, t, true)
+
+	/*		forStmt.SetIdentifier("f")
+			fnInv := ast.NewFnInvNode(token.NewFileInfo(1, 9), "getfiles")
+			fnArg := ast.NewStringExpr(token.NewFileInfo(1, 19), "/", true)
+			fnInv.AddArg(fnArg)
+			forStmt.SetInExpr(fnInv)
+
+			parserTestTable("for", `for f in getfiles("/") {
+
+		}`, expected, t, true)*/
 }
 
 func TestParseVariableIndexing(t *testing.T) {

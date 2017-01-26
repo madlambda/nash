@@ -1201,6 +1201,12 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 }
 
 func (p *Parser) parseFor(it scanner.Token) (ast.Node, error) {
+	var (
+		inExpr ast.Expr
+		err    error
+		next   scanner.Token
+	)
+
 	forStmt := ast.NewForNode(it.FileInfo)
 
 	it = p.peek()
@@ -1220,16 +1226,38 @@ func (p *Parser) parseFor(it scanner.Token) (ast.Node, error) {
 			"Expected 'in' but found %q", it)
 	}
 
-	it = p.next()
+	// ignores 'in' keyword
+	// TODO: make 'in' a real keyword
 
-	if it.Type() != token.Variable {
+	it = p.next()
+	next = p.peek()
+
+	if it.Type() != token.Variable &&
+		(it.Type() != token.Ident || (it.Type() == token.Ident && next.Type() != token.LParen)) &&
+		it.Type() != token.LParen {
 		return nil, newParserError(it, p.name,
-			"Expected variable but found %q", it)
+			"Expected (variable, list or fn invocation) but found %q", it)
 	}
 
-	forStmt.SetInVar(it.Value())
+	if (it.Type() == token.Ident || it.Type() == token.Variable) && next.Type() == token.LParen {
+		inExpr, err = p.parseFnInv(it, false)
+	} else if it.Type() == token.Variable {
+		p.backup(it)
+		inExpr, err = p.parseVariable()
+	} else if it.Type() == token.LParen {
+		p.backup(it)
+		inExpr, err = p.parseList()
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	forStmt.SetInExpr(inExpr)
 forBlockParse:
+	fmt.Printf("it = %s\nnext = %s\n", it, next)
 	it = p.peek()
+	fmt.Printf("after it = %s\nnext = %s\n", it, next)
 
 	if it.Type() != token.LBrace {
 		return nil, newParserError(it, p.name,

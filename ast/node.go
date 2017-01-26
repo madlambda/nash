@@ -260,7 +260,7 @@ type (
 		token.FileInfo
 
 		identifier string
-		inVar      string
+		inExpr     Expr
 		tree       *Tree
 	}
 )
@@ -1337,10 +1337,10 @@ func (n *ForNode) SetIdentifier(a string) {
 func (n *ForNode) Identifier() string { return n.identifier }
 
 // InVar return the "in" variable
-func (n *ForNode) InVar() string { return n.inVar }
+func (n *ForNode) InExpr() Expr { return n.inExpr }
 
-// SetInVar set "in" variable
-func (n *ForNode) SetInVar(a string) { n.inVar = a }
+// SetInVar set "in" expression
+func (n *ForNode) SetInExpr(a Expr) { n.inExpr = a }
 
 // SetTree set the for block of statements
 func (n *ForNode) SetTree(a *Tree) {
@@ -1369,8 +1369,19 @@ func (n *ForNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	return n.identifier == o.identifier &&
-		n.inVar == o.inVar
+	if n.identifier != o.identifier {
+		return false
+	}
+
+	if n.inExpr == o.inExpr {
+		return true
+	}
+
+	if n.inExpr == nil || o.inExpr == nil {
+		return false
+	}
+
+	return n.inExpr.IsEqual(o.inExpr)
 }
 
 func cmpInfo(n, other Node) bool {

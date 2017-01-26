@@ -643,6 +643,7 @@ func TestLexerRfork(t *testing.T) {
                 echo "inside namespace :)"
             }
         `, expected, t)
+
 }
 
 func TestLexerSomethingIdontcareanymore(t *testing.T) {
@@ -1458,6 +1459,21 @@ func TestLexerFor(t *testing.T) {
 	}
 
 	testTable("test inf loop", `for f in $files {}`, expected, t)
+
+	expected = []Token{
+		{typ: token.For, val: "for"},
+		{typ: token.Ident, val: "f"},
+		{typ: token.Ident, val: "in"},
+		{typ: token.Ident, val: "getfiles"},
+		{typ: token.LParen, val: "("},
+		{typ: token.String, val: "/"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.LBrace, val: "{"},
+		{typ: token.RBrace, val: "}"},
+		{typ: token.EOF},
+	}
+
+	testTable("test inf loop", `for f in getfiles("/") {}`, expected, t)
 
 }
 
