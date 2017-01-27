@@ -1475,6 +1475,23 @@ func TestLexerFor(t *testing.T) {
 
 	testTable("test inf loop", `for f in getfiles("/") {}`, expected, t)
 
+	expected = []Token{
+		{typ: token.For, val: "for"},
+		{typ: token.Ident, val: "f"},
+		{typ: token.Ident, val: "in"},
+		{typ: token.LParen, val: "("},
+		{typ: token.Number, val: "1"},
+		{typ: token.Number, val: "2"},
+		{typ: token.Number, val: "3"},
+		{typ: token.Number, val: "4"},
+		{typ: token.Number, val: "5"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.LBrace, val: "{"},
+		{typ: token.RBrace, val: "}"},
+		{typ: token.EOF},
+	}
+
+	testTable("test inf loop", `for f in (1 2 3 4 5) {}`, expected, t)
 }
 
 func TestLexerFnAsFirstClass(t *testing.T) {

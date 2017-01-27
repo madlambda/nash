@@ -101,7 +101,7 @@ func (p *Parser) next() scanner.Token {
 // backup puts the item into the lookahead buffer
 func (p *Parser) backup(it scanner.Token) error {
 	if p.tok != nil {
-		return errors.NewError("only one slot for backup/lookahead")
+		panic(errors.NewError("only one slot for backup/lookahead: %s", it))
 	}
 
 	p.tok = &it
@@ -148,9 +148,7 @@ func (p *Parser) parseIndexing() (ast.Expr, error) {
 
 		index = ast.NewIntExpr(it.FileInfo, intval)
 	} else {
-		p.backup(it)
-
-		index, err = p.parseVariable()
+		index, err = p.parseVariable(&it)
 
 		if err != nil {
 			return nil, err
@@ -167,8 +165,14 @@ func (p *Parser) parseIndexing() (ast.Expr, error) {
 	return index, nil
 }
 
-func (p *Parser) parseVariable() (ast.Expr, error) {
-	it := p.next()
+func (p *Parser) parseVariable(tok *scanner.Token) (ast.Expr, error) {
+	var it scanner.Token
+
+	if tok == nil {
+		it = p.next()
+	} else {
+		it = *tok
+	}
 
 	if it.Type() != token.Variable {
 		return nil, newParserError(it, p.name,
@@ -522,9 +526,7 @@ func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
 	var arg ast.Expr
 
 	if firstToken.Type() == token.Variable {
-		p.backup(firstToken)
-
-		arg, err = p.parseVariable()
+		arg, err = p.parseVariable(&firstToken)
 
 		if err != nil {
 			return nil, err
@@ -607,13 +609,22 @@ func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
 	return p.parseAssignCmdOut(ident, index)
 }
 
-func (p *Parser) parseList() (ast.Node, error) {
+func (p *Parser) parseList(tok *scanner.Token) (ast.Node, error) {
 	var (
 		arg ast.Expr
 		err error
+		lit scanner.Token
 	)
 
-	lit := p.next()
+	if tok != nil {
+		lit = *tok
+	} else {
+		lit = p.next()
+	}
+
+	if lit.Type() != token.LParen {
+		return nil, newParserError(lit, p.name, "Unexpected token %v. Expecting (", lit)
+	}
 
 	var values []ast.Expr
 
@@ -621,7 +632,7 @@ func (p *Parser) parseList() (ast.Node, error) {
 
 	for isValidArgument(it) || it.Type() == token.LParen {
 		if it.Type() == token.LParen {
-			arg, err = p.parseList()
+			arg, err = p.parseList(nil)
 		} else {
 			arg, err = p.getArgument(true, true)
 		}
@@ -664,7 +675,7 @@ func (p *Parser) parseAssignValue(name scanner.Token, index ast.Expr) (ast.Node,
 		}
 
 	} else if it.Type() == token.LParen { // list
-		value, err = p.parseList()
+		value, err = p.parseList(nil)
 
 		if err != nil {
 			return nil, err
@@ -784,7 +795,7 @@ func (p *Parser) parseIfExpr() (ast.Node, error) {
 		p.next()
 		arg, err = p.parseFnInv(it, false)
 	} else {
-		arg, err = p.parseVariable()
+		arg, err = p.parseVariable(nil)
 	}
 
 	return arg, err
@@ -1242,11 +1253,9 @@ func (p *Parser) parseFor(it scanner.Token) (ast.Node, error) {
 	if (it.Type() == token.Ident || it.Type() == token.Variable) && next.Type() == token.LParen {
 		inExpr, err = p.parseFnInv(it, false)
 	} else if it.Type() == token.Variable {
-		p.backup(it)
-		inExpr, err = p.parseVariable()
+		inExpr, err = p.parseVariable(&it)
 	} else if it.Type() == token.LParen {
-		p.backup(it)
-		inExpr, err = p.parseList()
+		inExpr, err = p.parseList(&it)
 	}
 
 	if err != nil {
@@ -1255,9 +1264,7 @@ func (p *Parser) parseFor(it scanner.Token) (ast.Node, error) {
 
 	forStmt.SetInExpr(inExpr)
 forBlockParse:
-	fmt.Printf("it = %s\nnext = %s\n", it, next)
 	it = p.peek()
-	fmt.Printf("after it = %s\nnext = %s\n", it, next)
 
 	if it.Type() != token.LBrace {
 		return nil, newParserError(it, p.name,
