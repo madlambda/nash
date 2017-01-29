@@ -1952,16 +1952,28 @@ func (shell *Shell) executeFor(n *ast.ForNode) (sh.Obj, error) {
 		shell.looping = false
 	}()
 
-	if n.InVar() == "" {
+	if n.InExpr() == nil {
 		return shell.executeInfLoop(n.Tree())
 	}
 
 	id := n.Identifier()
-	inVar := n.InVar()
+	inExpr := n.InExpr()
 
-	argVar := ast.NewVarExpr(token.NewFileInfo(n.Line(), n.Column()), inVar)
+	var (
+		obj sh.Obj
+		err error
+	)
 
-	obj, err := shell.evalVariable(argVar)
+	if inExpr.Type() == ast.NodeVarExpr {
+		obj, err = shell.evalVariable(inExpr.(*ast.VarExpr))
+	} else if inExpr.Type() == ast.NodeListExpr {
+		obj, err = shell.evalList(inExpr.(*ast.ListExpr))
+	} else if inExpr.Type() == ast.NodeFnInv {
+		obj, err = shell.executeFnInv(inExpr.(*ast.FnInvNode))
+	} else {
+		return nil, errors.NewEvalError(shell.filename,
+			inExpr, "Invalid expression in for loop: %s", inExpr.Type())
+	}
 
 	if err != nil {
 		return nil, err
@@ -1969,7 +1981,7 @@ func (shell *Shell) executeFor(n *ast.ForNode) (sh.Obj, error) {
 
 	if obj.Type() != sh.ListType {
 		return nil, errors.NewEvalError(shell.filename,
-			argVar, "Invalid variable type in for range: %s", obj.Type())
+			inExpr, "Invalid variable type in for range: %s", obj.Type())
 	}
 
 	objlist := obj.(*sh.ListObj)

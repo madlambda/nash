@@ -125,6 +125,8 @@ func (l *ListExpr) IsEqual(other Node) bool {
 
 	for i := 0; i < len(l.list); i++ {
 		if !l.list[i].IsEqual(o.list[i]) {
+			debug("%v(%s) != %v(%s)", l.list[i], l.list[i].Type(),
+				o.list[i], o.list[i].Type())
 			return false
 		}
 	}

@@ -623,7 +623,7 @@ func (n *ForNode) String() string {
 	ret := "for"
 
 	if n.identifier != "" {
-		ret += " " + n.identifier + " in " + n.inVar
+		ret += " " + n.identifier + " in " + n.inExpr.String()
 	}
 
 	ret += " {\n"

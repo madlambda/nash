@@ -1232,9 +1232,36 @@ func TestParseFor(t *testing.T) {
 }`, expected, t, true)
 
 	forStmt.SetIdentifier("f")
-	forStmt.SetInVar("$files")
+	forStmt.SetInExpr(ast.NewVarExpr(token.NewFileInfo(1, 9), "$files"))
 
 	parserTestTable("for", `for f in $files {
+
+}`, expected, t, true)
+
+	forStmt.SetIdentifier("f")
+	fnInv := ast.NewFnInvNode(token.NewFileInfo(1, 9), "getfiles")
+	fnArg := ast.NewStringExpr(token.NewFileInfo(1, 19), "/", true)
+	fnInv.AddArg(fnArg)
+	forStmt.SetInExpr(fnInv)
+
+	parserTestTable("for", `for f in getfiles("/") {
+
+}`, expected, t, true)
+
+	forStmt.SetIdentifier("f")
+	value1 := ast.NewStringExpr(token.NewFileInfo(1, 10), "1", false)
+	value2 := ast.NewStringExpr(token.NewFileInfo(1, 12), "2", false)
+	value3 := ast.NewStringExpr(token.NewFileInfo(1, 14), "3", false)
+	value4 := ast.NewStringExpr(token.NewFileInfo(1, 16), "4", false)
+	value5 := ast.NewStringExpr(token.NewFileInfo(1, 18), "5", false)
+
+	list := ast.NewListExpr(token.NewFileInfo(1, 9), []ast.Expr{
+		value1, value2, value3, value4, value5,
+	})
+
+	forStmt.SetInExpr(list)
+
+	parserTestTable("for", `for f in (1 2 3 4 5) {
 
 }`, expected, t, true)
 }
