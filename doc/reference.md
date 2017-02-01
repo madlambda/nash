@@ -26,5 +26,10 @@ The function **len** returns the length of a list.
 An example to check for the length of a list:
 
 ```
-TODO
+args = (
+    "one"
+    "two"
+)
+argslen <= len($args)
+echo $argslen
 ```
