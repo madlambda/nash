@@ -1,11 +1,9 @@
 #!/usr/bin/env nash
 
+echo "args: "
 echo $ARGS
-argslen <= len($ARGS)
 
-test $argslen + "= 1"
-
-if $status == "0" {
+if len($ARGS) == "1" {
         echo "one parameter passed"
 } else {
         echo "more parameters passed"
