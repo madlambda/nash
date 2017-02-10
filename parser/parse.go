@@ -125,6 +125,87 @@ func (p *Parser) peek() scanner.Token {
 	return i
 }
 
+func (p *Parser) parseBlock(lineStart, columnStart int) (*ast.BlockNode, error) {
+	ln := ast.NewBlockNode(token.NewFileInfo(lineStart, columnStart))
+
+	for {
+		it := p.peek()
+
+		switch it.Type() {
+		case token.EOF:
+			goto finish
+		case token.LBrace:
+			p.ignore()
+
+			return nil, newParserError(it, p.name,
+				"Unexpected '{'")
+		case token.RBrace:
+			p.ignore()
+
+			if p.openblocks <= 0 {
+				return nil, newParserError(it, p.name,
+					"No block open for close")
+			}
+
+			p.openblocks--
+			return ln, nil
+		default:
+			n, err := p.parseStatement()
+
+			if err != nil {
+				return nil, err
+			}
+
+			ln.Push(n)
+		}
+	}
+
+finish:
+	if p.openblocks != 0 {
+		return nil, errors.NewUnfinishedBlockError(p.name, p.peek())
+	}
+
+	return ln, nil
+}
+
+func (p *Parser) parseStatement() (ast.Node, error) {
+	it := p.next()
+	next := p.peek()
+
+	if fn, ok := p.keywordParsers[it.Type()]; ok {
+		return fn(it)
+	}
+
+	// statement starting with ident:
+	// - fn invocation
+	// - variable assignment
+	// - variable exec assignment
+	// - Command
+
+	if (it.Type() == token.Ident || it.Type() == token.Variable) && next.Type() == token.LParen {
+		return p.parseFnInv(it, true)
+	}
+
+	if it.Type() == token.Ident {
+		switch next.Type() {
+		case token.Assign, token.AssignCmd, token.LBrack:
+			return p.parseAssignment(it)
+		}
+
+		return p.parseCommand(it)
+	} else if it.Type() == token.Arg {
+		return p.parseCommand(it)
+	}
+
+	// statement starting with '('
+	// -multiline command (echo hello)
+	if it.Type() == token.LParen {
+		return p.parseCommand(it)
+	}
+
+	return nil, newParserError(it, p.name, "Unexpected token parsing statement '%+v'", it)
+}
+
 func (p *Parser) parseIndexing() (ast.Expr, error) {
 	it := p.next()
 
@@ -1294,89 +1375,8 @@ func (p *Parser) parseComment(it scanner.Token) (ast.Node, error) {
 	return ast.NewCommentNode(it.FileInfo, it.Value()), nil
 }
 
-func (p *Parser) parseStatement() (ast.Node, error) {
-	it := p.next()
-	next := p.peek()
-
-	if fn, ok := p.keywordParsers[it.Type()]; ok {
-		return fn(it)
-	}
-
-	// statement starting with ident:
-	// - fn invocation
-	// - variable assignment
-	// - variable exec assignment
-	// - Command
-
-	if (it.Type() == token.Ident || it.Type() == token.Variable) && next.Type() == token.LParen {
-		return p.parseFnInv(it, true)
-	}
-
-	if it.Type() == token.Ident {
-		switch next.Type() {
-		case token.Assign, token.AssignCmd, token.LBrack:
-			return p.parseAssignment(it)
-		}
-
-		return p.parseCommand(it)
-	} else if it.Type() == token.Arg {
-		return p.parseCommand(it)
-	}
-
-	// statement starting with '('
-	// -multiline command (echo hello)
-	if it.Type() == token.LParen {
-		return p.parseCommand(it)
-	}
-
-	return nil, newParserError(it, p.name, "Unexpected token parsing statement '%+v'", it)
-}
-
 func (p *Parser) parseError(it scanner.Token) (ast.Node, error) {
 	return nil, errors.NewError(it.Value())
-}
-
-func (p *Parser) parseBlock(lineStart, columnStart int) (*ast.BlockNode, error) {
-	ln := ast.NewBlockNode(token.NewFileInfo(lineStart, columnStart))
-
-	for {
-		it := p.peek()
-
-		switch it.Type() {
-		case token.EOF:
-			goto finish
-		case token.LBrace:
-			p.ignore()
-
-			return nil, newParserError(it, p.name,
-				"Unexpected '{'")
-		case token.RBrace:
-			p.ignore()
-
-			if p.openblocks <= 0 {
-				return nil, newParserError(it, p.name,
-					"No block open for close")
-			}
-
-			p.openblocks--
-			return ln, nil
-		default:
-			n, err := p.parseStatement()
-
-			if err != nil {
-				return nil, err
-			}
-
-			ln.Push(n)
-		}
-	}
-
-finish:
-	if p.openblocks != 0 {
-		return nil, errors.NewUnfinishedBlockError(p.name, p.peek())
-	}
-
-	return ln, nil
 }
 
 func newParserError(item scanner.Token, name, format string, args ...interface{}) error {

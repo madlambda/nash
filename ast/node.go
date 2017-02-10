@@ -71,13 +71,20 @@ type (
 		assign  Node
 	}
 
+	NameNode struct {
+		NodeType
+		token.FileInfo
+
+		name  string
+		index Expr
+	}
+
 	// AssignmentNode is a node for variable assignments
 	AssignmentNode struct {
 		NodeType
 		token.FileInfo
 
-		name    string
-		index   Expr
+		name    *NameNode
 		val     Expr
 		eqSpace int
 	}
@@ -505,8 +512,42 @@ func (n *SetenvNode) IsEqual(other Node) bool {
 	return n.varName == o.varName
 }
 
+func NewNameNode(info token.FileInfo, ident string, index Expr) *NameNode {
+	return &NameNode{
+		name:  ident,
+		index: index,
+	}
+}
+
+func (n *NameNode) IsEqual(other Node) {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*NameNode)
+
+	if !ok {
+		debug("Failed to convert to NameNode")
+		return false
+	}
+
+	if n.name != o.name {
+		return false
+	}
+
+	if n.index == o.index {
+		return true
+	}
+
+	if n.index != nil && o.index != nil {
+		return n.index.IsEqual(o.index)
+	}
+
+	return false
+}
+
 // NewAssignmentNode creates a new assignment
-func NewAssignmentNode(info token.FileInfo, ident string, value Expr) *AssignmentNode {
+func NewAssignmentNode(info token.FileInfo, ident *NameNode, value Expr) *AssignmentNode {
 	return &AssignmentNode{
 		NodeType: NodeAssignment,
 		FileInfo: info,
@@ -517,28 +558,13 @@ func NewAssignmentNode(info token.FileInfo, ident string, value Expr) *Assignmen
 	}
 }
 
-// NewAssignmentIndexNode creates a new assignment for list index
-func NewAssignmentIndexNode(info token.FileInfo, ident string, index Expr, value Expr) *AssignmentNode {
-	return &AssignmentNode{
-		NodeType: NodeAssignment,
-		FileInfo: info,
-		eqSpace:  -1,
-
-		name:  ident,
-		index: index,
-		val:   value,
-	}
-}
-
-func (n *AssignmentNode) Index() Expr { return n.index }
-
 // SetIdentifier sets the name of the variable
-func (n *AssignmentNode) SetIdentifier(a string) {
+func (n *AssignmentNode) SetIdentifier(a *NameNode) {
 	n.name = a
 }
 
 // Identifier return the name of the variable.
-func (n *AssignmentNode) Identifier() string { return n.name }
+func (n *AssignmentNode) Identifier() *NameNode { return n.name }
 
 func (n *AssignmentNode) getEqSpace() int      { return n.eqSpace }
 func (n *AssignmentNode) setEqSpace(value int) { n.eqSpace = value }
@@ -566,7 +592,7 @@ func (n *AssignmentNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.name != o.name {
+	if n.name != o.name && !n.name.IsEqual(o.name) {
 		debug("Assignment identifier doesn't match: '%s' != '%s'", n.name, o.name)
 		return false
 	}
