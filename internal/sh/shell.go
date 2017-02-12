@@ -561,6 +561,45 @@ func (shell *Shell) ExecFile(path string) error {
 	return shell.Exec(path, string(content))
 }
 
+func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
+	finalObj := value
+
+	if name.Index() != nil {
+		if list, ok := shell.Getvar(name.Ident()); ok {
+			index, err := shell.evalIndex(name.Index())
+
+			if err != nil {
+				return err
+			}
+
+			if list.Type() != sh.ListType {
+				return errors.NewEvalError(shell.filename,
+					name, "Indexed assigment on non-list type: Variable %s is %s",
+					name.Ident(),
+					list.Type())
+			}
+
+			lobj := list.(*sh.ListObj)
+			lvalues := lobj.List()
+
+			if index >= len(lvalues) {
+				return errors.NewEvalError(shell.filename,
+					name, "List out of bounds error. List has %d elements, but trying to access index %d",
+					len(lvalues), index)
+			}
+
+			lvalues[index] = value
+			finalObj = sh.NewListObj(lvalues)
+		} else {
+			return errors.NewEvalError(shell.filename,
+				name, "Variable %s not found", name.Ident())
+		}
+	}
+
+	shell.Setvar(name.Ident(), finalObj)
+	return nil
+}
+
 // evalConcat reveives the AST representation of a concatenation of objects and
 // returns the string representation, or error.
 func (shell *Shell) evalConcat(path ast.Expr) (string, error) {
@@ -1537,7 +1576,7 @@ func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 		}
 	}
 
-	varName := v.Identifier()
+	varName := v.Name()
 
 	if varValue, ok = shell.Getvar(varName); !ok {
 		return fmt.Errorf("Variable '%s' not set on shell %s", varName, shell.name)
@@ -1575,8 +1614,9 @@ func (shell *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 
 func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 	var (
-		varOut bytes.Buffer
-		err    error
+		varOut   bytes.Buffer
+		err      error
+		fnValues sh.Obj
 	)
 
 	bkStdout := shell.stdout
@@ -1593,7 +1633,7 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 	case ast.NodePipe:
 		err = shell.executePipe(assign.(*ast.PipeNode))
 	case ast.NodeFnInv:
-		fnValues, err := shell.executeFnInv(assign.(*ast.FnInvNode))
+		fnValues, err = shell.executeFnInv(assign.(*ast.FnInvNode))
 
 		if err != nil {
 			return err
@@ -1604,62 +1644,26 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 				v, "Invalid assignment from function that does not return values: %s", assign)
 		}
 
-		shell.Setvar(v.Identifier(), fnValues)
-		return nil
+		return shell.setvar(v.Name(), fnValues)
 	default:
 		err = errors.NewEvalError(shell.filename,
 			assign, "Unexpected node in assignment: %s", assign.String())
+	}
+
+	if err != nil {
+		return err
 	}
 
 	output := varOut.Bytes()
 
 	if len(output) > 0 && output[len(output)-1] == '\n' {
 		// remove the trailing new line
-		// Why? because it's what user wants in 99% of times...
+		// Why? because it's what user wants in 99.99% of times...
 
 		output = output[0 : len(output)-1]
 	}
 
-	var obj sh.Obj
-
-	if v.Index() != nil {
-		if list, ok := shell.Getvar(v.Identifier()); ok {
-			index, err := shell.evalIndex(v.Index())
-
-			if err != nil {
-				return err
-			}
-
-			if list.Type() != sh.ListType {
-				return errors.NewEvalError(shell.filename,
-					v, "Indexed assigment on non-list type: Variable %s is %s",
-					v.Identifier(),
-					list.Type())
-			}
-
-			lobj := list.(*sh.ListObj)
-
-			lvalues := lobj.List()
-
-			if index >= len(lvalues) {
-				return errors.NewEvalError(shell.filename,
-					v, "List out of bounds error. List has %d elements, but trying to access index %d",
-					len(lvalues), index)
-			}
-
-			lvalues[index] = sh.NewStrObj(string(output))
-			obj = sh.NewListObj(lvalues)
-		} else {
-			return errors.NewEvalError(shell.filename,
-				v, "Variable %s not found", v.Identifier())
-		}
-	} else {
-		obj = sh.NewStrObj(string(output))
-	}
-
-	shell.Setvar(v.Identifier(), obj)
-
-	return err
+	return shell.setvar(v.Name(), sh.NewStrObj(string(output)))
 }
 
 func (shell *Shell) executeAssignment(v *ast.AssignmentNode) error {
@@ -1671,42 +1675,7 @@ func (shell *Shell) executeAssignment(v *ast.AssignmentNode) error {
 		return err
 	}
 
-	if v.Index() != nil {
-		if list, ok := shell.Getvar(v.Identifier()); ok {
-			index, err := shell.evalIndex(v.Index())
-
-			if err != nil {
-				return err
-			}
-
-			if list.Type() != sh.ListType {
-				return errors.NewEvalError(shell.filename,
-					v, "Indexed assigment on non-list type: Variable %s is %s",
-					v.Identifier(),
-					list.Type())
-			}
-
-			lobj := list.(*sh.ListObj)
-
-			lvalues := lobj.List()
-
-			if index >= len(lvalues) {
-				return errors.NewEvalError(shell.filename,
-					v, "List out of bounds error. List has %d elements, but trying to access index %d",
-					len(lvalues), index)
-			}
-
-			lvalues[index] = obj
-			shell.Setvar(v.Identifier(), sh.NewListObj(lvalues))
-			return nil
-		}
-
-		return errors.NewEvalError(shell.filename,
-			v, "Variable %s not found", v.Identifier())
-	}
-
-	shell.Setvar(v.Identifier(), obj)
-	return nil
+	return shell.setvar(v.Name(), obj)
 }
 
 func (shell *Shell) evalIfArgument(arg ast.Node) (sh.Obj, error) {

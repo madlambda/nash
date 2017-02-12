@@ -72,7 +72,9 @@ func (l *BlockNode) adjustGroupAssign(node assignable, nodes []Node) {
 		i       int
 	)
 
-	eqSpace = len(node.Identifier()) + 1
+	nodeName := node.Name().String()
+
+	eqSpace = len(nodeName) + 1
 
 	for i = 0; i < len(nodes); i++ {
 		assign, ok := nodes[i].(assignable)
@@ -81,8 +83,8 @@ func (l *BlockNode) adjustGroupAssign(node assignable, nodes []Node) {
 			break
 		}
 
-		if len(assign.Identifier())+1 > eqSpace {
-			eqSpace = len(assign.Identifier()) + 1
+		if len(assign.Name().String())+1 > eqSpace {
+			eqSpace = len(assign.Name().String()) + 1
 		}
 	}
 
@@ -158,20 +160,22 @@ func (n *SetenvNode) String() string {
 	return "setenv " + n.assign.String()
 }
 
+func (n *NameNode) String() string {
+	if n.index != nil {
+		return n.name + "[" + n.index.String() + "]"
+	}
+
+	return n.name
+}
+
 func (n *AssignmentNode) string() (string, bool) {
 	var (
 		objStr string
 		multi  bool
-		lhs    string
 	)
 
 	obj := n.val
-
-	if n.index != nil {
-		lhs = n.name + "[" + n.index.String() + "]"
-	} else {
-		lhs = n.name
-	}
+	lhs := n.name.String()
 
 	if obj.Type().IsExpr() {
 		if obj.Type() == NodeListExpr {
@@ -203,14 +207,9 @@ func (n *ExecAssignNode) string() (string, bool) {
 	var (
 		cmdStr string
 		multi  bool
-		lhs    string
 	)
 
-	if n.index != nil {
-		lhs = n.name + "[" + n.index.String() + "]"
-	} else {
-		lhs = n.name
-	}
+	lhs := n.name.String()
 
 	if n.cmd.Type() == NodeCommand {
 		cmd := n.cmd.(*CommandNode)
@@ -223,7 +222,7 @@ func (n *ExecAssignNode) string() (string, bool) {
 		cmdStr, multi = cmd.string()
 	}
 
-	if n.eqSpace > len(n.name) {
+	if n.eqSpace > len(lhs) {
 		ret := lhs + strings.Repeat(" ", n.eqSpace-len(lhs)) + "<= " + cmdStr
 		return ret, multi
 	}
