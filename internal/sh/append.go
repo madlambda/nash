@@ -59,8 +59,8 @@ func (appendfn *AppendFn) Wait() error {
 	return appendfn.err
 }
 
-func (appendfn *AppendFn) Results() sh.Obj {
-	return appendfn.results
+func (appendfn *AppendFn) Results() []sh.Obj {
+	return []sh.Obj{appendfn.results}
 }
 
 func (appendfn *AppendFn) SetArgs(args []sh.Obj) error {

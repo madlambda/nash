@@ -236,6 +236,48 @@ func (n *ExecAssignNode) String() string {
 	return str
 }
 
+func (n *ExecMultipleAssignNode) string() (string, bool) {
+	var (
+		cmdStr string
+		multi  bool
+		lhs    string
+	)
+
+	for i := 0; i < len(n.names); i++ {
+		name := n.names[i]
+
+		lhs += name.String()
+
+		if i < len(n.names)-1 {
+			lhs += ", "
+		}
+	}
+
+	if n.cmd.Type() == NodeCommand {
+		cmd := n.cmd.(*CommandNode)
+		cmdStr, multi = cmd.string()
+	} else if n.cmd.Type() == NodePipe {
+		cmd := n.cmd.(*PipeNode)
+		cmdStr, multi = cmd.string()
+	} else {
+		cmd := n.cmd.(*FnInvNode)
+		cmdStr, multi = cmd.string()
+	}
+
+	if n.eqSpace > len(lhs) {
+		ret := lhs + strings.Repeat(" ", n.eqSpace-len(lhs)) + "<= " + cmdStr
+		return ret, multi
+	}
+
+	return lhs + " <= " + cmdStr, multi
+}
+
+// String returns the string representation of command assignment statement
+func (n *ExecMultipleAssignNode) String() string {
+	str, _ := n.string()
+	return str
+}
+
 func (n *CommandNode) toStringParts() ([]string, int) {
 	var (
 		content  []string
@@ -610,11 +652,23 @@ func (n *DumpNode) String() string {
 
 // String returns the string representation of return statement
 func (n *ReturnNode) String() string {
-	if n.arg != nil {
-		return "return " + n.arg.String()
+	ret := "return"
+
+	returnExprs := n.arg
+
+	for i := 0; i < len(returnExprs); i++ {
+		if i == 0 {
+			ret += " "
+		}
+
+		ret += returnExprs[i].String()
+
+		if i < len(returnExprs)-1 {
+			ret += ", "
+		}
 	}
 
-	return "return"
+	return ret
 }
 
 // String returns the string representation of for statement

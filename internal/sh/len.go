@@ -65,8 +65,10 @@ func (lenfn *LenFn) Wait() error {
 	return lenfn.err
 }
 
-func (lenfn *LenFn) Results() sh.Obj {
-	return sh.NewStrObj(strconv.Itoa(lenfn.results))
+func (lenfn *LenFn) Results() []sh.Obj {
+	return []sh.Obj{
+		sh.NewStrObj(strconv.Itoa(lenfn.results)),
+	}
 }
 
 func (lenfn *LenFn) SetArgs(args []sh.Obj) error {

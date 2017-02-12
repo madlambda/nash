@@ -659,10 +659,11 @@ func (shell *Shell) evalConcat(path ast.Expr) (string, error) {
 	return pathStr, nil
 }
 
-func (shell *Shell) executeNode(node ast.Node, builtin bool) (sh.Obj, error) {
+func (shell *Shell) executeNode(node ast.Node, builtin bool) ([]sh.Obj, error) {
 	var (
-		obj sh.Obj
-		err error
+		objs   []sh.Obj
+		err    error
+		status sh.Obj = sh.NewStrObj(strconv.Itoa(ENotFound))
 	)
 
 	shell.logf("Executing node: %v\n", node)
@@ -678,28 +679,30 @@ func (shell *Shell) executeNode(node ast.Node, builtin bool) (sh.Obj, error) {
 		err = shell.executeAssignment(node.(*ast.AssignmentNode))
 	case ast.NodeExecAssign:
 		err = shell.executeExecAssign(node.(*ast.ExecAssignNode))
+	case ast.NodeExecMultipleAssign:
+		err = shell.executeExecMultipleAssign(node.(*ast.ExecMultipleAssignNode))
 	case ast.NodeCommand:
-		err = shell.executeCommand(node.(*ast.CommandNode))
+		status, err = shell.executeCommand(node.(*ast.CommandNode))
 	case ast.NodePipe:
-		err = shell.executePipe(node.(*ast.PipeNode))
+		status, err = shell.executePipe(node.(*ast.PipeNode))
 	case ast.NodeRfork:
 		err = shell.executeRfork(node.(*ast.RforkNode))
 	case ast.NodeIf:
-		obj, err = shell.executeIf(node.(*ast.IfNode))
+		objs, err = shell.executeIf(node.(*ast.IfNode))
 	case ast.NodeFnDecl:
 		err = shell.executeFnDecl(node.(*ast.FnDeclNode))
 	case ast.NodeFnInv:
 		// invocation ignoring output
 		_, err = shell.executeFnInv(node.(*ast.FnInvNode))
 	case ast.NodeFor:
-		obj, err = shell.executeFor(node.(*ast.ForNode))
+		objs, err = shell.executeFor(node.(*ast.ForNode))
 	case ast.NodeBindFn:
 		err = shell.executeBindFn(node.(*ast.BindFnNode))
 	case ast.NodeDump:
 		err = shell.executeDump(node.(*ast.DumpNode))
 	case ast.NodeReturn:
 		if shell.IsFn() {
-			obj, err = shell.executeReturn(node.(*ast.ReturnNode))
+			objs, err = shell.executeReturn(node.(*ast.ReturnNode))
 		} else {
 			err = errors.NewEvalError(shell.filename,
 				node,
@@ -711,15 +714,17 @@ func (shell *Shell) executeNode(node ast.Node, builtin bool) (sh.Obj, error) {
 			"invalid node: %v.", node.Type())
 	}
 
-	return obj, err
+	shell.Setvar("status", status)
+
+	return objs, err
 }
 
-func (shell *Shell) ExecuteTree(tr *ast.Tree) (sh.Obj, error) {
+func (shell *Shell) ExecuteTree(tr *ast.Tree) ([]sh.Obj, error) {
 	return shell.executeTree(tr, true)
 }
 
 // executeTree evaluates the given tree
-func (shell *Shell) executeTree(tr *ast.Tree, stopable bool) (sh.Obj, error) {
+func (shell *Shell) executeTree(tr *ast.Tree, stopable bool) ([]sh.Obj, error) {
 	if tr == nil || tr.Root == nil {
 		return nil, errors.NewError("empty abstract syntax tree to execute")
 	}
@@ -727,7 +732,7 @@ func (shell *Shell) executeTree(tr *ast.Tree, stopable bool) (sh.Obj, error) {
 	root := tr.Root
 
 	for _, node := range root.Nodes {
-		obj, err := shell.executeNode(node, false)
+		objs, err := shell.executeNode(node, false)
 
 		if err != nil {
 			type (
@@ -753,28 +758,34 @@ func (shell *Shell) executeTree(tr *ast.Tree, stopable bool) (sh.Obj, error) {
 			}
 
 			if errStopWalking, ok := err.(StopWalkingError); stopable && ok && errStopWalking.StopWalking() {
-				return obj, nil
+				return objs, nil
 			}
 
-			return obj, err
+			return objs, err
 		}
 	}
 
 	return nil, nil
 }
 
-func (shell *Shell) executeReturn(n *ast.ReturnNode) (sh.Obj, error) {
-	if n.Return() == nil {
-		return nil, newErrStopWalking()
+func (shell *Shell) executeReturn(n *ast.ReturnNode) ([]sh.Obj, error) {
+	var returns []sh.Obj
+
+	returnExprs := n.Return()
+
+	for i := 0; i < len(returnExprs); i++ {
+		retExpr := returnExprs[i]
+
+		obj, err := shell.evalExpr(retExpr)
+
+		if err != nil {
+			return nil, err
+		}
+
+		returns = append(returns, obj)
 	}
 
-	obj, err := shell.evalExpr(n.Return())
-
-	if err != nil {
-		return nil, err
-	}
-
-	return obj, newErrStopWalking()
+	return returns, newErrStopWalking()
 }
 
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
@@ -867,7 +878,7 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 // The error returned will be a string representing the errors (or none) of
 // each command separated by '|'. The $status of pipe execution will be
 // the $status of each command separated by '|'.
-func (shell *Shell) executePipe(pipe *ast.PipeNode) error {
+func (shell *Shell) executePipe(pipe *ast.PipeNode) (sh.Obj, error) {
 	var (
 		closeFiles     []io.Closer
 		closeAfterWait []io.Closer
@@ -884,8 +895,9 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) error {
 	nodeCommands := pipe.Commands()
 
 	if len(nodeCommands) < 2 {
-		return errors.NewEvalError(shell.filename,
-			pipe, "Pipe requires at least two commands.")
+		return sh.NewStrObj(strconv.Itoa(ENotStarted)),
+			errors.NewEvalError(shell.filename,
+				pipe, "Pipe requires at least two commands.")
 	}
 
 	cmds := make([]sh.Runner, len(nodeCommands))
@@ -1015,8 +1027,7 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) error {
 		cods[i] = "0"
 	}
 
-	shell.Setvar("status", sh.NewStrObj("0"))
-	return nil
+	return sh.NewStrObj("0"), nil
 
 pipeError:
 	if igns[errIndex] {
@@ -1039,18 +1050,20 @@ pipeError:
 		uniqCode = cods[i]
 	}
 
+	var status sh.Obj
+
 	if len(uniqCodes) == 1 {
 		// if all status are the same
-		shell.Setvar("status", sh.NewStrObj(uniqCode))
+		status = sh.NewStrObj(uniqCode)
 	} else {
-		shell.Setvar("status", sh.NewStrObj(strings.Join(cods, "|")))
+		status = sh.NewStrObj(strings.Join(cods, "|"))
 	}
 
 	if igns[errIndex] {
-		return nil
+		return status, nil
 	}
 
-	return err
+	return status, err
 }
 
 func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, error) {
@@ -1302,7 +1315,7 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 	return cmd, ignoreError, nil
 }
 
-func (shell *Shell) executeCommand(c *ast.CommandNode) error {
+func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 	var (
 		ignoreError    bool
 		status         = "127"
@@ -1365,18 +1378,16 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) error {
 		goto cmdError
 	}
 
-	shell.Setvar("status", sh.NewStrObj("0"))
-
-	return nil
+	return sh.NewStrObj("0"), nil
 
 cmdError:
-	shell.Setvar("status", sh.NewStrObj(getErrStatus(err, status)))
+	statusObj := sh.NewStrObj(getErrStatus(err, status))
 
 	if ignoreError {
-		return newErrIgnore(err.Error())
+		return statusObj, newErrIgnore(err.Error())
 	}
 
-	return err
+	return statusObj, err
 }
 
 func (shell *Shell) evalList(argList *ast.ListExpr) (sh.Obj, error) {
@@ -1529,21 +1540,27 @@ func (shell *Shell) evalExpr(expr ast.Expr) (sh.Obj, error) {
 		}
 	case ast.NodeFnInv:
 		if fnInv, ok := expr.(*ast.FnInvNode); ok {
-			obj, err := shell.executeFnInv(fnInv)
+			objs, err := shell.executeFnInv(fnInv)
 
 			if err != nil {
 				return nil, err
 			}
 
-			if obj == nil {
+			if len(objs) == 0 {
 				return nil, errors.NewEvalError(shell.filename,
 					expr,
 					"Function used in"+
 						" expression but do not return any value: %s",
 					fnInv)
+			} else if len(objs) != 1 {
+				return nil, errors.NewEvalError(shell.filename,
+					expr,
+					"Function used in"+
+						" expression but it returns %d values: %d",
+					len(objs))
 			}
 
-			return obj, nil
+			return objs[0], nil
 		}
 	}
 
@@ -1612,12 +1629,18 @@ func (shell *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 	return value, nil
 }
 
-func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
+func (shell *Shell) execCmdOutput(cmd ast.Node) (string, sh.Obj, error) {
 	var (
-		varOut   bytes.Buffer
-		err      error
-		fnValues sh.Obj
+		varOut bytes.Buffer
+		err    error
+		status sh.Obj
 	)
+	if cmd.Type() != ast.NodeCommand &&
+		cmd.Type() != ast.NodePipe {
+		return "", nil, errors.NewEvalError(shell.filename,
+			cmd, "Invalid node type (%v). Expected command or pipe",
+			cmd)
+	}
 
 	bkStdout := shell.stdout
 
@@ -1625,33 +1648,10 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 
 	defer shell.SetStdout(bkStdout)
 
-	assign := v.Command()
-
-	switch assign.Type() {
-	case ast.NodeCommand:
-		err = shell.executeCommand(assign.(*ast.CommandNode))
-	case ast.NodePipe:
-		err = shell.executePipe(assign.(*ast.PipeNode))
-	case ast.NodeFnInv:
-		fnValues, err = shell.executeFnInv(assign.(*ast.FnInvNode))
-
-		if err != nil {
-			return err
-		}
-
-		if fnValues == nil {
-			return errors.NewEvalError(shell.filename,
-				v, "Invalid assignment from function that does not return values: %s", assign)
-		}
-
-		return shell.setvar(v.Name(), fnValues)
-	default:
-		err = errors.NewEvalError(shell.filename,
-			assign, "Unexpected node in assignment: %s", assign.String())
-	}
-
-	if err != nil {
-		return err
+	if cmd.Type() == ast.NodeCommand {
+		status, err = shell.executeCommand(cmd.(*ast.CommandNode))
+	} else {
+		status, err = shell.executePipe(cmd.(*ast.PipeNode))
 	}
 
 	output := varOut.Bytes()
@@ -1663,7 +1663,134 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 		output = output[0 : len(output)-1]
 	}
 
-	return shell.setvar(v.Name(), sh.NewStrObj(string(output)))
+	return string(output), status, err
+}
+
+func (shell *Shell) executeExecAssignCmd(v ast.Node) error {
+	var cmd ast.Node
+
+	if v.Type() == ast.NodeExecAssign {
+		assign := v.(*ast.ExecAssignNode)
+		cmd = assign.Command()
+		output, status, err := shell.execCmdOutput(cmd)
+
+		if err != nil {
+			return err
+		}
+
+		// compatibility mode
+		shell.Setvar("status", status)
+		return shell.setvar(assign.Name(), sh.NewStrObj(output))
+	} else if v.Type() == ast.NodeExecMultipleAssign {
+		assign := v.(*ast.ExecMultipleAssignNode)
+
+		names := assign.Names()
+
+		if len(names) != 2 {
+			return errors.NewEvalError(shell.filename,
+				v, "multiple assignment of commands requires two variable names, but got %d",
+				len(names))
+		}
+
+		cmd = assign.Command()
+
+		output, status, err := shell.execCmdOutput(cmd)
+
+		if err != nil {
+			return err
+		}
+
+		err = shell.setvar(names[0], sh.NewStrObj(output))
+
+		if err != nil {
+			return err
+		}
+
+		return shell.setvar(names[1], status)
+	}
+
+	return errors.NewEvalError(shell.filename,
+		v, "Invalid node (%v). Expected ExecAssign or ExecMultAssign",
+		v)
+}
+
+func (shell *Shell) executeExecAssignFn(v ast.Node) error {
+	var (
+		err      error
+		fnValues []sh.Obj
+		cmd      ast.Node
+		names    []*ast.NameNode
+	)
+
+	if v.Type() == ast.NodeExecAssign {
+		assign := v.(*ast.ExecAssignNode)
+		cmd = assign.Command()
+		names = append(names, assign.Name())
+	} else if v.Type() == ast.NodeExecMultipleAssign {
+		assign := v.(*ast.ExecMultipleAssignNode)
+		cmd = assign.Command()
+		names = append(names, assign.Names()...)
+	} else {
+		return errors.NewEvalError(shell.filename,
+			v, "Invalid node type (%v). Expected single or multiple assignment",
+			v)
+	}
+
+	if cmd.Type() != ast.NodeFnInv {
+		return errors.NewEvalError(shell.filename,
+			cmd, "Invalid node type (%v). Expected function call",
+			cmd)
+	}
+
+	fnValues, err = shell.executeFnInv(cmd.(*ast.FnInvNode))
+
+	if err != nil {
+		return err
+	}
+
+	if len(fnValues) != len(names) {
+		return errors.NewEvalError(shell.filename,
+			v, "Functions returns %d objects, but statement expects %d",
+			len(fnValues), len(names))
+	}
+
+	for i := 0; i < len(names); i++ {
+		if err := shell.setvar(names[i], fnValues[i]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
+	assign := v.Command()
+
+	if assign.Type() == ast.NodeFnInv {
+		return shell.executeExecAssignFn(v)
+	} else if assign.Type() == ast.NodeCommand ||
+		assign.Type() == ast.NodePipe {
+		return shell.executeExecAssignCmd(v)
+	}
+
+	return errors.NewEvalError(shell.filename,
+		assign, "Invalid node type (%v). Expected function call, command or pipe",
+		assign)
+}
+
+func (shell *Shell) executeExecMultipleAssign(v *ast.ExecMultipleAssignNode) error {
+	assign := v.Command()
+
+	if assign.Type() == ast.NodeFnInv {
+		return shell.executeExecAssignFn(v)
+	} else if assign.Type() == ast.NodeCommand ||
+		assign.Type() == ast.NodePipe {
+		return shell.executeExecAssignCmd(v)
+	}
+
+	return errors.NewEvalError(shell.filename,
+		assign, "Invalid node type (%v). Expected function call, command or pipe",
+		assign)
 }
 
 func (shell *Shell) executeAssignment(v *ast.AssignmentNode) error {
@@ -1684,11 +1811,7 @@ func (shell *Shell) evalIfArgument(arg ast.Node) (sh.Obj, error) {
 		err error
 	)
 
-	if arg.Type() == ast.NodeFnInv {
-		obj, err = shell.executeFnInv(arg.(*ast.FnInvNode))
-	} else {
-		obj, err = shell.evalExpr(arg)
-	}
+	obj, err = shell.evalExpr(arg)
 
 	if err != nil {
 		return nil, err
@@ -1734,7 +1857,7 @@ func (shell *Shell) evalIfArguments(n *ast.IfNode) (string, string, error) {
 	return lobjstr.Str(), robjstr.Str(), nil
 }
 
-func (shell *Shell) executeIfEqual(n *ast.IfNode) (sh.Obj, error) {
+func (shell *Shell) executeIfEqual(n *ast.IfNode) ([]sh.Obj, error) {
 	lstr, rstr, err := shell.evalIfArguments(n)
 
 	if err != nil {
@@ -1750,7 +1873,7 @@ func (shell *Shell) executeIfEqual(n *ast.IfNode) (sh.Obj, error) {
 	return nil, nil
 }
 
-func (shell *Shell) executeIfNotEqual(n *ast.IfNode) (sh.Obj, error) {
+func (shell *Shell) executeIfNotEqual(n *ast.IfNode) ([]sh.Obj, error) {
 	lstr, rstr, err := shell.evalIfArguments(n)
 
 	if err != nil {
@@ -1766,7 +1889,7 @@ func (shell *Shell) executeIfNotEqual(n *ast.IfNode) (sh.Obj, error) {
 	return nil, nil
 }
 
-func (shell *Shell) executeFn(fn sh.Fn, nodeArgs []ast.Expr) (sh.Obj, error) {
+func (shell *Shell) executeFn(fn sh.Fn, nodeArgs []ast.Expr) ([]sh.Obj, error) {
 	args, err := shell.evalExprs(nodeArgs)
 
 	if err != nil {
@@ -1794,7 +1917,7 @@ func (shell *Shell) executeFn(fn sh.Fn, nodeArgs []ast.Expr) (sh.Obj, error) {
 	return fn.Results(), nil
 }
 
-func (shell *Shell) executeFnInv(n *ast.FnInvNode) (sh.Obj, error) {
+func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 	var (
 		fn sh.Runner
 		ok bool
@@ -1858,14 +1981,14 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) (sh.Obj, error) {
 	return fn.Results(), nil
 }
 
-func (shell *Shell) executeInfLoop(tr *ast.Tree) (sh.Obj, error) {
+func (shell *Shell) executeInfLoop(tr *ast.Tree) ([]sh.Obj, error) {
 	var (
-		err error
-		obj sh.Obj
+		err  error
+		objs []sh.Obj
 	)
 
 	for {
-		obj, err = shell.executeTree(tr, false)
+		objs, err = shell.executeTree(tr, false)
 
 		runtime.Gosched()
 
@@ -1884,7 +2007,7 @@ func (shell *Shell) executeInfLoop(tr *ast.Tree) (sh.Obj, error) {
 		}
 
 		if errStopWalking, ok := err.(stopWalkingError); ok && errStopWalking.StopWalking() {
-			return obj, err
+			return objs, err
 		}
 
 		shell.Lock()
@@ -1909,7 +2032,7 @@ func (shell *Shell) executeInfLoop(tr *ast.Tree) (sh.Obj, error) {
 	return nil, err
 }
 
-func (shell *Shell) executeFor(n *ast.ForNode) (sh.Obj, error) {
+func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 	shell.Lock()
 	shell.looping = true
 	shell.Unlock()
@@ -1938,7 +2061,15 @@ func (shell *Shell) executeFor(n *ast.ForNode) (sh.Obj, error) {
 	} else if inExpr.Type() == ast.NodeListExpr {
 		obj, err = shell.evalList(inExpr.(*ast.ListExpr))
 	} else if inExpr.Type() == ast.NodeFnInv {
-		obj, err = shell.executeFnInv(inExpr.(*ast.FnInvNode))
+		var objs []sh.Obj
+		objs, err = shell.executeFnInv(inExpr.(*ast.FnInvNode))
+
+		if len(objs) != 1 {
+			return nil, errors.NewEvalError(shell.filename,
+				inExpr, "Functions with multiple returns do not work as for 'in expression' yet: %v", inExpr)
+		}
+
+		obj = objs[0]
 	} else {
 		return nil, errors.NewEvalError(shell.filename,
 			inExpr, "Invalid expression in for loop: %s", inExpr.Type())
@@ -1958,7 +2089,7 @@ func (shell *Shell) executeFor(n *ast.ForNode) (sh.Obj, error) {
 	for _, val := range objlist.List() {
 		shell.Setvar(id, val)
 
-		obj, err = shell.executeTree(n.Tree(), false)
+		objs, err := shell.executeTree(n.Tree(), false)
 
 		type (
 			interruptedError interface {
@@ -1975,7 +2106,7 @@ func (shell *Shell) executeFor(n *ast.ForNode) (sh.Obj, error) {
 		}
 
 		if errStopWalking, ok := err.(stopWalkingError); ok && errStopWalking.StopWalking() {
-			return obj, err
+			return objs, err
 		}
 
 		shell.Lock()
@@ -2037,6 +2168,10 @@ func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 
 func (shell *Shell) dumpVar(file io.Writer) {
 	for n, v := range shell.vars {
+		if n == "status" {
+			continue
+		}
+
 		printVar(file, n, v)
 	}
 }
@@ -2115,7 +2250,7 @@ func (shell *Shell) executeBindFn(n *ast.BindFnNode) error {
 	return nil
 }
 
-func (shell *Shell) executeIf(n *ast.IfNode) (sh.Obj, error) {
+func (shell *Shell) executeIf(n *ast.IfNode) ([]sh.Obj, error) {
 	op := n.Op()
 
 	if op == "==" {

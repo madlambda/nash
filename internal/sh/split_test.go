@@ -43,7 +43,13 @@ func testSplit(t *testing.T, content string, sep sh.Obj, expected []sh.Obj) {
 		t.Fatal(err)
 	}
 
-	result := splitfn.Results()
+	results := splitfn.Results()
+
+	if len(results) != 1 {
+		t.Fatalf("splitfn must always return 1 list")
+	}
+
+	result := results[0]
 
 	if result.Type() != sh.ListType {
 		t.Fatalf("Splitfn returns wrong type")
@@ -177,7 +183,13 @@ fn tolist(char) {
 		t.Fatal(err)
 	}
 
-	result := splitfn.Results()
+	results := splitfn.Results()
+
+	if len(results) != 1 {
+		t.Fatalf("splifn must always return 1 list")
+	}
+
+	result := results[0]
 
 	if result.Type() != sh.ListType {
 		t.Fatalf("Splitfn returns wrong type")

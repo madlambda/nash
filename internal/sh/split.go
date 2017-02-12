@@ -86,8 +86,8 @@ func (splitfn *SplitFn) Wait() error {
 	return splitfn.err
 }
 
-func (splitfn *SplitFn) Results() sh.Obj {
-	return splitfn.results
+func (splitfn *SplitFn) Results() []sh.Obj {
+	return []sh.Obj{splitfn.results}
 }
 
 func (splitfn *SplitFn) SetArgs(args []sh.Obj) error {
@@ -157,7 +157,15 @@ func splitByFn(content string, splitFunc sh.Fn) []string {
 			return false
 		}
 
-		result := splitFunc.Results()
+		results := splitFunc.Results()
+
+		// fuck... now this is broken...
+		// remove support of split by func?
+		if len(results) != 1 {
+			return false
+		}
+
+		result := results[0]
 
 		if result.Type() != sh.StringType {
 			return false

@@ -188,7 +188,7 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 
 	if it.Type() == token.Ident {
 		switch next.Type() {
-		case token.Assign, token.AssignCmd, token.LBrack:
+		case token.Assign, token.AssignCmd, token.LBrack, token.Comma:
 			return p.parseAssignment(it)
 		}
 
@@ -663,9 +663,9 @@ func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
 	it := p.next()
 
 	if it.Type() != token.Assign && it.Type() != token.AssignCmd &&
-		it.Type() != token.LBrack {
+		it.Type() != token.LBrack && it.Type() != token.Comma {
 		return nil, newParserError(it, p.name,
-			"Unexpected token %v, expected '=' ,'<=' or '['", it)
+			"Unexpected token %v, expected '=' ,'<=', ',' or '['", it)
 	}
 
 	var (
@@ -683,11 +683,67 @@ func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
 		it = p.next()
 	}
 
+	if it.Type() == token.Comma {
+		return p.parseMultipleAssignment(ident, index)
+	}
+
 	if it.Type() == token.Assign {
 		return p.parseAssignValue(ident, index)
 	}
 
-	return p.parseAssignCmdOut(ident, index)
+	name := ast.NewNameNode(ident.FileInfo, ident.Value(), index)
+
+	return p.parseAssignCmdOut([]*ast.NameNode{name})
+}
+
+func (p *Parser) parseMultipleAssignment(ident scanner.Token, index ast.Expr) (ast.Node, error) {
+	//          we are here
+	//              |
+	//              V
+	// identifier1, identifier2, ..., identifierN <= ...
+
+	var (
+		it  scanner.Token
+		err error
+	)
+
+	names := []*ast.NameNode{
+		ast.NewNameNode(ident.FileInfo, ident.Value(), index),
+	}
+
+	for it = p.next(); ; it = p.next() {
+		if it.Type() != token.Ident {
+			return nil, newParserError(it, p.name, "Unexpected token %v, expected IDENT", it)
+		}
+
+		var index ast.Expr
+
+		name := it
+		it = p.next()
+
+		if it.Type() == token.LBrack {
+			index, err = p.parseIndexing()
+
+			if err != nil {
+				return nil, err
+			}
+
+			it = p.next()
+		}
+
+		names = append(names, ast.NewNameNode(it.FileInfo, name.Value(), index))
+
+		if it.Type() != token.Comma {
+			break
+		}
+	}
+
+	if it.Type() != token.AssignCmd {
+		// will we support multiple simple assignment (no cmd exec)?
+		return nil, newParserError(it, p.name, "Unexpected token %v, expected ',' or '<='", it)
+	}
+
+	return p.parseAssignCmdOut(names)
 }
 
 func (p *Parser) parseList(tok *scanner.Token) (ast.Node, error) {
@@ -779,7 +835,7 @@ func (p *Parser) parseAssignValue(identifier scanner.Token, index ast.Expr) (ast
 	return ast.NewAssignmentNode(assignIdent.FileInfo, name, value), nil
 }
 
-func (p *Parser) parseAssignCmdOut(identifier scanner.Token, index ast.Expr) (ast.Node, error) {
+func (p *Parser) parseAssignCmdOut(identifiers []*ast.NameNode) (ast.Node, error) {
 	var (
 		exec ast.Node
 		err  error
@@ -813,15 +869,21 @@ func (p *Parser) parseAssignCmdOut(identifier scanner.Token, index ast.Expr) (as
 		return nil, err
 	}
 
-	var name *ast.NameNode
-
-	if index != nil {
-		name = ast.NewNameNode(identifier.FileInfo, identifier.Value(), index)
-	} else {
-		name = ast.NewNameNode(identifier.FileInfo, identifier.Value(), nil)
+	if len(identifiers) == 0 {
+		// should not happen... pray
+		panic("internal error parsing assignment")
 	}
 
-	return ast.NewExecAssignNode(name.FileInfo, name, exec)
+	if len(identifiers) == 1 {
+		ident := identifiers[0]
+		return ast.NewExecAssignNode(ident.FileInfo, ident, exec)
+	}
+
+	return ast.NewExecMultipleAssignNode(
+		identifiers[0].FileInfo,
+		identifiers,
+		exec,
+	)
 }
 
 func (p *Parser) parseRfork(it scanner.Token) (ast.Node, error) {
@@ -1212,6 +1274,7 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 	// return "<some>"
 	// return ( ... values ... )
 	// return <fn name>()
+	// return "val1", "val2", $val3, test()
 	if valueIt.Type() != token.Semicolon &&
 		valueIt.Type() != token.RBrace &&
 		valueIt.Type() != token.Variable &&
@@ -1223,77 +1286,85 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 			valueIt)
 	}
 
-	if valueIt.Type() == token.Semicolon {
-		p.ignore()
-		return ret, nil
-	}
+	var returnExprs []ast.Expr
 
-	if valueIt.Type() == token.RBrace {
-		return ret, nil
-	}
+	for {
+		valueIt = p.peek()
 
-	if valueIt.Type() == token.LParen {
-		listInfo := valueIt.FileInfo
-		p.ignore()
+		if valueIt.Type() == token.Semicolon {
+			p.ignore()
+			break
+		}
 
-		var values []ast.Expr
+		if valueIt.Type() == token.RBrace {
+			break
+		}
 
-		for valueIt = p.peek(); valueIt.Type() != token.RParen && valueIt.Type() != token.EOF; valueIt = p.peek() {
-			arg, err := p.getArgument(true, true)
+		if valueIt.Type() == token.LParen {
+			listInfo := valueIt.FileInfo
+			p.ignore()
+
+			var values []ast.Expr
+
+			for valueIt = p.peek(); valueIt.Type() != token.RParen && valueIt.Type() != token.EOF; valueIt = p.peek() {
+				arg, err := p.getArgument(true, true)
+
+				if err != nil {
+					return nil, err
+				}
+
+				values = append(values, arg)
+			}
+
+			if valueIt.Type() != token.RParen {
+				return nil, errors.NewUnfinishedListError(p.name, valueIt)
+			}
+
+			p.ignore()
+
+			listArg := ast.NewListExpr(listInfo, values)
+			returnExprs = append(returnExprs, listArg)
+		} else if valueIt.Type() == token.Ident {
+			p.next()
+			next := p.peek()
+
+			if next.Type() != token.LParen {
+				return nil, newParserError(valueIt, p.name,
+					"Expected FUNCALL, STRING, VARIABLE or LPAREN, but found '%v' %v",
+					valueIt.Value(), next)
+			}
+
+			arg, err := p.parseFnInv(valueIt, true)
 
 			if err != nil {
 				return nil, err
 			}
 
-			values = append(values, arg)
+			returnExprs = append(returnExprs, arg)
+		} else {
+			arg, err := p.getArgument(false, true)
+
+			if err != nil {
+				return nil, err
+			}
+
+			returnExprs = append(returnExprs, arg)
 		}
 
-		if valueIt.Type() != token.RParen {
-			return nil, errors.NewUnfinishedListError(p.name, valueIt)
+		next := p.peek()
+
+		if next.Type() == token.Comma {
+			continue
 		}
 
-		p.ignore()
-
-		if p.peek().Type() == token.Semicolon {
+		if next.Type() == token.Semicolon {
 			p.ignore()
 		}
 
-		listArg := ast.NewListExpr(listInfo, values)
-		ret.SetReturn(listArg)
-		return ret, nil
+		break
 	}
 
-	if valueIt.Type() == token.Ident {
-		p.next()
-		next := p.peek()
-
-		if next.Type() != token.LParen {
-			return nil, newParserError(valueIt, p.name,
-				"Expected FUNCALL, STRING, VARIABLE or LPAREN, but found %v %v",
-				valueIt, next)
-		}
-
-		arg, err := p.parseFnInv(valueIt, true)
-
-		if err != nil {
-			return nil, err
-		}
-
-		ret.SetReturn(arg)
-		return ret, nil
-	}
-
-	arg, err := p.getArgument(false, true)
-
-	if err != nil {
-		return nil, err
-	}
-
-	ret.SetReturn(arg)
-
-	if p.peek().Type() == token.Semicolon {
-		p.ignore()
-	}
+	ret.SetReturn(returnExprs)
 
 	return ret, nil
 }

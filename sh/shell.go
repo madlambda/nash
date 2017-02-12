@@ -6,7 +6,7 @@ type (
 	Runner interface {
 		Start() error
 		Wait() error
-		Results() Obj
+		Results() []Obj
 
 		SetArgs([]Obj) error
 		SetEnviron([]string)

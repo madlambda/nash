@@ -214,6 +214,54 @@ func TestBasicAssignment(t *testing.T) {
 	}
 }
 
+func TestParseMultipleExecAssignment(t *testing.T) {
+	expected := ast.NewTree("multiple cmd assignment")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+
+	cmd := ast.NewCommandNode(token.NewFileInfo(1, 16), "ls", false)
+
+	assign, err := ast.NewExecMultipleAssignNode(token.NewFileInfo(1, 0),
+		[]*ast.NameNode{
+			ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
+			ast.NewNameNode(token.NewFileInfo(1, 0), "status", nil),
+		},
+		cmd,
+	)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTestTable("multiple cmd assignment", `test, status <= ls`, expected, t, true)
+
+	expected = ast.NewTree("multiple cmd assignment")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+
+	cmd = ast.NewCommandNode(token.NewFileInfo(1, 19), "ls", false)
+
+	assign, err = ast.NewExecMultipleAssignNode(token.NewFileInfo(1, 0),
+		[]*ast.NameNode{
+			ast.NewNameNode(token.NewFileInfo(1, 0), "test", ast.NewIntExpr(token.NewFileInfo(1, 5), 0)),
+			ast.NewNameNode(token.NewFileInfo(1, 0), "status", nil),
+		},
+		cmd,
+	)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTestTable("multiple cmd assignment", `test[0], status <= ls`, expected, t, true)
+}
+
 func TestParseInvalidIndexing(t *testing.T) {
 	// test indexed assignment
 	parser := NewParser("invalid", `test[a] = "a"`)
@@ -1204,7 +1252,7 @@ func TestParseReturn(t *testing.T) {
 
 	retReturn := ast.NewListExpr(token.NewFileInfo(1, 7), listvalues)
 
-	ret.SetReturn(retReturn)
+	ret.SetReturn([]ast.Expr{retReturn})
 
 	ln.Push(ret)
 	expected.Root = ln
@@ -1216,7 +1264,7 @@ func TestParseReturn(t *testing.T) {
 
 	ret = ast.NewReturnNode(token.NewFileInfo(1, 0))
 
-	ret.SetReturn(ast.NewVarExpr(token.NewFileInfo(1, 7), "$var"))
+	ret.SetReturn([]ast.Expr{ast.NewVarExpr(token.NewFileInfo(1, 7), "$var")})
 
 	ln.Push(ret)
 	expected.Root = ln
@@ -1228,7 +1276,7 @@ func TestParseReturn(t *testing.T) {
 
 	ret = ast.NewReturnNode(token.NewFileInfo(1, 0))
 
-	ret.SetReturn(ast.NewStringExpr(token.NewFileInfo(1, 8), "value", true))
+	ret.SetReturn([]ast.Expr{ast.NewStringExpr(token.NewFileInfo(1, 8), "value", true)})
 
 	ln.Push(ret)
 	expected.Root = ln
@@ -1242,7 +1290,7 @@ func TestParseReturn(t *testing.T) {
 
 	aFn := ast.NewFnInvNode(token.NewFileInfo(1, 7), "a")
 
-	ret.SetReturn(aFn)
+	ret.SetReturn([]ast.Expr{aFn})
 
 	ln.Push(ret)
 	expected.Root = ln

@@ -320,6 +320,72 @@ func TestExecuteCmdAssignment(t *testing.T) {
 	}
 }
 
+func TestExecuteCmdMultipleAssignment(t *testing.T) {
+	for _, test := range []execTest{
+		{
+			"cmd assignment",
+			`name, err <= echo -n i4k
+                         if $err == "0" {
+                             echo -n $name
+                         }`,
+			"i4k", "",
+			"",
+		},
+		{
+			"list cmd assignment",
+			`name, err2 <= echo "honda civic"
+                         if $err2 == "0" {
+                             echo -n $name
+                         }`,
+			"honda civic", "", "",
+		},
+		{
+			"wrong cmd assignment",
+			`name, err <= ""`,
+			"", "", "wrong cmd assignment:1:14: Invalid token STRING. Expected command or function invocation",
+		},
+		{
+			"fn must return value",
+			`fn e() {}
+                         v, err <= e()`,
+			"",
+			"",
+			"<interactive>:2:35: Invalid assignment from function that does not return values: e()",
+		},
+		{
+			"list assignment",
+			`l = (0 1 2 3)
+                         l[0], err <= echo -n 666
+                         if $err == "0" {
+                             echo -n $l
+                         }`,
+			`666 1 2 3`,
+			"",
+			"",
+		},
+		{
+			"list assignment",
+			`l = (0 1 2 3)
+                         a = "2"
+                         l[$a], err <= echo -n "666"
+                         if $err == "0" {
+                             echo -n $l
+                         }`,
+			`0 1 666 3`,
+			"",
+			"",
+		},
+	} {
+		testExec(t,
+			test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
+	}
+}
+
 // IFS *DO NOT* exists anymore. This tests only assure things works as expected (IFS has no power)
 func TestExecuteCmdAssignmentIFS(t *testing.T) {
 	for _, test := range []execTest{

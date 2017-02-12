@@ -89,12 +89,23 @@ type (
 		eqSpace int
 	}
 
-	// An ExecAssignNode represents the node for execution assignment.
+	// ExecAssignNode represents the node for execution assignment.
 	ExecAssignNode struct {
 		NodeType
 		token.FileInfo
 
 		name    *NameNode
+		cmd     Node
+		eqSpace int
+	}
+
+	// ExecMultipleAssignNode represents the node for exec assign with
+	// multiple returns
+	ExecMultipleAssignNode struct {
+		NodeType
+		token.FileInfo
+
+		names   []*NameNode
 		cmd     Node
 		eqSpace int
 	}
@@ -240,7 +251,7 @@ type (
 		NodeType
 		token.FileInfo
 
-		arg Expr
+		arg []Expr
 	}
 
 	// A BindFnNode represents the "bindfn" keyword.
@@ -288,6 +299,9 @@ const (
 
 	// NodeExecAssign is the type for command or function assignment
 	NodeExecAssign
+
+	// NodeExecMultipleAssign is the type for multiple cmd assignment
+	NodeExecMultipleAssign
 
 	// NodeImport is the type for "import" builtin keyword
 	NodeImport
@@ -673,6 +687,84 @@ func (n *ExecAssignNode) IsEqual(other Node) bool {
 	if n.name != o.name && !n.name.IsEqual(o.name) {
 		debug("Exec assignment name differs")
 		return false
+	}
+
+	if !cmpInfo(n, other) {
+		debug("cmpInfo differs")
+		return false
+	}
+
+	if n.cmd != nil && o.cmd != nil && !n.cmd.IsEqual(o.cmd) {
+		return false
+	}
+
+	return true
+}
+
+// NewExecMultipleAssignNode creates a new node for executing something and storing the
+// result on multiple variables. The assignment could be made using an operating system
+// command, a pipe of commands or a function invocation.
+// It returns a *ExecMultipleAssignNode ready to be executed or error when
+// n is not a valid node for execution.
+func NewExecMultipleAssignNode(info token.FileInfo, names []*NameNode, n Node) (*ExecMultipleAssignNode, error) {
+	if !n.Type().IsExecutable() {
+		return nil, errors.New("NewExecAssignNode expects a CommandNode, PipeNode or FninvNode")
+	}
+
+	return &ExecMultipleAssignNode{
+		NodeType: NodeExecMultipleAssign,
+		FileInfo: info,
+
+		names:   names,
+		cmd:     n,
+		eqSpace: -1,
+	}, nil
+}
+
+// Name returns the identifier (l-value)
+func (n *ExecMultipleAssignNode) Names() []*NameNode {
+	return n.names
+}
+
+func (n *ExecMultipleAssignNode) getEqSpace() int      { return n.eqSpace }
+func (n *ExecMultipleAssignNode) setEqSpace(value int) { n.eqSpace = value }
+
+// Command returns the command (or r-value). Command could be a CommandNode or FnNode
+func (n *ExecMultipleAssignNode) Command() Node {
+	return n.cmd
+}
+
+// SetName set the assignment identifier (l-value)
+func (n *ExecMultipleAssignNode) SetNames(names []*NameNode) {
+	n.names = names
+}
+
+// SetCommand set the command part (NodeCommand or NodeFnDecl)
+func (n *ExecMultipleAssignNode) SetCommand(c Node) {
+	n.cmd = c
+}
+
+func (n *ExecMultipleAssignNode) IsEqual(other Node) bool {
+	if n == other {
+		return true
+	}
+
+	o, ok := other.(*ExecMultipleAssignNode)
+
+	if !ok {
+		debug("Failed to convert to ExecMultipleAssignNode")
+		return false
+	}
+
+	if len(n.names) != len(o.names) {
+		debug("Exec assignment name differs")
+		return false
+	}
+
+	for i := 0; i < len(n.names); i++ {
+		if !n.names[i].IsEqual(o.names[i]) {
+			return false
+		}
 	}
 
 	if !cmpInfo(n, other) {
@@ -1289,12 +1381,12 @@ func NewReturnNode(info token.FileInfo) *ReturnNode {
 }
 
 // SetReturn set the arguments to return
-func (n *ReturnNode) SetReturn(a Expr) {
+func (n *ReturnNode) SetReturn(a []Expr) {
 	n.arg = a
 }
 
 // Return returns the argument being returned
-func (n *ReturnNode) Return() Expr { return n.arg }
+func (n *ReturnNode) Return() []Expr { return n.arg }
 
 func (n *ReturnNode) IsEqual(other Node) bool {
 	if n == other {
@@ -1315,15 +1407,20 @@ func (n *ReturnNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.arg == o.arg {
-		return true
+	if len(n.arg) != len(o.arg) {
+		return false
 	}
 
-	if n.arg != nil {
-		return n.arg.IsEqual(o.arg)
+	for i := 0; i < len(n.arg); i++ {
+		arg := n.arg[i]
+		oarg := o.arg[i]
+
+		if arg != nil && !arg.IsEqual(oarg) {
+			return false
+		}
 	}
 
-	return false
+	return true
 }
 
 // NewForNode create a new for statement

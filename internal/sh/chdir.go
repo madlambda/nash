@@ -56,7 +56,7 @@ func (chdir *ChdirFn) Wait() error {
 	return chdir.err
 }
 
-func (chdir *ChdirFn) Results() sh.Obj { return nil }
+func (chdir *ChdirFn) Results() []sh.Obj { return nil }
 
 func (chdir *ChdirFn) SetArgs(args []sh.Obj) error {
 	if len(args) != 1 {
