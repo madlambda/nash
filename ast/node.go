@@ -95,7 +95,6 @@ type (
 		token.FileInfo
 
 		name    *NameNode
-		index   Expr
 		cmd     Node
 		eqSpace int
 	}
@@ -683,11 +682,6 @@ func (n *ExecAssignNode) IsEqual(other Node) bool {
 
 	if n.cmd != nil && o.cmd != nil && !n.cmd.IsEqual(o.cmd) {
 		return false
-	}
-
-	if n.index != nil && o.index != nil && !n.index.IsEqual(o.index) {
-		return false
-
 	}
 
 	return true
