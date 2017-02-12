@@ -288,7 +288,7 @@ func TestExecuteCmdAssignment(t *testing.T) {
                          v <= e()`,
 			"",
 			"",
-			"<interactive>:2:25: Invalid assignment from function that does not return values: e()",
+			"<interactive>:2:25: Functions returns 0 objects, but statement expects 1",
 		},
 		{
 			"list assignment",
@@ -350,7 +350,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
                          v, err <= e()`,
 			"",
 			"",
-			"<interactive>:2:35: Invalid assignment from function that does not return values: e()",
+			"<interactive>:2:25: Functions returns 0 objects, but statement expects 2",
 		},
 		{
 			"list assignment",
