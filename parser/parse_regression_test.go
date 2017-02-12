@@ -117,7 +117,8 @@ func TestParseIssue43(t *testing.T) {
 	gitRevParse.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 25), "--abbrev-ref", false))
 	gitRevParse.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 38), "HEAD", false))
 
-	branchAssign, err := ast.NewExecAssignNode(token.NewFileInfo(2, 1), "branch", gitRevParse)
+	branchAssign, err := ast.NewExecAssignNode(token.NewFileInfo(2, 1), ast.NewNameNode(
+		token.NewFileInfo(2, 1), "branch", nil), gitRevParse)
 
 	if err != nil {
 		t.Error(err)
@@ -200,7 +201,10 @@ func TestParseIssue69(t *testing.T) {
 
 	list := ast.NewListExpr(token.NewFileInfo(1, 4), listValues)
 
-	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0), "a", list)
+	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0),
+		ast.NewNameNode(token.NewFileInfo(1, 0), "a", nil), list,
+	)
+
 	ln.Push(assign)
 	expected.Root = ln
 

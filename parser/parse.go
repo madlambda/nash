@@ -739,10 +739,10 @@ func (p *Parser) parseList(tok *scanner.Token) (ast.Node, error) {
 	return ast.NewListExpr(lit.FileInfo, values), nil
 }
 
-func (p *Parser) parseAssignValue(name scanner.Token, index ast.Expr) (ast.Node, error) {
+func (p *Parser) parseAssignValue(identifier scanner.Token, index ast.Expr) (ast.Node, error) {
 	var err error
 
-	assignIdent := name
+	assignIdent := identifier
 
 	var value ast.Expr
 
@@ -754,7 +754,6 @@ func (p *Parser) parseAssignValue(name scanner.Token, index ast.Expr) (ast.Node,
 		if err != nil {
 			return nil, err
 		}
-
 	} else if it.Type() == token.LParen { // list
 		value, err = p.parseList(nil)
 
@@ -769,14 +768,18 @@ func (p *Parser) parseAssignValue(name scanner.Token, index ast.Expr) (ast.Node,
 		p.ignore()
 	}
 
+	var name *ast.NameNode
+
 	if index != nil {
-		return ast.NewAssignmentIndexNode(assignIdent.FileInfo, assignIdent.Value(), index, value), nil
+		name = ast.NewNameNode(assignIdent.FileInfo, assignIdent.Value(), index)
+	} else {
+		name = ast.NewNameNode(assignIdent.FileInfo, assignIdent.Value(), nil)
 	}
 
-	return ast.NewAssignmentNode(assignIdent.FileInfo, assignIdent.Value(), value), nil
+	return ast.NewAssignmentNode(assignIdent.FileInfo, name, value), nil
 }
 
-func (p *Parser) parseAssignCmdOut(name scanner.Token, index ast.Expr) (ast.Node, error) {
+func (p *Parser) parseAssignCmdOut(identifier scanner.Token, index ast.Expr) (ast.Node, error) {
 	var (
 		exec ast.Node
 		err  error
@@ -810,11 +813,15 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token, index ast.Expr) (ast.Node
 		return nil, err
 	}
 
+	var name *ast.NameNode
+
 	if index != nil {
-		return ast.NewExecAssignIndexNode(name.FileInfo, name.Value(), index, exec)
+		name = ast.NewNameNode(identifier.FileInfo, identifier.Value(), index)
+	} else {
+		name = ast.NewNameNode(identifier.FileInfo, identifier.Value(), nil)
 	}
 
-	return ast.NewExecAssignNode(name.FileInfo, name.Value(), exec)
+	return ast.NewExecAssignNode(name.FileInfo, name, exec)
 }
 
 func (p *Parser) parseRfork(it scanner.Token) (ast.Node, error) {
@@ -1045,7 +1052,6 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 	n.SetTree(tree)
 
 	return n, nil
-
 }
 
 func (p *Parser) parseFnInv(ident scanner.Token, allowSemicolon bool) (ast.Node, error) {
