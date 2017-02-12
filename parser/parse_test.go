@@ -108,7 +108,7 @@ func TestParsePipe(t *testing.T) {
 	parserTestTable("parser pipe", `echo "hello world" | awk "{print $1}"`, expected, t, true)
 }
 
-func TestBasicSetAssignment(t *testing.T) {
+func TestBasicSetEnvAssignment(t *testing.T) {
 	expected := ast.NewTree("simple set assignment")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	set, err := ast.NewSetenvNode(token.NewFileInfo(1, 0), "test", nil)
@@ -197,28 +197,6 @@ func TestBasicAssignment(t *testing.T) {
 
 	parserTestTable("test", `test = "hello"+$var`, expected, t, true)
 
-	// test indexed assignment
-
-	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
-
-	concats = make([]ast.Expr, 2, 2)
-	concats[0] = ast.NewStringExpr(token.NewFileInfo(1, 11), "hello", true)
-	concats[1] = ast.NewVarExpr(token.NewFileInfo(1, 18), "$var")
-
-	arg1 = ast.NewConcatExpr(token.NewFileInfo(1, 11), concats)
-
-	index := ast.NewIntExpr(token.NewFileInfo(1, 5), 0)
-
-	assignIndexed := ast.NewAssignmentNode(token.NewFileInfo(1, 0),
-		ast.NewNameNode(token.NewFileInfo(1, 0), "test", index),
-		arg1,
-	)
-
-	ln.Push(assignIndexed)
-	expected.Root = ln
-
-	parserTestTable("test", `test[0] = "hello"+$var`, expected, t, true)
-
 	// invalid, requires quote
 	// test=hello
 	parser := NewParser("", `test = hello`)
@@ -232,6 +210,45 @@ func TestBasicAssignment(t *testing.T) {
 
 	if tr != nil {
 		t.Error("tr must be nil")
+		return
+	}
+}
+
+func TestParseInvalidIndexing(t *testing.T) {
+	// test indexed assignment
+	parser := NewParser("invalid", `test[a] = "a"`)
+
+	_, err := parser.Parse()
+
+	if err == nil {
+		t.Error("Parse must fail")
+		return
+	} else if err.Error() != "invalid:1:5: Expected number or variable in index. Found ARG" {
+		t.Error("Invalid err msg")
+		return
+	}
+
+	parser = NewParser("invalid", `test[] = "a"`)
+
+	_, err = parser.Parse()
+
+	if err == nil {
+		t.Error("Parse must fail")
+		return
+	} else if err.Error() != "invalid:1:5: Expected number or variable in index. Found ]" {
+		t.Error("Invalid err msg")
+		return
+	}
+
+	parser = NewParser("invalid", `test[10.0] = "a"`)
+
+	_, err = parser.Parse()
+
+	if err == nil {
+		t.Error("Parse must fail")
+		return
+	} else if err.Error() != "invalid:1:5: Expected number or variable in index. Found ARG" {
+		t.Error("Invalid err msg")
 		return
 	}
 }
@@ -329,7 +346,7 @@ func TestParseCmdAssignment(t *testing.T) {
 	parserTestTable("simple assignment", `test <= ls`, expected, t, true)
 }
 
-func TestParseInvalid(t *testing.T) {
+func TestParseInvalidEmpty(t *testing.T) {
 	parser := NewParser("invalid", ";")
 
 	_, err := parser.Parse()
