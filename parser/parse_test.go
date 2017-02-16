@@ -223,7 +223,7 @@ func TestParseMultipleExecAssignment(t *testing.T) {
 	assign, err := ast.NewExecMultipleAssignNode(token.NewFileInfo(1, 0),
 		[]*ast.NameNode{
 			ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
-			ast.NewNameNode(token.NewFileInfo(1, 0), "status", nil),
+			ast.NewNameNode(token.NewFileInfo(1, 13), "status", nil),
 		},
 		cmd,
 	)
@@ -246,7 +246,7 @@ func TestParseMultipleExecAssignment(t *testing.T) {
 	assign, err = ast.NewExecMultipleAssignNode(token.NewFileInfo(1, 0),
 		[]*ast.NameNode{
 			ast.NewNameNode(token.NewFileInfo(1, 0), "test", ast.NewIntExpr(token.NewFileInfo(1, 5), 0)),
-			ast.NewNameNode(token.NewFileInfo(1, 0), "status", nil),
+			ast.NewNameNode(token.NewFileInfo(1, 16), "status", nil),
 		},
 		cmd,
 	)

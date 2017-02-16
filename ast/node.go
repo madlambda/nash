@@ -40,6 +40,8 @@ type (
 		string() (string, bool)
 	}
 
+	egalitarian struct{}
+
 	// Expr is the interface of expression nodes.
 	Expr Node
 
@@ -50,6 +52,7 @@ type (
 	BlockNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		Nodes []Node
 	}
@@ -58,6 +61,7 @@ type (
 	ImportNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		path *StringExpr // Import path
 	}
@@ -66,6 +70,7 @@ type (
 	SetenvNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		varName string
 		assign  Node
@@ -74,6 +79,7 @@ type (
 	NameNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name  string
 		index Expr
@@ -83,6 +89,7 @@ type (
 	AssignmentNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name    *NameNode
 		val     Expr
@@ -93,6 +100,7 @@ type (
 	ExecAssignNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name    *NameNode
 		cmd     Node
@@ -104,6 +112,7 @@ type (
 	ExecMultipleAssignNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		names   []*NameNode
 		cmd     Node
@@ -114,6 +123,7 @@ type (
 	CommandNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name   string
 		args   []Expr
@@ -126,6 +136,7 @@ type (
 	PipeNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		cmds  []*CommandNode
 		multi bool
@@ -135,6 +146,7 @@ type (
 	StringExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		str    string
 		quoted bool
@@ -144,6 +156,7 @@ type (
 	IntExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		val int
 	}
@@ -152,6 +165,7 @@ type (
 	ListExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		list []Expr
 	}
@@ -160,6 +174,7 @@ type (
 	ConcatExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		concat []Expr
 	}
@@ -168,6 +183,7 @@ type (
 	VarExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name string
 	}
@@ -176,6 +192,7 @@ type (
 	IndexExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		variable *VarExpr
 		index    Expr
@@ -185,6 +202,7 @@ type (
 	RedirectNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		rmap     RedirMap
 		location Expr
@@ -194,6 +212,7 @@ type (
 	RforkNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		arg  *StringExpr
 		tree *Tree
@@ -203,6 +222,7 @@ type (
 	CommentNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		val string
 	}
@@ -217,6 +237,7 @@ type (
 	IfNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		lvalue Expr
 		rvalue Expr
@@ -231,6 +252,7 @@ type (
 	FnDeclNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name string
 		args []string
@@ -241,6 +263,7 @@ type (
 	FnInvNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name string
 		args []Expr
@@ -250,6 +273,7 @@ type (
 	ReturnNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		arg []Expr
 	}
@@ -258,6 +282,7 @@ type (
 	BindFnNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name    string
 		cmdname string
@@ -267,6 +292,7 @@ type (
 	DumpNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		filename Expr
 	}
@@ -275,6 +301,7 @@ type (
 	ForNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		identifier string
 		inExpr     Expr
@@ -400,6 +427,22 @@ func (t NodeType) IsExecutable() bool {
 	return t > execBegin && t < execEnd
 }
 
+func (e egalitarian) equal(node, other Node) bool {
+	if node == other {
+		return true
+	}
+
+	if node == nil {
+		return false
+	}
+
+	if !cmpInfo(node, other) {
+		return false
+	}
+
+	return true
+}
+
 // NewBlockNode creates a new block
 func NewBlockNode(info token.FileInfo) *BlockNode {
 	return &BlockNode{
@@ -415,8 +458,8 @@ func (l *BlockNode) Push(n Node) {
 
 // IsEqual returns if it is equal to the other node.
 func (l *BlockNode) IsEqual(other Node) bool {
-	if l == other {
-		return true
+	if !l.equal(l, other) {
+		return false
 	}
 
 	o, ok := other.(*BlockNode)
@@ -438,7 +481,7 @@ func (l *BlockNode) IsEqual(other Node) bool {
 		}
 	}
 
-	return cmpInfo(l, other)
+	return true
 }
 
 // NewImportNode creates a new ImportNode object
@@ -456,8 +499,8 @@ func (n *ImportNode) Path() *StringExpr { return n.path }
 
 // IsEqual returns if it is equal to the other node.
 func (n *ImportNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*ImportNode)
@@ -467,14 +510,10 @@ func (n *ImportNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if !cmpInfo(n, other) {
-		return false
-	}
-
-	if n.path != nil {
-		return n.path.IsEqual(o.path)
-	} else if o.path == nil {
-		return true
+	if n.path != o.path {
+		if n.path != nil {
+			return n.path.IsEqual(o.path)
+		}
 	}
 
 	return false
@@ -504,18 +543,14 @@ func (n *SetenvNode) Assignment() Node { return n.assign }
 
 // IsEqual returns if it is equal to the other node.
 func (n *SetenvNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*SetenvNode)
 
 	if !ok {
 		debug("Failed to convert to SetenvNode")
-		return false
-	}
-
-	if !cmpInfo(n, other) {
 		return false
 	}
 
@@ -541,8 +576,8 @@ func (n *NameNode) Ident() string { return n.name }
 func (n *NameNode) Index() Expr   { return n.index }
 
 func (n *NameNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*NameNode)
@@ -560,7 +595,7 @@ func (n *NameNode) IsEqual(other Node) bool {
 		return true
 	}
 
-	if n.index != nil && o.index != nil {
+	if n.index != nil {
 		return n.index.IsEqual(o.index)
 	}
 
@@ -602,8 +637,8 @@ func (n *AssignmentNode) Value() Expr {
 
 // IsEqual returns if it is equal to the other node.
 func (n *AssignmentNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*AssignmentNode)
@@ -618,15 +653,11 @@ func (n *AssignmentNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.val != nil && o.val != nil && !n.val.IsEqual(o.val) {
-		return false
+	if n.val != nil {
+		return n.val.IsEqual(o.val)
 	}
 
-	if !cmpInfo(n, other) {
-		return false
-	}
-
-	return true
+	return false
 }
 
 // NewExecAssignNode creates a new node for executing something and store the
@@ -673,8 +704,8 @@ func (n *ExecAssignNode) SetCommand(c Node) {
 }
 
 func (n *ExecAssignNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*ExecAssignNode)
@@ -684,21 +715,20 @@ func (n *ExecAssignNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.name != o.name && !n.name.IsEqual(o.name) {
-		debug("Exec assignment name differs")
-		return false
+	if n.name != nil {
+		if !n.name.IsEqual(o.name) {
+			debug("Exec assignment name differs")
+			return false
+		}
 	}
 
-	if !cmpInfo(n, other) {
-		debug("cmpInfo differs")
-		return false
+	if n.cmd == o.cmd {
+		return true
+	} else if n.cmd != nil {
+		return n.cmd.IsEqual(o.cmd)
 	}
 
-	if n.cmd != nil && o.cmd != nil && !n.cmd.IsEqual(o.cmd) {
-		return false
-	}
-
-	return true
+	return false
 }
 
 // NewExecMultipleAssignNode creates a new node for executing something and storing the
@@ -745,8 +775,8 @@ func (n *ExecMultipleAssignNode) SetCommand(c Node) {
 }
 
 func (n *ExecMultipleAssignNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*ExecMultipleAssignNode)
@@ -767,16 +797,13 @@ func (n *ExecMultipleAssignNode) IsEqual(other Node) bool {
 		}
 	}
 
-	if !cmpInfo(n, other) {
-		debug("cmpInfo differs")
-		return false
+	if n.cmd == o.cmd {
+		return true
+	} else if n.cmd != nil {
+		return n.cmd.IsEqual(o.cmd)
 	}
 
-	if n.cmd != nil && o.cmd != nil && !n.cmd.IsEqual(o.cmd) {
-		return false
-	}
-
-	return true
+	return false
 }
 
 // NewCommandNode creates a new node for commands
@@ -819,8 +846,8 @@ func (n *CommandNode) Name() string { return n.name }
 
 // IsEqual returns if it is equal to the other node.
 func (n *CommandNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*CommandNode)
@@ -836,31 +863,34 @@ func (n *CommandNode) IsEqual(other Node) bool {
 	}
 
 	if len(n.args) != len(o.args) {
-		debug("Command argument length differs: %d (%+v) != %d (%+v)", len(n.args), n.args, len(o.args), o.args)
+		debug("Command argument length differs: %d (%+v) != %d (%+v)",
+			len(n.args), n.args, len(o.args), o.args)
 		return false
 	}
 
 	for i := 0; i < len(n.args); i++ {
 		if !n.args[i].IsEqual(o.args[i]) {
-			debug("Argument %d differs. '%s' != '%s'", i, n.args[i], o.args[i])
+			debug("Argument %d differs. '%s' != '%s'", i, n.args[i],
+				o.args[i])
 			return false
 		}
 	}
 
 	if len(n.redirs) != len(o.redirs) {
-		debug("Number of redirects differs. %d != %d", len(n.redirs), len(o.redirs))
+		debug("Number of redirects differs. %d != %d", len(n.redirs),
+			len(o.redirs))
 		return false
 	}
 
 	for i := 0; i < len(n.redirs); i++ {
-		if !n.redirs[i].IsEqual(o.redirs[i]) {
-			debug("Redirect differs... %s != %s", n.redirs[i], o.redirs[i])
+		if n.redirs[i] == o.redirs[i] {
+			continue
+		} else if n.redirs[i] != nil &&
+			!n.redirs[i].IsEqual(o.redirs[i]) {
+			debug("Redirect differs... %s != %s", n.redirs[i],
+				o.redirs[i])
 			return false
 		}
-	}
-
-	if !cmpInfo(n, other) {
-		return false
 	}
 
 	return n.name == o.name
@@ -891,8 +921,8 @@ func (n *PipeNode) Commands() []*CommandNode {
 
 // IsEqual returns if it is equal to the other node.
 func (n *PipeNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*PipeNode)
@@ -903,18 +933,20 @@ func (n *PipeNode) IsEqual(other Node) bool {
 	}
 
 	if len(n.cmds) != len(o.cmds) {
-		debug("Number of pipe commands differ: %d != %d", len(n.cmds), len(o.cmds))
+		debug("Number of pipe commands differ: %d != %d",
+			len(n.cmds), len(o.cmds))
 		return false
 	}
 
 	for i := 0; i < len(n.cmds); i++ {
 		if !n.cmds[i].IsEqual(o.cmds[i]) {
-			debug("Command differs. '%s' != '%s'", n.cmds[i], o.cmds[i])
+			debug("Command differs. '%s' != '%s'", n.cmds[i],
+				o.cmds[i])
 			return false
 		}
 	}
 
-	return cmpInfo(n, other)
+	return true
 }
 
 // NewRedirectNode creates a new redirection node for commands
@@ -950,8 +982,8 @@ func (r *RedirectNode) Location() Expr { return r.location }
 
 // IsEqual return if it is equal to the other node.
 func (r *RedirectNode) IsEqual(other Node) bool {
-	if r == other {
-		return true
+	if !r.equal(r, other) {
+		return false
 	}
 
 	o, ok := other.(*RedirectNode)
@@ -965,15 +997,9 @@ func (r *RedirectNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if !cmpInfo(r, other) {
-		return false
-	}
-
 	if r.location == o.location {
 		return true
-	}
-
-	if r.location != nil {
+	} else if r.location != nil {
 		return r.location.IsEqual(o.location)
 	}
 
@@ -1009,8 +1035,8 @@ func (n *RforkNode) SetTree(t *Tree) {
 }
 
 func (n *RforkNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*RforkNode)
@@ -1019,12 +1045,14 @@ func (n *RforkNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if !n.arg.IsEqual(o.arg) {
-		return false
+	if n.arg == o.arg {
+		return true
 	}
 
-	if !cmpInfo(n, other) {
-		return false
+	if n.arg != nil {
+		if !n.arg.IsEqual(o.arg) {
+			return false
+		}
 	}
 
 	return n.tree.IsEqual(o.tree)
@@ -1041,8 +1069,8 @@ func NewCommentNode(info token.FileInfo, val string) *CommentNode {
 }
 
 func (n *CommentNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	if n.Type() != other.Type() {
@@ -1052,10 +1080,6 @@ func (n *CommentNode) IsEqual(other Node) bool {
 	o, ok := other.(*CommentNode)
 
 	if !ok {
-		return false
-	}
-
-	if !cmpInfo(n, other) {
 		return false
 	}
 
@@ -1126,8 +1150,8 @@ func (n *IfNode) ElseTree() *Tree { return n.elseTree }
 
 // IsEqual returns if it is equal to the other node.
 func (n *IfNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*IfNode)
@@ -1161,11 +1185,8 @@ func (n *IfNode) IsEqual(other Node) bool {
 	valueTree := o.IfTree()
 
 	if !expectedTree.IsEqual(valueTree) {
-		debug("If tree differs: '%s' != '%s'", expectedTree, valueTree)
-		return false
-	}
-
-	if !cmpInfo(n, other) {
+		debug("If tree differs: '%s' != '%s'", expectedTree,
+			valueTree)
 		return false
 	}
 
@@ -1216,8 +1237,8 @@ func (n *FnDeclNode) SetTree(t *Tree) {
 }
 
 func (n *FnDeclNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*FnDeclNode)
@@ -1236,7 +1257,7 @@ func (n *FnDeclNode) IsEqual(other Node) bool {
 		}
 	}
 
-	return cmpInfo(n, other)
+	return true
 }
 
 // NewFnInvNode creates a new function invocation
@@ -1269,8 +1290,8 @@ func (n *FnInvNode) Args() []Expr { return n.args }
 
 // IsEqual returns if it is equal to the other node.
 func (n *FnInvNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*FnInvNode)
@@ -1289,7 +1310,7 @@ func (n *FnInvNode) IsEqual(other Node) bool {
 		}
 	}
 
-	return cmpInfo(n, other)
+	return true
 }
 
 // NewBindFnNode creates a new bindfn statement
@@ -1310,17 +1331,13 @@ func (n *BindFnNode) Name() string { return n.name }
 func (n *BindFnNode) CmdName() string { return n.cmdname }
 
 func (n *BindFnNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*BindFnNode)
 
 	if !ok {
-		return false
-	}
-
-	if !cmpInfo(n, other) {
 		return false
 	}
 
@@ -1346,8 +1363,8 @@ func (n *DumpNode) SetFilename(a Expr) {
 }
 
 func (n *DumpNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*DumpNode)
@@ -1355,10 +1372,6 @@ func (n *DumpNode) IsEqual(other Node) bool {
 	if !ok {
 		debug("Failed to convert to DumpNode")
 		return ok
-	}
-
-	if !cmpInfo(n, other) {
-		return false
 	}
 
 	if n.filename == o.filename {
@@ -1389,8 +1402,8 @@ func (n *ReturnNode) SetReturn(a []Expr) {
 func (n *ReturnNode) Return() []Expr { return n.arg }
 
 func (n *ReturnNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	if n.Type() != other.Type() {
@@ -1400,10 +1413,6 @@ func (n *ReturnNode) IsEqual(other Node) bool {
 	o, ok := other.(*ReturnNode)
 
 	if !ok {
-		return false
-	}
-
-	if !cmpInfo(n, other) {
 		return false
 	}
 
@@ -1454,8 +1463,8 @@ func (n *ForNode) SetTree(a *Tree) {
 func (n *ForNode) Tree() *Tree { return n.tree }
 
 func (n *ForNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	if n.Type() != other.Type() {
@@ -1468,10 +1477,6 @@ func (n *ForNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if !cmpInfo(n, other) {
-		return false
-	}
-
 	if n.identifier != o.identifier {
 		return false
 	}
@@ -1480,17 +1485,18 @@ func (n *ForNode) IsEqual(other Node) bool {
 		return true
 	}
 
-	if n.inExpr == nil || o.inExpr == nil {
-		return false
+	if n.inExpr != nil {
+		return n.inExpr.IsEqual(o.inExpr)
 	}
 
-	return n.inExpr.IsEqual(o.inExpr)
+	return false
 }
 
 func cmpInfo(n, other Node) bool {
 	if n.Line() != other.Line() ||
 		n.Column() != other.Column() {
-		debug("file info mismatch on %v (%s): (%d, %d) != (%d, %d)", n, n.Type(), n.Line(), n.Column(),
+		debug("file info mismatch on %v (%s): (%d, %d) != (%d, %d)",
+			n, n.Type(), n.Line(), n.Column(),
 			other.Line(), other.Column())
 		return false
 	}
