@@ -358,7 +358,7 @@ func lexStart(l *Lexer) stateFn {
 		if isEndOfLine(next) || isSpace(next) ||
 			next == '=' || next == '(' ||
 			next == ')' || next == ',' ||
-			next == eof {
+			next == '[' || next == eof {
 			lit := scanIdentifier(l)
 
 			if len(lit) > 1 && r >= 'a' && r <= 'z' {

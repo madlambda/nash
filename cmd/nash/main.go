@@ -42,6 +42,10 @@ func init() {
 
 func main() {
 	var args []string
+	var shell *nash.Shell
+	var err error
+
+	cliMode := false
 
 	flag.Parse()
 
@@ -55,11 +59,18 @@ func main() {
 		file = args[0]
 	}
 
-	shell, err := initShell()
+	if (file == "" && command == "") || interactive {
+		cliMode = true
+		shell, err = initShell()
+	} else {
+		shell, err = nash.New()
+	}
 
 	if err != nil {
 		goto Error
 	}
+
+	shell.SetDebug(debug)
 
 	if addr != "" {
 		startNashd(shell, addr)
@@ -68,7 +79,7 @@ func main() {
 	}
 
 	if file != "" {
-		err = executeFilename(shell, file, args)
+		err = shell.ExecFile(file, args...)
 
 		if err != nil {
 			goto Error
@@ -83,7 +94,7 @@ func main() {
 		}
 	}
 
-	if (file == "" && command == "") || interactive {
+	if cliMode {
 		err = cli(shell)
 
 		if err != nil {
@@ -128,7 +139,9 @@ func initShell() (*nash.Shell, error) {
 		return nil, err
 	}
 
-	shell.SetDebug(debug)
+	// initShell will run only if the nash command is ran
+	// without arguments or interactive flag, hence interactive mode
+	shell.SetInteractive(true)
 
 	nashpath, err := getnashpath()
 
@@ -153,36 +166,4 @@ func initShell() (*nash.Shell, error) {
 	}
 
 	return shell, nil
-}
-
-func executeFilename(shell *nash.Shell, file string, args []string) error {
-	err := shell.ExecuteString("setting args", `ARGS = `+args2Nash(args))
-
-	if err != nil {
-		err = fmt.Errorf("Failed to set nash arguments: %s", err.Error())
-
-		return err
-	}
-
-	err = shell.ExecuteFile(file)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func args2Nash(args []string) string {
-	ret := "("
-
-	for i := 0; i < len(args); i++ {
-		ret += `"` + args[i] + `"`
-
-		if i < (len(args) - 1) {
-			ret += " "
-		}
-	}
-
-	return ret + ")"
 }

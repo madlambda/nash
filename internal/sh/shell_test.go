@@ -70,24 +70,16 @@ func testExecuteFile(t *testing.T, path, expected string) {
 	}
 }
 
-func testExec(t *testing.T, desc, execStr, expectedStdout, expectedStderr, expectedErr string) {
-	shell, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
+func testShellExec(t *testing.T, shell *Shell, desc, execStr, expectedStdout, expectedStderr, expectedErr string) {
 
 	var bout bytes.Buffer
 	var berr bytes.Buffer
 	shell.SetStderr(&berr)
 	shell.SetStdout(&bout)
 
-	err = shell.Exec(desc, execStr)
+	err := shell.Exec(desc, execStr)
 
-	if err != nil && expectedErr != "" {
+	if err != nil {
 		if err.Error() != expectedErr {
 			t.Errorf("Error differs: Expected '%s' but got '%s'",
 				expectedErr, err.Error())
@@ -101,8 +93,55 @@ func testExec(t *testing.T, desc, execStr, expectedStdout, expectedStderr, expec
 	}
 
 	if expectedStderr != string(berr.Bytes()) {
-		t.Errorf("Stdout differs: '%s' != '%s'", expectedStderr,
+		t.Errorf("Stderr differs: '%s' != '%s'", expectedStderr,
 			string(berr.Bytes()))
+		return
+	}
+}
+
+func testExec(t *testing.T, desc, execStr, expectedStdout, expectedStderr, expectedErr string) {
+	shell, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	shell.SetNashdPath(nashdPath)
+
+	testShellExec(t, shell, desc, execStr, expectedStdout, expectedStderr, expectedErr)
+}
+
+func testInteractiveExec(t *testing.T, desc, execStr, expectedStdout, expectedStderr, expectedErr string) {
+	shell, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	shell.SetNashdPath(nashdPath)
+	shell.SetInteractive(true)
+
+	testShellExec(t, shell, desc, execStr, expectedStdout, expectedStderr, expectedErr)
+}
+
+func TestInitEnv(t *testing.T) {
+
+	os.Setenv("TEST", "abc=123=")
+
+	shell, err := NewShell()
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	testEnv, _ := shell.Getenv("TEST")
+	expectedTestEnv := "abc=123="
+
+	if testEnv.String() != expectedTestEnv {
+		t.Errorf("Expected TEST Env differs: '%s' != '%s'", testEnv, expectedTestEnv)
 		return
 	}
 }
@@ -193,6 +232,25 @@ kernel 4.7.1`,
 			"",
 			"",
 		},
+		{
+			"list assignment",
+			`l = (0 1 2 3)
+                         l[0] = "666"
+                         echo -n $l`,
+			`666 1 2 3`,
+			"",
+			"",
+		},
+		{
+			"list assignment",
+			`l = (0 1 2 3)
+                         a = "2"
+                         l[$a] = "666"
+                         echo -n $l`,
+			`0 1 666 3`,
+			"",
+			"",
+		},
 	} {
 		testExec(t,
 			test.desc,
@@ -232,6 +290,25 @@ func TestExecuteCmdAssignment(t *testing.T) {
 			"",
 			"<interactive>:2:25: Invalid assignment from function that does not return values: e()",
 		},
+		{
+			"list assignment",
+			`l = (0 1 2 3)
+                         l[0] <= echo -n 666
+                         echo -n $l`,
+			`666 1 2 3`,
+			"",
+			"",
+		},
+		{
+			"list assignment",
+			`l = (0 1 2 3)
+                         a = "2"
+                         l[$a] <= echo -n "666"
+                         echo -n $l`,
+			`0 1 666 3`,
+			"",
+			"",
+		},
 	} {
 		testExec(t,
 			test.desc,
@@ -243,6 +320,7 @@ func TestExecuteCmdAssignment(t *testing.T) {
 	}
 }
 
+// IFS *DO NOT* exists anymore. This tests only assure things works as expected (IFS has no power)
 func TestExecuteCmdAssignmentIFS(t *testing.T) {
 	for _, test := range []execTest{
 		{
@@ -254,7 +332,7 @@ for i in $range {
     echo "i = " + $i
 }`,
 			"", "",
-			"<interactive>:4:0: Invalid variable type in for range: StringType",
+			"<interactive>:4:9: Invalid variable type in for range: StringType",
 		},
 		{
 			"ifs",
@@ -265,7 +343,7 @@ for i in $range {
     echo "i = " + $i
 }`,
 			"", "",
-			"<interactive>:4:0: Invalid variable type in for range: StringType",
+			"<interactive>:4:9: Invalid variable type in for range: StringType",
 		},
 		{
 			"ifs",
@@ -276,7 +354,7 @@ for i in $range {
     echo "i = " + $i
 }`,
 			"", "",
-			"<interactive>:4:0: Invalid variable type in for range: StringType",
+			"<interactive>:4:9: Invalid variable type in for range: StringType",
 		},
 		{
 			"ifs",
@@ -287,7 +365,7 @@ for i in $range {
     echo "i = " + $i
 }`,
 			"", "",
-			"<interactive>:4:0: Invalid variable type in for range: StringType",
+			"<interactive>:4:9: Invalid variable type in for range: StringType",
 		},
 	} {
 		testExec(t,
@@ -461,9 +539,9 @@ func TestExecuteCd(t *testing.T) {
 	for _, test := range []execTest{
 		{
 			"test cd",
-			`cd /tmp
+			`cd /
         pwd`,
-			"/tmp\n", "", "",
+			"/\n", "", "",
 		},
 		{
 			"test cd",
@@ -477,10 +555,10 @@ func TestExecuteCd(t *testing.T) {
 		{
 			"test cd into $var",
 			`
-        var="/tmp"
+        var="/"
         cd $var
         pwd`,
-			"/tmp\n",
+			"/\n",
 			"",
 			"",
 		},
@@ -493,7 +571,7 @@ func TestExecuteCd(t *testing.T) {
 			"<interactive>:2:12: lvalue is not comparable: (val1 val2 val3) -> ListType.",
 		},
 	} {
-		testExec(t,
+		testInteractiveExec(t,
 			test.desc,
 			test.execStr,
 			test.expectedStdout,
@@ -880,9 +958,7 @@ echo -n $integers
 	}
 }
 
-func TestExecuteBindFn(t *testing.T) {
-	var out bytes.Buffer
-
+func TestNonInteractive(t *testing.T) {
 	shell, err := NewShell()
 
 	if err != nil {
@@ -891,24 +967,72 @@ func TestExecuteBindFn(t *testing.T) {
 	}
 
 	shell.SetNashdPath(nashdPath)
-	shell.SetStdout(&out)
+	shell.SetInteractive(true)
 
-	err = shell.Exec("test bindfn", `
+	testShellExec(t, shell,
+		"test bindfn interactive",
+		`
+        fn greeting() {
+                echo "Hello"
+        }
+
+        bindfn greeting hello`,
+		"", "", "")
+
+	shell.SetInteractive(false)
+	shell.filename = "<non-interactive>"
+
+	expectedErr := "<non-interactive>:1:0: " +
+		"'hello' is a bind to 'greeting'." +
+		" No binds allowed in non-interactive mode."
+
+	testShellExec(t, shell, "test 'binded' function non-interactive",
+		`hello`, "", "", expectedErr)
+
+	expectedErr = "<non-interactive>:6:8: 'bindfn' is not allowed in" +
+		" non-interactive mode."
+
+	testShellExec(t, shell, "test bindfn non-interactive",
+		`
+        fn goodbye() {
+                echo "Ciao"
+        }
+
+        bindfn goodbye ciao`, "", "", expectedErr)
+}
+
+func TestExecuteBindFn(t *testing.T) {
+	for _, test := range []execTest{
+		{
+			"test bindfn",
+			`
         fn cd(path) {
                 echo "override builtin cd"
         }
 
         bindfn cd cd
-        cd`)
+        cd`,
+			"override builtin cd\n", "", "",
+		},
+		{
+			"test bindfn args",
+			`
+        fn foo(line) {
+                echo $line
+        }
 
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "override builtin cd" {
-		t.Errorf("Error: '%s' != 'override builtin cd'", strings.TrimSpace(string(out.Bytes())))
-		return
+        bindfn foo bar
+        bar test test`,
+			"", "", "<interactive>:7:8: Too much arguments for function 'foo'. It expects 1 args, but given 2. Arguments: [\"test\" \"test\"]",
+		},
+	} {
+		testInteractiveExec(t,
+			test.desc,
+			test.execStr,
+			test.expectedStdout,
+			test.expectedStderr,
+			test.expectedErr,
+		)
 	}
 }
 

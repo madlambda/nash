@@ -101,7 +101,7 @@ func (p *Parser) next() scanner.Token {
 // backup puts the item into the lookahead buffer
 func (p *Parser) backup(it scanner.Token) error {
 	if p.tok != nil {
-		return errors.NewError("only one slot for backup/lookahead")
+		panic(errors.NewError("only one slot for backup/lookahead: %s", it))
 	}
 
 	p.tok = &it
@@ -125,10 +125,135 @@ func (p *Parser) peek() scanner.Token {
 	return i
 }
 
-func (p *Parser) parseVariable() (ast.Expr, error) {
-	var err error
+func (p *Parser) parseBlock(lineStart, columnStart int) (*ast.BlockNode, error) {
+	ln := ast.NewBlockNode(token.NewFileInfo(lineStart, columnStart))
 
+	for {
+		it := p.peek()
+
+		switch it.Type() {
+		case token.EOF:
+			goto finish
+		case token.LBrace:
+			p.ignore()
+
+			return nil, newParserError(it, p.name,
+				"Unexpected '{'")
+		case token.RBrace:
+			p.ignore()
+
+			if p.openblocks <= 0 {
+				return nil, newParserError(it, p.name,
+					"No block open for close")
+			}
+
+			p.openblocks--
+			return ln, nil
+		default:
+			n, err := p.parseStatement()
+
+			if err != nil {
+				return nil, err
+			}
+
+			ln.Push(n)
+		}
+	}
+
+finish:
+	if p.openblocks != 0 {
+		return nil, errors.NewUnfinishedBlockError(p.name, p.peek())
+	}
+
+	return ln, nil
+}
+
+func (p *Parser) parseStatement() (ast.Node, error) {
 	it := p.next()
+	next := p.peek()
+
+	if fn, ok := p.keywordParsers[it.Type()]; ok {
+		return fn(it)
+	}
+
+	// statement starting with ident:
+	// - fn invocation
+	// - variable assignment
+	// - variable exec assignment
+	// - Command
+
+	if (it.Type() == token.Ident || it.Type() == token.Variable) && next.Type() == token.LParen {
+		return p.parseFnInv(it, true)
+	}
+
+	if it.Type() == token.Ident {
+		switch next.Type() {
+		case token.Assign, token.AssignCmd, token.LBrack:
+			return p.parseAssignment(it)
+		}
+
+		return p.parseCommand(it)
+	} else if it.Type() == token.Arg {
+		return p.parseCommand(it)
+	}
+
+	// statement starting with '('
+	// -multiline command (echo hello)
+	if it.Type() == token.LParen {
+		return p.parseCommand(it)
+	}
+
+	return nil, newParserError(it, p.name, "Unexpected token parsing statement '%+v'", it)
+}
+
+func (p *Parser) parseIndexing() (ast.Expr, error) {
+	it := p.next()
+
+	if it.Type() != token.Number && it.Type() != token.Variable {
+		return nil, newParserError(it, p.name,
+			"Expected number or variable in index. Found %v", it)
+	}
+
+	var (
+		index ast.Expr
+		err   error
+	)
+
+	if it.Type() == token.Number {
+		// only supports base10
+		intval, err := strconv.Atoi(it.Value())
+
+		if err != nil {
+			return nil, err
+		}
+
+		index = ast.NewIntExpr(it.FileInfo, intval)
+	} else {
+		index, err = p.parseVariable(&it)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	it = p.next()
+
+	if it.Type() != token.RBrack {
+		return nil, newParserError(it, p.name,
+			"Unexpected token %v. Expecting ']'", it)
+	}
+
+	return index, nil
+}
+
+func (p *Parser) parseVariable(tok *scanner.Token) (ast.Expr, error) {
+	var it scanner.Token
+
+	if tok == nil {
+		it = p.next()
+	} else {
+		it = *tok
+	}
 
 	if it.Type() != token.Variable {
 		return nil, newParserError(it, p.name,
@@ -141,39 +266,10 @@ func (p *Parser) parseVariable() (ast.Expr, error) {
 
 	if it.Type() == token.LBrack {
 		p.ignore()
-		it = p.next()
+		index, err := p.parseIndexing()
 
-		if it.Type() != token.Number && it.Type() != token.Variable {
-			return nil, newParserError(it, p.name,
-				"Expected number or variable in index. Found %v", it)
-		}
-
-		var index ast.Expr
-
-		if it.Type() == token.Number {
-			// only supports base10
-			intval, err := strconv.Atoi(it.Value())
-
-			if err != nil {
-				return nil, err
-			}
-
-			index = ast.NewIntExpr(it.FileInfo, intval)
-		} else {
-			p.backup(it)
-
-			index, err = p.parseVariable()
-
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		it = p.next()
-
-		if it.Type() != token.RBrack {
-			return nil, newParserError(it, p.name,
-				"Unexpected token %v. Expecting ']'", it)
+		if err != nil {
+			return nil, err
 		}
 
 		return ast.NewIndexExpr(variable.FileInfo, variable, index), nil
@@ -511,9 +607,7 @@ func (p *Parser) getArgument(allowArg, allowConcat bool) (ast.Expr, error) {
 	var arg ast.Expr
 
 	if firstToken.Type() == token.Variable {
-		p.backup(firstToken)
-
-		arg, err = p.parseVariable()
+		arg, err = p.parseVariable(&firstToken)
 
 		if err != nil {
 			return nil, err
@@ -568,25 +662,50 @@ hasConcat:
 func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
 	it := p.next()
 
-	if it.Type() != token.Assign && it.Type() != token.AssignCmd {
+	if it.Type() != token.Assign && it.Type() != token.AssignCmd &&
+		it.Type() != token.LBrack {
 		return nil, newParserError(it, p.name,
-			"Unexpected token %v, expected '=' or '<='", it)
+			"Unexpected token %v, expected '=' ,'<=' or '['", it)
+	}
+
+	var (
+		index ast.Expr
+		err   error
+	)
+
+	if it.Type() == token.LBrack {
+		index, err = p.parseIndexing()
+
+		if err != nil {
+			return nil, err
+		}
+
+		it = p.next()
 	}
 
 	if it.Type() == token.Assign {
-		return p.parseAssignValue(ident)
+		return p.parseAssignValue(ident, index)
 	}
 
-	return p.parseAssignCmdOut(ident)
+	return p.parseAssignCmdOut(ident, index)
 }
 
-func (p *Parser) parseList() (ast.Node, error) {
+func (p *Parser) parseList(tok *scanner.Token) (ast.Node, error) {
 	var (
 		arg ast.Expr
 		err error
+		lit scanner.Token
 	)
 
-	lit := p.next()
+	if tok != nil {
+		lit = *tok
+	} else {
+		lit = p.next()
+	}
+
+	if lit.Type() != token.LParen {
+		return nil, newParserError(lit, p.name, "Unexpected token %v. Expecting (", lit)
+	}
 
 	var values []ast.Expr
 
@@ -594,7 +713,7 @@ func (p *Parser) parseList() (ast.Node, error) {
 
 	for isValidArgument(it) || it.Type() == token.LParen {
 		if it.Type() == token.LParen {
-			arg, err = p.parseList()
+			arg, err = p.parseList(nil)
 		} else {
 			arg, err = p.getArgument(true, true)
 		}
@@ -620,10 +739,10 @@ func (p *Parser) parseList() (ast.Node, error) {
 	return ast.NewListExpr(lit.FileInfo, values), nil
 }
 
-func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
+func (p *Parser) parseAssignValue(identifier scanner.Token, index ast.Expr) (ast.Node, error) {
 	var err error
 
-	assignIdent := name
+	assignIdent := identifier
 
 	var value ast.Expr
 
@@ -635,9 +754,8 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-
 	} else if it.Type() == token.LParen { // list
-		value, err = p.parseList()
+		value, err = p.parseList(nil)
 
 		if err != nil {
 			return nil, err
@@ -650,10 +768,18 @@ func (p *Parser) parseAssignValue(name scanner.Token) (ast.Node, error) {
 		p.ignore()
 	}
 
-	return ast.NewAssignmentNode(assignIdent.FileInfo, assignIdent.Value(), value), nil
+	var name *ast.NameNode
+
+	if index != nil {
+		name = ast.NewNameNode(assignIdent.FileInfo, assignIdent.Value(), index)
+	} else {
+		name = ast.NewNameNode(assignIdent.FileInfo, assignIdent.Value(), nil)
+	}
+
+	return ast.NewAssignmentNode(assignIdent.FileInfo, name, value), nil
 }
 
-func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
+func (p *Parser) parseAssignCmdOut(identifier scanner.Token, index ast.Expr) (ast.Node, error) {
 	var (
 		exec ast.Node
 		err  error
@@ -687,7 +813,15 @@ func (p *Parser) parseAssignCmdOut(name scanner.Token) (ast.Node, error) {
 		return nil, err
 	}
 
-	return ast.NewExecAssignNode(name.FileInfo, name.Value(), exec)
+	var name *ast.NameNode
+
+	if index != nil {
+		name = ast.NewNameNode(identifier.FileInfo, identifier.Value(), index)
+	} else {
+		name = ast.NewNameNode(identifier.FileInfo, identifier.Value(), nil)
+	}
+
+	return ast.NewExecAssignNode(name.FileInfo, name, exec)
 }
 
 func (p *Parser) parseRfork(it scanner.Token) (ast.Node, error) {
@@ -749,7 +883,7 @@ func (p *Parser) parseIfExpr() (ast.Node, error) {
 		p.next()
 		arg, err = p.parseFnInv(it, false)
 	} else {
-		arg, err = p.parseVariable()
+		arg, err = p.parseVariable(nil)
 	}
 
 	return arg, err
@@ -918,7 +1052,6 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 	n.SetTree(tree)
 
 	return n, nil
-
 }
 
 func (p *Parser) parseFnInv(ident scanner.Token, allowSemicolon bool) (ast.Node, error) {
@@ -1166,6 +1299,12 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 }
 
 func (p *Parser) parseFor(it scanner.Token) (ast.Node, error) {
+	var (
+		inExpr ast.Expr
+		err    error
+		next   scanner.Token
+	)
+
 	forStmt := ast.NewForNode(it.FileInfo)
 
 	it = p.peek()
@@ -1185,14 +1324,32 @@ func (p *Parser) parseFor(it scanner.Token) (ast.Node, error) {
 			"Expected 'in' but found %q", it)
 	}
 
-	it = p.next()
+	// ignores 'in' keyword
+	// TODO: make 'in' a real keyword
 
-	if it.Type() != token.Variable {
+	it = p.next()
+	next = p.peek()
+
+	if it.Type() != token.Variable &&
+		(it.Type() != token.Ident || (it.Type() == token.Ident && next.Type() != token.LParen)) &&
+		it.Type() != token.LParen {
 		return nil, newParserError(it, p.name,
-			"Expected variable but found %q", it)
+			"Expected (variable, list or fn invocation) but found %q", it)
 	}
 
-	forStmt.SetInVar(it.Value())
+	if (it.Type() == token.Ident || it.Type() == token.Variable) && next.Type() == token.LParen {
+		inExpr, err = p.parseFnInv(it, false)
+	} else if it.Type() == token.Variable {
+		inExpr, err = p.parseVariable(&it)
+	} else if it.Type() == token.LParen {
+		inExpr, err = p.parseList(&it)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	forStmt.SetInExpr(inExpr)
 forBlockParse:
 	it = p.peek()
 
@@ -1224,89 +1381,8 @@ func (p *Parser) parseComment(it scanner.Token) (ast.Node, error) {
 	return ast.NewCommentNode(it.FileInfo, it.Value()), nil
 }
 
-func (p *Parser) parseStatement() (ast.Node, error) {
-	it := p.next()
-	next := p.peek()
-
-	if fn, ok := p.keywordParsers[it.Type()]; ok {
-		return fn(it)
-	}
-
-	// statement starting with ident:
-	// - fn invocation
-	// - variable assignment
-	// - variable exec assignment
-	// - Command
-
-	if (it.Type() == token.Ident || it.Type() == token.Variable) && next.Type() == token.LParen {
-		return p.parseFnInv(it, true)
-	}
-
-	if it.Type() == token.Ident {
-		switch next.Type() {
-		case token.Assign, token.AssignCmd:
-			return p.parseAssignment(it)
-		}
-
-		return p.parseCommand(it)
-	} else if it.Type() == token.Arg {
-		return p.parseCommand(it)
-	}
-
-	// statement starting with '('
-	// -multiline command (echo hello)
-	if it.Type() == token.LParen {
-		return p.parseCommand(it)
-	}
-
-	return nil, newParserError(it, p.name, "Unexpected token parsing statement '%+v'", it)
-}
-
 func (p *Parser) parseError(it scanner.Token) (ast.Node, error) {
 	return nil, errors.NewError(it.Value())
-}
-
-func (p *Parser) parseBlock(lineStart, columnStart int) (*ast.BlockNode, error) {
-	ln := ast.NewBlockNode(token.NewFileInfo(lineStart, columnStart))
-
-	for {
-		it := p.peek()
-
-		switch it.Type() {
-		case token.EOF:
-			goto finish
-		case token.LBrace:
-			p.ignore()
-
-			return nil, newParserError(it, p.name,
-				"Unexpected '{'")
-		case token.RBrace:
-			p.ignore()
-
-			if p.openblocks <= 0 {
-				return nil, newParserError(it, p.name,
-					"No block open for close")
-			}
-
-			p.openblocks--
-			return ln, nil
-		default:
-			n, err := p.parseStatement()
-
-			if err != nil {
-				return nil, err
-			}
-
-			ln.Push(n)
-		}
-	}
-
-finish:
-	if p.openblocks != 0 {
-		return nil, errors.NewUnfinishedBlockError(p.name, p.peek())
-	}
-
-	return ln, nil
 }
 
 func newParserError(item scanner.Token, name, format string, args ...interface{}) error {

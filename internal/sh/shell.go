@@ -37,13 +37,14 @@ type (
 
 	// Shell is the core data structure.
 	Shell struct {
-		name      string
-		debug     bool
-		lambdas   uint
-		logf      LogFn
-		nashdPath string
-		isFn      bool
-		filename  string // current file being executed or imported
+		name        string
+		debug       bool
+		interactive bool
+		lambdas     uint
+		logf        LogFn
+		nashdPath   string
+		isFn        bool
+		filename    string // current file being executed or imported
 
 		interrupted bool
 		looping     bool
@@ -115,20 +116,21 @@ func (e *errStopWalking) StopWalking() bool { return true }
 // NewShell creates a new shell object
 func NewShell() (*Shell, error) {
 	shell := &Shell{
-		name:      "parent scope",
-		isFn:      false,
-		logf:      NewLog(logNS, false),
-		nashdPath: nashdAutoDiscover(),
-		stdout:    os.Stdout,
-		stderr:    os.Stderr,
-		stdin:     os.Stdin,
-		env:       make(Env),
-		vars:      make(Var),
-		fns:       make(Fns),
-		builtins:  make(Fns),
-		binds:     make(Fns),
-		Mutex:     &sync.Mutex{},
-		filename:  "<interactive>",
+		name:        "parent scope",
+		interactive: false,
+		isFn:        false,
+		logf:        NewLog(logNS, false),
+		nashdPath:   nashdAutoDiscover(),
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+		stdin:       os.Stdin,
+		env:         make(Env),
+		vars:        make(Var),
+		fns:         make(Fns),
+		builtins:    make(Fns),
+		binds:       make(Fns),
+		Mutex:       &sync.Mutex{},
+		filename:    "<interactive>",
 	}
 
 	err := shell.setup()
@@ -189,14 +191,14 @@ func (shell *Shell) initEnv(processEnv []string) error {
 		var value sh.Obj
 		p := strings.Split(penv, "=")
 
-		if len(p) == 2 {
+		if len(p) >= 2 {
 			// TODO(i4k): handle lists correctly in the future
 			// argv is not special, every list must be handled correctly
 			if p[0] == "argv" {
 				continue
 			}
 
-			value = sh.NewStrObj(p[1])
+			value = sh.NewStrObj(strings.Join(p[1:], "="))
 
 			shell.Setvar(p[0], value)
 			shell.Setenv(p[0], value)
@@ -239,6 +241,23 @@ func (shell *Shell) Reset() {
 func (shell *Shell) SetDebug(d bool) {
 	shell.debug = d
 	shell.logf = NewLog(logNS, d)
+}
+
+// SetInteractive enable/disable shell interactive mode
+func (shell *Shell) SetInteractive(i bool) {
+	shell.interactive = i
+
+	if i {
+		_ = shell.setupDefaultBindings()
+	}
+}
+
+func (shell *Shell) Interactive() bool {
+	if shell.parent != nil {
+		return shell.parent.Interactive()
+	}
+
+	return shell.interactive
 }
 
 func (shell *Shell) SetName(a string) {
@@ -404,7 +423,7 @@ func (shell *Shell) String() string {
 	return string(out.Bytes())
 }
 
-func (shell *Shell) setupBuiltin() error {
+func (shell *Shell) setupBuiltin() {
 	lenfn := NewLenFn(shell)
 	shell.builtins["len"] = lenfn
 	shell.Setvar("len", sh.NewFnObj(lenfn))
@@ -420,7 +439,9 @@ func (shell *Shell) setupBuiltin() error {
 	chdir := NewChdir(shell)
 	shell.builtins["chdir"] = chdir
 	shell.Setvar("chdir", sh.NewFnObj(chdir))
+}
 
+func (shell *Shell) setupDefaultBindings() error {
 	// only one builtin fn... no need for advanced machinery yet
 	err := shell.Exec(shell.name, `fn nash_builtin_cd(path) {
             if $path == "" {
@@ -448,7 +469,8 @@ func (shell *Shell) setup() error {
 		shell.Setvar("PROMPT", pobj)
 	}
 
-	return shell.setupBuiltin()
+	shell.setupBuiltin()
+	return err
 }
 
 func (shell *Shell) setupSignals() {
@@ -537,6 +559,45 @@ func (shell *Shell) ExecFile(path string) error {
 	}()
 
 	return shell.Exec(path, string(content))
+}
+
+func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
+	finalObj := value
+
+	if name.Index() != nil {
+		if list, ok := shell.Getvar(name.Ident()); ok {
+			index, err := shell.evalIndex(name.Index())
+
+			if err != nil {
+				return err
+			}
+
+			if list.Type() != sh.ListType {
+				return errors.NewEvalError(shell.filename,
+					name, "Indexed assigment on non-list type: Variable %s is %s",
+					name.Ident(),
+					list.Type())
+			}
+
+			lobj := list.(*sh.ListObj)
+			lvalues := lobj.List()
+
+			if index >= len(lvalues) {
+				return errors.NewEvalError(shell.filename,
+					name, "List out of bounds error. List has %d elements, but trying to access index %d",
+					len(lvalues), index)
+			}
+
+			lvalues[index] = value
+			finalObj = sh.NewListObj(lvalues)
+		} else {
+			return errors.NewEvalError(shell.filename,
+				name, "Variable %s not found", name.Ident())
+		}
+	}
+
+	shell.Setvar(name.Ident(), finalObj)
+	return nil
 }
 
 // evalConcat reveives the AST representation of a concatenation of objects and
@@ -1190,6 +1251,38 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 			c, "Empty command name...")
 	}
 
+	if fn, ok := shell.Getbindfn(cmdName); ok {
+		shell.logf("Executing bind %s", cmdName)
+		shell.logf("%s bind to %s", cmdName, fn)
+
+		if !shell.Interactive() {
+			err = errors.NewEvalError(shell.filename,
+				c, "'%s' is a bind to '%s'. "+
+					"No binds allowed in non-interactive mode.",
+				cmdName,
+				fn.Name())
+			return nil, ignoreError, err
+		}
+
+		if len(c.Args()) > len(fn.ArgNames()) {
+			err = errors.NewEvalError(shell.filename,
+				c, "Too much arguments for"+
+					" function '%s'. It expects %d args, but given %d. Arguments: %q",
+				fn.Name(),
+				len(fn.ArgNames()),
+				len(c.Args()), c.Args())
+			return nil, ignoreError, err
+		}
+
+		for i := 0 + len(c.Args()); i < len(fn.ArgNames()); i++ {
+			// fill missing args with empty string
+			// safe?
+			c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
+		}
+
+		return fn, ignoreError, nil
+	}
+
 	cmd, err = NewCmd(cmdName)
 
 	if err != nil {
@@ -1200,29 +1293,6 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 		shell.logf("Command fails: %s", err.Error())
 
 		if errNotFound, ok := err.(NotFound); ok && errNotFound.NotFound() {
-			if fn, ok := shell.Getbindfn(cmdName); ok {
-				shell.logf("Executing bind %s", cmdName)
-				shell.logf("%s bind to %s", cmdName, fn)
-
-				if len(c.Args()) > len(fn.ArgNames()) {
-					err = errors.NewEvalError(shell.filename,
-						c, "Too much arguments for"+
-							" function '%s'. It expects %d args, but given %d. Arguments: %q",
-						fn.Name(),
-						len(fn.ArgNames()),
-						len(c.Args()), c.Args())
-					return nil, ignoreError, err
-				}
-
-				for i := 0 + len(c.Args()); i < len(fn.ArgNames()); i++ {
-					// fill missing args with empty string
-					// safe?
-					c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
-				}
-
-				return fn, ignoreError, nil
-			}
-
 			return nil, ignoreError, err
 		}
 
@@ -1325,11 +1395,39 @@ func (shell *Shell) evalList(argList *ast.ListExpr) (sh.Obj, error) {
 	return sh.NewListObj(values), nil
 }
 
-func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
-	var (
-		indexNum int
-	)
+func (shell *Shell) evalIndex(index ast.Expr) (int, error) {
+	if index.Type() != ast.NodeIntExpr && index.Type() != ast.NodeVarExpr && index.Type() != ast.NodeIndexExpr {
+		return 0, errors.NewEvalError(shell.filename,
+			index, "Invalid indexing type: %s", index.Type())
+	}
 
+	if index.Type() == ast.NodeIntExpr {
+		idxArg := index.(*ast.IntExpr)
+		return idxArg.Value(), nil
+	}
+
+	idxObj, err := shell.evalVariable(index)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if idxObj.Type() != sh.StringType {
+		return 0, errors.NewEvalError(shell.filename,
+			index, "Invalid object type on index value: %s", idxObj.Type())
+	}
+
+	objstr := idxObj.(*sh.StrObj)
+	indexNum, err := strconv.Atoi(objstr.Str())
+
+	if err != nil {
+		return 0, err
+	}
+
+	return indexNum, nil
+}
+
+func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 	variable := indexVar.Var()
 	index := indexVar.Index()
 
@@ -1343,27 +1441,10 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, errors.NewEvalError(shell.filename, variable, "Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
 	}
 
-	if index.Type() == ast.NodeIntExpr {
-		idxArg := index.(*ast.IntExpr)
-		indexNum = idxArg.Value()
-	} else if index.Type() == ast.NodeVarExpr {
-		idxObj, err := shell.evalVariable(index)
+	indexNum, err := shell.evalIndex(index)
 
-		if err != nil {
-			return nil, err
-		}
-
-		if idxObj.Type() != sh.StringType {
-			return nil, errors.NewEvalError(shell.filename,
-				index, "Invalid object type on index value: %s", idxObj.Type())
-		}
-
-		objstr := idxObj.(*sh.StrObj)
-		indexNum, err = strconv.Atoi(objstr.Str())
-
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
 	}
 
 	vlist := v.(*sh.ListObj)
@@ -1495,7 +1576,7 @@ func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 		}
 	}
 
-	varName := v.Identifier()
+	varName := v.Name()
 
 	if varValue, ok = shell.Getvar(varName); !ok {
 		return fmt.Errorf("Variable '%s' not set on shell %s", varName, shell.name)
@@ -1533,8 +1614,9 @@ func (shell *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 
 func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 	var (
-		varOut bytes.Buffer
-		err    error
+		varOut   bytes.Buffer
+		err      error
+		fnValues sh.Obj
 	)
 
 	bkStdout := shell.stdout
@@ -1551,7 +1633,7 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 	case ast.NodePipe:
 		err = shell.executePipe(assign.(*ast.PipeNode))
 	case ast.NodeFnInv:
-		fnValues, err := shell.executeFnInv(assign.(*ast.FnInvNode))
+		fnValues, err = shell.executeFnInv(assign.(*ast.FnInvNode))
 
 		if err != nil {
 			return err
@@ -1562,25 +1644,26 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 				v, "Invalid assignment from function that does not return values: %s", assign)
 		}
 
-		shell.Setvar(v.Identifier(), fnValues)
-		return nil
+		return shell.setvar(v.Name(), fnValues)
 	default:
 		err = errors.NewEvalError(shell.filename,
 			assign, "Unexpected node in assignment: %s", assign.String())
+	}
+
+	if err != nil {
+		return err
 	}
 
 	output := varOut.Bytes()
 
 	if len(output) > 0 && output[len(output)-1] == '\n' {
 		// remove the trailing new line
-		// Why? because it's what user wants in 99% of times...
+		// Why? because it's what user wants in 99.99% of times...
 
 		output = output[0 : len(output)-1]
 	}
 
-	shell.Setvar(v.Identifier(), sh.NewStrObj(string(output)))
-
-	return err
+	return shell.setvar(v.Name(), sh.NewStrObj(string(output)))
 }
 
 func (shell *Shell) executeAssignment(v *ast.AssignmentNode) error {
@@ -1592,8 +1675,7 @@ func (shell *Shell) executeAssignment(v *ast.AssignmentNode) error {
 		return err
 	}
 
-	shell.Setvar(v.Identifier(), obj)
-	return nil
+	return shell.setvar(v.Name(), obj)
 }
 
 func (shell *Shell) evalIfArgument(arg ast.Node) (sh.Obj, error) {
@@ -1839,16 +1921,28 @@ func (shell *Shell) executeFor(n *ast.ForNode) (sh.Obj, error) {
 		shell.looping = false
 	}()
 
-	if n.InVar() == "" {
+	if n.InExpr() == nil {
 		return shell.executeInfLoop(n.Tree())
 	}
 
 	id := n.Identifier()
-	inVar := n.InVar()
+	inExpr := n.InExpr()
 
-	argVar := ast.NewVarExpr(token.NewFileInfo(n.Line(), n.Column()), inVar)
+	var (
+		obj sh.Obj
+		err error
+	)
 
-	obj, err := shell.evalVariable(argVar)
+	if inExpr.Type() == ast.NodeVarExpr {
+		obj, err = shell.evalVariable(inExpr.(*ast.VarExpr))
+	} else if inExpr.Type() == ast.NodeListExpr {
+		obj, err = shell.evalList(inExpr.(*ast.ListExpr))
+	} else if inExpr.Type() == ast.NodeFnInv {
+		obj, err = shell.executeFnInv(inExpr.(*ast.FnInvNode))
+	} else {
+		return nil, errors.NewEvalError(shell.filename,
+			inExpr, "Invalid expression in for loop: %s", inExpr.Type())
+	}
 
 	if err != nil {
 		return nil, err
@@ -1856,7 +1950,7 @@ func (shell *Shell) executeFor(n *ast.ForNode) (sh.Obj, error) {
 
 	if obj.Type() != sh.ListType {
 		return nil, errors.NewEvalError(shell.filename,
-			argVar, "Invalid variable type in for range: %s", obj.Type())
+			inExpr, "Invalid variable type in for range: %s", obj.Type())
 	}
 
 	objlist := obj.(*sh.ListObj)
@@ -2006,6 +2100,11 @@ execDump:
 }
 
 func (shell *Shell) executeBindFn(n *ast.BindFnNode) error {
+	if !shell.Interactive() {
+		return errors.NewEvalError(shell.filename,
+			n, "'bindfn' is not allowed in non-interactive mode.")
+	}
+
 	if fn, ok := shell.GetFn(n.Name()); ok {
 		shell.Setbindfn(n.CmdName(), fn)
 	} else {
