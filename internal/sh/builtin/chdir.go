@@ -1,4 +1,4 @@
-package sh
+package builtin
 
 import (
 	"io"

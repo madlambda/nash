@@ -424,21 +424,22 @@ func (shell *Shell) String() string {
 }
 
 func (shell *Shell) setupBuiltin() {
-	lenfn := NewLenFn(shell)
-	shell.builtins["len"] = lenfn
-	shell.Setvar("len", sh.NewFnObj(lenfn))
+	// FIXME: break it till you make it :-)
+	//lenfn := NewLenFn(shell)
+	//shell.builtins["len"] = lenfn
+	//shell.Setvar("len", sh.NewFnObj(lenfn))
 
-	appendfn := NewAppendFn(shell)
-	shell.builtins["append"] = appendfn
-	shell.Setvar("append", sh.NewFnObj(appendfn))
+	//appendfn := NewAppendFn(shell)
+	//shell.builtins["append"] = appendfn
+	//shell.Setvar("append", sh.NewFnObj(appendfn))
 
-	splitfn := NewSplitFn(shell)
-	shell.builtins["split"] = splitfn
-	shell.Setvar("split", sh.NewFnObj(splitfn))
+	//splitfn := NewSplitFn(shell)
+	//shell.builtins["split"] = splitfn
+	//shell.Setvar("split", sh.NewFnObj(splitfn))
 
-	chdir := NewChdir(shell)
-	shell.builtins["chdir"] = chdir
-	shell.Setvar("chdir", sh.NewFnObj(chdir))
+	//chdir := NewChdir(shell)
+	//shell.builtins["chdir"] = chdir
+	//shell.Setvar("chdir", sh.NewFnObj(chdir))
 }
 
 func (shell *Shell) setupDefaultBindings() error {

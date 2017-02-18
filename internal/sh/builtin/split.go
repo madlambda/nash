@@ -1,7 +1,6 @@
-package sh
+package builtin
 
 import (
-	"io"
 	"strings"
 
 	"github.com/NeowayLabs/nash/errors"
@@ -10,28 +9,13 @@ import (
 
 type (
 	SplitFn struct {
-		stdin          io.Reader
-		stdout, stderr io.Writer
-
-		done    chan struct{}
-		err     error
-		results sh.Obj
-
 		content string
 		sep     sh.Obj
 	}
 )
 
-func NewSplitFn(env *Shell) *SplitFn {
-	return &SplitFn{
-		stdin:  env.stdin,
-		stdout: env.stdout,
-		stderr: env.stderr,
-	}
-}
-
-func (splitfn *SplitFn) Name() string {
-	return "split"
+func newSplitFn() *SplitFn {
+	return &SplitFn{}
 }
 
 func (splitfn *SplitFn) ArgNames() []string {
@@ -41,7 +25,7 @@ func (splitfn *SplitFn) ArgNames() []string {
 	}
 }
 
-func (splitfn *SplitFn) run() error {
+func (splitfn *SplitFn) Run() (sh.Obj, error) {
 	var output []string
 
 	content := splitfn.content
@@ -57,7 +41,7 @@ func (splitfn *SplitFn) run() error {
 		sepFn := splitfn.sep.(*sh.FnObj).Fn()
 		output = splitByFn(content, sepFn)
 	default:
-		return errors.NewError("Invalid separator value: %v", splitfn.sep)
+		return nil, errors.NewError("Invalid separator value: %v", splitfn.sep)
 	}
 
 	listobjs := make([]sh.Obj, len(output))
@@ -66,28 +50,7 @@ func (splitfn *SplitFn) run() error {
 		listobjs[i] = sh.NewStrObj(output[i])
 	}
 
-	splitfn.results = sh.NewListObj(listobjs)
-	return nil
-}
-
-func (splitfn *SplitFn) Start() error {
-	splitfn.done = make(chan struct{})
-
-	go func() {
-		splitfn.err = splitfn.run()
-		splitfn.done <- struct{}{}
-	}()
-
-	return nil
-}
-
-func (splitfn *SplitFn) Wait() error {
-	<-splitfn.done
-	return splitfn.err
-}
-
-func (splitfn *SplitFn) Results() sh.Obj {
-	return splitfn.results
+	return sh.NewListObj(listobjs), nil
 }
 
 func (splitfn *SplitFn) SetArgs(args []sh.Obj) error {
@@ -106,22 +69,6 @@ func (splitfn *SplitFn) SetArgs(args []sh.Obj) error {
 
 	return nil
 }
-
-func (splitfn *SplitFn) SetEnviron(env []string) {
-	// do nothing
-}
-
-func (splitfn *SplitFn) SetStdin(r io.Reader)  { splitfn.stdin = r }
-func (splitfn *SplitFn) SetStderr(w io.Writer) { splitfn.stderr = w }
-func (splitfn *SplitFn) SetStdout(w io.Writer) { splitfn.stdout = w }
-func (splitfn *SplitFn) StdoutPipe() (io.ReadCloser, error) {
-	return nil, errors.NewError("splitfn doesn't works with pipes")
-}
-func (splitfn *SplitFn) Stdin() io.Reader  { return splitfn.stdin }
-func (splitfn *SplitFn) Stdout() io.Writer { return splitfn.stdout }
-func (splitfn *SplitFn) Stderr() io.Writer { return splitfn.stderr }
-
-func (splitfn *SplitFn) String() string { return "<builtin fn split>" }
 
 func splitByList(content string, delims []sh.Obj) []string {
 	return strings.FieldsFunc(content, func(r rune) bool {
