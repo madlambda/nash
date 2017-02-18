@@ -8,40 +8,37 @@ import (
 )
 
 type (
-	SplitFn struct {
+	splitFn struct {
 		content string
 		sep     sh.Obj
 	}
 )
 
-func newSplitFn() *SplitFn {
-	return &SplitFn{}
+func newSplit() *splitFn {
+	return &splitFn{}
 }
 
-func (splitfn *SplitFn) ArgNames() []string {
-	return []string{
-		"sep",
-		"content",
-	}
+func (s *splitFn) ArgNames() []string {
+	return []string{"sep", "content"}
 }
 
-func (splitfn *SplitFn) Run() (sh.Obj, error) {
+func (s *splitFn) Run() (sh.Obj, error) {
 	var output []string
 
-	content := splitfn.content
+	content := s.content
 
-	switch splitfn.sep.Type() {
+	switch s.sep.Type() {
 	case sh.StringType:
-		sep := splitfn.sep.(*sh.StrObj).Str()
+		sep := s.sep.(*sh.StrObj).Str()
 		output = strings.Split(content, sep)
 	case sh.ListType:
-		sepList := splitfn.sep.(*sh.ListObj).List()
+		sepList := s.sep.(*sh.ListObj).List()
 		output = splitByList(content, sepList)
 	case sh.FnType:
-		sepFn := splitfn.sep.(*sh.FnObj).Fn()
+		sepFn := s.sep.(*sh.FnObj).Fn()
 		output = splitByFn(content, sepFn)
 	default:
-		return nil, errors.NewError("Invalid separator value: %v", splitfn.sep)
+		return nil, errors.NewError("Invalid separator value: %v", s.sep)
 	}
 
 	listobjs := make([]sh.Obj, len(output))
@@ -53,7 +50,7 @@ func (splitfn *SplitFn) Run() (sh.Obj, error) {
 	return sh.NewListObj(listobjs), nil
 }
 
-func (splitfn *SplitFn) SetArgs(args []sh.Obj) error {
+func (s *splitFn) SetArgs(args []sh.Obj) error {
 	if len(args) != 2 {
 		return errors.NewError("splitfn expects 2 arguments")
 	}
@@ -64,8 +61,8 @@ func (splitfn *SplitFn) SetArgs(args []sh.Obj) error {
 
 	content := args[0].(*sh.StrObj)
 
-	splitfn.content = content.Str()
-	splitfn.sep = args[1]
+	s.content = content.Str()
+	s.sep = args[1]
 
 	return nil
 }

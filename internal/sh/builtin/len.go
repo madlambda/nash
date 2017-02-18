@@ -8,33 +8,33 @@ import (
 )
 
 type (
-	LenFn struct {
+	lenFn struct {
 		arg sh.Obj
 	}
 )
 
-func newLenFn() *LenFn {
-	return &LenFn{}
+func newLen() *lenFn {
+	return &lenFn{}
 }
 
-func (lenfn *LenFn) ArgNames() []string {
+func (l *lenFn) ArgNames() []string {
 	return []string{"list"}
 }
 
-func (lenfn *LenFn) lenresult(res int) sh.Obj {
+func lenresult(res int) sh.Obj {
 	return sh.NewStrObj(strconv.Itoa(res))
 }
 
-func (lenfn *LenFn) Run() (sh.Obj, error) {
-	if lenfn.arg.Type() == sh.ListType {
-		arglist := lenfn.arg.(*sh.ListObj)
+func (l *lenFn) Run() (sh.Obj, error) {
+	if l.arg.Type() == sh.ListType {
+		arglist := l.arg.(*sh.ListObj)
 		return lenresult(len(arglist.List())), nil
 	}
-	argstr := lenfn.arg.(*sh.StrObj)
+	argstr := l.arg.(*sh.StrObj)
 	return lenresult(len(argstr.Str())), nil
 }
 
-func (lenfn *LenFn) SetArgs(args []sh.Obj) error {
+func (l *lenFn) SetArgs(args []sh.Obj) error {
 	if len(args) != 1 {
 		return errors.NewError("lenfn expects one argument")
 	}
@@ -45,6 +45,6 @@ func (lenfn *LenFn) SetArgs(args []sh.Obj) error {
 		return errors.NewError("lenfn expects a list or a string, but a %s was provided", obj.Type())
 	}
 
-	lenfn.arg = obj
+	l.arg = obj
 	return nil
 }

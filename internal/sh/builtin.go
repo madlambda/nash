@@ -18,8 +18,9 @@ type (
 		stdin          io.Reader
 		stdout, stderr io.Writer
 
-		done chan struct{}
-		err  error
+		done    chan struct{}
+		err     error
+		results sh.Obj
 
 		name string
 		fn   builtin.Fn
@@ -71,7 +72,7 @@ func (f *builtinFn) Results() sh.Obj {
 }
 
 func (f *builtinFn) SetArgs(args []sh.Obj) error {
-	return f.fn.SetArgs()
+	return f.fn.SetArgs(args)
 }
 
 func (f *builtinFn) SetEnviron(env []string) {
