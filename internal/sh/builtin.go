@@ -1,6 +1,7 @@
 package sh
 
 import (
+	"fmt"
 	"io"
 
 	"github.com/NeowayLabs/nash/errors"
@@ -69,6 +70,10 @@ func (f *builtinFn) Wait() error {
 
 func (f *builtinFn) Results() sh.Obj {
 	return f.results
+}
+
+func (f *builtinFn) String() string {
+	return fmt.Sprintf("<builtin function %q>", f.Name())
 }
 
 func (f *builtinFn) SetArgs(args []sh.Obj) error {
