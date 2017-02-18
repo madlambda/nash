@@ -8,7 +8,7 @@ import (
 
 func testPrinter(t *testing.T, node Node, expected string) {
 	if node.String() != expected {
-		t.Errorf("Values differ: '%s' != '%s'", node.String(), expected)
+		t.Errorf("Values differ: '%s' != '%s'", node, expected)
 	}
 }
 
