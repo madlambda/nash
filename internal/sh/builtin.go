@@ -10,11 +10,11 @@ import (
 )
 
 type (
-	//builtinFn maps a built in function to a nash sh.Fn
-	//avoiding a lot of duplicated code and decoupling the
-	//builtin functions of some unnecessary details on how
-	//the sh.Fn works (lots of complexity to provide features of
-	//other kinds of runners/functions).
+	// builtinFn maps a built in function to a nash sh.Fn
+	// avoiding a lot of duplicated code and decoupling the
+	// builtin functions of some unnecessary details on how
+	// the sh.Fn works (lots of complexity to provide features of
+	// other kinds of runners/functions).
 	builtinFn struct {
 		stdin          io.Reader
 		stdout, stderr io.Writer
