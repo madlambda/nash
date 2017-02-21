@@ -9,6 +9,7 @@ import (
 
 func TestSplit(t *testing.T) {
 	type splitDesc struct {
+		script string
 		word   string
 		sep    string
 		result string
@@ -16,19 +17,28 @@ func TestSplit(t *testing.T) {
 
 	tests := map[string]splitDesc{
 		"space": {
+			script: "./testdata/split.sh",
 			word:   "a b c",
 			sep:    " ",
 			result: "a\nb\nc\n",
 		},
 		"pipes": {
+			script: "./testdata/split.sh",
 			word:   "1|2|3",
 			sep:    "|",
 			result: "1\n2\n3\n",
 		},
 		"nosplit": {
+			script: "./testdata/split.sh",
 			word:   "nospaces",
 			sep:    " ",
 			result: "nospaces\n",
+		},
+		"splitfunc": {
+			script: "./testdata/splitfunc.sh",
+			word:   "hah",
+			sep:    "a",
+			result: "h\nh\n",
 		},
 	}
 
@@ -42,7 +52,7 @@ func TestSplit(t *testing.T) {
 			}
 
 			shell.SetStdout(&output)
-			err = shell.ExecFile("./testdata/split.sh", "mock cmd name", desc.word, desc.sep)
+			err = shell.ExecFile(desc.script, "mock cmd name", desc.word, desc.sep)
 
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)

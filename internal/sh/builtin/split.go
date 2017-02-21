@@ -102,7 +102,8 @@ func splitByFn(content string, splitFunc sh.Fn) []string {
 		}
 
 		result := splitFunc.Results()
-
+		//FIXME: It would be cool to only accept booleans
+		// since the splitter is a predicate
 		if result.Type() != sh.StringType {
 			return false
 		}
