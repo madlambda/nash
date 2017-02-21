@@ -7,9 +7,8 @@ sudo: false
 
 go:
   - tip
+  - 1.8
   - 1.7
-  - 1.6
-  - 1.5
 install:
   - go get -v golang.org/x/exp/ebnf
   - make build
@@ -29,3 +28,4 @@ notifications:
     on_start: never
   email:
     - tiago.natel@neoway.com.br
+    - tiago.katcipis@neoway.com.br
