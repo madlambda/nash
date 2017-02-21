@@ -72,7 +72,7 @@ setenvDecl = "setenv" ( identifier | varDecl ) .
 comment = "#" { unicode_char } .
 
 /* Lists */
-list = "(" { string } ")" .
+list = "(" { argument } ")" .
 
 letter      = unicode_letter | "_" .
 filename    = { [ "/" ]  { unicode_letter } } .
