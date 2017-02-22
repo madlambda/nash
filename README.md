@@ -13,7 +13,7 @@ Nash is a system shell, inspired by plan9 `rc`, that makes it easy to create rel
 
 - nashfmt: Formats nash code (like gofmt) but no code styling defined yet.
 - [nashcomplete](https://github.com/NeowayLabs/nashcomplete): Autocomplete done in nash script.
-- [Dotnash](https://github.com/tiago4orion/dotnash): Nash profile customizations (e.g: prompt, aliases, etc)
+- [Dotnash](https://github.com/lborguetti/dotnash): Nash profile customizations (e.g: prompt, aliases, etc)
 - [nash-mode](https://github.com/tiago4orion/nash-mode.el): Emacs major mode integrated with `nashfmt`.
 
 ## Why nash scripts are reliable?
