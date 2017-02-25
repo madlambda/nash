@@ -18,7 +18,7 @@ echo "mode: count" > coverage.txt
 # Standard $GO tooling behavior is to ignore dirs with leading underscors
 for dir in $(find . -maxdepth 10 -not -path './.git*' -not -path './Godeps*' -not -path './contrib*' -not -path './cmd/nash/vendor*' -not -path './research*' -type d);
 do
-    if ls $dir/*.go &> /dev/null; then
+    if ls $dir | grep '.*\.go$' &> /dev/null; then
 	$GO test -v -race -covermode=atomic -coverprofile="$dir/profile.tmp" "$dir"
 	if [ -f $dir/profile.tmp ]
 	then
