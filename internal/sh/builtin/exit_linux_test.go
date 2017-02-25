@@ -11,6 +11,7 @@ func TestLinuxExit(t *testing.T) {
 	type exitDesc struct {
 		script string
 		status string
+		result string
 		fail   bool
 	}
 
@@ -18,36 +19,50 @@ func TestLinuxExit(t *testing.T) {
 		"success": {
 			script: "./testdata/exit.sh",
 			status: "0",
+			result: "0",
 		},
-		//"failure1": {
-		//script: "./testdata/exit.sh",
-		//status: "1",
-		//},
-		//"failure-1": {
-		//script: "./testdata/exit.sh",
-		//status: "-1",
-		//},
+		"failure": {
+			script: "./testdata/exit.sh",
+			status: "1",
+			result: "1",
+		},
+		"maxStatus": {
+			script: "./testdata/exit.sh",
+			status: "255",
+			result: "255",
+		},
+		"statusIsUnsigned": {
+			script: "./testdata/exit.sh",
+			status: "-1",
+			result: "255",
+		},
+		"statusOverflow": {
+			script: "./testdata/exit.sh",
+			status: "666",
+			result: "154", // Why ? For the glory of satan of course :-)
+		},
 	}
 
 	//WHY: Not sure this is a great idea, but we need to exec with the
 	//code under test nash, not the one installed on the system.
 	//Can't circumvent the need for Exec here.
 	//Other tests can just run nash inside their own process.
-	projectnash := "go run ../../../cmd/nash/main.go"
+	projectnash := "../../../cmd/nash/nash"
 
 	for name, desc := range tests {
 		t.Run(name, func(t *testing.T) {
-			cmd := exec.Command(projectnash+" "+desc.script, desc.status)
+			cmd := exec.Command(projectnash, desc.script, desc.status)
 			err := cmd.Run()
 			if err == nil {
-				if desc.status != "0" {
-					t.Fatalf("expected error for status: %s", desc.status)
+				if desc.status == "0" {
+					return
 				}
+				t.Fatalf("expected error for status: %s", desc.status)
 
 			}
 			if exiterr, ok := err.(*exec.ExitError); ok {
 				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					expectedStatus, err := strconv.Atoi(desc.status)
+					expectedStatus, err := strconv.Atoi(desc.result)
 					if err != nil {
 						t.Fatalf("error[%s] converting[%s]", err, desc.status)
 					}
