@@ -70,6 +70,8 @@ func TestLinuxExit(t *testing.T) {
 					if expectedStatus != got {
 						t.Fatalf("expected[%d] got[%d]", expectedStatus, got)
 					}
+				} else {
+					t.Fatal("unable to extract status code from exec")
 				}
 			} else {
 				t.Fatalf("unexpected error: %v", err)
