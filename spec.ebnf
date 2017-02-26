@@ -7,8 +7,8 @@ statement = varDecl | command | fnInv | builtin | comment .
 /* Variable declaration */
 varDecl      = assignValue | assignCmdOut .
 assignValue  = identifier "=" varSpec .
-varSpec      = ( list | varValue ) .
-varValue     = string_lit | ( stringConcat { stringConcat } ) .
+varSpec      = ( list | string ) .
+string       = stringLit | ( stringConcat { stringConcat } ) .
 assignCmdOut = identifier "<=" ( command | fnInv ) .
 
 /* Command */
@@ -16,7 +16,7 @@ command   = ( [ "(" ] cmdpart [ ")" ]  | pipe ) .
 cmdpart   = [ "-" ] ( cmdname | abscmd ) { argument } { redirect } .
 cmdname   = identifier .
 abscmd    = filename .
-argument  = ( unicode_char { unicode_char } ) | string_lit .
+argument  = ( unicode_char { unicode_char } ) | stringLit .
 pipe      = [ "(" ] cmdpart "|" cmdpart [ { "|" cmdpart } ] [ ")" ] .
 redirect    = ( ">" ( filename | uri | variable ) |
                ">" "[" unicode_digit "]" ( filename | uri | variable ) |
@@ -28,20 +28,20 @@ builtin = importDecl | rforkDecl | ifDecl | forDecl | setenvDecl |
           fnDecl | bindfn | dump .
 
 /* Import statement */
-importDecl = "import" ( filename | string_lit ) .
+importDecl = "import" ( filename | stringLit ) .
 
 /* Rfork scope */
 rforkDecl   = "rfork" rforkFlags "{" program "}" .
 rforkFlags  = { identifier } .
 
 /* If-else-if */
-ifDecl = "if" ( identifier | varValue ) comparison
-              ( identifier | varValue ) "{" program "}"
+ifDecl = "if" ( variable | string ) comparison
+              ( variable | string ) "{" program "}"
          [ "else" "{" program "}" ]
          [ "else" ifDecl ] .
 
 /* For loop */
-forDecl = "for" [ identifier "in" list ] "{" program "}" .
+forDecl = "for" [ identifier "in" ( list | variable | fnInv) ] "{" program "}" .
 
 /* Function declaration */
 fnDecl = "fn" identifier "(" fnArgs ")" "{"
@@ -51,13 +51,13 @@ fnArgs = { fnArg [ "," ] } .
 fnArg  = identifier .
 
 /* return declaration */
-returnDecl = "return" [ ( variable | string_lit | list | fnInv ) ] .
+returnDecl = "return" [ ( variable | stringLit | list | fnInv ) ] .
 
 /* Function invocation */
 fnInv = ( variable | identifier ) "(" fnArgValues ")" .
 
 fnArgValues = { fnArgValue [ "," ] } .
-fnArgValue  = [ string_lit | stringConcat | variable | fnInv ] .
+fnArgValue  = [ stringLit | stringConcat | variable | fnInv ] .
 
 /* Function binding */
 bindfn = "bindfn" identifier identifier .
@@ -72,7 +72,7 @@ setenvDecl = "setenv" ( identifier | varDecl ) .
 comment = "#" { unicode_char } .
 
 /* Lists */
-list = "(" { varValue } ")" .
+list = "(" { argument } ")" .
 
 letter      = unicode_letter | "_" .
 filename    = { [ "/" ]  { unicode_letter } } .
@@ -91,11 +91,11 @@ variable    = "$" identifier .
 
 comparison  = "==" | "!=" .
 
-string_lit   = "\"" { unicode_char | newline } "\"" .
+stringLit   = "\"" { unicode_char | newline } "\"" .
 
-stringConcat = ( string_lit "+" string_lit ) |
-               ( variable "+" string_lit ) |
-               ( string_lit "+" variable ) .
+stringConcat = ( stringLit "+" stringLit ) |
+               ( variable "+" stringLit ) |
+               ( stringLit "+" variable ) .
 
 /* terminals */
 newline        = /* the Unicode code point U+000A */ .

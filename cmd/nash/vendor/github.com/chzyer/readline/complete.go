@@ -93,7 +93,12 @@ func (o *opCompleter) OnComplete() bool {
 	// only Aggregate candidates in non-complete mode
 	if !o.IsInCompleteMode() {
 		if len(newLines) == 1 {
-			buf.WriteRunes(newLines[0])
+			if offset > 0 {
+				buf.Set([]rune(string(buf.Runes())[0:offset] + string(newLines[0])))
+			} else {
+				buf.WriteRunes(newLines[0])
+			}
+
 			o.ExitCompleteMode(false)
 			return true
 		}

@@ -709,6 +709,8 @@ func stringify(s string) string {
 			buf = append(buf, '\\', 't')
 		case '\n':
 			buf = append(buf, '\\', 'n')
+		case '\r':
+			buf = append(buf, '\\', 'r')
 		case '\\':
 			buf = append(buf, '\\', '\\')
 		default:

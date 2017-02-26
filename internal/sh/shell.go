@@ -17,6 +17,7 @@ import (
 
 	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
+	"github.com/NeowayLabs/nash/internal/sh/builtin"
 	"github.com/NeowayLabs/nash/parser"
 	"github.com/NeowayLabs/nash/sh"
 	"github.com/NeowayLabs/nash/token"
@@ -424,21 +425,17 @@ func (shell *Shell) String() string {
 }
 
 func (shell *Shell) setupBuiltin() {
-	lenfn := NewLenFn(shell)
-	shell.builtins["len"] = lenfn
-	shell.Setvar("len", sh.NewFnObj(lenfn))
-
-	appendfn := NewAppendFn(shell)
-	shell.builtins["append"] = appendfn
-	shell.Setvar("append", sh.NewFnObj(appendfn))
-
-	splitfn := NewSplitFn(shell)
-	shell.builtins["split"] = splitfn
-	shell.Setvar("split", sh.NewFnObj(splitfn))
-
-	chdir := NewChdir(shell)
-	shell.builtins["chdir"] = chdir
-	shell.Setvar("chdir", sh.NewFnObj(chdir))
+	for name, builtinfn := range builtin.Load() {
+		fn := NewBuiltInFunc(
+			name,
+			builtinfn,
+			shell.stdin,
+			shell.stdout,
+			shell.stderr,
+		)
+		shell.builtins[name] = fn
+		shell.Setvar(name, sh.NewFnObj(fn))
+	}
 }
 
 func (shell *Shell) setupDefaultBindings() error {
