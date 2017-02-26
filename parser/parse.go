@@ -177,18 +177,17 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 	}
 
 	// statement starting with ident:
-	// - fn invocation
+	// - fn call
 	// - variable assignment
 	// - variable exec assignment
 	// - Command
 
-	if (it.Type() == token.Ident || it.Type() == token.Variable) && next.Type() == token.LParen {
+	if isFuncall(it.Type(), next.Type()) {
 		return p.parseFnInv(it, true)
 	}
 
 	if it.Type() == token.Ident {
-		switch next.Type() {
-		case token.Assign, token.AssignCmd, token.LBrack, token.Comma:
+		if isAssignment(next.Type()) {
 			return p.parseAssignment(it)
 		}
 
@@ -1478,4 +1477,16 @@ func isValidArgument(t scanner.Token) bool {
 	}
 
 	return false
+}
+
+func isFuncall(tok, next token.Token) bool {
+	return (tok == token.Ident || tok == token.Variable) &&
+		next == token.LParen
+}
+
+func isAssignment(tok token.Token) bool {
+	return tok == token.Assign ||
+		tok == token.AssignCmd ||
+		tok == token.LBrack ||
+		tok == token.Comma
 }
