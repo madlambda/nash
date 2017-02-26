@@ -661,8 +661,7 @@ hasConcat:
 func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
 	it := p.next()
 
-	if it.Type() != token.Assign && it.Type() != token.AssignCmd &&
-		it.Type() != token.LBrack && it.Type() != token.Comma {
+	if !isAssignment(it.Type()) {
 		return nil, newParserError(it, p.name,
 			"Unexpected token %v, expected '=' ,'<=', ',' or '['", it)
 	}
