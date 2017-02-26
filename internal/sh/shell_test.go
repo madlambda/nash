@@ -14,7 +14,7 @@ import (
 	"github.com/NeowayLabs/nash/sh"
 )
 
-type execTest struct {
+type execTestCase struct {
 	desc           string
 	execStr        string
 	expectedStdout string
@@ -70,36 +70,35 @@ func testExecuteFile(t *testing.T, path, expected string) {
 	}
 }
 
-func testShellExec(t *testing.T, shell *Shell, desc, execStr, expectedStdout, expectedStderr, expectedErr string) {
-
+func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 	var bout bytes.Buffer
 	var berr bytes.Buffer
 	shell.SetStderr(&berr)
 	shell.SetStdout(&bout)
 
-	err := shell.Exec(desc, execStr)
+	err := shell.Exec(testcase.desc, testcase.execStr)
 
 	if err != nil {
-		if err.Error() != expectedErr {
+		if err.Error() != testcase.expectedErr {
 			t.Errorf("Error differs: Expected '%s' but got '%s'",
-				expectedErr, err.Error())
+				testcase.expectedErr, err.Error())
 		}
 	}
 
-	if expectedStdout != string(bout.Bytes()) {
-		t.Errorf("Stdout differs: '%s' != '%s'", expectedStdout,
+	if testcase.expectedStdout != string(bout.Bytes()) {
+		t.Errorf("Stdout differs: '%s' != '%s'", testcase.expectedStdout,
 			string(bout.Bytes()))
 		return
 	}
 
-	if expectedStderr != string(berr.Bytes()) {
-		t.Errorf("Stderr differs: '%s' != '%s'", expectedStderr,
+	if testcase.expectedStderr != string(berr.Bytes()) {
+		t.Errorf("Stderr differs: '%s' != '%s'", testcase.expectedStderr,
 			string(berr.Bytes()))
 		return
 	}
 }
 
-func testExec(t *testing.T, desc, execStr, expectedStdout, expectedStderr, expectedErr string) {
+func testExec(t *testing.T, testcase execTestCase) {
 	shell, err := NewShell()
 
 	if err != nil {
@@ -109,10 +108,10 @@ func testExec(t *testing.T, desc, execStr, expectedStdout, expectedStderr, expec
 
 	shell.SetNashdPath(nashdPath)
 
-	testShellExec(t, shell, desc, execStr, expectedStdout, expectedStderr, expectedErr)
+	testShellExec(t, shell, testcase)
 }
 
-func testInteractiveExec(t *testing.T, desc, execStr, expectedStdout, expectedStderr, expectedErr string) {
+func testInteractiveExec(t *testing.T, testcase execTestCase) {
 	shell, err := NewShell()
 
 	if err != nil {
@@ -123,11 +122,10 @@ func testInteractiveExec(t *testing.T, desc, execStr, expectedStdout, expectedSt
 	shell.SetNashdPath(nashdPath)
 	shell.SetInteractive(true)
 
-	testShellExec(t, shell, desc, execStr, expectedStdout, expectedStderr, expectedErr)
+	testShellExec(t, shell, testcase)
 }
 
 func TestInitEnv(t *testing.T) {
-
 	os.Setenv("TEST", "abc=123=")
 
 	shell, err := NewShell()
@@ -160,7 +158,7 @@ func TestExecuteFile(t *testing.T) {
 }
 
 func TestExecuteCommand(t *testing.T) {
-	for _, test := range []execTest{
+	for _, test := range []execTestCase{
 		{
 			"command failed",
 			`non-existing-program`,
@@ -183,18 +181,12 @@ func TestExecuteCommand(t *testing.T) {
 			"hello world", "", "",
 		},
 	} {
-		testExec(t,
-			test.desc,
-			test.execStr,
-			test.expectedStdout,
-			test.expectedStderr,
-			test.expectedErr,
-		)
+		testExec(t, test)
 	}
 }
 
 func TestExecuteAssignment(t *testing.T) {
-	for _, test := range []execTest{
+	for _, test := range []execTestCase{
 		{ // wrong assignment
 			"wrong assignment",
 			`name=i4k`,
@@ -252,18 +244,12 @@ kernel 4.7.1`,
 			"",
 		},
 	} {
-		testExec(t,
-			test.desc,
-			test.execStr,
-			test.expectedStdout,
-			test.expectedStderr,
-			test.expectedErr,
-		)
+		testExec(t, test)
 	}
 }
 
 func TestExecuteCmdAssignment(t *testing.T) {
-	for _, test := range []execTest{
+	for _, test := range []execTestCase{
 		{
 			"cmd assignment",
 			`name <= echo -n i4k
@@ -310,18 +296,12 @@ func TestExecuteCmdAssignment(t *testing.T) {
 			"",
 		},
 	} {
-		testExec(t,
-			test.desc,
-			test.execStr,
-			test.expectedStdout,
-			test.expectedStderr,
-			test.expectedErr,
-		)
+		testExec(t, test)
 	}
 }
 
 func TestExecuteCmdMultipleAssignment(t *testing.T) {
-	for _, test := range []execTest{
+	for _, test := range []execTestCase{
 		{
 			"cmd assignment",
 			`name, err <= echo -n i4k
@@ -376,19 +356,13 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 			"",
 		},
 	} {
-		testExec(t,
-			test.desc,
-			test.execStr,
-			test.expectedStdout,
-			test.expectedStderr,
-			test.expectedErr,
-		)
+		testExec(t, test)
 	}
 }
 
 // IFS *DO NOT* exists anymore. This tests only assure things works as expected (IFS has no power)
 func TestExecuteCmdAssignmentIFS(t *testing.T) {
-	for _, test := range []execTest{
+	for _, test := range []execTestCase{
 		{
 			"ifs",
 			`IFS = (" ")
@@ -434,13 +408,7 @@ for i in $range {
 			"<interactive>:4:9: Invalid variable type in for range: StringType",
 		},
 	} {
-		testExec(t,
-			test.desc,
-			test.execStr,
-			test.expectedStdout,
-			test.expectedStderr,
-			test.expectedErr,
-		)
+		testExec(t, test)
 	}
 }
 
@@ -564,7 +532,7 @@ func TestExecuteRedirectionMap(t *testing.T) {
 }
 
 func TestExecuteSetenv(t *testing.T) {
-	for _, test := range []execTest{
+	for _, test := range []execTestCase{
 		{
 			"test setenv basic",
 			`test = "hello"
@@ -591,18 +559,12 @@ func TestExecuteSetenv(t *testing.T) {
 			"test setenv semicolon:1:9: Unexpected token setenv, expected semicolon (;) or EOL",
 		},
 	} {
-		testExec(t,
-			test.desc,
-			test.execStr,
-			test.expectedStdout,
-			test.expectedStderr,
-			test.expectedErr,
-		)
+		testExec(t, test)
 	}
 }
 
 func TestExecuteCd(t *testing.T) {
-	for _, test := range []execTest{
+	for _, test := range []execTestCase{
 		{
 			"test cd",
 			`cd /
@@ -637,13 +599,7 @@ func TestExecuteCd(t *testing.T) {
 			"<interactive>:2:12: lvalue is not comparable: (val1 val2 val3) -> ListType.",
 		},
 	} {
-		testInteractiveExec(t,
-			test.desc,
-			test.execStr,
-			test.expectedStdout,
-			test.expectedStderr,
-			test.expectedErr,
-		)
+		testInteractiveExec(t, test)
 	}
 }
 
@@ -954,7 +910,7 @@ path="AAA"
 }
 
 func TestFnComposition(t *testing.T) {
-	for _, test := range []execTest{
+	for _, test := range []execTestCase{
 		{
 			"composition",
 			`
@@ -975,12 +931,7 @@ func TestFnComposition(t *testing.T) {
 			"hello world", "", "",
 		},
 	} {
-		testExec(t, test.desc,
-			test.execStr,
-			test.expectedStdout,
-			test.expectedStderr,
-			test.expectedErr,
-		)
+		testExec(t, test)
 	}
 }
 
@@ -1035,7 +986,7 @@ func TestNonInteractive(t *testing.T) {
 	shell.SetNashdPath(nashdPath)
 	shell.SetInteractive(true)
 
-	testShellExec(t, shell,
+	testShellExec(t, shell, execTestCase{
 		"test bindfn interactive",
 		`
         fn greeting() {
@@ -1043,7 +994,8 @@ func TestNonInteractive(t *testing.T) {
         }
 
         bindfn greeting hello`,
-		"", "", "")
+		"", "", "",
+	})
 
 	shell.SetInteractive(false)
 	shell.filename = "<non-interactive>"
@@ -1052,23 +1004,31 @@ func TestNonInteractive(t *testing.T) {
 		"'hello' is a bind to 'greeting'." +
 		" No binds allowed in non-interactive mode."
 
-	testShellExec(t, shell, "test 'binded' function non-interactive",
-		`hello`, "", "", expectedErr)
+	testShellExec(t, shell, execTestCase{
+		"test 'binded' function non-interactive",
+		`hello`, "", "", expectedErr,
+	})
 
 	expectedErr = "<non-interactive>:6:8: 'bindfn' is not allowed in" +
 		" non-interactive mode."
 
-	testShellExec(t, shell, "test bindfn non-interactive",
-		`
+	testShellExec(t, shell,
+		execTestCase{
+			"test bindfn non-interactive",
+			`
         fn goodbye() {
                 echo "Ciao"
         }
 
-        bindfn goodbye ciao`, "", "", expectedErr)
+        bindfn goodbye ciao`,
+			"",
+			"",
+			expectedErr,
+		})
 }
 
 func TestExecuteBindFn(t *testing.T) {
-	for _, test := range []execTest{
+	for _, test := range []execTestCase{
 		{
 			"test bindfn",
 			`
@@ -1092,13 +1052,7 @@ func TestExecuteBindFn(t *testing.T) {
 			"", "", "<interactive>:7:8: Too much arguments for function 'foo'. It expects 1 args, but given 2. Arguments: [\"test\" \"test\"]",
 		},
 	} {
-		testInteractiveExec(t,
-			test.desc,
-			test.execStr,
-			test.expectedStdout,
-			test.expectedStderr,
-			test.expectedErr,
-		)
+		testInteractiveExec(t, test)
 	}
 }
 
@@ -1365,7 +1319,7 @@ func TestExecuteUDPRedirection(t *testing.T) {
 }
 
 func TestExecuteReturn(t *testing.T) {
-	for _, test := range []execTest{
+	for _, test := range []execTestCase{
 		{
 			"return invalid",
 			`return`,
@@ -1434,13 +1388,7 @@ echo -n $a`,
 			"1", "", "",
 		},
 	} {
-		testExec(t,
-			test.desc,
-			test.execStr,
-			test.expectedStdout,
-			test.expectedStderr,
-			test.expectedErr,
-		)
+		testExec(t, test)
 	}
 }
 
