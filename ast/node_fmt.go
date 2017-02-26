@@ -72,9 +72,9 @@ func (l *BlockNode) adjustGroupAssign(node assignable, nodes []Node) {
 		i       int
 	)
 
-	nodeName := node.Name().String()
+	lhs := getlhs(node)
 
-	eqSpace = len(nodeName) + 1
+	eqSpace = len(lhs) + 1
 
 	for i = 0; i < len(nodes); i++ {
 		assign, ok := nodes[i].(assignable)
@@ -83,8 +83,8 @@ func (l *BlockNode) adjustGroupAssign(node assignable, nodes []Node) {
 			break
 		}
 
-		if len(assign.Name().String())+1 > eqSpace {
-			eqSpace = len(assign.Name().String()) + 1
+		if len(getlhs(assign))+1 > eqSpace {
+			eqSpace = len(getlhs(assign)) + 1
 		}
 	}
 
@@ -148,24 +148,24 @@ func (l *BlockNode) String() string {
 
 // String returns the string representation of the import
 func (n *ImportNode) String() string {
-	return `import ` + n.path.String()
+	return `import ` + n.Path.String()
 }
 
 // String returns the string representation of assignment
 func (n *SetenvNode) String() string {
 	if n.assign == nil {
-		return "setenv " + n.varName
+		return "setenv " + n.Name
 	}
 
 	return "setenv " + n.assign.String()
 }
 
 func (n *NameNode) String() string {
-	if n.index != nil {
-		return n.name + "[" + n.index.String() + "]"
+	if n.Index != nil {
+		return n.Ident + "[" + n.Index.String() + "]"
 	}
 
-	return n.name
+	return n.Ident
 }
 
 func (n *AssignmentNode) string() (string, bool) {
@@ -209,7 +209,7 @@ func (n *ExecAssignNode) string() (string, bool) {
 		multi  bool
 	)
 
-	lhs := n.name.String()
+	lhs := getlhs(n)
 
 	if n.cmd.Type() == NodeCommand {
 		cmd := n.cmd.(*CommandNode)
@@ -232,44 +232,6 @@ func (n *ExecAssignNode) string() (string, bool) {
 
 // String returns the string representation of command assignment statement
 func (n *ExecAssignNode) String() string {
-	str, _ := n.string()
-	return str
-}
-
-func (n *ExecMultipleAssignNode) string() (string, bool) {
-	var (
-		cmdStr string
-		multi  bool
-		lhs    []string
-	)
-
-	for i := 0; i < len(n.names); i++ {
-		lhs = append(lhs, n.names[i].String())
-	}
-
-	if n.cmd.Type() == NodeCommand {
-		cmd := n.cmd.(*CommandNode)
-		cmdStr, multi = cmd.string()
-	} else if n.cmd.Type() == NodePipe {
-		cmd := n.cmd.(*PipeNode)
-		cmdStr, multi = cmd.string()
-	} else {
-		cmd := n.cmd.(*FnInvNode)
-		cmdStr, multi = cmd.string()
-	}
-
-	lhsStr := strings.Join(lhs, ", ")
-
-	if n.eqSpace > len(lhs) {
-		ret := lhsStr + strings.Repeat(" ", n.eqSpace-len(lhsStr)) + "<= " + cmdStr
-		return ret, multi
-	}
-
-	return lhsStr + " <= " + cmdStr, multi
-}
-
-// String returns the string representation of command assignment statement
-func (n *ExecMultipleAssignNode) String() string {
 	str, _ := n.string()
 	return str
 }
@@ -713,4 +675,16 @@ func stringify(s string) string {
 	}
 
 	return string(buf)
+}
+
+func getlhs(node assignable) string {
+	var nameStrs []string
+
+	nodeNames := node.names()
+
+	for i := 0; i < len(nodeNames); i++ {
+		nameStrs = append(nameStrs, nodeNames[i].String())
+	}
+
+	return strings.Join(nameStrs, ", ")
 }

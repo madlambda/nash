@@ -146,7 +146,7 @@ func TestBasicSetEnvAssignment(t *testing.T) {
 
 	cmdAssign, err := ast.NewExecAssignNode(
 		token.NewFileInfo(1, 7),
-		ast.NewNameNode(token.NewFileInfo(1, 7), "test", nil),
+		[]*ast.NameNode{ast.NewNameNode(token.NewFileInfo(1, 7), "test", nil)},
 		cmd,
 	)
 
@@ -220,7 +220,7 @@ func TestParseMultipleExecAssignment(t *testing.T) {
 
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 16), "ls", false)
 
-	assign, err := ast.NewExecMultipleAssignNode(token.NewFileInfo(1, 0),
+	assign, err := ast.NewExecAssignNode(token.NewFileInfo(1, 0),
 		[]*ast.NameNode{
 			ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
 			ast.NewNameNode(token.NewFileInfo(1, 13), "status", nil),
@@ -243,7 +243,7 @@ func TestParseMultipleExecAssignment(t *testing.T) {
 
 	cmd = ast.NewCommandNode(token.NewFileInfo(1, 19), "ls", false)
 
-	assign, err = ast.NewExecMultipleAssignNode(token.NewFileInfo(1, 0),
+	assign, err = ast.NewExecAssignNode(token.NewFileInfo(1, 0),
 		[]*ast.NameNode{
 			ast.NewNameNode(token.NewFileInfo(1, 0), "test", ast.NewIntExpr(token.NewFileInfo(1, 5), 0)),
 			ast.NewNameNode(token.NewFileInfo(1, 16), "status", nil),
@@ -379,7 +379,7 @@ func TestParseCmdAssignment(t *testing.T) {
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 8), "ls", false)
 
 	assign, err := ast.NewExecAssignNode(token.NewFileInfo(1, 0),
-		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
+		[]*ast.NameNode{ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil)},
 		cmd,
 	)
 
@@ -1452,7 +1452,7 @@ func TestParseMultilineCmdAssign(t *testing.T) {
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 10), "echo", true)
 	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 16), "hello world", true))
 	assign, err := ast.NewExecAssignNode(token.NewFileInfo(1, 0),
-		ast.NewNameNode(token.NewFileInfo(1, 0), "hello", nil),
+		[]*ast.NameNode{ast.NewNameNode(token.NewFileInfo(1, 0), "hello", nil)},
 		cmd,
 	)
 

@@ -117,8 +117,11 @@ func TestParseIssue43(t *testing.T) {
 	gitRevParse.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 25), "--abbrev-ref", false))
 	gitRevParse.AddArg(ast.NewStringExpr(token.NewFileInfo(2, 38), "HEAD", false))
 
-	branchAssign, err := ast.NewExecAssignNode(token.NewFileInfo(2, 1), ast.NewNameNode(
-		token.NewFileInfo(2, 1), "branch", nil), gitRevParse)
+	branchAssign, err := ast.NewExecAssignNode(token.NewFileInfo(2, 1), []*ast.NameNode{
+		ast.NewNameNode(token.NewFileInfo(2, 1),
+			"branch",
+			nil,
+		)}, gitRevParse)
 
 	if err != nil {
 		t.Error(err)

@@ -873,16 +873,7 @@ func (p *Parser) parseAssignCmdOut(identifiers []*ast.NameNode) (ast.Node, error
 		panic("internal error parsing assignment")
 	}
 
-	if len(identifiers) == 1 {
-		ident := identifiers[0]
-		return ast.NewExecAssignNode(ident.FileInfo, ident, exec)
-	}
-
-	return ast.NewExecMultipleAssignNode(
-		identifiers[0].FileInfo,
-		identifiers,
-		exec,
-	)
+	return ast.NewExecAssignNode(identifiers[0].FileInfo, identifiers, exec)
 }
 
 func (p *Parser) parseRfork(it scanner.Token) (ast.Node, error) {

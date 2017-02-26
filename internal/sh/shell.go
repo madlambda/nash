@@ -561,9 +561,9 @@ func (shell *Shell) ExecFile(path string) error {
 func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
 	finalObj := value
 
-	if name.Index() != nil {
-		if list, ok := shell.Getvar(name.Ident()); ok {
-			index, err := shell.evalIndex(name.Index())
+	if name.Index != nil {
+		if list, ok := shell.Getvar(name.Ident); ok {
+			index, err := shell.evalIndex(name.Index)
 
 			if err != nil {
 				return err
@@ -572,7 +572,7 @@ func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
 			if list.Type() != sh.ListType {
 				return errors.NewEvalError(shell.filename,
 					name, "Indexed assigment on non-list type: Variable %s is %s",
-					name.Ident(),
+					name.Ident,
 					list.Type())
 			}
 
@@ -589,11 +589,11 @@ func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
 			finalObj = sh.NewListObj(lvalues)
 		} else {
 			return errors.NewEvalError(shell.filename,
-				name, "Variable %s not found", name.Ident())
+				name, "Variable %s not found", name.Ident)
 		}
 	}
 
-	shell.Setvar(name.Ident(), finalObj)
+	shell.Setvar(name.Ident, finalObj)
 	return nil
 }
 
@@ -676,8 +676,6 @@ func (shell *Shell) executeNode(node ast.Node, builtin bool) ([]sh.Obj, error) {
 		err = shell.executeAssignment(node.(*ast.AssignmentNode))
 	case ast.NodeExecAssign:
 		err = shell.executeExecAssign(node.(*ast.ExecAssignNode))
-	case ast.NodeExecMultipleAssign:
-		err = shell.executeExecMultipleAssign(node.(*ast.ExecMultipleAssignNode))
 	case ast.NodeCommand:
 		status, err = shell.executeCommand(node.(*ast.CommandNode))
 	case ast.NodePipe:
@@ -786,9 +784,7 @@ func (shell *Shell) executeReturn(n *ast.ReturnNode) ([]sh.Obj, error) {
 }
 
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
-	arg := node.Path()
-
-	obj, err := shell.evalExpr(arg)
+	obj, err := shell.evalExpr(node.Path)
 
 	if err != nil {
 		return err
@@ -796,7 +792,7 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 
 	if obj.Type() != sh.StringType {
 		return errors.NewEvalError(shell.filename,
-			arg,
+			node.Path,
 			"Invalid type on import argument: %s", obj.Type())
 	}
 
@@ -1590,13 +1586,11 @@ func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 		}
 	}
 
-	varName := v.Name()
-
-	if varValue, ok = shell.Getvar(varName); !ok {
-		return fmt.Errorf("Variable '%s' not set on shell %s", varName, shell.name)
+	if varValue, ok = shell.Getvar(v.Name); !ok {
+		return fmt.Errorf("Variable '%s' not set on shell %s", v.Name, shell.name)
 	}
 
-	shell.Setenv(varName, varValue)
+	shell.Setenv(v.Name, varValue)
 
 	return nil
 }
@@ -1664,11 +1658,10 @@ func (shell *Shell) execCmdOutput(cmd ast.Node) (string, sh.Obj, error) {
 }
 
 func (shell *Shell) executeExecAssignCmd(v ast.Node) error {
-	var cmd ast.Node
+	assign := v.(*ast.ExecAssignNode)
+	cmd := assign.Command()
 
-	if v.Type() == ast.NodeExecAssign {
-		assign := v.(*ast.ExecAssignNode)
-		cmd = assign.Command()
+	if len(assign.Names) == 1 {
 		output, status, err := shell.execCmdOutput(cmd)
 
 		if err != nil {
@@ -1677,61 +1670,39 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node) error {
 
 		// compatibility mode
 		shell.Setvar("status", status)
-		return shell.setvar(assign.Name(), sh.NewStrObj(output))
-	} else if v.Type() == ast.NodeExecMultipleAssign {
-		assign := v.(*ast.ExecMultipleAssignNode)
-
-		names := assign.Names()
-
-		if len(names) != 2 {
-			return errors.NewEvalError(shell.filename,
-				v, "multiple assignment of commands requires two variable names, but got %d",
-				len(names))
-		}
-
-		cmd = assign.Command()
-
-		output, status, err := shell.execCmdOutput(cmd)
-
-		if err != nil {
-			return err
-		}
-
-		err = shell.setvar(names[0], sh.NewStrObj(output))
-
-		if err != nil {
-			return err
-		}
-
-		return shell.setvar(names[1], status)
+		return shell.setvar(assign.Names[0], sh.NewStrObj(output))
 	}
 
-	return errors.NewEvalError(shell.filename,
-		v, "Invalid node (%v). Expected ExecAssign or ExecMultAssign",
-		v)
+	if len(assign.Names) != 2 {
+		return errors.NewEvalError(shell.filename,
+			v, "multiple assignment of commands requires two variable names, but got %d",
+			len(assign.Names))
+	}
+
+	// TODO: disable exit in case of error
+	output, status, err := shell.execCmdOutput(cmd)
+
+	if err != nil {
+		return err
+	}
+
+	err = shell.setvar(assign.Names[0], sh.NewStrObj(output))
+
+	if err != nil {
+		return err
+	}
+
+	return shell.setvar(assign.Names[1], status)
 }
 
 func (shell *Shell) executeExecAssignFn(v ast.Node) error {
 	var (
 		err      error
 		fnValues []sh.Obj
-		cmd      ast.Node
-		names    []*ast.NameNode
 	)
 
-	if v.Type() == ast.NodeExecAssign {
-		assign := v.(*ast.ExecAssignNode)
-		cmd = assign.Command()
-		names = append(names, assign.Name())
-	} else if v.Type() == ast.NodeExecMultipleAssign {
-		assign := v.(*ast.ExecMultipleAssignNode)
-		cmd = assign.Command()
-		names = append(names, assign.Names()...)
-	} else {
-		return errors.NewEvalError(shell.filename,
-			v, "Invalid node type (%v). Expected single or multiple assignment",
-			v)
-	}
+	assign := v.(*ast.ExecAssignNode)
+	cmd := assign.Command()
 
 	if cmd.Type() != ast.NodeFnInv {
 		return errors.NewEvalError(shell.filename,
@@ -1745,14 +1716,14 @@ func (shell *Shell) executeExecAssignFn(v ast.Node) error {
 		return err
 	}
 
-	if len(fnValues) != len(names) {
+	if len(fnValues) != len(assign.Names) {
 		return errors.NewEvalError(shell.filename,
 			v, "Functions returns %d objects, but statement expects %d",
-			len(fnValues), len(names))
+			len(fnValues), len(assign.Names))
 	}
 
-	for i := 0; i < len(names); i++ {
-		if err := shell.setvar(names[i], fnValues[i]); err != nil {
+	for i := 0; i < len(assign.Names); i++ {
+		if err := shell.setvar(assign.Names[i], fnValues[i]); err != nil {
 			return err
 		}
 	}
@@ -1761,21 +1732,6 @@ func (shell *Shell) executeExecAssignFn(v ast.Node) error {
 }
 
 func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
-	assign := v.Command()
-
-	if assign.Type() == ast.NodeFnInv {
-		return shell.executeExecAssignFn(v)
-	} else if assign.Type() == ast.NodeCommand ||
-		assign.Type() == ast.NodePipe {
-		return shell.executeExecAssignCmd(v)
-	}
-
-	return errors.NewEvalError(shell.filename,
-		assign, "Invalid node type (%v). Expected function call, command or pipe",
-		assign)
-}
-
-func (shell *Shell) executeExecMultipleAssign(v *ast.ExecMultipleAssignNode) error {
 	assign := v.Command()
 
 	if assign.Type() == ast.NodeFnInv {

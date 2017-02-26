@@ -34,7 +34,7 @@ type (
 	}
 
 	assignable interface {
-		Name() *NameNode
+		names() []*NameNode
 		setEqSpace(int)
 		getEqSpace() int
 		string() (string, bool)
@@ -63,7 +63,7 @@ type (
 		token.FileInfo
 		egalitarian
 
-		path *StringExpr // Import path
+		Path *StringExpr // Import path
 	}
 
 	// A SetenvNode represents the node for a "setenv" keyword.
@@ -72,8 +72,8 @@ type (
 		token.FileInfo
 		egalitarian
 
-		varName string
-		assign  Node
+		Name   string
+		assign Node
 	}
 
 	NameNode struct {
@@ -81,8 +81,8 @@ type (
 		token.FileInfo
 		egalitarian
 
-		name  string
-		index Expr
+		Ident string
+		Index Expr
 	}
 
 	// AssignmentNode is a node for variable assignments
@@ -102,19 +102,7 @@ type (
 		token.FileInfo
 		egalitarian
 
-		name    *NameNode
-		cmd     Node
-		eqSpace int
-	}
-
-	// ExecMultipleAssignNode represents the node for exec assign with
-	// multiple returns
-	ExecMultipleAssignNode struct {
-		NodeType
-		token.FileInfo
-		egalitarian
-
-		names   []*NameNode
+		Names   []*NameNode
 		cmd     Node
 		eqSpace int
 	}
@@ -327,9 +315,6 @@ const (
 	// NodeExecAssign is the type for command or function assignment
 	NodeExecAssign
 
-	// NodeExecMultipleAssign is the type for multiple cmd assignment
-	NodeExecMultipleAssign
-
 	// NodeImport is the type for "import" builtin keyword
 	NodeImport
 
@@ -490,12 +475,9 @@ func NewImportNode(info token.FileInfo, path *StringExpr) *ImportNode {
 		NodeType: NodeImport,
 		FileInfo: info,
 
-		path: path,
+		Path: path,
 	}
 }
-
-// Path returns the path of import.
-func (n *ImportNode) Path() *StringExpr { return n.path }
 
 // IsEqual returns if it is equal to the other node.
 func (n *ImportNode) IsEqual(other Node) bool {
@@ -510,9 +492,9 @@ func (n *ImportNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.path != o.path {
-		if n.path != nil {
-			return n.path.IsEqual(o.path)
+	if n.Path != o.Path {
+		if n.Path != nil {
+			return n.Path.IsEqual(o.Path)
 		}
 	}
 
@@ -530,13 +512,10 @@ func NewSetenvNode(info token.FileInfo, name string, assign Node) (*SetenvNode, 
 		NodeType: NodeSetenv,
 		FileInfo: info,
 
-		varName: name,
-		assign:  assign,
+		Name:   name,
+		assign: assign,
 	}, nil
 }
-
-// Name returns the environment name.
-func (n *SetenvNode) Name() string { return n.varName }
 
 // Assignment returns the setenv assignment (if any)
 func (n *SetenvNode) Assignment() Node { return n.assign }
@@ -560,20 +539,17 @@ func (n *SetenvNode) IsEqual(other Node) bool {
 		}
 	}
 
-	return n.varName == o.varName
+	return n.Name == o.Name
 }
 
 func NewNameNode(info token.FileInfo, ident string, index Expr) *NameNode {
 	return &NameNode{
 		NodeType: NodeName,
 		FileInfo: info,
-		name:     ident,
-		index:    index,
+		Ident:    ident,
+		Index:    index,
 	}
 }
-
-func (n *NameNode) Ident() string { return n.name }
-func (n *NameNode) Index() Expr   { return n.index }
 
 func (n *NameNode) IsEqual(other Node) bool {
 	if !n.equal(n, other) {
@@ -587,16 +563,16 @@ func (n *NameNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.name != o.name {
+	if n.Ident != o.Ident {
 		return false
 	}
 
-	if n.index == o.index {
+	if n.Index == o.Index {
 		return true
 	}
 
-	if n.index != nil {
-		return n.index.IsEqual(o.index)
+	if n.Index != nil {
+		return n.Index.IsEqual(o.Index)
 	}
 
 	return false
@@ -614,14 +590,16 @@ func NewAssignmentNode(info token.FileInfo, ident *NameNode, value Expr) *Assign
 	}
 }
 
-// SetIdentifier sets the name of the variable
-func (n *AssignmentNode) SetIdentifier(a *NameNode) {
+// SetName sets the name of the variable
+func (n *AssignmentNode) SetName(a *NameNode) {
 	n.name = a
 }
 
 // Name return the name of the variable.
 func (n *AssignmentNode) Name() *NameNode { return n.name }
 
+// TODO: fix that
+func (n *AssignmentNode) names() []*NameNode   { return []*NameNode{n.name} }
 func (n *AssignmentNode) getEqSpace() int      { return n.eqSpace }
 func (n *AssignmentNode) setEqSpace(value int) { n.eqSpace = value }
 
@@ -665,7 +643,7 @@ func (n *AssignmentNode) IsEqual(other Node) bool {
 // command, a pipe of commands or a function invocation.
 // It returns a *ExecAssignNode ready to be executed or error when n is not a valid
 // node for execution.
-func NewExecAssignNode(info token.FileInfo, name *NameNode, n Node) (*ExecAssignNode, error) {
+func NewExecAssignNode(info token.FileInfo, names []*NameNode, n Node) (*ExecAssignNode, error) {
 	if !n.Type().IsExecutable() {
 		return nil, errors.New("NewExecAssignNode expects a CommandNode, PipeNode or FninvNode")
 	}
@@ -674,28 +652,19 @@ func NewExecAssignNode(info token.FileInfo, name *NameNode, n Node) (*ExecAssign
 		NodeType: NodeExecAssign,
 		FileInfo: info,
 
-		name:    name,
+		Names:   names,
 		cmd:     n,
 		eqSpace: -1,
 	}, nil
 }
 
-// Name returns the identifier (l-value)
-func (n *ExecAssignNode) Name() *NameNode {
-	return n.name
-}
-
+func (n *ExecAssignNode) names() []*NameNode   { return n.Names }
 func (n *ExecAssignNode) getEqSpace() int      { return n.eqSpace }
 func (n *ExecAssignNode) setEqSpace(value int) { n.eqSpace = value }
 
 // Command returns the command (or r-value). Command could be a CommandNode or FnNode
 func (n *ExecAssignNode) Command() Node {
 	return n.cmd
-}
-
-// SetName set the assignment identifier (l-value)
-func (n *ExecAssignNode) SetName(name *NameNode) {
-	n.name = name
 }
 
 // SetCommand set the command part (NodeCommand or NodeFnDecl)
@@ -715,85 +684,16 @@ func (n *ExecAssignNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.name != nil {
-		if !n.name.IsEqual(o.name) {
-			debug("Exec assignment name differs")
-			return false
-		}
-	}
-
-	if n.cmd == o.cmd {
-		return true
-	} else if n.cmd != nil {
-		return n.cmd.IsEqual(o.cmd)
-	}
-
-	return false
-}
-
-// NewExecMultipleAssignNode creates a new node for executing something and storing the
-// result on multiple variables. The assignment could be made using an operating system
-// command, a pipe of commands or a function invocation.
-// It returns a *ExecMultipleAssignNode ready to be executed or error when
-// n is not a valid node for execution.
-func NewExecMultipleAssignNode(info token.FileInfo, names []*NameNode, n Node) (*ExecMultipleAssignNode, error) {
-	if !n.Type().IsExecutable() {
-		return nil, errors.New("NewExecAssignNode expects a CommandNode, PipeNode or FninvNode")
-	}
-
-	return &ExecMultipleAssignNode{
-		NodeType: NodeExecMultipleAssign,
-		FileInfo: info,
-
-		names:   names,
-		cmd:     n,
-		eqSpace: -1,
-	}, nil
-}
-
-// Name returns the identifier (l-value)
-func (n *ExecMultipleAssignNode) Names() []*NameNode {
-	return n.names
-}
-
-func (n *ExecMultipleAssignNode) getEqSpace() int      { return n.eqSpace }
-func (n *ExecMultipleAssignNode) setEqSpace(value int) { n.eqSpace = value }
-
-// Command returns the command (or r-value). Command could be a CommandNode or FnNode
-func (n *ExecMultipleAssignNode) Command() Node {
-	return n.cmd
-}
-
-// SetName set the assignment identifier (l-value)
-func (n *ExecMultipleAssignNode) SetNames(names []*NameNode) {
-	n.names = names
-}
-
-// SetCommand set the command part (NodeCommand or NodeFnDecl)
-func (n *ExecMultipleAssignNode) SetCommand(c Node) {
-	n.cmd = c
-}
-
-func (n *ExecMultipleAssignNode) IsEqual(other Node) bool {
-	if !n.equal(n, other) {
+	if len(n.Names) != len(o.Names) {
 		return false
 	}
 
-	o, ok := other.(*ExecMultipleAssignNode)
-
-	if !ok {
-		debug("Failed to convert to ExecMultipleAssignNode")
-		return false
-	}
-
-	if len(n.names) != len(o.names) {
-		debug("Exec assignment name differs")
-		return false
-	}
-
-	for i := 0; i < len(n.names); i++ {
-		if !n.names[i].IsEqual(o.names[i]) {
-			return false
+	for i := 0; i < len(n.Names); i++ {
+		if n.Names[i] != nil {
+			if !n.Names[i].IsEqual(o.Names[i]) {
+				debug("Exec assignment name differs")
+				return false
+			}
 		}
 	}
 
