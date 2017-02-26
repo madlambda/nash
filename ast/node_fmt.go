@@ -654,7 +654,7 @@ func (n *DumpNode) String() string {
 func (n *ReturnNode) String() string {
 	ret := "return"
 
-	returnExprs := n.arg
+	returnExprs := n.Returns
 
 	for i := 0; i < len(returnExprs); i++ {
 		if i == 0 {

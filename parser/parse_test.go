@@ -1252,7 +1252,7 @@ func TestParseReturn(t *testing.T) {
 
 	retReturn := ast.NewListExpr(token.NewFileInfo(1, 7), listvalues)
 
-	ret.SetReturn([]ast.Expr{retReturn})
+	ret.Returns = []ast.Expr{retReturn}
 
 	ln.Push(ret)
 	expected.Root = ln
@@ -1264,7 +1264,7 @@ func TestParseReturn(t *testing.T) {
 
 	ret = ast.NewReturnNode(token.NewFileInfo(1, 0))
 
-	ret.SetReturn([]ast.Expr{ast.NewVarExpr(token.NewFileInfo(1, 7), "$var")})
+	ret.Returns = []ast.Expr{ast.NewVarExpr(token.NewFileInfo(1, 7), "$var")}
 
 	ln.Push(ret)
 	expected.Root = ln
@@ -1276,7 +1276,7 @@ func TestParseReturn(t *testing.T) {
 
 	ret = ast.NewReturnNode(token.NewFileInfo(1, 0))
 
-	ret.SetReturn([]ast.Expr{ast.NewStringExpr(token.NewFileInfo(1, 8), "value", true)})
+	ret.Returns = []ast.Expr{ast.NewStringExpr(token.NewFileInfo(1, 8), "value", true)}
 
 	ln.Push(ret)
 	expected.Root = ln
@@ -1290,7 +1290,7 @@ func TestParseReturn(t *testing.T) {
 
 	aFn := ast.NewFnInvNode(token.NewFileInfo(1, 7), "a")
 
-	ret.SetReturn([]ast.Expr{aFn})
+	ret.Returns = []ast.Expr{aFn}
 
 	ln.Push(ret)
 	expected.Root = ln

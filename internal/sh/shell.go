@@ -768,7 +768,7 @@ func (shell *Shell) executeTree(tr *ast.Tree, stopable bool) ([]sh.Obj, error) {
 func (shell *Shell) executeReturn(n *ast.ReturnNode) ([]sh.Obj, error) {
 	var returns []sh.Obj
 
-	returnExprs := n.Return()
+	returnExprs := n.Returns
 
 	for i := 0; i < len(returnExprs); i++ {
 		retExpr := returnExprs[i]

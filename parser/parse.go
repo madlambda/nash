@@ -1364,7 +1364,7 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 		break
 	}
 
-	ret.SetReturn(returnExprs)
+	ret.Returns = returnExprs
 
 	return ret, nil
 }

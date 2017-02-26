@@ -275,7 +275,7 @@ type (
 		token.FileInfo
 		egalitarian
 
-		arg []Expr
+		Returns []Expr
 	}
 
 	// A BindFnNode represents the "bindfn" keyword.
@@ -1393,14 +1393,6 @@ func NewReturnNode(info token.FileInfo) *ReturnNode {
 	}
 }
 
-// SetReturn set the arguments to return
-func (n *ReturnNode) SetReturn(a []Expr) {
-	n.arg = a
-}
-
-// Return returns the argument being returned
-func (n *ReturnNode) Return() []Expr { return n.arg }
-
 func (n *ReturnNode) IsEqual(other Node) bool {
 	if !n.equal(n, other) {
 		return false
@@ -1416,13 +1408,13 @@ func (n *ReturnNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if len(n.arg) != len(o.arg) {
+	if len(n.Returns) != len(o.Returns) {
 		return false
 	}
 
-	for i := 0; i < len(n.arg); i++ {
-		arg := n.arg[i]
-		oarg := o.arg[i]
+	for i := 0; i < len(n.Returns); i++ {
+		arg := n.Returns[i]
+		oarg := o.Returns[i]
 
 		if arg != nil && !arg.IsEqual(oarg) {
 			return false
