@@ -1668,15 +1668,17 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node) error {
 	cmd := assign.Command()
 
 	if len(assign.Names) == 1 {
-		output, status, err := shell.execCmdOutput(cmd, false)
+		output, status, cmdErr := shell.execCmdOutput(cmd, false)
+
+		// compatibility mode
+		shell.Setvar("status", status)
+		err := shell.setvar(assign.Names[0], sh.NewStrObj(output))
 
 		if err != nil {
 			return err
 		}
 
-		// compatibility mode
-		shell.Setvar("status", status)
-		return shell.setvar(assign.Names[0], sh.NewStrObj(output))
+		return cmdErr
 	}
 
 	if len(assign.Names) != 2 {
@@ -1685,20 +1687,21 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node) error {
 			len(assign.Names))
 	}
 
-	// TODO: disable exit in case of error
-	output, status, err := shell.execCmdOutput(cmd, true)
+	output, status, cmdErr := shell.execCmdOutput(cmd, true)
+
+	err := shell.setvar(assign.Names[0], sh.NewStrObj(output))
 
 	if err != nil {
 		return err
 	}
 
-	err = shell.setvar(assign.Names[0], sh.NewStrObj(output))
+	err = shell.setvar(assign.Names[1], status)
 
 	if err != nil {
 		return err
 	}
 
-	return shell.setvar(assign.Names[1], status)
+	return cmdErr
 }
 
 func (shell *Shell) executeExecAssignFn(v ast.Node) error {
