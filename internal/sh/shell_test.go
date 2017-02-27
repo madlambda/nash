@@ -364,23 +364,23 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc: "ignore error",
-			execStr: `out, _ <= /usr/bin/cat /file-not-found/test
+			execStr: `out, _ <= cat /file-not-found/test >[2=]
 					echo -n $out`,
 			expectedStdout: "",
-			expectedStderr: "/usr/bin/cat: /file-not-found/test: No such file or directory\n",
+			expectedStderr: "",
 			expectedErr:    "",
 		},
 		{
 			desc: "exec without '-' and getting status still fails",
-			execStr: `out <= /usr/bin/cat /file-not-found/test
+			execStr: `out <= cat /file-not-found/test >[2=]
 					echo $out`,
 			expectedStdout: "",
-			expectedStderr: "/usr/bin/cat: /file-not-found/test: No such file or directory\n",
+			expectedStderr: "",
 			expectedErr:    "exit status 1",
 		},
 		{
 			desc: "check status",
-			execStr: `out, status <= /usr/bin/cat /file-not-found/test
+			execStr: `out, status <= cat /file-not-found/test >[2=]
 					if $status == "0" {
 						echo -n "must fail.. sniff"
 					} else if $status == "1" {
@@ -390,7 +390,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 					}
 				`,
 			expectedStdout: "it works",
-			expectedStderr: "/usr/bin/cat: /file-not-found/test: No such file or directory\n",
+			expectedStderr: "",
 			expectedErr:    "",
 		},
 		{
@@ -410,8 +410,9 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 	}
 }
 
-// IFS *DO NOT* exists anymore. This tests only assure things works as expected (IFS has no power)
-func TestExecuteCmdAssignmentIFS(t *testing.T) {
+// IFS *DO NOT* exists anymore.
+// This tests only assure things works as expected (IFS has no power)
+func TestExecuteCmdAssignmentIFSDontWork(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
 			"ifs",
