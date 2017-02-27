@@ -364,23 +364,23 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc: "ignore error",
-			execStr: `out, _ <= cat /file-not-found/test
+			execStr: `out, _ <= /usr/bin/cat /file-not-found/test
 					echo -n $out`,
 			expectedStdout: "",
-			expectedStderr: "open /file-not-found/test: no such file or directory\n",
+			expectedStderr: "/usr/bin/cat: /file-not-found/test: No such file or directory\n",
 			expectedErr:    "",
 		},
 		{
 			desc: "exec without '-' and getting status still fails",
-			execStr: `out <= cat /file-not-found/test
+			execStr: `out <= /usr/bin/cat /file-not-found/test
 					echo $out`,
 			expectedStdout: "",
-			expectedStderr: "open /file-not-found/test: no such file or directory\n",
+			expectedStderr: "/usr/bin/cat: /file-not-found/test: No such file or directory\n",
 			expectedErr:    "exit status 1",
 		},
 		{
 			desc: "check status",
-			execStr: `out, status <= cat /file-not-found/test
+			execStr: `out, status <= /usr/bin/cat /file-not-found/test
 					if $status == "0" {
 						echo -n "must fail.. sniff"
 					} else if $status == "1" {
@@ -390,7 +390,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 					}
 				`,
 			expectedStdout: "it works",
-			expectedStderr: "open /file-not-found/test: no such file or directory\n",
+			expectedStderr: "/usr/bin/cat: /file-not-found/test: No such file or directory\n",
 			expectedErr:    "",
 		},
 		{
