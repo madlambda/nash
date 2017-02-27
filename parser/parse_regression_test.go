@@ -204,7 +204,7 @@ func TestParseIssue69(t *testing.T) {
 
 	list := ast.NewListExpr(token.NewFileInfo(1, 4), listValues)
 
-	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0),
+	assign := ast.NewSingleAssignmentNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "a", nil), list,
 	)
 

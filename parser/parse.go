@@ -830,7 +830,7 @@ func (p *Parser) parseAssignValue(identifier scanner.Token, index ast.Expr) (ast
 		name = ast.NewNameNode(assignIdent.FileInfo, assignIdent.Value(), nil)
 	}
 
-	return ast.NewAssignmentNode(assignIdent.FileInfo, name, value), nil
+	return ast.NewSingleAssignmentNode(assignIdent.FileInfo, name, value), nil
 }
 
 func (p *Parser) parseAssignCmdOut(identifiers []*ast.NameNode) (ast.Node, error) {

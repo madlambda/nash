@@ -170,31 +170,49 @@ func (n *NameNode) String() string {
 
 func (n *AssignmentNode) string() (string, bool) {
 	var (
-		objStr string
-		multi  bool
+		multi bool
 	)
 
-	obj := n.val
-	lhs := n.name.String()
+	objs := n.Values
+	lhs := getlhs(n)
 
-	if obj.Type().IsExpr() {
-		if obj.Type() == NodeListExpr {
-			lobj := obj.(*ListExpr)
-			objStr, multi = lobj.string()
+	ret := ""
+
+	for i := 0; i < len(objs); i++ {
+		var (
+			objStr   string
+			objmulti bool
+		)
+
+		obj := objs[i]
+
+		if obj.Type().IsExpr() {
+			if obj.Type() == NodeListExpr {
+				lobj := obj.(*ListExpr)
+				objStr, objmulti = lobj.string()
+			} else {
+				objStr = obj.String()
+			}
+		}
+
+		if i == 0 {
+			if n.eqSpace > len(lhs) && !multi {
+				ret = lhs + strings.Repeat(" ", n.eqSpace-len(lhs)) + "= " + objStr
+			} else {
+				ret = lhs + " = " + objStr
+			}
+		} else if i < len(objs)-1 {
+			ret = ret + ", " + objStr + ", "
 		} else {
-			objStr = obj.String()
+			ret = ret + ", " + objStr
 		}
 
-		if n.eqSpace > len(lhs) && !multi {
-			ret := lhs + strings.Repeat(" ", n.eqSpace-len(lhs)) + "= " + objStr
-			return ret, multi
+		if objmulti && !multi {
+			multi = true
 		}
-
-		ret := lhs + " = " + objStr
-		return ret, multi
 	}
 
-	return "<unknown>", false
+	return ret, multi
 }
 
 // String returns the string representation of assignment statement

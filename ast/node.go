@@ -91,8 +91,8 @@ type (
 		token.FileInfo
 		egalitarian
 
-		name    *NameNode
-		val     Expr
+		Names   []*NameNode
+		Values  []Expr
 		eqSpace int
 	}
 
@@ -578,40 +578,32 @@ func (n *NameNode) IsEqual(other Node) bool {
 	return false
 }
 
-// NewAssignmentNode creates a new assignment
-func NewAssignmentNode(info token.FileInfo, ident *NameNode, value Expr) *AssignmentNode {
+// NewAssignmentNode creates a new assignment supporting multiple variables.
+// Eg.:
+//   a = "hello"
+//   b, c = "world", "again"
+func NewMultipleAssignmentNode(info token.FileInfo, names []*NameNode, values []Expr) *AssignmentNode {
 	return &AssignmentNode{
 		NodeType: NodeAssignment,
 		FileInfo: info,
 		eqSpace:  -1,
 
-		name: ident,
-		val:  value,
+		Names:  names,
+		Values: values,
 	}
 }
 
-// SetName sets the name of the variable
-func (n *AssignmentNode) SetName(a *NameNode) {
-	n.name = a
+// NewSingleAssignmentNode creates an assignment of a single variable. Eg.:
+//   name = "hello"
+// To assignment multiple variables in the same statement use `NewMultipleAssignmentNode`
+func NewSingleAssignmentNode(info token.FileInfo, name *NameNode, value Expr) *AssignmentNode {
+	return NewMultipleAssignmentNode(info, []*NameNode{name}, []Expr{value})
 }
 
-// Name return the name of the variable.
-func (n *AssignmentNode) Name() *NameNode { return n.name }
-
-// TODO: fix that
-func (n *AssignmentNode) names() []*NameNode   { return []*NameNode{n.name} }
+// TODO(i4k): fix that
+func (n *AssignmentNode) names() []*NameNode   { return n.Names }
 func (n *AssignmentNode) getEqSpace() int      { return n.eqSpace }
 func (n *AssignmentNode) setEqSpace(value int) { n.eqSpace = value }
-
-// SetValue sets the value of the list
-func (n *AssignmentNode) SetValue(val Expr) {
-	n.val = val
-}
-
-// Value returns the assigned object
-func (n *AssignmentNode) Value() Expr {
-	return n.val
-}
 
 // IsEqual returns if it is equal to the other node.
 func (n *AssignmentNode) IsEqual(other Node) bool {
@@ -626,16 +618,29 @@ func (n *AssignmentNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.name != o.name && !n.name.IsEqual(o.name) {
-		debug("Assignment identifier doesn't match: '%s' != '%s'", n.name, o.name)
+	if len(n.Names) == len(o.Names) {
+		for i := 0; i < len(n.Names); i++ {
+			if !n.Names[i].IsEqual(o.Names[i]) {
+				debug("Assignment identifier doesn't match: '%s' != '%s'",
+					n.Names[i], o.Names[i])
+				return false
+			}
+		}
+	} else {
 		return false
 	}
 
-	if n.val != nil {
-		return n.val.IsEqual(o.val)
+	if len(n.Values) == len(o.Values) {
+		for i := 0; i < len(n.Values); i++ {
+			if !n.Values[i].IsEqual(o.Values[i]) {
+				return false
+			}
+		}
+	} else {
+		return false
 	}
 
-	return false
+	return true
 }
 
 // NewExecAssignNode creates a new node for executing something and store the

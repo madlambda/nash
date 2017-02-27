@@ -1551,8 +1551,8 @@ func (shell *Shell) evalExpr(expr ast.Expr) (sh.Obj, error) {
 				return nil, errors.NewEvalError(shell.filename,
 					expr,
 					"Function used in"+
-						" expression but it returns %d values: %d",
-					len(objs))
+						" expression but it returns %d values: %10q",
+					len(objs), objs)
 			}
 
 			return objs[0], nil
@@ -1753,15 +1753,30 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 }
 
 func (shell *Shell) executeAssignment(v *ast.AssignmentNode) error {
-	var err error
-
-	obj, err := shell.evalExpr(v.Value())
-
-	if err != nil {
-		return err
+	if len(v.Names) != len(v.Values) {
+		return errors.NewEvalError(shell.filename,
+			v, "Invalid multiple assignment. Different amount of variables and values",
+		)
 	}
 
-	return shell.setvar(v.Name(), obj)
+	for i := 0; i < len(v.Names); i++ {
+		name := v.Names[i]
+		value := v.Values[i]
+
+		obj, err := shell.evalExpr(value)
+
+		if err != nil {
+			return err
+		}
+
+		err = shell.setvar(name, obj)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (shell *Shell) evalIfArgument(arg ast.Node) (sh.Obj, error) {
