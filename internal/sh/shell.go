@@ -660,7 +660,7 @@ func (shell *Shell) executeNode(node ast.Node, builtin bool) ([]sh.Obj, error) {
 	var (
 		objs   []sh.Obj
 		err    error
-		status sh.Obj = sh.NewStrObj(strconv.Itoa(ENotFound))
+		status sh.Obj = nil
 	)
 
 	shell.logf("Executing node: %v\n", node)
@@ -709,7 +709,9 @@ func (shell *Shell) executeNode(node ast.Node, builtin bool) ([]sh.Obj, error) {
 			"invalid node: %v.", node.Type())
 	}
 
-	shell.Setvar("status", status)
+	if status != nil {
+		shell.Setvar("status", status)
+	}
 
 	return objs, err
 }
@@ -1620,7 +1622,7 @@ func (shell *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 	return value, nil
 }
 
-func (shell *Shell) execCmdOutput(cmd ast.Node) (string, sh.Obj, error) {
+func (shell *Shell) execCmdOutput(cmd ast.Node, ignoreError bool) (string, sh.Obj, error) {
 	var (
 		varOut bytes.Buffer
 		err    error
@@ -1654,6 +1656,10 @@ func (shell *Shell) execCmdOutput(cmd ast.Node) (string, sh.Obj, error) {
 		output = output[0 : len(output)-1]
 	}
 
+	if ignoreError {
+		err = nil
+	}
+
 	return string(output), status, err
 }
 
@@ -1662,7 +1668,7 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node) error {
 	cmd := assign.Command()
 
 	if len(assign.Names) == 1 {
-		output, status, err := shell.execCmdOutput(cmd)
+		output, status, err := shell.execCmdOutput(cmd, false)
 
 		if err != nil {
 			return err
@@ -1680,7 +1686,7 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node) error {
 	}
 
 	// TODO: disable exit in case of error
-	output, status, err := shell.execCmdOutput(cmd)
+	output, status, err := shell.execCmdOutput(cmd, true)
 
 	if err != nil {
 		return err

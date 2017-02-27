@@ -1296,6 +1296,21 @@ func TestParseReturn(t *testing.T) {
 	expected.Root = ln
 
 	parserTestTable("return", `return a()`, expected, t, true)
+
+	expected = ast.NewTree("return multiple values")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	ret = ast.NewReturnNode(token.NewFileInfo(1, 0))
+
+	a1 := ast.NewStringExpr(token.NewFileInfo(1, 8), "1", true)
+	a2 := ast.NewStringExpr(token.NewFileInfo(1, 13), "2", true)
+	a3 := ast.NewStringExpr(token.NewFileInfo(1, 18), "3", true)
+
+	ret.Returns = []ast.Expr{a1, a2, a3}
+
+	ln.Push(ret)
+	expected.Root = ln
+
+	parserTestTable("return", `return "1", "2", "3"`, expected, t, true)
 }
 
 func TestParseIfInvalid(t *testing.T) {

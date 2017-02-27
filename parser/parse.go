@@ -1252,10 +1252,10 @@ func (p *Parser) parseDump(dumpIt scanner.Token) (ast.Node, error) {
 	return dump, nil
 }
 
-func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
-	ret := ast.NewReturnNode(retIt.FileInfo)
+func (p *Parser) parseReturn(retTok scanner.Token) (ast.Node, error) {
+	ret := ast.NewReturnNode(retTok.FileInfo)
 
-	valueIt := p.peek()
+	tok := p.peek()
 
 	// return;
 	// return }
@@ -1264,38 +1264,43 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 	// return ( ... values ... )
 	// return <fn name>()
 	// return "val1", "val2", $val3, test()
-	if valueIt.Type() != token.Semicolon &&
-		valueIt.Type() != token.RBrace &&
-		valueIt.Type() != token.Variable &&
-		valueIt.Type() != token.String &&
-		valueIt.Type() != token.LParen &&
-		valueIt.Type() != token.Ident {
-		return nil, newParserError(valueIt, p.name,
+	if tok.Type() != token.Semicolon &&
+		tok.Type() != token.RBrace &&
+		tok.Type() != token.Variable &&
+		tok.Type() != token.String &&
+		tok.Type() != token.LParen &&
+		tok.Type() != token.Ident {
+		return nil, newParserError(tok, p.name,
 			"Expected ';', STRING, VARIABLE, FUNCALL or LPAREN, but found %v",
-			valueIt)
+			tok)
 	}
 
 	var returnExprs []ast.Expr
 
 	for {
-		valueIt = p.peek()
+		tok = p.peek()
 
-		if valueIt.Type() == token.Semicolon {
+		if tok.Type() == token.Semicolon {
 			p.ignore()
 			break
 		}
 
-		if valueIt.Type() == token.RBrace {
+		if tok.Type() == token.RBrace {
 			break
 		}
 
-		if valueIt.Type() == token.LParen {
-			listInfo := valueIt.FileInfo
+		if tok.Type() == token.LParen {
+			listInfo := tok.FileInfo
 			p.ignore()
 
 			var values []ast.Expr
 
-			for valueIt = p.peek(); valueIt.Type() != token.RParen && valueIt.Type() != token.EOF; valueIt = p.peek() {
+			for tok = p.peek(); tok.Type() != token.RParen; tok = p.peek() {
+				if tok.Type() == token.EOF {
+					// list unfinished
+					break
+				}
+
 				arg, err := p.getArgument(true, true)
 
 				if err != nil {
@@ -1305,25 +1310,25 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 				values = append(values, arg)
 			}
 
-			if valueIt.Type() != token.RParen {
-				return nil, errors.NewUnfinishedListError(p.name, valueIt)
+			if tok.Type() != token.RParen {
+				return nil, errors.NewUnfinishedListError(p.name, tok)
 			}
 
 			p.ignore()
 
 			listArg := ast.NewListExpr(listInfo, values)
 			returnExprs = append(returnExprs, listArg)
-		} else if valueIt.Type() == token.Ident {
+		} else if tok.Type() == token.Ident {
 			p.next()
 			next := p.peek()
 
 			if next.Type() != token.LParen {
-				return nil, newParserError(valueIt, p.name,
+				return nil, newParserError(tok, p.name,
 					"Expected FUNCALL, STRING, VARIABLE or LPAREN, but found '%v' %v",
-					valueIt.Value(), next)
+					tok.Value(), next)
 			}
 
-			arg, err := p.parseFnInv(valueIt, true)
+			arg, err := p.parseFnInv(tok, true)
 
 			if err != nil {
 				return nil, err
@@ -1343,6 +1348,7 @@ func (p *Parser) parseReturn(retIt scanner.Token) (ast.Node, error) {
 		next := p.peek()
 
 		if next.Type() == token.Comma {
+			p.ignore()
 			continue
 		}
 

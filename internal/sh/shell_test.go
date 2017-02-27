@@ -344,16 +344,66 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 			"",
 		},
 		{
-			"list assignment",
-			`l = (0 1 2 3)
+			desc: "list assignment",
+			execStr: `l = (0 1 2 3)
                          a = "2"
                          l[$a], err <= echo -n "666"
                          if $err == "0" {
                              echo -n $l
                          }`,
-			`0 1 666 3`,
-			"",
-			"",
+			expectedStdout: `0 1 666 3`,
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc:           "cmd assignment works with 1 or 2 variables",
+			execStr:        "out, err1, err2 <= echo something",
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "<interactive>:1:0: multiple assignment of commands requires two variable names, but got 3",
+		},
+		{
+			desc: "ignore error",
+			execStr: `out, _ <= cat /file-not-found/test
+					echo -n $out`,
+			expectedStdout: "",
+			expectedStderr: "open /file-not-found/test: no such file or directory\n",
+			expectedErr:    "",
+		},
+		{
+			desc: "exec without '-' and getting status still fails",
+			execStr: `out <= cat /file-not-found/test
+					echo $out`,
+			expectedStdout: "",
+			expectedStderr: "open /file-not-found/test: no such file or directory\n",
+			expectedErr:    "exit status 1",
+		},
+		{
+			desc: "check status",
+			execStr: `out, status <= cat /file-not-found/test
+					if $status == "0" {
+						echo -n "must fail.. sniff"
+					} else if $status == "1" {
+						echo -n "it works"
+					} else {
+						echo -n "unexpected status:" $status
+					}
+				`,
+			expectedStdout: "it works",
+			expectedStderr: "open /file-not-found/test: no such file or directory\n",
+			expectedErr:    "",
+		},
+		{
+			desc: "multiple return in functions",
+			execStr: `fn fun() {
+					return "1", "2"
+				}
+
+				a, b <= fun()
+				echo -n $a $b`,
+			expectedStdout: "1 2",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 	} {
 		testExec(t, test)
