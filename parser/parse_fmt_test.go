@@ -239,17 +239,17 @@ create_prod()
 import nashlib/all
 import klb/aws/all
 
-vpcTags = (
+vpcTags       = (
 	(Name klb-vpc-example)
 	(Env testing)
 )
 
-igwTags = (
+igwTags       = (
 	(Name klb-igw-example)
 	(Env testing)
 )
 
-routeTblTags = (
+routeTblTags  = (
 	(Name klb-rtbl-example)
 	(Env testing)
 )
@@ -259,12 +259,12 @@ appSubnetTags = (
 	(Env testing)
 )
 
-dbSubnetTags = (
+dbSubnetTags  = (
 	(Name klb-db-subnet-example)
 	(Env testing)
 )
 
-sgTags = (
+sgTags        = (
 	(Name klb-sg-example)
 	(Env testing)
 )
