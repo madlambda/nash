@@ -48,10 +48,10 @@ func testExit(t *testing.T, getstatus getCmdStatusCode) {
 		},
 	}
 
-	//WHY: Not sure this is a great idea, but we need to exec with the
-	//nash built directly from the project, not the one installed on the system.
-	//Can't circumvent the need for Exec here.
-	//Other tests can just run nash inside their own process.
+	// WHY: We need to run Exec because the script will call the exit syscall,
+	// killing the process (the test process on this case).
+	// When calling Exec we need to guarantee that we are using the nash
+	// built directly from the project, not the one installed on the host.
 	projectnash := "../../../cmd/nash/nash"
 
 	for name, desc := range tests {
