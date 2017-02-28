@@ -124,7 +124,7 @@ func (l *BlockNode) String() string {
 				addEOL = true
 			} else if node.Type() == NodeFnDecl {
 				addEOL = true
-			} else if node.Type() == NodeAssignment || node.Type() == NodeExecAssign {
+			} else if node.Type() == NodeAssign || node.Type() == NodeExecAssign {
 				nodeAssign := node.(assignable)
 
 				if nodeAssign.getEqSpace() == -1 {
@@ -168,7 +168,7 @@ func (n *NameNode) String() string {
 	return n.Ident
 }
 
-func (n *AssignmentNode) string() (string, bool) {
+func (n *AssignNode) string() (string, bool) {
 	var (
 		multi bool
 	)
@@ -216,7 +216,7 @@ func (n *AssignmentNode) string() (string, bool) {
 }
 
 // String returns the string representation of assignment statement
-func (n *AssignmentNode) String() string {
+func (n *AssignNode) String() string {
 	str, _ := n.string()
 	return str
 }

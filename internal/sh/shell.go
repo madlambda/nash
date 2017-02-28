@@ -672,8 +672,8 @@ func (shell *Shell) executeNode(node ast.Node, builtin bool) ([]sh.Obj, error) {
 		// ignore
 	case ast.NodeSetenv:
 		err = shell.executeSetenv(node.(*ast.SetenvNode))
-	case ast.NodeAssignment:
-		err = shell.executeAssignment(node.(*ast.AssignmentNode))
+	case ast.NodeAssign:
+		err = shell.executeAssignment(node.(*ast.AssignNode))
 	case ast.NodeExecAssign:
 		err = shell.executeExecAssign(node.(*ast.ExecAssignNode))
 	case ast.NodeCommand:
@@ -1573,8 +1573,8 @@ func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 
 	if assign != nil {
 		switch assign.Type() {
-		case ast.NodeAssignment:
-			err = shell.executeAssignment(assign.(*ast.AssignmentNode))
+		case ast.NodeAssign:
+			err = shell.executeAssignment(assign.(*ast.AssignNode))
 		case ast.NodeExecAssign:
 			err = shell.executeExecAssign(assign.(*ast.ExecAssignNode))
 		default:
@@ -1755,7 +1755,7 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 		assign)
 }
 
-func (shell *Shell) executeAssignment(v *ast.AssignmentNode) error {
+func (shell *Shell) executeAssignment(v *ast.AssignNode) error {
 	if len(v.Names) != len(v.Values) {
 		return errors.NewEvalError(shell.filename,
 			v, "Invalid multiple assignment. Different amount of variables and values",

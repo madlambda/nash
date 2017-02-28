@@ -85,8 +85,8 @@ type (
 		Index Expr
 	}
 
-	// AssignmentNode is a node for variable assignments
-	AssignmentNode struct {
+	// AssignNode is a node for variable assignments
+	AssignNode struct {
 		NodeType
 		token.FileInfo
 		egalitarian
@@ -309,10 +309,10 @@ const (
 	// NodeName represents an identifier
 	NodeName
 
-	// NodeAssignment is the type for simple variable assignment
-	NodeAssignment
+	// NodeAssign is the type for variable assignment
+	NodeAssign
 
-	// NodeExecAssign is the type for command or function assignment
+	// NodeExecAssign is the type for command/function assignment
 	NodeExecAssign
 
 	// NodeImport is the type for "import" builtin keyword
@@ -503,7 +503,7 @@ func (n *ImportNode) IsEqual(other Node) bool {
 
 // NewSetenvNode creates a new assignment node
 func NewSetenvNode(info token.FileInfo, name string, assign Node) (*SetenvNode, error) {
-	if assign != nil && assign.Type() != NodeAssignment &&
+	if assign != nil && assign.Type() != NodeAssign &&
 		assign.Type() != NodeExecAssign {
 		return nil, errors.New("Invalid assignment in setenv")
 	}
@@ -578,13 +578,12 @@ func (n *NameNode) IsEqual(other Node) bool {
 	return false
 }
 
-// NewAssignmentNode creates a new assignment supporting multiple variables.
-// Eg.:
-//   a = "hello"
-//   b, c = "world", "again"
-func NewMultipleAssignmentNode(info token.FileInfo, names []*NameNode, values []Expr) *AssignmentNode {
-	return &AssignmentNode{
-		NodeType: NodeAssignment,
+// NewAssignNode creates a new tuple assignment (multiple variable
+// assigned in a single statement).
+// For single assignment see NewSingleAssignNode.
+func NewAssignNode(info token.FileInfo, names []*NameNode, values []Expr) *AssignNode {
+	return &AssignNode{
+		NodeType: NodeAssign,
 		FileInfo: info,
 		eqSpace:  -1,
 
@@ -593,28 +592,29 @@ func NewMultipleAssignmentNode(info token.FileInfo, names []*NameNode, values []
 	}
 }
 
-// NewSingleAssignmentNode creates an assignment of a single variable. Eg.:
+// NewSingleAssignNode creates an assignment of a single variable. Eg.:
 //   name = "hello"
-// To assignment multiple variables in the same statement use `NewMultipleAssignmentNode`
-func NewSingleAssignmentNode(info token.FileInfo, name *NameNode, value Expr) *AssignmentNode {
-	return NewMultipleAssignmentNode(info, []*NameNode{name}, []Expr{value})
+// To make an assignment of multiple variables in the same statement
+// use `NewAssignNode`.
+func NewSingleAssignNode(info token.FileInfo, name *NameNode, value Expr) *AssignNode {
+	return NewAssignNode(info, []*NameNode{name}, []Expr{value})
 }
 
 // TODO(i4k): fix that
-func (n *AssignmentNode) names() []*NameNode   { return n.Names }
-func (n *AssignmentNode) getEqSpace() int      { return n.eqSpace }
-func (n *AssignmentNode) setEqSpace(value int) { n.eqSpace = value }
+func (n *AssignNode) names() []*NameNode   { return n.Names }
+func (n *AssignNode) getEqSpace() int      { return n.eqSpace }
+func (n *AssignNode) setEqSpace(value int) { n.eqSpace = value }
 
 // IsEqual returns if it is equal to the other node.
-func (n *AssignmentNode) IsEqual(other Node) bool {
+func (n *AssignNode) IsEqual(other Node) bool {
 	if !n.equal(n, other) {
 		return false
 	}
 
-	o, ok := other.(*AssignmentNode)
+	o, ok := other.(*AssignNode)
 
 	if !ok {
-		debug("Failed to convert to AssignmentNode")
+		debug("Failed to convert to AssignNode")
 		return false
 	}
 

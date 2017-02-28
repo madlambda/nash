@@ -125,7 +125,7 @@ func TestBasicSetEnvAssignment(t *testing.T) {
 	// setenv with assignment
 	expected = ast.NewTree("setenv with simple assignment")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
-	assign := ast.NewSingleAssignmentNode(token.NewFileInfo(1, 7),
+	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 7),
 		ast.NewNameNode(token.NewFileInfo(1, 7), "test", nil),
 		ast.NewStringExpr(token.NewFileInfo(1, 15), "hello", true))
 	set, err = ast.NewSetenvNode(token.NewFileInfo(1, 0), "test", assign)
@@ -169,7 +169,7 @@ func TestBasicSetEnvAssignment(t *testing.T) {
 func TestBasicAssignment(t *testing.T) {
 	expected := ast.NewTree("simple assignment")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
-	assign := ast.NewSingleAssignmentNode(token.NewFileInfo(1, 0),
+	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
 		ast.NewStringExpr(token.NewFileInfo(1, 8), "hello", true))
 	ln.Push(assign)
@@ -187,7 +187,7 @@ func TestBasicAssignment(t *testing.T) {
 
 	arg1 := ast.NewConcatExpr(token.NewFileInfo(1, 8), concats)
 
-	assign = ast.NewSingleAssignmentNode(token.NewFileInfo(1, 0),
+	assign = ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
 		arg1,
 	)
@@ -316,7 +316,7 @@ func TestParseListAssignment(t *testing.T) {
 
 	elem := ast.NewListExpr(token.NewFileInfo(1, 7), values)
 
-	assign := ast.NewSingleAssignmentNode(token.NewFileInfo(1, 0),
+	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
 		elem,
 	)
@@ -358,7 +358,7 @@ func TestParseListOfListsAssignment(t *testing.T) {
 
 	elem := ast.NewListExpr(token.NewFileInfo(1, 7), values)
 
-	assign := ast.NewSingleAssignmentNode(token.NewFileInfo(1, 0),
+	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
 		elem,
 	)
@@ -580,7 +580,7 @@ func TestParseCd(t *testing.T) {
 	expected = ast.NewTree("cd into HOME by setenv")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	assign := ast.NewSingleAssignmentNode(token.NewFileInfo(1, 0),
+	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "HOME", nil),
 		ast.NewStringExpr(token.NewFileInfo(1, 8), "/", true),
 	)
@@ -614,7 +614,7 @@ pwd`, expected, t, true)
 
 	arg = ast.NewStringExpr(token.NewFileInfo(1, 10), "/home/i4k/gopath", true)
 
-	assign = ast.NewSingleAssignmentNode(token.NewFileInfo(1, 0),
+	assign = ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "GOPATH", nil),
 		arg,
 	)
@@ -638,7 +638,7 @@ cd $GOPATH`, expected, t, true)
 
 	arg = ast.NewStringExpr(token.NewFileInfo(1, 10), "/home/i4k/gopath", true)
 
-	assign = ast.NewSingleAssignmentNode(token.NewFileInfo(1, 0),
+	assign = ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "GOPATH", nil),
 		arg,
 	)
@@ -1385,7 +1385,7 @@ func TestParseVariableIndexing(t *testing.T) {
 		ast.NewIntExpr(token.NewFileInfo(1, 15), 0),
 	)
 
-	assignment := ast.NewSingleAssignmentNode(token.NewFileInfo(1, 0),
+	assignment := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
 		indexedVar,
 	)
