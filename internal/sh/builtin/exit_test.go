@@ -2,16 +2,21 @@ package builtin_test
 
 import (
 	"os/exec"
-	"strconv"
-	"syscall"
 	"testing"
 )
 
-func TestLinuxExit(t *testing.T) {
+// getCmdStatusCode must return the status code of the given
+// err returned by exec.Exec or fail if unable to.
+type getCmdStatusCode func(err error) int
+
+// testExit tests builtin exit function, you need to provide
+// a platform dependent way to get the status code of a exited command
+// to run the test on a platform.
+func testExit(t *testing.T, getstatus getCmdStatusCode) {
 	type exitDesc struct {
 		script string
 		status string
-		result string
+		result int
 		fail   bool
 	}
 
@@ -19,32 +24,32 @@ func TestLinuxExit(t *testing.T) {
 		"success": {
 			script: "./testdata/exit.sh",
 			status: "0",
-			result: "0",
+			result: 0,
 		},
 		"failure": {
 			script: "./testdata/exit.sh",
 			status: "1",
-			result: "1",
+			result: 1,
 		},
 		"maxStatus": {
 			script: "./testdata/exit.sh",
 			status: "255",
-			result: "255",
+			result: 255,
 		},
 		"statusIsUnsigned": {
 			script: "./testdata/exit.sh",
 			status: "-1",
-			result: "255",
+			result: 255,
 		},
 		"statusOverflow": {
 			script: "./testdata/exit.sh",
 			status: "666",
-			result: "154", // Why ? For the glory of satan of course :-)
+			result: 154, // Why ? For the glory of satan of course :-)
 		},
 	}
 
 	//WHY: Not sure this is a great idea, but we need to exec with the
-	//code under test nash, not the one installed on the system.
+	//nash built directly from the project, not the one installed on the system.
 	//Can't circumvent the need for Exec here.
 	//Other tests can just run nash inside their own process.
 	projectnash := "../../../cmd/nash/nash"
@@ -60,21 +65,9 @@ func TestLinuxExit(t *testing.T) {
 				t.Fatalf("expected error for status: %s", desc.status)
 
 			}
-			if exiterr, ok := err.(*exec.ExitError); ok {
-				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-					expectedStatus, err := strconv.Atoi(desc.result)
-					if err != nil {
-						t.Fatalf("error[%s] converting[%s]", err, desc.status)
-					}
-					got := status.ExitStatus()
-					if expectedStatus != got {
-						t.Fatalf("expected[%d] got[%d]", expectedStatus, got)
-					}
-				} else {
-					t.Fatal("unable to extract status code from exec")
-				}
-			} else {
-				t.Fatalf("unexpected error: %v", err)
+			got := getstatus(err)
+			if desc.result != got {
+				t.Fatalf("expected[%d] got[%d]", desc.result, got)
 			}
 		})
 	}
