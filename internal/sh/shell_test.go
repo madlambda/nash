@@ -191,7 +191,7 @@ func TestExecuteAssignment(t *testing.T) {
 			"wrong assignment",
 			`name=i4k`,
 			"", "",
-			"wrong assignment:1:5: Unexpected token IDENT. Expecting VARIABLE or STRING or (",
+			"wrong assignment:1:5: Unexpected token IDENT. Expecting VARIABLE, STRING or (",
 		},
 		{
 			"assignment",

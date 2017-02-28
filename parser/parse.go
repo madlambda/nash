@@ -659,6 +659,13 @@ hasConcat:
 }
 
 func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
+	// we're here
+	// |
+	// V
+	// ident = ...
+	// ident <= ...
+	// ident, ident2, ..., identN = ...
+	// ident, ident2, ..., identN <= ...
 	it := p.next()
 
 	if !isAssignment(it.Type()) {
@@ -681,39 +688,15 @@ func (p *Parser) parseAssignment(ident scanner.Token) (ast.Node, error) {
 		it = p.next()
 	}
 
-	if it.Type() == token.Comma {
-		return p.parseMultipleAssignment(ident, index)
-	}
-
-	if it.Type() == token.Assign {
-		return p.parseAssignValue(ident, index)
-	}
-
-	name := ast.NewNameNode(ident.FileInfo, ident.Value(), index)
-
-	return p.parseAssignCmdOut([]*ast.NameNode{name})
-}
-
-func (p *Parser) parseMultipleAssignment(ident scanner.Token, index ast.Expr) (ast.Node, error) {
-	//          we are here
-	//              |
-	//              V
-	// identifier1, identifier2, ..., identifierN <= ...
-
-	var (
-		it  scanner.Token
-		err error
-	)
-
 	names := []*ast.NameNode{
 		ast.NewNameNode(ident.FileInfo, ident.Value(), index),
 	}
 
-	for it = p.next(); ; it = p.next() {
-		if it.Type() != token.Ident {
-			return nil, newParserError(it, p.name, "Unexpected token %v, expected IDENT", it)
-		}
+	if it.Type() != token.Comma {
+		goto assignOp
+	}
 
+	for it = p.next(); it.Type() == token.Ident; it = p.next() {
 		var index ast.Expr
 
 		name := it
@@ -729,19 +712,23 @@ func (p *Parser) parseMultipleAssignment(ident scanner.Token, index ast.Expr) (a
 			it = p.next()
 		}
 
-		names = append(names, ast.NewNameNode(it.FileInfo, name.Value(), index))
+		names = append(names, ast.NewNameNode(name.FileInfo, name.Value(), index))
 
 		if it.Type() != token.Comma {
 			break
 		}
 	}
 
-	if it.Type() != token.AssignCmd {
-		// will we support multiple simple assignment (no cmd exec)?
-		return nil, newParserError(it, p.name, "Unexpected token %v, expected ',' or '<='", it)
+assignOp:
+	if it.Type() != token.AssignCmd && it.Type() != token.Assign {
+		return nil, newParserError(it, p.name, "Unexpected token %v, expected ',' '=' or '<='", it)
 	}
 
-	return p.parseAssignCmdOut(names)
+	if it.Type() == token.AssignCmd {
+		return p.parseAssignCmdOut(names)
+	}
+
+	return p.parseAssignValues(names)
 }
 
 func (p *Parser) parseList(tok *scanner.Token) (ast.Node, error) {
@@ -793,44 +780,49 @@ func (p *Parser) parseList(tok *scanner.Token) (ast.Node, error) {
 	return ast.NewListExpr(lit.FileInfo, values), nil
 }
 
-func (p *Parser) parseAssignValue(identifier scanner.Token, index ast.Expr) (ast.Node, error) {
-	var err error
+func (p *Parser) parseAssignValues(names []*ast.NameNode) (ast.Node, error) {
+	var values []ast.Expr
 
-	assignIdent := identifier
+	if len(names) == 0 {
+		return nil, newParserError(p.peek(), p.name, "parser error: expect names non nil")
+	}
 
-	var value ast.Expr
+	for it := p.peek(); isExpr(it.Type()); it = p.peek() {
+		var (
+			value ast.Expr
+			err   error
+		)
 
-	it := p.peek()
-
-	if it.Type() == token.Variable || it.Type() == token.String {
-		value, err = p.getArgument(false, true)
+		if it.Type() == token.Variable || it.Type() == token.String {
+			value, err = p.getArgument(false, true)
+		} else if it.Type() == token.LParen { // list
+			value, err = p.parseList(nil)
+		} else {
+			return nil, newParserError(it, p.name, "Unexpected token %v. Expecting VARIABLE or STRING or (", it)
+		}
 
 		if err != nil {
 			return nil, err
 		}
-	} else if it.Type() == token.LParen { // list
-		value, err = p.parseList(nil)
 
-		if err != nil {
-			return nil, err
+		values = append(values, value)
+
+		if p.peek().Type() != token.Comma {
+			break
 		}
-	} else {
-		return nil, newParserError(it, p.name, "Unexpected token %v. Expecting VARIABLE or STRING or (", it)
+
+		p.ignore()
+	}
+
+	if len(values) == 0 {
+		return nil, newParserError(p.peek(), p.name, "Unexpected token %v. Expecting VARIABLE, STRING or (", p.peek())
 	}
 
 	if p.peek().Type() == token.Semicolon {
 		p.ignore()
 	}
 
-	var name *ast.NameNode
-
-	if index != nil {
-		name = ast.NewNameNode(assignIdent.FileInfo, assignIdent.Value(), index)
-	} else {
-		name = ast.NewNameNode(assignIdent.FileInfo, assignIdent.Value(), nil)
-	}
-
-	return ast.NewSingleAssignNode(assignIdent.FileInfo, name, value), nil
+	return ast.NewAssignNode(names[0].FileInfo, names, values), nil
 }
 
 func (p *Parser) parseAssignCmdOut(identifiers []*ast.NameNode) (ast.Node, error) {
@@ -1485,4 +1477,10 @@ func isAssignment(tok token.Token) bool {
 		tok == token.AssignCmd ||
 		tok == token.LBrack ||
 		tok == token.Comma
+}
+
+func isExpr(tok token.Token) bool {
+	return tok == token.Variable ||
+		tok == token.String ||
+		tok == token.LParen
 }

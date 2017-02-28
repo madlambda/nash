@@ -214,6 +214,24 @@ func TestBasicAssignment(t *testing.T) {
 	}
 }
 
+func TestParseMultipleAssign(t *testing.T) {
+	one := ast.NewNameNode(token.NewFileInfo(1, 0), "one", nil)
+	two := ast.NewNameNode(token.NewFileInfo(1, 5), "two", nil)
+	value1 := ast.NewStringExpr(token.NewFileInfo(1, 12), "1", true)
+	value2 := ast.NewStringExpr(token.NewFileInfo(1, 17), "2", true)
+	assign := ast.NewAssignNode(token.NewFileInfo(1, 0),
+		[]*ast.NameNode{one, two},
+		[]ast.Expr{value1, value2},
+	)
+
+	expected := ast.NewTree("tuple assignment")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTestTable("tuple assignment", `one, two = "1", "2"`, expected, t, true)
+}
+
 func TestParseMultipleExecAssignment(t *testing.T) {
 	expected := ast.NewTree("multiple cmd assignment")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -223,7 +241,7 @@ func TestParseMultipleExecAssignment(t *testing.T) {
 	assign, err := ast.NewExecAssignNode(token.NewFileInfo(1, 0),
 		[]*ast.NameNode{
 			ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
-			ast.NewNameNode(token.NewFileInfo(1, 13), "status", nil),
+			ast.NewNameNode(token.NewFileInfo(1, 6), "status", nil),
 		},
 		cmd,
 	)
@@ -246,7 +264,7 @@ func TestParseMultipleExecAssignment(t *testing.T) {
 	assign, err = ast.NewExecAssignNode(token.NewFileInfo(1, 0),
 		[]*ast.NameNode{
 			ast.NewNameNode(token.NewFileInfo(1, 0), "test", ast.NewIntExpr(token.NewFileInfo(1, 5), 0)),
-			ast.NewNameNode(token.NewFileInfo(1, 16), "status", nil),
+			ast.NewNameNode(token.NewFileInfo(1, 9), "status", nil),
 		},
 		cmd,
 	)
