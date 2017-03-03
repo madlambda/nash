@@ -95,6 +95,7 @@ To avoid problems with spaces in variables being passed as multiple arguments to
 nash pass the contents of each variable as a single argument to the command. It works like
 enclosing every variable with quotes before executing the command. Then the following example
 do the right thing:
+
 ```sh
 fullname = "John Nash"
 ./ci-register --name $fullname --option somevalue
@@ -103,43 +104,13 @@ On bash you need to enclose the `$fullname` variable in quotes to avoid problems
 
 Nash syntax does not support shell expansion from strings. There's no way to
 do things like the following in nash:
+
 ```bash
 echo "The date is: $(date +%D)" # DOESNT WORKS!
 ```
-Instead you need to assign each command output to a proper variable and then concat
-it with another string when needed. In nash, the example above must be something
-like that:
-```sh
-today <= date "+%D"
-echo "The date is: " + $today
-```
-The concat operator (+) could be used between variables and literal strings.
+Instead you need to assign each command output to a proper variable and then
+concat it with another string when needed (see the [reference docs](./doc/reference.md)).
 
-Functions can be declared with "fn" keyword:
-```sh
-fn cd(path) {
-    fullpath <= realpath $path | xargs echo -n
-    chdir($path)
-    PROMPT="[" + $fullpath + "]> "
-    setenv PROMPT
-}
-```
-
-And can be invoked as a normal function invocation:
-```sh
-λ> cd("/etc")
-[/etc]>
-```
-Functions are commonly used for nash libraries, but when needed it can be bind'ed
-to some command name. Using the `cd` function below, we can override the builtin `cd`
-with that command with `bindfn` statement.
-```sh
-λ> # bindfn syntax is:
-λ> # bindfn <function-name> <cmd-name>
-λ> bindfn cd cd
-λ> cd /var/log
-[/var/log]>
-```
 The only control statements available are `if`, `else` and `for`.
 In the same way, nash doesn't support shell expansion at `if` condition.
 For check if a directory exists you must use:

@@ -111,3 +111,36 @@ fn nash_repl_after(line, status) {
     # exit status (if applicable)
 }
 ```
+
+## bindfn
+
+Functions are commonly used for nash libraries,
+but when needed it can be bind'ed to some command name,
+so it can be used as a command from your shell prompt.
+
+For example, lets implement a **cd** using a function and bindfn.
+First define the function:
+
+```nash
+fn cd(path) {
+    fullpath <= realpath $path | xargs echo -n
+    chdir($path)
+    PROMPT="[" + $fullpath + "]> "
+    setenv PROMPT
+}
+```
+
+Using the **cd** function above, we can override the built-in
+**cd** with that function with the **bindfn** statement.
+
+```nash
+λ> bindfn cd cd
+λ> cd /var/log
+[/var/log]>
+```
+
+The bindfn syntax is:
+
+```nash
+bindfn <function-name> <cmd-name>
+```

@@ -1,22 +1,96 @@
 # Reference
 
 Here lies a comprehensive reference documentation of nash
-features and built in features, and how to use them.
+features and built-in functions, and how to use them.
+
+There is also some [examples](./examples) that can be useful.
 
 
-## Script args
+## Command line arguments
 
 To handle script arguments you can just use the ARGS variable,
 that is a list populated with the arguments passed to your script
 when it is executed, like:
 
-```
+```nash
 echo ""
 echo "acessing individual parameter"
 somearg = $ARGS[0]
 echo $somearg
 echo ""
 ```
+
+## Flow control
+
+## Functions
+
+Defining functions is very easy, for example:
+
+```nash
+fn concat(a, b) {
+        return $a, $b
+}
+
+res <= concat("1","9")
+echo $res
+
+#Output:"19"
+```
+
+If a parameter is missing on the function call,
+it will fail:
+
+```nash
+fn concat(a, b) {
+        return $a, $b
+}
+
+res <= concat("1")
+echo $res
+
+#Output:"ERROR: Wrong number of arguments for function concat. Expected 2 but found 1"
+```
+
+Passing extra parameters will also fail:
+
+```nash
+fn concat(a, b) {
+        return $a, $b
+}
+
+res <= concat("1","2","3")
+echo $res
+
+#Output:"ERROR: Wrong number of arguments for function concat. Expected 2 but found 3"
+```
+
+## Operators
+
+### + (Concatenation)
+
+The **+** is the concatenation operator. Its behaviour
+is dependent on the type it is concatenating. It
+is always invalid to mix types on the operation
+(like concatenating a string with a integer).
+
+The language is dynamically typed, but it is strongly
+typed, types can't be mixed on operations, there is no
+implicit type coercion.
+
+#### string
+
+String concatenation is pretty straightforward.
+For example:
+
+```nash
+a = "1"
+b = "2"
+
+echo $a + $b
+#Output:"12"
+```
+
+## Iterating
 
 ## Built-in functions
 
@@ -53,6 +127,4 @@ example_list <= append($example_list, "2")
 echo $example_list
 ```
 
-
-
-
+## Packages
