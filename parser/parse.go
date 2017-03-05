@@ -816,6 +816,9 @@ func (p *Parser) parseAssignValues(names []*ast.NameNode) (ast.Node, error) {
 
 	if len(values) == 0 {
 		return nil, newParserError(p.peek(), p.name, "Unexpected token %v. Expecting VARIABLE, STRING or (", p.peek())
+	} else if len(values) != len(names) {
+		return nil, newParserError(p.peek(), p.name, "assignment count mismatch: %d = %d",
+			len(names), len(values))
 	}
 
 	if p.peek().Type() == token.Semicolon {

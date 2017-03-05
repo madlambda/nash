@@ -62,7 +62,7 @@ func TestParseIssue22(t *testing.T) {
 	ln.Push(fn)
 	expected.Root = ln
 
-	parserTestTable("issue 22", `fn gocd(path) {
+	parserTest("issue 22", `fn gocd(path) {
 	if $path == "" {
 		cd $GOPATH
 	} else {
@@ -92,7 +92,7 @@ func TestParseIssue38(t *testing.T) {
 	ln.Push(fnInv)
 	expected.Root = ln
 
-	parserTestTable("parse issue38", `cd($GOPATH+"/src/"+$path)`, expected, t, true)
+	parserTest("parse issue38", `cd($GOPATH+"/src/"+$path)`, expected, t, true)
 }
 
 func TestParseIssue43(t *testing.T) {
@@ -157,7 +157,7 @@ func TestParseIssue43(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parse issue 41", content, expected, t, true)
+	parserTest("parse issue 41", content, expected, t, true)
 }
 
 func TestParseIssue68(t *testing.T) {
@@ -185,7 +185,7 @@ func TestParseIssue68(t *testing.T) {
 	ln.Push(pipe)
 	expected.Root = ln
 
-	parserTestTable("parse issue #68", `cat PKGBUILD | sed "s#\\$pkgdir#/home/i4k/alt#g" > PKGBUILD2`, expected, t, false)
+	parserTest("parse issue #68", `cat PKGBUILD | sed "s#\\$pkgdir#/home/i4k/alt#g" > PKGBUILD2`, expected, t, false)
 }
 
 func TestParseIssue69(t *testing.T) {
@@ -211,7 +211,7 @@ func TestParseIssue69(t *testing.T) {
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("parse-issue-69", `a = ($a+"b")`, expected, t, true)
+	parserTest("parse-issue-69", `a = ($a+"b")`, expected, t, true)
 }
 
 func TestParseImportIssue94(t *testing.T) {
@@ -221,7 +221,7 @@ func TestParseImportIssue94(t *testing.T) {
 	ln.Push(importStmt)
 	expected.Root = ln
 
-	parserTestTable("test import", "import common", expected, t, true)
+	parserTest("test import", "import common", expected, t, true)
 }
 
 func TestParseIssue108(t *testing.T) {
@@ -249,7 +249,7 @@ func TestParseIssue108(t *testing.T) {
 	ln.Push(pipe)
 	expected.Root = ln
 
-	parserTestTable("parse issue #108", `cat spec.ebnf | grep -i rfork`, expected, t, false)
+	parserTest("parse issue #108", `cat spec.ebnf | grep -i rfork`, expected, t, false)
 }
 
 func TestParseIssue123(t *testing.T) {

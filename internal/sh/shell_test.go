@@ -248,6 +248,71 @@ kernel 4.7.1`,
 	}
 }
 
+func TestExecuteMultipleAssignment(t *testing.T) {
+	for _, test := range []execTestCase{
+		{
+			desc: "multiple assignment",
+			execStr: `_1, _2 = "1", "2"
+				echo -n $_1 $_2`,
+			expectedStdout: "1 2",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "multiple assignment",
+			execStr: `_1, _2, _3 = "1", "2", "3"
+				echo -n $_1 $_2 $_3`,
+			expectedStdout: "1 2 3",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "multiple assignment",
+			execStr: `_1, _2 = (), ()
+				echo -n $_1 $_2`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "multiple assignment",
+			execStr: `_1, _2 = (1 2 3 4 5), (6 7 8 9 10)
+				echo -n $_1 $_2`,
+			expectedStdout: "1 2 3 4 5 6 7 8 9 10",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "multiple assignment",
+			execStr: `_1, _2, _3, _4, _5, _6, _7, _8, _9, _10 = "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"
+				echo -n $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 $_9 $_10`,
+			expectedStdout: "1 2 3 4 5 6 7 8 9 10",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "multiple assignment",
+			execStr: `_1, _2 = (a b c), "d"
+				echo -n $_1 $_2`,
+			expectedStdout: "a b c d",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "multiple assignment",
+			execStr: `fn a() { echo -n "a" }
+				  fn b() { echo -n "b" }
+				  _a, _b = $a, $b
+				  $_a(); $_b()`,
+			expectedStdout: "ab",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+	} {
+		testExec(t, test)
+	}
+}
+
 func TestExecuteCmdAssignment(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
