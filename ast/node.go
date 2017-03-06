@@ -648,6 +648,8 @@ func (n *AssignNode) IsEqual(other Node) bool {
 // command, a pipe of commands or a function invocation.
 // It returns a *ExecAssignNode ready to be executed or error when n is not a valid
 // node for execution.
+// TODO(i4k): Change the API to specific node types. Eg.: NewExecAssignCmdNode and
+// so on.
 func NewExecAssignNode(info token.FileInfo, names []*NameNode, n Node) (*ExecAssignNode, error) {
 	if !n.Type().IsExecutable() {
 		return nil, errors.New("NewExecAssignNode expects a CommandNode, PipeNode or FninvNode")
