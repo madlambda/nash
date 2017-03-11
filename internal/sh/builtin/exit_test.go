@@ -5,19 +5,18 @@ import (
 	"testing"
 )
 
-// getCmdStatusCode must return the status code of the given
-// err returned by exec.Exec or fail if unable to.
-type getCmdStatusCode func(err error) int
-
-// testExit tests builtin exit function, you need to provide
-// a platform dependent way to get the status code of a exited command
-// to run the test on a platform.
-func testExit(t *testing.T, getstatus getCmdStatusCode) {
+func TestExit(t *testing.T) {
 	type exitDesc struct {
 		script string
 		status string
 		result int
 		fail   bool
+	}
+
+	// exitResult is a common interface implemented by
+	// all platforms.
+	type exitResult interface {
+		ExitStatus() int
 	}
 
 	tests := map[string]exitDesc{
@@ -50,9 +49,17 @@ func testExit(t *testing.T, getstatus getCmdStatusCode) {
 				t.Fatalf("expected error for status: %s", desc.status)
 
 			}
-			got := getstatus(err)
-			if desc.result != got {
-				t.Fatalf("expected[%d] got[%d]", desc.result, got)
+			if exiterr, ok := err.(*exec.ExitError); ok {
+				if status, ok := exiterr.Sys().(exitResult); ok {
+					got := status.ExitStatus()
+					if desc.result != got {
+						t.Fatalf("expected[%d] got[%d]", desc.result, got)
+					}
+				} else {
+					t.Fatal("exit result does not have a  ExitStatus method")
+				}
+			} else {
+				t.Fatalf("unexpected error: %v", err)
 			}
 		})
 	}
