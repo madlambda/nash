@@ -31,21 +31,6 @@ func testExit(t *testing.T, getstatus getCmdStatusCode) {
 			status: "1",
 			result: 1,
 		},
-		"maxStatus": {
-			script: "./testdata/exit.sh",
-			status: "255",
-			result: 255,
-		},
-		"statusIsUnsigned": {
-			script: "./testdata/exit.sh",
-			status: "-1",
-			result: 255,
-		},
-		"statusOverflow": {
-			script: "./testdata/exit.sh",
-			status: "666",
-			result: 154, // Why ? For the glory of satan of course :-)
-		},
 	}
 
 	// WHY: We need to run Exec because the script will call the exit syscall,
