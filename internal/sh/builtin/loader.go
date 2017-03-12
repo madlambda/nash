@@ -18,5 +18,6 @@ func Load() map[string]Fn {
 		"len":    newLen(),
 		"chdir":  newChdir(),
 		"append": newAppend(),
+		"exit":   newExit(),
 	}
 }
