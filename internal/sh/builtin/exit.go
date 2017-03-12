@@ -44,7 +44,7 @@ func (e *exitFn) SetArgs(args []sh.Obj) error {
 	status, err := strconv.Atoi(statusstr)
 	if err != nil {
 		return fmt.Errorf(
-			"exit:linux:error[%s] converting status[%s] to int",
+			"exit:error[%s] converting status[%s] to int",
 			err,
 			statusstr,
 		)
