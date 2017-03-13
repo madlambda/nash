@@ -19,7 +19,7 @@ const (
 
 	Ident
 	String // "<string>"
-	Number // [0-9]+
+	Int    // [0-9]+
 	Arg
 
 	literal_end
@@ -76,7 +76,7 @@ var tokens = [...]string{
 
 	Ident:  "IDENT",
 	String: "STRING",
-	Number: "NUMBER",
+	Int:    "INT",
 	Arg:    "ARG",
 
 	Assign:    "=",

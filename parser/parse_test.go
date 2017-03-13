@@ -182,7 +182,7 @@ func TestBasicSetEnvAssignment(t *testing.T) {
 	parserTest("simple assignment", `setenv test <= ls`, expected, t, true)
 }
 
-func TestBasicAssignment(t *testing.T) {
+func TestBasicStringAssignment(t *testing.T) {
 	expected := ast.NewTree("simple assignment")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
@@ -216,13 +216,23 @@ func TestBasicAssignment(t *testing.T) {
 	for _, test := range []string{
 		"test=hello",
 		"test = hello",
-		"test = 1",
 		"test = false",
-		"test = -1",
 		`test = "1", "2"`,
 	} {
 		parserTestFail(t, test)
 	}
+}
+
+func TestBasicIntAssignment(t *testing.T) {
+	expected := ast.NewTree("simple assignment")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
+		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
+		ast.NewIntExpr(token.NewFileInfo(1, 7), 1))
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTest("simple assignment", `test = 1`, expected, t, true)
 }
 
 func TestParseMultipleAssign(t *testing.T) {
@@ -309,11 +319,13 @@ func TestParseInvalidIndexing(t *testing.T) {
 
 	_, err := parser.Parse()
 
+	expected := "invalid:1:5: Expected integer or variable in index. Found ARG"
+
 	if err == nil {
 		t.Error("Parse must fail")
 		return
-	} else if err.Error() != "invalid:1:5: Expected number or variable in index. Found ARG" {
-		t.Error("Invalid err msg")
+	} else if err.Error() != expected {
+		t.Errorf("Invalid err msg: %s", err.Error())
 		return
 	}
 
@@ -321,11 +333,13 @@ func TestParseInvalidIndexing(t *testing.T) {
 
 	_, err = parser.Parse()
 
+	expected = "invalid:1:5: Expected integer or variable in index. Found ]"
+
 	if err == nil {
 		t.Error("Parse must fail")
 		return
-	} else if err.Error() != "invalid:1:5: Expected number or variable in index. Found ]" {
-		t.Error("Invalid err msg")
+	} else if err.Error() != expected {
+		t.Errorf("Invalid err msg: %s", err.Error())
 		return
 	}
 
@@ -333,11 +347,13 @@ func TestParseInvalidIndexing(t *testing.T) {
 
 	_, err = parser.Parse()
 
+	expected = "invalid:1:5: Expected integer or variable in index. Found ARG"
+
 	if err == nil {
 		t.Error("Parse must fail")
 		return
-	} else if err.Error() != "invalid:1:5: Expected number or variable in index. Found ARG" {
-		t.Error("Invalid err msg")
+	} else if err.Error() != expected {
+		t.Errorf("Invalid err msg: %s", err.Error())
 		return
 	}
 }

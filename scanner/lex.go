@@ -225,7 +225,7 @@ func lexStart(l *Lexer) stateFn {
 		// >[2=]
 		// cmd[2]
 		if next == '=' || next == ']' || (!isIdentifier(l.peek()) && !isArgument(l.peek())) {
-			l.emit(token.Number)
+			l.emit(token.Int)
 		} else if isIdentifier(l.peek()) {
 			absorbIdentifier(l)
 

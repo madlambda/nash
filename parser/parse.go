@@ -208,9 +208,9 @@ func (p *Parser) parseStatement() (ast.Node, error) {
 func (p *Parser) parseIndexing() (ast.Expr, error) {
 	it := p.next()
 
-	if it.Type() != token.Number && it.Type() != token.Variable {
+	if it.Type() != token.Int && it.Type() != token.Variable {
 		return nil, newParserError(it, p.name,
-			"Expected number or variable in index. Found %v", it)
+			"Expected integer or variable in index. Found %v", it)
 	}
 
 	var (
@@ -218,7 +218,7 @@ func (p *Parser) parseIndexing() (ast.Expr, error) {
 		err   error
 	)
 
-	if it.Type() == token.Number {
+	if it.Type() == token.Int {
 		// only supports base10
 		intval, err := strconv.Atoi(it.Value())
 
@@ -450,7 +450,7 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 		p.next()
 		it = p.peek()
 
-		if it.Type() != token.Number {
+		if it.Type() != token.Int {
 			return nil, newParserError(it, p.name, "Expected lefthand side of redirection map, but found '%s'",
 				it.Value())
 		}
@@ -475,11 +475,11 @@ func (p *Parser) parseRedirection(it scanner.Token) (*ast.RedirectNode, error) {
 			p.next()
 			it = p.peek()
 
-			if it.Type() != token.Number && it.Type() != token.RBrack {
+			if it.Type() != token.Int && it.Type() != token.RBrack {
 				return nil, newParserError(it, p.name, "Unexpected token %v. Expecting REDIRMAPRSIDE or ]", it)
 			}
 
-			if it.Type() == token.Number {
+			if it.Type() == token.Int {
 				rval, err = strconv.Atoi(it.Value())
 
 				if err != nil {
@@ -795,10 +795,15 @@ func (p *Parser) parseAssignValues(names []*ast.NameNode) (ast.Node, error) {
 
 		if it.Type() == token.Variable || it.Type() == token.String {
 			value, err = p.getArgument(false, true)
+		} else if it.Type() == token.Int {
+			intval := 0
+			intval, err = strconv.Atoi(it.Value())
+			value = ast.NewIntExpr(it.FileInfo, intval)
+			p.next()
 		} else if it.Type() == token.LParen { // list
 			value, err = p.parseList(nil)
 		} else {
-			return nil, newParserError(it, p.name, "Unexpected token %v. Expecting VARIABLE or STRING or (", it)
+			return nil, newParserError(it, p.name, "Unexpected token %v. Expecting VARIABLE, STRING, INTEGER or '('")
 		}
 
 		if err != nil {
@@ -815,7 +820,7 @@ func (p *Parser) parseAssignValues(names []*ast.NameNode) (ast.Node, error) {
 	}
 
 	if len(values) == 0 {
-		return nil, newParserError(p.peek(), p.name, "Unexpected token %v. Expecting VARIABLE, STRING or (", p.peek())
+		return nil, newParserError(p.peek(), p.name, "Unexpected token %v. Expecting VARIABLE, STRING, INTEGER or (", p.peek())
 	} else if len(values) != len(names) {
 		return nil, newParserError(p.peek(), p.name, "assignment count mismatch: %d = %d",
 			len(names), len(values))
@@ -1459,7 +1464,7 @@ func newParserError(item scanner.Token, name, format string, args ...interface{}
 
 func isValidArgument(t scanner.Token) bool {
 	if t.Type() == token.String ||
-		t.Type() == token.Number ||
+		t.Type() == token.Int ||
 		t.Type() == token.Arg ||
 		t.Type() == token.Ident ||
 		token.IsKeyword(t.Type()) ||
@@ -1485,5 +1490,6 @@ func isAssignment(tok token.Token) bool {
 func isExpr(tok token.Token) bool {
 	return tok == token.Variable ||
 		tok == token.String ||
+		tok == token.Int ||
 		tok == token.LParen
 }

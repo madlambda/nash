@@ -23,7 +23,7 @@ func (e *exitFn) ArgNames() []string {
 	return []string{"status"}
 }
 
-func (e *exitFn) Run() (sh.Obj, error) {
+func (e *exitFn) Run() ([]sh.Obj, error) {
 	os.Exit(e.status)
 	return nil, nil //Unrecheable code
 }
