@@ -57,9 +57,7 @@ func main() {
 		file = args[0]
 	}
 
-	shell, err = initShell()
-
-	if err != nil {
+	if shell, err = initShell(); err != nil {
 		goto Error
 	}
 
@@ -67,14 +65,11 @@ func main() {
 
 	if addr != "" {
 		startNashd(shell, addr)
-
 		return
 	}
 
 	if (file == "" && command == "") || interactive {
-		err = cli(shell)
-
-		if err != nil {
+		if err = cli(shell); err != nil {
 			goto Error
 		}
 
@@ -82,16 +77,13 @@ func main() {
 	}
 
 	if file != "" {
-		err = shell.ExecFile(file, args...)
-
-		if err != nil {
+		if err = shell.ExecFile(file, args...); err != nil {
 			goto Error
 		}
 	}
 
 	if command != "" {
 		err = shell.ExecuteString("<argument -c>", command)
-
 		if err != nil {
 			goto Error
 		}
@@ -106,13 +98,11 @@ Error:
 
 func getnashpath() (string, error) {
 	nashpath := os.Getenv("NASHPATH")
-
 	if nashpath != "" {
 		return nashpath, nil
 	}
 
 	home := os.Getenv("HOME")
-
 	if home == "" {
 		user := os.Getenv("USER")
 
@@ -128,19 +118,16 @@ func getnashpath() (string, error) {
 
 func initShell() (*nash.Shell, error) {
 	shell, err := nash.New()
-
 	if err != nil {
 		return nil, err
 	}
 
 	nashpath, err := getnashpath()
-
 	if err != nil {
 		return nil, err
 	}
 
 	os.Mkdir(nashpath, 0755)
-
 	shell.SetDotDir(nashpath)
 
 	return shell, nil
