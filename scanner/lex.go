@@ -291,10 +291,10 @@ func lexStart(l *Lexer) stateFn {
 		//
 		// The list of runes below are the ones allowed to exists close
 		// to the variable. Eg.:
-		//   echo $HOME;
-		//   echo $HOME[0]
-		//   echo $HOME()
-		//   echo $HOME+"a"
+		//   $HOME;
+		//   $HOME[0]
+		//   $HOME()
+		//   $HOME+"a"
 		next := l.peek()
 		if next != eof && !isSpace(next) &&
 			!isEndOfLine(next) && next != ';' &&
