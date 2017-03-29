@@ -207,4 +207,13 @@ func TestLexerIssue127(t *testing.T) {
 	}
 
 	testTable("test127", `rm -rf $HOME/.vim`, expected, t)
+
+	expected = []Token{
+		{typ: token.Ident, val: "rm"},
+		{typ: token.Arg, val: "-rf"},
+		{typ: token.Illegal, val: "test127:1:12: Unrecognized character in action: U+002E '.'"},
+		{typ: token.EOF},
+	}
+
+	testTable("test127", `rm -rf $HOME.vim`, expected, t)
 }
