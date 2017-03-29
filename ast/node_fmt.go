@@ -72,9 +72,9 @@ func (l *BlockNode) adjustGroupAssign(node assignable, nodes []Node) {
 		i       int
 	)
 
-	nodeName := node.Name().String()
+	lhs := getlhs(node)
 
-	eqSpace = len(nodeName) + 1
+	eqSpace = len(lhs) + 1
 
 	for i = 0; i < len(nodes); i++ {
 		assign, ok := nodes[i].(assignable)
@@ -83,8 +83,8 @@ func (l *BlockNode) adjustGroupAssign(node assignable, nodes []Node) {
 			break
 		}
 
-		if len(assign.Name().String())+1 > eqSpace {
-			eqSpace = len(assign.Name().String()) + 1
+		if len(getlhs(assign))+1 > eqSpace {
+			eqSpace = len(getlhs(assign)) + 1
 		}
 	}
 
@@ -124,7 +124,7 @@ func (l *BlockNode) String() string {
 				addEOL = true
 			} else if node.Type() == NodeFnDecl {
 				addEOL = true
-			} else if node.Type() == NodeAssignment || node.Type() == NodeExecAssign {
+			} else if node.Type() == NodeAssign || node.Type() == NodeExecAssign {
 				nodeAssign := node.(assignable)
 
 				if nodeAssign.getEqSpace() == -1 {
@@ -148,57 +148,75 @@ func (l *BlockNode) String() string {
 
 // String returns the string representation of the import
 func (n *ImportNode) String() string {
-	return `import ` + n.path.String()
+	return `import ` + n.Path.String()
 }
 
 // String returns the string representation of assignment
 func (n *SetenvNode) String() string {
 	if n.assign == nil {
-		return "setenv " + n.varName
+		return "setenv " + n.Name
 	}
 
 	return "setenv " + n.assign.String()
 }
 
 func (n *NameNode) String() string {
-	if n.index != nil {
-		return n.name + "[" + n.index.String() + "]"
+	if n.Index != nil {
+		return n.Ident + "[" + n.Index.String() + "]"
 	}
 
-	return n.name
+	return n.Ident
 }
 
-func (n *AssignmentNode) string() (string, bool) {
+func (n *AssignNode) string() (string, bool) {
 	var (
-		objStr string
-		multi  bool
+		multi bool
 	)
 
-	obj := n.val
-	lhs := n.name.String()
+	objs := n.Values
+	lhs := getlhs(n)
 
-	if obj.Type().IsExpr() {
-		if obj.Type() == NodeListExpr {
-			lobj := obj.(*ListExpr)
-			objStr, multi = lobj.string()
+	ret := ""
+
+	for i := 0; i < len(objs); i++ {
+		var (
+			objStr   string
+			objmulti bool
+		)
+
+		obj := objs[i]
+
+		if obj.Type().IsExpr() {
+			if obj.Type() == NodeListExpr {
+				lobj := obj.(*ListExpr)
+				objStr, objmulti = lobj.string()
+			} else {
+				objStr = obj.String()
+			}
+		}
+
+		if i == 0 {
+			if n.eqSpace > len(lhs) && !multi {
+				ret = lhs + strings.Repeat(" ", n.eqSpace-len(lhs)) + "= " + objStr
+			} else {
+				ret = lhs + " = " + objStr
+			}
+		} else if i < len(objs)-1 {
+			ret = ret + ", " + objStr + ", "
 		} else {
-			objStr = obj.String()
+			ret = ret + ", " + objStr
 		}
 
-		if n.eqSpace > len(lhs) && !multi {
-			ret := lhs + strings.Repeat(" ", n.eqSpace-len(lhs)) + "= " + objStr
-			return ret, multi
+		if objmulti && !multi {
+			multi = true
 		}
-
-		ret := lhs + " = " + objStr
-		return ret, multi
 	}
 
-	return "<unknown>", false
+	return ret, multi
 }
 
 // String returns the string representation of assignment statement
-func (n *AssignmentNode) String() string {
+func (n *AssignNode) String() string {
 	str, _ := n.string()
 	return str
 }
@@ -209,7 +227,7 @@ func (n *ExecAssignNode) string() (string, bool) {
 		multi  bool
 	)
 
-	lhs := n.name.String()
+	lhs := getlhs(n)
 
 	if n.cmd.Type() == NodeCommand {
 		cmd := n.cmd.(*CommandNode)
@@ -610,11 +628,21 @@ func (n *DumpNode) String() string {
 
 // String returns the string representation of return statement
 func (n *ReturnNode) String() string {
-	if n.arg != nil {
-		return "return " + n.arg.String()
+	var returns []string
+
+	ret := "return"
+
+	returnExprs := n.Returns
+
+	for i := 0; i < len(returnExprs); i++ {
+		returns = append(returns, returnExprs[i].String())
 	}
 
-	return "return"
+	if len(returns) > 0 {
+		return ret + " " + strings.Join(returns, ", ")
+	}
+
+	return ret
 }
 
 // String returns the string representation of for statement
@@ -665,4 +693,16 @@ func stringify(s string) string {
 	}
 
 	return string(buf)
+}
+
+func getlhs(node assignable) string {
+	var nameStrs []string
+
+	nodeNames := node.names()
+
+	for i := 0; i < len(nodeNames); i++ {
+		nameStrs = append(nameStrs, nodeNames[i].String())
+	}
+
+	return strings.Join(nameStrs, ", ")
 }

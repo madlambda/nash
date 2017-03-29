@@ -8,7 +8,7 @@ import (
 	"github.com/NeowayLabs/nash/token"
 )
 
-func parserTestTable(name, content string, expected *ast.Tree, t *testing.T, enableReverse bool) *ast.Tree {
+func parserTest(name, content string, expected *ast.Tree, t *testing.T, enableReverse bool) *ast.Tree {
 	parser := NewParser(name, content)
 	tr, err := parser.Parse()
 
@@ -48,6 +48,22 @@ But got:
 	return tr
 }
 
+func parserTestFail(t *testing.T, execStr string) {
+	parser := NewParser("", execStr)
+
+	tr, err := parser.Parse()
+
+	if err == nil {
+		t.Errorf("Parsing '%s' must fail", execStr)
+		return
+	}
+
+	if tr != nil {
+		t.Error("tr must be nil")
+		return
+	}
+}
+
 func TestParseSimple(t *testing.T) {
 	expected := ast.NewTree("parser simple")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -57,7 +73,7 @@ func TestParseSimple(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser simple", `echo "hello world"`, expected, t, true)
+	parserTest("parser simple", `echo "hello world"`, expected, t, true)
 
 	cmd1 := ast.NewCommandNode(token.NewFileInfo(1, 0), "cat", false)
 	arg1 := ast.NewStringExpr(token.NewFileInfo(1, 4), "/etc/resolv.conf", false)
@@ -69,7 +85,7 @@ func TestParseSimple(t *testing.T) {
 	ln.Push(cmd1)
 	expected.Root = ln
 
-	parserTestTable("parser simple", `cat /etc/resolv.conf /etc/hosts`, expected, t, true)
+	parserTest("parser simple", `cat /etc/resolv.conf /etc/hosts`, expected, t, true)
 }
 
 func TestParseReverseGetSame(t *testing.T) {
@@ -105,7 +121,7 @@ func TestParsePipe(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser pipe", `echo "hello world" | awk "{print $1}"`, expected, t, true)
+	parserTest("parser pipe", `echo "hello world" | awk "{print $1}"`, expected, t, true)
 }
 
 func TestBasicSetEnvAssignment(t *testing.T) {
@@ -120,12 +136,12 @@ func TestBasicSetEnvAssignment(t *testing.T) {
 	ln.Push(set)
 	expected.Root = ln
 
-	parserTestTable("simple set assignment", `setenv test`, expected, t, true)
+	parserTest("simple set assignment", `setenv test`, expected, t, true)
 
 	// setenv with assignment
 	expected = ast.NewTree("setenv with simple assignment")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
-	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 7),
+	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 7),
 		ast.NewNameNode(token.NewFileInfo(1, 7), "test", nil),
 		ast.NewStringExpr(token.NewFileInfo(1, 15), "hello", true))
 	set, err = ast.NewSetenvNode(token.NewFileInfo(1, 0), "test", assign)
@@ -137,7 +153,7 @@ func TestBasicSetEnvAssignment(t *testing.T) {
 	ln.Push(set)
 	expected.Root = ln
 
-	parserTestTable("setenv with simple assignment", `setenv test = "hello"`, expected, t, true)
+	parserTest("setenv with simple assignment", `setenv test = "hello"`, expected, t, true)
 
 	expected = ast.NewTree("setenv with simple cmd assignment")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -146,7 +162,7 @@ func TestBasicSetEnvAssignment(t *testing.T) {
 
 	cmdAssign, err := ast.NewExecAssignNode(
 		token.NewFileInfo(1, 7),
-		ast.NewNameNode(token.NewFileInfo(1, 7), "test", nil),
+		[]*ast.NameNode{ast.NewNameNode(token.NewFileInfo(1, 7), "test", nil)},
 		cmd,
 	)
 
@@ -163,19 +179,19 @@ func TestBasicSetEnvAssignment(t *testing.T) {
 	ln.Push(set)
 	expected.Root = ln
 
-	parserTestTable("simple assignment", `setenv test <= ls`, expected, t, true)
+	parserTest("simple assignment", `setenv test <= ls`, expected, t, true)
 }
 
 func TestBasicAssignment(t *testing.T) {
 	expected := ast.NewTree("simple assignment")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
-	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0),
+	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
 		ast.NewStringExpr(token.NewFileInfo(1, 8), "hello", true))
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("simple assignment", `test = "hello"`, expected, t, true)
+	parserTest("simple assignment", `test = "hello"`, expected, t, true)
 
 	// test concatenation of strings and variables
 
@@ -187,7 +203,7 @@ func TestBasicAssignment(t *testing.T) {
 
 	arg1 := ast.NewConcatExpr(token.NewFileInfo(1, 8), concats)
 
-	assign = ast.NewAssignmentNode(token.NewFileInfo(1, 0),
+	assign = ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
 		arg1,
 	)
@@ -195,23 +211,96 @@ func TestBasicAssignment(t *testing.T) {
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("test", `test = "hello"+$var`, expected, t, true)
+	parserTest("test", `test = "hello"+$var`, expected, t, true)
 
-	// invalid, requires quote
-	// test=hello
-	parser := NewParser("", `test = hello`)
+	for _, test := range []string{
+		"test=hello",
+		"test = hello",
+		"test = 1",
+		"test = false",
+		"test = -1",
+		`test = "1", "2"`,
+	} {
+		parserTestFail(t, test)
+	}
+}
 
-	tr, err := parser.Parse()
+func TestParseMultipleAssign(t *testing.T) {
+	one := ast.NewNameNode(token.NewFileInfo(1, 0), "one", nil)
+	two := ast.NewNameNode(token.NewFileInfo(1, 5), "two", nil)
+	value1 := ast.NewStringExpr(token.NewFileInfo(1, 12), "1", true)
+	value2 := ast.NewStringExpr(token.NewFileInfo(1, 17), "2", true)
+	assign := ast.NewAssignNode(token.NewFileInfo(1, 0),
+		[]*ast.NameNode{one, two},
+		[]ast.Expr{value1, value2},
+	)
 
-	if err == nil {
-		t.Error("Must fail")
+	expected := ast.NewTree("tuple assignment")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTest("tuple assignment", `one, two = "1", "2"`, expected, t, true)
+
+	lvalue1 := ast.NewListExpr(token.NewFileInfo(1, 11), []ast.Expr{})
+	value2 = ast.NewStringExpr(token.NewFileInfo(1, 16), "2", true)
+	assign = ast.NewAssignNode(token.NewFileInfo(1, 0),
+		[]*ast.NameNode{one, two},
+		[]ast.Expr{lvalue1, value2},
+	)
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	ln.Push(assign)
+	expected.Root = ln
+	parserTest("tuple assignment", `one, two = (), "2"`, expected, t, true)
+
+}
+
+func TestParseMultipleExecAssignment(t *testing.T) {
+	expected := ast.NewTree("multiple cmd assignment")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+
+	cmd := ast.NewCommandNode(token.NewFileInfo(1, 16), "ls", false)
+
+	assign, err := ast.NewExecAssignNode(token.NewFileInfo(1, 0),
+		[]*ast.NameNode{
+			ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
+			ast.NewNameNode(token.NewFileInfo(1, 6), "status", nil),
+		},
+		cmd,
+	)
+
+	if err != nil {
+		t.Error(err)
 		return
 	}
 
-	if tr != nil {
-		t.Error("tr must be nil")
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTest("multiple cmd assignment", `test, status <= ls`, expected, t, true)
+
+	expected = ast.NewTree("multiple cmd assignment")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+
+	cmd = ast.NewCommandNode(token.NewFileInfo(1, 19), "ls", false)
+
+	assign, err = ast.NewExecAssignNode(token.NewFileInfo(1, 0),
+		[]*ast.NameNode{
+			ast.NewNameNode(token.NewFileInfo(1, 0), "test", ast.NewIntExpr(token.NewFileInfo(1, 5), 0)),
+			ast.NewNameNode(token.NewFileInfo(1, 9), "status", nil),
+		},
+		cmd,
+	)
+
+	if err != nil {
+		t.Error(err)
 		return
 	}
+
+	ln.Push(assign)
+	expected.Root = ln
+
+	parserTest("multiple cmd assignment", `test[0], status <= ls`, expected, t, true)
 }
 
 func TestParseInvalidIndexing(t *testing.T) {
@@ -268,7 +357,7 @@ func TestParseListAssignment(t *testing.T) {
 
 	elem := ast.NewListExpr(token.NewFileInfo(1, 7), values)
 
-	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0),
+	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
 		elem,
 	)
@@ -276,7 +365,7 @@ func TestParseListAssignment(t *testing.T) {
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("list assignment", `test = (
+	parserTest("list assignment", `test = (
 	plan9
 	from
 	bell
@@ -310,7 +399,7 @@ func TestParseListOfListsAssignment(t *testing.T) {
 
 	elem := ast.NewListExpr(token.NewFileInfo(1, 7), values)
 
-	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0),
+	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
 		elem,
 	)
@@ -318,7 +407,7 @@ func TestParseListOfListsAssignment(t *testing.T) {
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("list assignment", `test = (
+	parserTest("list assignment", `test = (
 	(plan9 from bell labs)
 	(linux kernel)
 	)`, expected, t, false)
@@ -331,7 +420,7 @@ func TestParseCmdAssignment(t *testing.T) {
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 8), "ls", false)
 
 	assign, err := ast.NewExecAssignNode(token.NewFileInfo(1, 0),
-		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
+		[]*ast.NameNode{ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil)},
 		cmd,
 	)
 
@@ -343,7 +432,7 @@ func TestParseCmdAssignment(t *testing.T) {
 	ln.Push(assign)
 	expected.Root = ln
 
-	parserTestTable("simple assignment", `test <= ls`, expected, t, true)
+	parserTest("simple assignment", `test <= ls`, expected, t, true)
 }
 
 func TestParseInvalidEmpty(t *testing.T) {
@@ -366,7 +455,7 @@ func TestParsePathCommand(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser simple", `/bin/echo "hello world"`, expected, t, true)
+	parserTest("parser simple", `/bin/echo "hello world"`, expected, t, true)
 }
 
 func TestParseWithShebang(t *testing.T) {
@@ -380,7 +469,7 @@ func TestParseWithShebang(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser shebang", `#!/bin/nash
+	parserTest("parser shebang", `#!/bin/nash
 
 echo bleh
 `, expected, t, true)
@@ -391,7 +480,7 @@ func TestParseEmptyFile(t *testing.T) {
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	expected.Root = ln
 
-	parserTestTable("empty file", "", expected, t, true)
+	parserTest("empty file", "", expected, t, true)
 }
 
 func TestParseSingleCommand(t *testing.T) {
@@ -399,7 +488,7 @@ func TestParseSingleCommand(t *testing.T) {
 	expected.Root = ast.NewBlockNode(token.NewFileInfo(1, 0))
 	expected.Root.Push(ast.NewCommandNode(token.NewFileInfo(1, 0), "bleh", false))
 
-	parserTestTable("single command", `bleh`, expected, t, true)
+	parserTest("single command", `bleh`, expected, t, true)
 }
 
 func TestParseRedirectSimple(t *testing.T) {
@@ -413,7 +502,7 @@ func TestParseRedirectSimple(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("simple redirect", `cmd >[2=]`, expected, t, true)
+	parserTest("simple redirect", `cmd >[2=]`, expected, t, true)
 
 	expected = ast.NewTree("redirect2")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -425,7 +514,7 @@ func TestParseRedirectSimple(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("simple redirect", `cmd >[2=1]`, expected, t, true)
+	parserTest("simple redirect", `cmd >[2=1]`, expected, t, true)
 }
 
 func TestParseRedirectWithLocation(t *testing.T) {
@@ -440,7 +529,7 @@ func TestParseRedirectWithLocation(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("simple redirect", `cmd >[2] /var/log/service.log`, expected, t, true)
+	parserTest("simple redirect", `cmd >[2] /var/log/service.log`, expected, t, true)
 }
 
 func TestParseRedirectMultiples(t *testing.T) {
@@ -459,7 +548,7 @@ func TestParseRedirectMultiples(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("multiple redirects", `cmd >[1=2] >[2=]`, expected, t, true)
+	parserTest("multiple redirects", `cmd >[1=2] >[2=]`, expected, t, true)
 }
 
 func TestParseCommandWithStringsEqualsNot(t *testing.T) {
@@ -474,7 +563,7 @@ func TestParseCommandWithStringsEqualsNot(t *testing.T) {
 	ln.Push(cmd2)
 	expected.Root = ln
 
-	parserTestTable("strings works as expected", `echo hello
+	parserTest("strings works as expected", `echo hello
 echo "hello"
 `, expected, t, true)
 }
@@ -491,7 +580,7 @@ func TestParseCommandSeparatedBySemicolon(t *testing.T) {
 	ln.Push(cmd2)
 	expected.Root = ln
 
-	parserTestTable("strings works as expected", `echo hello;echo world`, expected, t, false)
+	parserTest("strings works as expected", `echo hello;echo world`, expected, t, false)
 }
 
 func TestParseStringNotFinished(t *testing.T) {
@@ -518,7 +607,7 @@ func TestParseCd(t *testing.T) {
 	ln.Push(cd)
 	expected.Root = ln
 
-	parserTestTable("test cd", "cd /tmp", expected, t, true)
+	parserTest("test cd", "cd /tmp", expected, t, true)
 
 	// test cd into home
 	expected = ast.NewTree("test cd into home")
@@ -527,12 +616,12 @@ func TestParseCd(t *testing.T) {
 	ln.Push(cd)
 	expected.Root = ln
 
-	parserTestTable("test cd into home", "cd", expected, t, true)
+	parserTest("test cd into home", "cd", expected, t, true)
 
 	expected = ast.NewTree("cd into HOME by setenv")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	assign := ast.NewAssignmentNode(token.NewFileInfo(1, 0),
+	assign := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "HOME", nil),
 		ast.NewStringExpr(token.NewFileInfo(1, 8), "/", true),
 	)
@@ -553,7 +642,7 @@ func TestParseCd(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("test cd into HOME by setenv", `HOME = "/"
+	parserTest("test cd into HOME by setenv", `HOME = "/"
 
 setenv HOME
 
@@ -566,7 +655,7 @@ pwd`, expected, t, true)
 
 	arg = ast.NewStringExpr(token.NewFileInfo(1, 10), "/home/i4k/gopath", true)
 
-	assign = ast.NewAssignmentNode(token.NewFileInfo(1, 0),
+	assign = ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "GOPATH", nil),
 		arg,
 	)
@@ -580,7 +669,7 @@ pwd`, expected, t, true)
 
 	expected.Root = ln
 
-	parserTestTable("test cd into variable value", `GOPATH = "/home/i4k/gopath"
+	parserTest("test cd into variable value", `GOPATH = "/home/i4k/gopath"
 
 cd $GOPATH`, expected, t, true)
 
@@ -590,7 +679,7 @@ cd $GOPATH`, expected, t, true)
 
 	arg = ast.NewStringExpr(token.NewFileInfo(1, 10), "/home/i4k/gopath", true)
 
-	assign = ast.NewAssignmentNode(token.NewFileInfo(1, 0),
+	assign = ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "GOPATH", nil),
 		arg,
 	)
@@ -608,7 +697,7 @@ cd $GOPATH`, expected, t, true)
 
 	expected.Root = ln
 
-	parserTestTable("test cd into variable value", `GOPATH = "/home/i4k/gopath"
+	parserTest("test cd into variable value", `GOPATH = "/home/i4k/gopath"
 
 cd $GOPATH+"/src/github.com"`, expected, t, true)
 
@@ -650,7 +739,7 @@ func TestParseConcatOfIndexedVar(t *testing.T) {
 	ln.Push(cmd)
 	expected.Root = ln
 
-	parserTestTable("concat indexed var",
+	parserTest("concat indexed var",
 		`aws ec2 create-tags --resources $resource --tags "Key="+$tag[0]+",Value="+$tag[1]`,
 		expected, t, true)
 }
@@ -664,7 +753,7 @@ func TestParseRfork(t *testing.T) {
 	ln.Push(cmd1)
 	expected.Root = ln
 
-	parserTestTable("test rfork", "rfork u", expected, t, true)
+	parserTest("test rfork", "rfork u", expected, t, true)
 }
 
 func TestParseRforkWithBlock(t *testing.T) {
@@ -690,7 +779,7 @@ func TestParseRforkWithBlock(t *testing.T) {
 	ln.Push(rfork)
 	expected.Root = ln
 
-	parserTestTable("rfork with block", `rfork u {
+	parserTest("rfork with block", `rfork u {
 	mount -t proc proc /proc
 }
 `, expected, t, true)
@@ -716,7 +805,7 @@ func TestParseImport(t *testing.T) {
 	ln.Push(importStmt)
 	expected.Root = ln
 
-	parserTestTable("test import", "import env.sh", expected, t, true)
+	parserTest("test import", "import env.sh", expected, t, true)
 
 	expected = ast.NewTree("test import with quotes")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -725,7 +814,7 @@ func TestParseImport(t *testing.T) {
 	ln.Push(importStmt)
 	expected.Root = ln
 
-	parserTestTable("test import", `import "env.sh"`, expected, t, true)
+	parserTest("test import", `import "env.sh"`, expected, t, true)
 }
 
 func TestParseIf(t *testing.T) {
@@ -748,7 +837,7 @@ func TestParseIf(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if "test" == "other" {
+	parserTest("test if", `if "test" == "other" {
 	pwd
 }`, expected, t, true)
 
@@ -771,7 +860,7 @@ func TestParseIf(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if "" != "other" {
+	parserTest("test if", `if "" != "other" {
 	pwd
 }`, expected, t, true)
 }
@@ -783,7 +872,7 @@ func TestParseFnInv(t *testing.T) {
 	ln.Push(aFn)
 	expected.Root = ln
 
-	parserTestTable("test basic fn inv", `a()`, expected, t, true)
+	parserTest("test basic fn inv", `a()`, expected, t, true)
 
 	expected = ast.NewTree("fn inv")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -793,7 +882,7 @@ func TestParseFnInv(t *testing.T) {
 	ln.Push(aFn)
 	expected.Root = ln
 
-	parserTestTable("test fn composition", `a(b())`, expected, t, true)
+	parserTest("test fn composition", `a(b())`, expected, t, true)
 
 	expected = ast.NewTree("fn inv")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -805,7 +894,7 @@ func TestParseFnInv(t *testing.T) {
 	ln.Push(aFn)
 	expected.Root = ln
 
-	parserTestTable("test fn composition", `a(b(), b())`, expected, t, true)
+	parserTest("test fn composition", `a(b(), b())`, expected, t, true)
 
 	expected = ast.NewTree("fn inv")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -817,7 +906,7 @@ func TestParseFnInv(t *testing.T) {
 	ln.Push(aFn)
 	expected.Root = ln
 
-	parserTestTable("test fn composition", `a(b(b()))`, expected, t, true)
+	parserTest("test fn composition", `a(b(b()))`, expected, t, true)
 }
 
 func TestParseIfFnInv(t *testing.T) {
@@ -840,7 +929,7 @@ func TestParseIfFnInv(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if test() == "other" {
+	parserTest("test if", `if test() == "other" {
 	pwd
 }`, expected, t, true)
 
@@ -866,7 +955,7 @@ func TestParseIfFnInv(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if test("bleh") != "other" {
+	parserTest("test if", `if test("bleh") != "other" {
 	pwd
 }`, expected, t, true)
 }
@@ -891,7 +980,7 @@ func TestParseIfLvariable(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if $test == "other" {
+	parserTest("test if", `if $test == "other" {
 	pwd
 }`, expected, t, true)
 }
@@ -916,7 +1005,7 @@ func TestParseIfRvariable(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if $test == $other {
+	parserTest("test if", `if $test == $other {
 	pwd
 }`, expected, t, true)
 }
@@ -950,7 +1039,7 @@ func TestParseIfElse(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if $test == "other" {
+	parserTest("test if", `if $test == "other" {
 	pwd
 } else {
 	exit
@@ -1008,7 +1097,7 @@ func TestParseIfElseIf(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("test if", `if $test == "other" {
+	parserTest("test if", `if $test == "other" {
 	pwd
 } else if $test == "others" {
 	ls
@@ -1033,7 +1122,7 @@ func TestParseFnBasic(t *testing.T) {
 	ln.Push(fn)
 	expected.Root = ln
 
-	parserTestTable("fn", `fn build() {
+	parserTest("fn", `fn build() {
 
 }`, expected, t, true)
 
@@ -1054,7 +1143,7 @@ func TestParseFnBasic(t *testing.T) {
 	ln.Push(fn)
 	expected.Root = ln
 
-	parserTestTable("fn", `fn build() {
+	parserTest("fn", `fn build() {
 	ls
 }`, expected, t, true)
 
@@ -1076,7 +1165,7 @@ func TestParseFnBasic(t *testing.T) {
 	ln.Push(fn)
 	expected.Root = ln
 
-	parserTestTable("fn", `fn build(image) {
+	parserTest("fn", `fn build(image) {
 	ls
 }`, expected, t, true)
 
@@ -1099,7 +1188,7 @@ func TestParseFnBasic(t *testing.T) {
 	ln.Push(fn)
 	expected.Root = ln
 
-	parserTestTable("fn", `fn build(image, debug) {
+	parserTest("fn", `fn build(image, debug) {
 	ls
 }`, expected, t, true)
 }
@@ -1122,7 +1211,7 @@ func TestParseInlineFnDecl(t *testing.T) {
 	ln.Push(fn)
 	expected.Root = ln
 
-	parserTestTable("inline fn", `fn cd() { echo "hello" }`,
+	parserTest("inline fn", `fn cd() { echo "hello" }`,
 		expected, t, false)
 
 	test := ast.NewCommandNode(token.NewFileInfo(1, 26), "test", false)
@@ -1140,7 +1229,7 @@ func TestParseInlineFnDecl(t *testing.T) {
 	ln.Push(fn)
 	expected.Root = ln
 
-	parserTestTable("inline fn", `fn cd() { echo "hello" | test -d /etc }`,
+	parserTest("inline fn", `fn cd() { echo "hello" | test -d /etc }`,
 		expected, t, false)
 }
 
@@ -1152,7 +1241,7 @@ func TestParseBindFn(t *testing.T) {
 	ln.Push(bindFn)
 	expected.Root = ln
 
-	parserTestTable("bindfn", `bindfn cd cd2`, expected, t, true)
+	parserTest("bindfn", `bindfn cd cd2`, expected, t, true)
 }
 
 func TestParseRedirectionVariable(t *testing.T) {
@@ -1167,7 +1256,7 @@ func TestParseRedirectionVariable(t *testing.T) {
 	ln.Push(cmd)
 	expected.Root = ln
 
-	parserTestTable("redir var", `cmd > $outFname`, expected, t, true)
+	parserTest("redir var", `cmd > $outFname`, expected, t, true)
 }
 
 func TestParseDump(t *testing.T) {
@@ -1179,7 +1268,7 @@ func TestParseDump(t *testing.T) {
 	ln.Push(dump)
 	expected.Root = ln
 
-	parserTestTable("dump", `dump ./init`, expected, t, true)
+	parserTest("dump", `dump ./init`, expected, t, true)
 }
 
 func TestParseReturn(t *testing.T) {
@@ -1190,7 +1279,7 @@ func TestParseReturn(t *testing.T) {
 	ln.Push(ret)
 	expected.Root = ln
 
-	parserTestTable("return", `return`, expected, t, true)
+	parserTest("return", `return`, expected, t, true)
 
 	expected = ast.NewTree("return list")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -1204,36 +1293,36 @@ func TestParseReturn(t *testing.T) {
 
 	retReturn := ast.NewListExpr(token.NewFileInfo(1, 7), listvalues)
 
-	ret.SetReturn(retReturn)
+	ret.Returns = []ast.Expr{retReturn}
 
 	ln.Push(ret)
 	expected.Root = ln
 
-	parserTestTable("return", `return ("val1" "val2")`, expected, t, true)
+	parserTest("return", `return ("val1" "val2")`, expected, t, true)
 
 	expected = ast.NewTree("return variable")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	ret = ast.NewReturnNode(token.NewFileInfo(1, 0))
 
-	ret.SetReturn(ast.NewVarExpr(token.NewFileInfo(1, 7), "$var"))
+	ret.Returns = []ast.Expr{ast.NewVarExpr(token.NewFileInfo(1, 7), "$var")}
 
 	ln.Push(ret)
 	expected.Root = ln
 
-	parserTestTable("return", `return $var`, expected, t, true)
+	parserTest("return", `return $var`, expected, t, true)
 
 	expected = ast.NewTree("return string")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	ret = ast.NewReturnNode(token.NewFileInfo(1, 0))
 
-	ret.SetReturn(ast.NewStringExpr(token.NewFileInfo(1, 8), "value", true))
+	ret.Returns = []ast.Expr{ast.NewStringExpr(token.NewFileInfo(1, 8), "value", true)}
 
 	ln.Push(ret)
 	expected.Root = ln
 
-	parserTestTable("return", `return "value"`, expected, t, true)
+	parserTest("return", `return "value"`, expected, t, true)
 
 	expected = ast.NewTree("return funcall")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -1242,12 +1331,27 @@ func TestParseReturn(t *testing.T) {
 
 	aFn := ast.NewFnInvNode(token.NewFileInfo(1, 7), "a")
 
-	ret.SetReturn(aFn)
+	ret.Returns = []ast.Expr{aFn}
 
 	ln.Push(ret)
 	expected.Root = ln
 
-	parserTestTable("return", `return a()`, expected, t, true)
+	parserTest("return", `return a()`, expected, t, true)
+
+	expected = ast.NewTree("return multiple values")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	ret = ast.NewReturnNode(token.NewFileInfo(1, 0))
+
+	a1 := ast.NewStringExpr(token.NewFileInfo(1, 8), "1", true)
+	a2 := ast.NewStringExpr(token.NewFileInfo(1, 13), "2", true)
+	a3 := ast.NewStringExpr(token.NewFileInfo(1, 18), "3", true)
+
+	ret.Returns = []ast.Expr{a1, a2, a3}
+
+	ln.Push(ret)
+	expected.Root = ln
+
+	parserTest("return", `return "1", "2", "3"`, expected, t, true)
 }
 
 func TestParseIfInvalid(t *testing.T) {
@@ -1273,14 +1377,14 @@ func TestParseFor(t *testing.T) {
 	ln.Push(forStmt)
 	expected.Root = ln
 
-	parserTestTable("for", `for {
+	parserTest("for", `for {
 
 }`, expected, t, true)
 
 	forStmt.SetIdentifier("f")
 	forStmt.SetInExpr(ast.NewVarExpr(token.NewFileInfo(1, 9), "$files"))
 
-	parserTestTable("for", `for f in $files {
+	parserTest("for", `for f in $files {
 
 }`, expected, t, true)
 
@@ -1290,7 +1394,7 @@ func TestParseFor(t *testing.T) {
 	fnInv.AddArg(fnArg)
 	forStmt.SetInExpr(fnInv)
 
-	parserTestTable("for", `for f in getfiles("/") {
+	parserTest("for", `for f in getfiles("/") {
 
 }`, expected, t, true)
 
@@ -1307,7 +1411,7 @@ func TestParseFor(t *testing.T) {
 
 	forStmt.SetInExpr(list)
 
-	parserTestTable("for", `for f in (1 2 3 4 5) {
+	parserTest("for", `for f in (1 2 3 4 5) {
 
 }`, expected, t, true)
 }
@@ -1322,7 +1426,7 @@ func TestParseVariableIndexing(t *testing.T) {
 		ast.NewIntExpr(token.NewFileInfo(1, 15), 0),
 	)
 
-	assignment := ast.NewAssignmentNode(token.NewFileInfo(1, 0),
+	assignment := ast.NewSingleAssignNode(token.NewFileInfo(1, 0),
 		ast.NewNameNode(token.NewFileInfo(1, 0), "test", nil),
 		indexedVar,
 	)
@@ -1330,7 +1434,7 @@ func TestParseVariableIndexing(t *testing.T) {
 	ln.Push(assignment)
 	expected.Root = ln
 
-	parserTestTable("variable indexing", `test = $values[0]`, expected, t, true)
+	parserTest("variable indexing", `test = $values[0]`, expected, t, true)
 
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
@@ -1352,7 +1456,7 @@ func TestParseVariableIndexing(t *testing.T) {
 	ln.Push(ifDecl)
 	expected.Root = ln
 
-	parserTestTable("variable indexing", `if $values[0] == "1" {
+	parserTest("variable indexing", `if $values[0] == "1" {
 
 }`, expected, t, true)
 }
@@ -1366,7 +1470,7 @@ func TestParseMultilineCmdExec(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser simple", `(echo "hello world")`, expected, t, true)
+	parserTest("parser simple", `(echo "hello world")`, expected, t, true)
 
 	expected = ast.NewTree("parser aws cmd")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -1388,7 +1492,7 @@ func TestParseMultilineCmdExec(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser simple", `(
+	parserTest("parser simple", `(
 	aws ec2 run-instances
 			--image-id ami-xxxxxxxx
 			--count 1
@@ -1404,7 +1508,7 @@ func TestParseMultilineCmdAssign(t *testing.T) {
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 10), "echo", true)
 	cmd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 16), "hello world", true))
 	assign, err := ast.NewExecAssignNode(token.NewFileInfo(1, 0),
-		ast.NewNameNode(token.NewFileInfo(1, 0), "hello", nil),
+		[]*ast.NameNode{ast.NewNameNode(token.NewFileInfo(1, 0), "hello", nil)},
 		cmd,
 	)
 
@@ -1417,7 +1521,7 @@ func TestParseMultilineCmdAssign(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser simple", `hello <= (echo "hello world")`, expected, t, true)
+	parserTest("parser simple", `hello <= (echo "hello world")`, expected, t, true)
 }
 
 func TestMultiPipe(t *testing.T) {
@@ -1437,7 +1541,7 @@ func TestMultiPipe(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser pipe", `(echo "hello world" | awk "{print $1}")`, expected, t, true)
+	parserTest("parser pipe", `(echo "hello world" | awk "{print $1}")`, expected, t, true)
 
 	// get longer stringify
 	expected = ast.NewTree("parser pipe")
@@ -1456,7 +1560,7 @@ func TestMultiPipe(t *testing.T) {
 
 	expected.Root = ln
 
-	parserTestTable("parser pipe", `(
+	parserTest("parser pipe", `(
 	echo "hello world" |
 	awk "{print AAAAAAAAAAAAAAAAAAAAAA}"
 )`, expected, t, true)

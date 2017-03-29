@@ -63,12 +63,14 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 
 	ret := nashFunc.Results()
 
-	if ret == nil || ret.Type() != sh.ListType {
+	if len(ret) != 1 || ret[0].Type() != sh.ListType {
 		fmt.Fprintf(os.Stderr, "ignoring autocomplete value: %v\n", ret)
 		return newLine, offset
 	}
 
-	retlist := ret.(*sh.ListObj)
+	retval := ret[0]
+
+	retlist := retval.(*sh.ListObj)
 
 	if len(retlist.List()) != 2 {
 		return newLine, pos

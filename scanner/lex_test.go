@@ -126,7 +126,7 @@ func TestLexerShebangOnly(t *testing.T) {
 	testTable("testShebangonly", "#!/bin/nash\n", expected, t)
 }
 
-func TestLexerSimpleSetAssignment(t *testing.T) {
+func TestLexerSimpleSetEnvAssignment(t *testing.T) {
 	expected := []Token{
 		{typ: token.SetEnv, val: "setenv"},
 		{typ: token.Ident, val: "name"},
@@ -166,7 +166,7 @@ func TestLexerSimpleAssignment(t *testing.T) {
 		{typ: token.EOF},
 	}
 
-	testTable("test multiple Assignments", `
+	testTable("test multiple separate assignments", `
         test="value"
         other="other"`, expected, t)
 
@@ -185,7 +185,7 @@ func TestLexerSimpleAssignment(t *testing.T) {
 		{typ: token.EOF},
 	}
 
-	testTable("test multiple Assignments", `
+	testTable("test multiple separate assignments", `
         test="value"
         other=$test
         echo $other`, expected, t)
@@ -1250,6 +1250,64 @@ func TestLexerAssignCmdOut(t *testing.T) {
 	}
 
 	testTable("test assignCmdOut", `ipaddr <= someprogram`, expected, t)
+}
+
+func TestLexerMultipleAssignCmdOut(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "ret"},
+		{typ: token.Comma, val: ","},
+		{typ: token.Ident, val: "status"},
+		{typ: token.AssignCmd, val: "<="},
+		{typ: token.Ident, val: "someprogram"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test multiple return assignCmdOut", `ret, status <= someprogram`, expected, t)
+
+	expected = []Token{
+		{typ: token.Ident, val: "ret"},
+		{typ: token.Comma, val: ","},
+		{typ: token.Ident, val: "_"},
+		{typ: token.AssignCmd, val: "<="},
+		{typ: token.Ident, val: "someprogram"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test multiple return assignCmdOut", `ret, _ <= someprogram`, expected, t)
+
+	expected = []Token{
+		{typ: token.Ident, val: "ret"},
+		{typ: token.Comma, val: ","},
+		{typ: token.Ident, val: "obj"},
+		{typ: token.Comma, val: ","},
+		{typ: token.Ident, val: "err"},
+		{typ: token.AssignCmd, val: "<="},
+		{typ: token.Ident, val: "somefn"},
+		{typ: token.LParen, val: "("},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test multiple return assignCmdOut", `ret, obj, err <= somefn()`, expected, t)
+}
+
+func TestMultipleAssignments(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "a"},
+		{typ: token.Comma, val: ","},
+		{typ: token.Ident, val: "b"},
+		{typ: token.Assign, val: "="},
+		{typ: token.String, val: "1"},
+		{typ: token.Comma, val: ","},
+		{typ: token.String, val: "2"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test multiple assign", `a, b = "1", "2"`, expected, t)
 }
 
 func TestLexerBindFn(t *testing.T) {

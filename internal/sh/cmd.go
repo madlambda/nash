@@ -125,7 +125,7 @@ func (c *Cmd) Start() error {
 	return nil
 }
 
-func (c *Cmd) Results() sh.Obj { return nil }
+func (c *Cmd) Results() []sh.Obj { return nil }
 
 func cmdArgs(nodeArgs []ast.Expr, envShell *Shell) ([]sh.Obj, error) {
 	args := make([]sh.Obj, 0, len(nodeArgs))

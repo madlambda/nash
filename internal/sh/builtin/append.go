@@ -20,9 +20,9 @@ func (appendfn *appendFn) ArgNames() []string {
 	return []string{"list"}
 }
 
-func (appendfn *appendFn) Run() (sh.Obj, error) {
+func (appendfn *appendFn) Run() ([]sh.Obj, error) {
 	newobj := append(appendfn.obj, appendfn.arg)
-	return sh.NewListObj(newobj), nil
+	return []sh.Obj{sh.NewListObj(newobj)}, nil
 }
 
 func (appendfn *appendFn) SetArgs(args []sh.Obj) error {

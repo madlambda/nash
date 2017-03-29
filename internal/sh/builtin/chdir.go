@@ -21,7 +21,7 @@ func (chdir *chdirFn) ArgNames() []string {
 	return []string{"dir"}
 }
 
-func (chdir *chdirFn) Run() (sh.Obj, error) {
+func (chdir *chdirFn) Run() ([]sh.Obj, error) {
 	return nil, os.Chdir(chdir.arg)
 }
 

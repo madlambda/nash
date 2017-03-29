@@ -66,3 +66,43 @@ func TestAstPrinterStringExpr(t *testing.T) {
 		testPrinter(t, testcase.node, testcase.expected)
 	}
 }
+
+func TestASTPrinterAssignment(t *testing.T) {
+	zeroFileInfo := token.NewFileInfo(1, 0)
+
+	for _, testcase := range []struct {
+		expected string
+		node     Node
+	}{
+		{
+			expected: `a = "1"`,
+			node: NewAssignNode(zeroFileInfo, []*NameNode{
+				NewNameNode(zeroFileInfo, "a", nil),
+			}, []Expr{NewStringExpr(zeroFileInfo, "1", true)}),
+		},
+		{
+			expected: `a = ()`,
+			node: NewAssignNode(zeroFileInfo, []*NameNode{
+				NewNameNode(zeroFileInfo, "a", nil),
+			}, []Expr{NewListExpr(zeroFileInfo, []Expr{})}),
+		},
+		{
+			expected: `a, b = (), ()`,
+			node: NewAssignNode(zeroFileInfo, []*NameNode{
+				NewNameNode(zeroFileInfo, "a", nil),
+				NewNameNode(zeroFileInfo, "b", nil),
+			}, []Expr{NewListExpr(zeroFileInfo, []Expr{}),
+				NewListExpr(zeroFileInfo, []Expr{})}),
+		},
+		{
+			expected: `a, b = "1", "2"`,
+			node: NewAssignNode(zeroFileInfo, []*NameNode{
+				NewNameNode(zeroFileInfo, "a", nil),
+				NewNameNode(zeroFileInfo, "b", nil),
+			}, []Expr{NewStringExpr(zeroFileInfo, "1", true),
+				NewStringExpr(zeroFileInfo, "2", true)}),
+		},
+	} {
+		testPrinter(t, testcase.node, testcase.expected)
+	}
+}

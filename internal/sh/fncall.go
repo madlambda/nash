@@ -13,7 +13,7 @@ type (
 	UserFn struct {
 		argNames []string   // argNames store parameter name
 		done     chan error // for async execution
-		results  sh.Obj
+		results  []sh.Obj
 
 		closeAfterWait []io.Closer
 
@@ -68,7 +68,7 @@ func (fn *UserFn) closeDescriptors(closers []io.Closer) {
 	}
 }
 
-func (fn *UserFn) execute() (sh.Obj, error) {
+func (fn *UserFn) execute() ([]sh.Obj, error) {
 	if fn.root != nil {
 		return fn.ExecuteTree(fn.root)
 	}
@@ -88,7 +88,7 @@ func (fn *UserFn) Start() error {
 	return nil
 }
 
-func (fn *UserFn) Results() sh.Obj { return fn.results }
+func (fn *UserFn) Results() []sh.Obj { return fn.results }
 
 func (fn *UserFn) Wait() error {
 	err := <-fn.done

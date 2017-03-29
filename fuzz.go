@@ -2,14 +2,16 @@
 
 package nash
 
+import "github.com/NeowayLabs/nash/parser"
+
 func Fuzz(data []byte) int {
-	p := NewParser("fuzz", string(data))
+	p := parser.NewParser("fuzz", string(data))
 
 	tree, err := p.Parse()
 
 	if err != nil {
 		if tree != nil {
-			panic("tree !- nil")
+			panic("tree != nil")
 		}
 
 		return 0

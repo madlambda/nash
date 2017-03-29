@@ -21,7 +21,7 @@ type (
 
 		done    chan struct{}
 		err     error
-		results sh.Obj
+		results []sh.Obj
 
 		name string
 		fn   builtin.Fn
@@ -68,7 +68,7 @@ func (f *builtinFn) Wait() error {
 	return f.err
 }
 
-func (f *builtinFn) Results() sh.Obj {
+func (f *builtinFn) Results() []sh.Obj {
 	return f.results
 }
 
@@ -89,7 +89,6 @@ func (f *builtinFn) SetStdin(r io.Reader)  { f.stdin = r }
 func (f *builtinFn) SetStderr(w io.Writer) { f.stderr = w }
 func (f *builtinFn) SetStdout(w io.Writer) { f.stdout = w }
 func (f *builtinFn) StdoutPipe() (io.ReadCloser, error) {
-	// Not sure this is a great idea, for now no builtin function uses it
 	return nil, errors.NewError("builtin functions doesn't works with pipes")
 }
 func (f *builtinFn) Stdin() io.Reader  { return f.stdin }

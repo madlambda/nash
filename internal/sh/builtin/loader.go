@@ -7,7 +7,7 @@ import "github.com/NeowayLabs/nash/sh"
 type Fn interface {
 	ArgNames() []string
 	SetArgs(args []sh.Obj) error
-	Run() (sh.Obj, error)
+	Run() ([]sh.Obj, error)
 }
 
 //Load loads all available builtin functions. The return is a map

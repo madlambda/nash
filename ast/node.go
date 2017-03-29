@@ -34,11 +34,13 @@ type (
 	}
 
 	assignable interface {
-		Name() *NameNode
+		names() []*NameNode
 		setEqSpace(int)
 		getEqSpace() int
 		string() (string, bool)
 	}
+
+	egalitarian struct{}
 
 	// Expr is the interface of expression nodes.
 	Expr Node
@@ -50,6 +52,7 @@ type (
 	BlockNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		Nodes []Node
 	}
@@ -58,43 +61,48 @@ type (
 	ImportNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
-		path *StringExpr // Import path
+		Path *StringExpr // Import path
 	}
 
 	// A SetenvNode represents the node for a "setenv" keyword.
 	SetenvNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
-		varName string
-		assign  Node
+		Name   string
+		assign Node
 	}
 
 	NameNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
-		name  string
-		index Expr
+		Ident string
+		Index Expr
 	}
 
-	// AssignmentNode is a node for variable assignments
-	AssignmentNode struct {
+	// AssignNode is a node for variable assignments
+	AssignNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
-		name    *NameNode
-		val     Expr
+		Names   []*NameNode
+		Values  []Expr
 		eqSpace int
 	}
 
-	// An ExecAssignNode represents the node for execution assignment.
+	// ExecAssignNode represents the node for execution assignment.
 	ExecAssignNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
-		name    *NameNode
+		Names   []*NameNode
 		cmd     Node
 		eqSpace int
 	}
@@ -103,6 +111,7 @@ type (
 	CommandNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name   string
 		args   []Expr
@@ -115,6 +124,7 @@ type (
 	PipeNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		cmds  []*CommandNode
 		multi bool
@@ -124,6 +134,7 @@ type (
 	StringExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		str    string
 		quoted bool
@@ -133,6 +144,7 @@ type (
 	IntExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		val int
 	}
@@ -141,6 +153,7 @@ type (
 	ListExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		list []Expr
 	}
@@ -149,6 +162,7 @@ type (
 	ConcatExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		concat []Expr
 	}
@@ -157,6 +171,7 @@ type (
 	VarExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name string
 	}
@@ -165,6 +180,7 @@ type (
 	IndexExpr struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		variable *VarExpr
 		index    Expr
@@ -174,6 +190,7 @@ type (
 	RedirectNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		rmap     RedirMap
 		location Expr
@@ -183,6 +200,7 @@ type (
 	RforkNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		arg  *StringExpr
 		tree *Tree
@@ -192,6 +210,7 @@ type (
 	CommentNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		val string
 	}
@@ -206,6 +225,7 @@ type (
 	IfNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		lvalue Expr
 		rvalue Expr
@@ -220,6 +240,7 @@ type (
 	FnDeclNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name string
 		args []string
@@ -230,6 +251,7 @@ type (
 	FnInvNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name string
 		args []Expr
@@ -239,14 +261,16 @@ type (
 	ReturnNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
-		arg Expr
+		Returns []Expr
 	}
 
 	// A BindFnNode represents the "bindfn" keyword.
 	BindFnNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		name    string
 		cmdname string
@@ -256,6 +280,7 @@ type (
 	DumpNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		filename Expr
 	}
@@ -264,6 +289,7 @@ type (
 	ForNode struct {
 		NodeType
 		token.FileInfo
+		egalitarian
 
 		identifier string
 		inExpr     Expr
@@ -283,10 +309,10 @@ const (
 	// NodeName represents an identifier
 	NodeName
 
-	// NodeAssignment is the type for simple variable assignment
-	NodeAssignment
+	// NodeAssign is the type for variable assignment
+	NodeAssign
 
-	// NodeExecAssign is the type for command or function assignment
+	// NodeExecAssign is the type for command/function assignment
 	NodeExecAssign
 
 	// NodeImport is the type for "import" builtin keyword
@@ -386,6 +412,22 @@ func (t NodeType) IsExecutable() bool {
 	return t > execBegin && t < execEnd
 }
 
+func (e egalitarian) equal(node, other Node) bool {
+	if node == other {
+		return true
+	}
+
+	if node == nil {
+		return false
+	}
+
+	if !cmpInfo(node, other) {
+		return false
+	}
+
+	return true
+}
+
 // NewBlockNode creates a new block
 func NewBlockNode(info token.FileInfo) *BlockNode {
 	return &BlockNode{
@@ -401,8 +443,8 @@ func (l *BlockNode) Push(n Node) {
 
 // IsEqual returns if it is equal to the other node.
 func (l *BlockNode) IsEqual(other Node) bool {
-	if l == other {
-		return true
+	if !l.equal(l, other) {
+		return false
 	}
 
 	o, ok := other.(*BlockNode)
@@ -424,7 +466,7 @@ func (l *BlockNode) IsEqual(other Node) bool {
 		}
 	}
 
-	return cmpInfo(l, other)
+	return true
 }
 
 // NewImportNode creates a new ImportNode object
@@ -433,17 +475,14 @@ func NewImportNode(info token.FileInfo, path *StringExpr) *ImportNode {
 		NodeType: NodeImport,
 		FileInfo: info,
 
-		path: path,
+		Path: path,
 	}
 }
 
-// Path returns the path of import.
-func (n *ImportNode) Path() *StringExpr { return n.path }
-
 // IsEqual returns if it is equal to the other node.
 func (n *ImportNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*ImportNode)
@@ -453,14 +492,10 @@ func (n *ImportNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if !cmpInfo(n, other) {
-		return false
-	}
-
-	if n.path != nil {
-		return n.path.IsEqual(o.path)
-	} else if o.path == nil {
-		return true
+	if n.Path != o.Path {
+		if n.Path != nil {
+			return n.Path.IsEqual(o.Path)
+		}
 	}
 
 	return false
@@ -468,7 +503,7 @@ func (n *ImportNode) IsEqual(other Node) bool {
 
 // NewSetenvNode creates a new assignment node
 func NewSetenvNode(info token.FileInfo, name string, assign Node) (*SetenvNode, error) {
-	if assign != nil && assign.Type() != NodeAssignment &&
+	if assign != nil && assign.Type() != NodeAssign &&
 		assign.Type() != NodeExecAssign {
 		return nil, errors.New("Invalid assignment in setenv")
 	}
@@ -477,21 +512,18 @@ func NewSetenvNode(info token.FileInfo, name string, assign Node) (*SetenvNode, 
 		NodeType: NodeSetenv,
 		FileInfo: info,
 
-		varName: name,
-		assign:  assign,
+		Name:   name,
+		assign: assign,
 	}, nil
 }
-
-// Name returns the environment name.
-func (n *SetenvNode) Name() string { return n.varName }
 
 // Assignment returns the setenv assignment (if any)
 func (n *SetenvNode) Assignment() Node { return n.assign }
 
 // IsEqual returns if it is equal to the other node.
 func (n *SetenvNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*SetenvNode)
@@ -501,34 +533,27 @@ func (n *SetenvNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if !cmpInfo(n, other) {
-		return false
-	}
-
 	if n.assign != o.assign {
 		if !n.assign.IsEqual(o.assign) {
 			return false
 		}
 	}
 
-	return n.varName == o.varName
+	return n.Name == o.Name
 }
 
 func NewNameNode(info token.FileInfo, ident string, index Expr) *NameNode {
 	return &NameNode{
 		NodeType: NodeName,
 		FileInfo: info,
-		name:     ident,
-		index:    index,
+		Ident:    ident,
+		Index:    index,
 	}
 }
 
-func (n *NameNode) Ident() string { return n.name }
-func (n *NameNode) Index() Expr   { return n.index }
-
 func (n *NameNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*NameNode)
@@ -538,77 +563,80 @@ func (n *NameNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.name != o.name {
+	if n.Ident != o.Ident {
 		return false
 	}
 
-	if n.index == o.index {
+	if n.Index == o.Index {
 		return true
 	}
 
-	if n.index != nil && o.index != nil {
-		return n.index.IsEqual(o.index)
+	if n.Index != nil {
+		return n.Index.IsEqual(o.Index)
 	}
 
 	return false
 }
 
-// NewAssignmentNode creates a new assignment
-func NewAssignmentNode(info token.FileInfo, ident *NameNode, value Expr) *AssignmentNode {
-	return &AssignmentNode{
-		NodeType: NodeAssignment,
+// NewAssignNode creates a new tuple assignment (multiple variable
+// assigned in a single statement).
+// For single assignment see NewSingleAssignNode.
+func NewAssignNode(info token.FileInfo, names []*NameNode, values []Expr) *AssignNode {
+	return &AssignNode{
+		NodeType: NodeAssign,
 		FileInfo: info,
 		eqSpace:  -1,
 
-		name: ident,
-		val:  value,
+		Names:  names,
+		Values: values,
 	}
 }
 
-// SetIdentifier sets the name of the variable
-func (n *AssignmentNode) SetIdentifier(a *NameNode) {
-	n.name = a
+// NewSingleAssignNode creates an assignment of a single variable. Eg.:
+//   name = "hello"
+// To make an assignment of multiple variables in the same statement
+// use `NewAssignNode`.
+func NewSingleAssignNode(info token.FileInfo, name *NameNode, value Expr) *AssignNode {
+	return NewAssignNode(info, []*NameNode{name}, []Expr{value})
 }
 
-// Name return the name of the variable.
-func (n *AssignmentNode) Name() *NameNode { return n.name }
-
-func (n *AssignmentNode) getEqSpace() int      { return n.eqSpace }
-func (n *AssignmentNode) setEqSpace(value int) { n.eqSpace = value }
-
-// SetValue sets the value of the list
-func (n *AssignmentNode) SetValue(val Expr) {
-	n.val = val
-}
-
-// Value returns the assigned object
-func (n *AssignmentNode) Value() Expr {
-	return n.val
-}
+// TODO(i4k): fix that
+func (n *AssignNode) names() []*NameNode   { return n.Names }
+func (n *AssignNode) getEqSpace() int      { return n.eqSpace }
+func (n *AssignNode) setEqSpace(value int) { n.eqSpace = value }
 
 // IsEqual returns if it is equal to the other node.
-func (n *AssignmentNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+func (n *AssignNode) IsEqual(other Node) bool {
+	if !n.equal(n, other) {
+		return false
 	}
 
-	o, ok := other.(*AssignmentNode)
+	o, ok := other.(*AssignNode)
 
 	if !ok {
-		debug("Failed to convert to AssignmentNode")
+		debug("Failed to convert to AssignNode")
 		return false
 	}
 
-	if n.name != o.name && !n.name.IsEqual(o.name) {
-		debug("Assignment identifier doesn't match: '%s' != '%s'", n.name, o.name)
+	if len(n.Names) == len(o.Names) {
+		for i := 0; i < len(n.Names); i++ {
+			if !n.Names[i].IsEqual(o.Names[i]) {
+				debug("Assignment identifier doesn't match: '%s' != '%s'",
+					n.Names[i], o.Names[i])
+				return false
+			}
+		}
+	} else {
 		return false
 	}
 
-	if n.val != nil && o.val != nil && !n.val.IsEqual(o.val) {
-		return false
-	}
-
-	if !cmpInfo(n, other) {
+	if len(n.Values) == len(o.Values) {
+		for i := 0; i < len(n.Values); i++ {
+			if !n.Values[i].IsEqual(o.Values[i]) {
+				return false
+			}
+		}
+	} else {
 		return false
 	}
 
@@ -620,7 +648,9 @@ func (n *AssignmentNode) IsEqual(other Node) bool {
 // command, a pipe of commands or a function invocation.
 // It returns a *ExecAssignNode ready to be executed or error when n is not a valid
 // node for execution.
-func NewExecAssignNode(info token.FileInfo, name *NameNode, n Node) (*ExecAssignNode, error) {
+// TODO(i4k): Change the API to specific node types. Eg.: NewExecAssignCmdNode and
+// so on.
+func NewExecAssignNode(info token.FileInfo, names []*NameNode, n Node) (*ExecAssignNode, error) {
 	if !n.Type().IsExecutable() {
 		return nil, errors.New("NewExecAssignNode expects a CommandNode, PipeNode or FninvNode")
 	}
@@ -629,17 +659,13 @@ func NewExecAssignNode(info token.FileInfo, name *NameNode, n Node) (*ExecAssign
 		NodeType: NodeExecAssign,
 		FileInfo: info,
 
-		name:    name,
+		Names:   names,
 		cmd:     n,
 		eqSpace: -1,
 	}, nil
 }
 
-// Name returns the identifier (l-value)
-func (n *ExecAssignNode) Name() *NameNode {
-	return n.name
-}
-
+func (n *ExecAssignNode) names() []*NameNode   { return n.Names }
 func (n *ExecAssignNode) getEqSpace() int      { return n.eqSpace }
 func (n *ExecAssignNode) setEqSpace(value int) { n.eqSpace = value }
 
@@ -648,19 +674,14 @@ func (n *ExecAssignNode) Command() Node {
 	return n.cmd
 }
 
-// SetName set the assignment identifier (l-value)
-func (n *ExecAssignNode) SetName(name *NameNode) {
-	n.name = name
-}
-
 // SetCommand set the command part (NodeCommand or NodeFnDecl)
 func (n *ExecAssignNode) SetCommand(c Node) {
 	n.cmd = c
 }
 
 func (n *ExecAssignNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*ExecAssignNode)
@@ -670,21 +691,26 @@ func (n *ExecAssignNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if n.name != o.name && !n.name.IsEqual(o.name) {
-		debug("Exec assignment name differs")
+	if len(n.Names) != len(o.Names) {
 		return false
 	}
 
-	if !cmpInfo(n, other) {
-		debug("cmpInfo differs")
-		return false
+	for i := 0; i < len(n.Names); i++ {
+		if n.Names[i] != nil {
+			if !n.Names[i].IsEqual(o.Names[i]) {
+				debug("Exec assignment name differs")
+				return false
+			}
+		}
 	}
 
-	if n.cmd != nil && o.cmd != nil && !n.cmd.IsEqual(o.cmd) {
-		return false
+	if n.cmd == o.cmd {
+		return true
+	} else if n.cmd != nil {
+		return n.cmd.IsEqual(o.cmd)
 	}
 
-	return true
+	return false
 }
 
 // NewCommandNode creates a new node for commands
@@ -727,8 +753,8 @@ func (n *CommandNode) Name() string { return n.name }
 
 // IsEqual returns if it is equal to the other node.
 func (n *CommandNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*CommandNode)
@@ -744,31 +770,34 @@ func (n *CommandNode) IsEqual(other Node) bool {
 	}
 
 	if len(n.args) != len(o.args) {
-		debug("Command argument length differs: %d (%+v) != %d (%+v)", len(n.args), n.args, len(o.args), o.args)
+		debug("Command argument length differs: %d (%+v) != %d (%+v)",
+			len(n.args), n.args, len(o.args), o.args)
 		return false
 	}
 
 	for i := 0; i < len(n.args); i++ {
 		if !n.args[i].IsEqual(o.args[i]) {
-			debug("Argument %d differs. '%s' != '%s'", i, n.args[i], o.args[i])
+			debug("Argument %d differs. '%s' != '%s'", i, n.args[i],
+				o.args[i])
 			return false
 		}
 	}
 
 	if len(n.redirs) != len(o.redirs) {
-		debug("Number of redirects differs. %d != %d", len(n.redirs), len(o.redirs))
+		debug("Number of redirects differs. %d != %d", len(n.redirs),
+			len(o.redirs))
 		return false
 	}
 
 	for i := 0; i < len(n.redirs); i++ {
-		if !n.redirs[i].IsEqual(o.redirs[i]) {
-			debug("Redirect differs... %s != %s", n.redirs[i], o.redirs[i])
+		if n.redirs[i] == o.redirs[i] {
+			continue
+		} else if n.redirs[i] != nil &&
+			!n.redirs[i].IsEqual(o.redirs[i]) {
+			debug("Redirect differs... %s != %s", n.redirs[i],
+				o.redirs[i])
 			return false
 		}
-	}
-
-	if !cmpInfo(n, other) {
-		return false
 	}
 
 	return n.name == o.name
@@ -799,8 +828,8 @@ func (n *PipeNode) Commands() []*CommandNode {
 
 // IsEqual returns if it is equal to the other node.
 func (n *PipeNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*PipeNode)
@@ -811,18 +840,20 @@ func (n *PipeNode) IsEqual(other Node) bool {
 	}
 
 	if len(n.cmds) != len(o.cmds) {
-		debug("Number of pipe commands differ: %d != %d", len(n.cmds), len(o.cmds))
+		debug("Number of pipe commands differ: %d != %d",
+			len(n.cmds), len(o.cmds))
 		return false
 	}
 
 	for i := 0; i < len(n.cmds); i++ {
 		if !n.cmds[i].IsEqual(o.cmds[i]) {
-			debug("Command differs. '%s' != '%s'", n.cmds[i], o.cmds[i])
+			debug("Command differs. '%s' != '%s'", n.cmds[i],
+				o.cmds[i])
 			return false
 		}
 	}
 
-	return cmpInfo(n, other)
+	return true
 }
 
 // NewRedirectNode creates a new redirection node for commands
@@ -858,8 +889,8 @@ func (r *RedirectNode) Location() Expr { return r.location }
 
 // IsEqual return if it is equal to the other node.
 func (r *RedirectNode) IsEqual(other Node) bool {
-	if r == other {
-		return true
+	if !r.equal(r, other) {
+		return false
 	}
 
 	o, ok := other.(*RedirectNode)
@@ -873,15 +904,9 @@ func (r *RedirectNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if !cmpInfo(r, other) {
-		return false
-	}
-
 	if r.location == o.location {
 		return true
-	}
-
-	if r.location != nil {
+	} else if r.location != nil {
 		return r.location.IsEqual(o.location)
 	}
 
@@ -917,8 +942,8 @@ func (n *RforkNode) SetTree(t *Tree) {
 }
 
 func (n *RforkNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*RforkNode)
@@ -927,12 +952,14 @@ func (n *RforkNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if !n.arg.IsEqual(o.arg) {
-		return false
+	if n.arg == o.arg {
+		return true
 	}
 
-	if !cmpInfo(n, other) {
-		return false
+	if n.arg != nil {
+		if !n.arg.IsEqual(o.arg) {
+			return false
+		}
 	}
 
 	return n.tree.IsEqual(o.tree)
@@ -949,8 +976,8 @@ func NewCommentNode(info token.FileInfo, val string) *CommentNode {
 }
 
 func (n *CommentNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	if n.Type() != other.Type() {
@@ -960,10 +987,6 @@ func (n *CommentNode) IsEqual(other Node) bool {
 	o, ok := other.(*CommentNode)
 
 	if !ok {
-		return false
-	}
-
-	if !cmpInfo(n, other) {
 		return false
 	}
 
@@ -1034,8 +1057,8 @@ func (n *IfNode) ElseTree() *Tree { return n.elseTree }
 
 // IsEqual returns if it is equal to the other node.
 func (n *IfNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*IfNode)
@@ -1069,11 +1092,8 @@ func (n *IfNode) IsEqual(other Node) bool {
 	valueTree := o.IfTree()
 
 	if !expectedTree.IsEqual(valueTree) {
-		debug("If tree differs: '%s' != '%s'", expectedTree, valueTree)
-		return false
-	}
-
-	if !cmpInfo(n, other) {
+		debug("If tree differs: '%s' != '%s'", expectedTree,
+			valueTree)
 		return false
 	}
 
@@ -1124,8 +1144,8 @@ func (n *FnDeclNode) SetTree(t *Tree) {
 }
 
 func (n *FnDeclNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*FnDeclNode)
@@ -1144,7 +1164,7 @@ func (n *FnDeclNode) IsEqual(other Node) bool {
 		}
 	}
 
-	return cmpInfo(n, other)
+	return true
 }
 
 // NewFnInvNode creates a new function invocation
@@ -1177,8 +1197,8 @@ func (n *FnInvNode) Args() []Expr { return n.args }
 
 // IsEqual returns if it is equal to the other node.
 func (n *FnInvNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*FnInvNode)
@@ -1197,7 +1217,7 @@ func (n *FnInvNode) IsEqual(other Node) bool {
 		}
 	}
 
-	return cmpInfo(n, other)
+	return true
 }
 
 // NewBindFnNode creates a new bindfn statement
@@ -1218,17 +1238,13 @@ func (n *BindFnNode) Name() string { return n.name }
 func (n *BindFnNode) CmdName() string { return n.cmdname }
 
 func (n *BindFnNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*BindFnNode)
 
 	if !ok {
-		return false
-	}
-
-	if !cmpInfo(n, other) {
 		return false
 	}
 
@@ -1254,8 +1270,8 @@ func (n *DumpNode) SetFilename(a Expr) {
 }
 
 func (n *DumpNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	o, ok := other.(*DumpNode)
@@ -1263,10 +1279,6 @@ func (n *DumpNode) IsEqual(other Node) bool {
 	if !ok {
 		debug("Failed to convert to DumpNode")
 		return ok
-	}
-
-	if !cmpInfo(n, other) {
-		return false
 	}
 
 	if n.filename == o.filename {
@@ -1288,17 +1300,9 @@ func NewReturnNode(info token.FileInfo) *ReturnNode {
 	}
 }
 
-// SetReturn set the arguments to return
-func (n *ReturnNode) SetReturn(a Expr) {
-	n.arg = a
-}
-
-// Return returns the argument being returned
-func (n *ReturnNode) Return() Expr { return n.arg }
-
 func (n *ReturnNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	if n.Type() != other.Type() {
@@ -1311,19 +1315,20 @@ func (n *ReturnNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if !cmpInfo(n, other) {
+	if len(n.Returns) != len(o.Returns) {
 		return false
 	}
 
-	if n.arg == o.arg {
-		return true
+	for i := 0; i < len(n.Returns); i++ {
+		arg := n.Returns[i]
+		oarg := o.Returns[i]
+
+		if arg != nil && !arg.IsEqual(oarg) {
+			return false
+		}
 	}
 
-	if n.arg != nil {
-		return n.arg.IsEqual(o.arg)
-	}
-
-	return false
+	return true
 }
 
 // NewForNode create a new for statement
@@ -1357,8 +1362,8 @@ func (n *ForNode) SetTree(a *Tree) {
 func (n *ForNode) Tree() *Tree { return n.tree }
 
 func (n *ForNode) IsEqual(other Node) bool {
-	if n == other {
-		return true
+	if !n.equal(n, other) {
+		return false
 	}
 
 	if n.Type() != other.Type() {
@@ -1371,10 +1376,6 @@ func (n *ForNode) IsEqual(other Node) bool {
 		return false
 	}
 
-	if !cmpInfo(n, other) {
-		return false
-	}
-
 	if n.identifier != o.identifier {
 		return false
 	}
@@ -1383,17 +1384,18 @@ func (n *ForNode) IsEqual(other Node) bool {
 		return true
 	}
 
-	if n.inExpr == nil || o.inExpr == nil {
-		return false
+	if n.inExpr != nil {
+		return n.inExpr.IsEqual(o.inExpr)
 	}
 
-	return n.inExpr.IsEqual(o.inExpr)
+	return false
 }
 
 func cmpInfo(n, other Node) bool {
 	if n.Line() != other.Line() ||
 		n.Column() != other.Column() {
-		debug("file info mismatch on %v (%s): (%d, %d) != (%d, %d)", n, n.Type(), n.Line(), n.Column(),
+		debug("file info mismatch on %v (%s): (%d, %d) != (%d, %d)",
+			n, n.Type(), n.Line(), n.Column(),
 			other.Line(), other.Column())
 		return false
 	}

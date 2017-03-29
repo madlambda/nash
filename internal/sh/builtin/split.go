@@ -22,7 +22,7 @@ func (s *splitFn) ArgNames() []string {
 	return []string{"sep", "content"}
 }
 
-func (s *splitFn) Run() (sh.Obj, error) {
+func (s *splitFn) Run() ([]sh.Obj, error) {
 	var output []string
 
 	content := s.content
@@ -47,7 +47,7 @@ func (s *splitFn) Run() (sh.Obj, error) {
 		listobjs[i] = sh.NewStrObj(output[i])
 	}
 
-	return sh.NewListObj(listobjs), nil
+	return []sh.Obj{sh.NewListObj(listobjs)}, nil
 }
 
 func (s *splitFn) SetArgs(args []sh.Obj) error {
@@ -101,7 +101,15 @@ func splitByFn(content string, splitFunc sh.Fn) []string {
 			return false
 		}
 
-		result := splitFunc.Results()
+		results := splitFunc.Results()
+
+		if len(results) != 1 {
+			// expects a single return fn
+			return false
+		}
+
+		result := results[0]
+
 		//FIXME: It would be cool to only accept booleans
 		// since the splitter is a predicate
 		if result.Type() != sh.StringType {

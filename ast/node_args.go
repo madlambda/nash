@@ -42,8 +42,8 @@ func (s *StringExpr) SetValue(a string) {
 }
 
 func (s *StringExpr) IsEqual(other Node) bool {
-	if s == other {
-		return true
+	if !s.equal(s, other) {
+		return false
 	}
 
 	value, ok := other.(*StringExpr)
@@ -53,10 +53,6 @@ func (s *StringExpr) IsEqual(other Node) bool {
 	}
 
 	if s.quoted != value.quoted {
-		return false
-	}
-
-	if !cmpInfo(s, other) {
 		return false
 	}
 
@@ -75,17 +71,13 @@ func NewIntExpr(info token.FileInfo, val int) *IntExpr {
 func (i *IntExpr) Value() int { return i.val }
 
 func (i *IntExpr) IsEqual(other Node) bool {
-	if i == other {
-		return true
+	if !i.equal(i, other) {
+		return false
 	}
 
 	o, ok := other.(*IntExpr)
 
 	if !ok {
-		return false
-	}
-
-	if !cmpInfo(i, other) {
 		return false
 	}
 
@@ -109,8 +101,8 @@ func (l *ListExpr) PushExpr(a Expr) {
 }
 
 func (l *ListExpr) IsEqual(other Node) bool {
-	if other == l {
-		return true
+	if !l.equal(l, other) {
+		return false
 	}
 
 	o, ok := other.(*ListExpr)
@@ -131,7 +123,7 @@ func (l *ListExpr) IsEqual(other Node) bool {
 		}
 	}
 
-	return cmpInfo(l, other)
+	return true
 }
 
 func NewConcatExpr(info token.FileInfo, parts []Expr) *ConcatExpr {
@@ -156,8 +148,8 @@ func (c *ConcatExpr) SetConcat(v []Expr) {
 func (c *ConcatExpr) List() []Expr { return c.concat }
 
 func (c *ConcatExpr) IsEqual(other Node) bool {
-	if c == other {
-		return true
+	if !c.equal(c, other) {
+		return false
 	}
 
 	o, ok := other.(*ConcatExpr)
@@ -176,7 +168,7 @@ func (c *ConcatExpr) IsEqual(other Node) bool {
 		}
 	}
 
-	return cmpInfo(c, other)
+	return true
 }
 
 func NewVarExpr(info token.FileInfo, name string) *VarExpr {
@@ -190,17 +182,13 @@ func NewVarExpr(info token.FileInfo, name string) *VarExpr {
 func (v *VarExpr) Name() string { return v.name }
 
 func (v *VarExpr) IsEqual(other Node) bool {
-	if v == other {
-		return true
+	if !v.equal(v, other) {
+		return false
 	}
 
 	o, ok := other.(*VarExpr)
 
 	if !ok {
-		return false
-	}
-
-	if !cmpInfo(v, other) {
 		return false
 	}
 
@@ -221,17 +209,13 @@ func (i *IndexExpr) Var() *VarExpr { return i.variable }
 func (i *IndexExpr) Index() Expr   { return i.index }
 
 func (i *IndexExpr) IsEqual(other Node) bool {
-	if i == other {
-		return true
+	if !i.equal(i, other) {
+		return false
 	}
 
 	o, ok := other.(*IndexExpr)
 
 	if !ok {
-		return false
-	}
-
-	if !cmpInfo(i, other) {
 		return false
 	}
 

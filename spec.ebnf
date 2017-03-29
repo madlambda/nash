@@ -5,11 +5,13 @@ program = { statement } .
 statement = varDecl | command | fnInv | builtin | comment .
 
 /* Variable declaration */
-varDecl      = assignValue | assignCmdOut .
-assignValue  = identifier "=" varSpec .
-varSpec      = ( list | string ) .
-string       = stringLit | ( stringConcat { stringConcat } ) .
-assignCmdOut = identifier "<=" ( command | fnInv ) .
+varDecl        = assignValue | assignCmdOut .
+assignValue    = identifierList "=" varSpecList .
+identifierList = identifier [ "," identifierList ] .
+varSpecList    = varSpec [ "," varSpecList ] .
+varSpec        = ( list | string ) .
+string         = stringLit | ( stringConcat { stringConcat } ) .
+assignCmdOut   = identifier "<=" ( command | fnInv ) .
 
 /* Command */
 command   = ( [ "(" ] cmdpart [ ")" ]  | pipe ) .
@@ -93,9 +95,7 @@ comparison  = "==" | "!=" .
 
 stringLit   = "\"" { unicode_char | newline } "\"" .
 
-stringConcat = ( stringLit "+" stringLit ) |
-               ( variable "+" stringLit ) |
-               ( stringLit "+" variable ) .
+stringConcat = ( stringLit | variable ) "+" (stringLit | variable ) .
 
 /* terminals */
 newline        = /* the Unicode code point U+000A */ .
