@@ -373,7 +373,7 @@ cmdLoop:
 			n.AddArg(arg)
 		case typ == token.Plus:
 			return nil, newParserError(it, p.name,
-				"Unexpected '+'", p.name, it.Line(), it.Column())
+				"Unexpected '+'")
 		case typ == token.Gt:
 			p.next()
 			redir, err := p.parseRedirection(it)
@@ -1032,7 +1032,7 @@ func (p *Parser) parseFnArgs() ([]string, error) {
 			it = p.peek()
 
 			if it.Type() == token.RParen {
-				return nil, newParserError(it, p.name, "Unexpected '%v'.", it)
+				return nil, newParserError(it, p.name, "Unexpected '%v'", it)
 			}
 
 			continue
