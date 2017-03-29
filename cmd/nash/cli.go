@@ -46,8 +46,30 @@ func execFn(shell *nash.Shell, fn sh.Fn) {
 	}
 }
 
+func setupCli(shell *nash.Shell) error {
+	// initShell will run only if the nash command is ran
+	// without arguments or interactive flag, hence interactive mode
+	shell.SetInteractive(true)
+
+	initFile := shell.DotDir() + "/init"
+
+	if d, err := os.Stat(initFile); err == nil && !noInit {
+		if m := d.Mode(); !m.IsDir() {
+			err = shell.ExecuteString("init", `import "`+initFile+`"`)
+
+			if err != nil {
+				return fmt.Errorf("Failed to evaluate '%s': %s\n", initFile, err.Error())
+			}
+		}
+	}
+
+	return nil
+}
+
 func cli(shell *nash.Shell) error {
-	var err error
+	if err := setupCli(shell); err != nil {
+		return err
+	}
 
 	historyFile := shell.DotDir() + "/history"
 

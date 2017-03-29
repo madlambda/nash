@@ -45,8 +45,6 @@ func main() {
 	var shell *nash.Shell
 	var err error
 
-	cliMode := false
-
 	flag.Parse()
 
 	if version {
@@ -59,12 +57,7 @@ func main() {
 		file = args[0]
 	}
 
-	if (file == "" && command == "") || interactive {
-		cliMode = true
-		shell, err = initShell()
-	} else {
-		shell, err = nash.New()
-	}
+	shell, err = initShell()
 
 	if err != nil {
 		goto Error
@@ -74,6 +67,16 @@ func main() {
 
 	if addr != "" {
 		startNashd(shell, addr)
+
+		return
+	}
+
+	if (file == "" && command == "") || interactive {
+		err = cli(shell)
+
+		if err != nil {
+			goto Error
+		}
 
 		return
 	}
@@ -94,15 +97,6 @@ func main() {
 		}
 	}
 
-	if cliMode {
-		err = cli(shell)
-
-		if err != nil {
-			goto Error
-		}
-
-		return
-	}
 Error:
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
@@ -139,31 +133,15 @@ func initShell() (*nash.Shell, error) {
 		return nil, err
 	}
 
-	// initShell will run only if the nash command is ran
-	// without arguments or interactive flag, hence interactive mode
-	shell.SetInteractive(true)
-
 	nashpath, err := getnashpath()
 
 	if err != nil {
 		return nil, err
 	}
 
-	shell.SetDotDir(nashpath)
-
 	os.Mkdir(nashpath, 0755)
 
-	initFile := nashpath + "/init"
-
-	if d, err := os.Stat(initFile); err == nil && !noInit {
-		if m := d.Mode(); !m.IsDir() {
-			err = shell.ExecuteString("init", `import "`+initFile+`"`)
-
-			if err != nil {
-				return nil, fmt.Errorf("Failed to evaluate '%s': %s\n", initFile, err.Error())
-			}
-		}
-	}
+	shell.SetDotDir(nashpath)
 
 	return shell, nil
 }
