@@ -15,15 +15,13 @@
     - [Packages](#packages)
 <!-- mdtocend -->
 
-# Reference
-
 Here lies a comprehensive reference documentation of nash
 features and built-in functions, and how to use them.
 
 There is also some [examples](./examples) that can be useful.
 
 
-## Command line arguments
+# Command line arguments
 
 To handle script arguments you can just use the ARGS variable,
 that is a list populated with the arguments passed to your script
@@ -37,9 +35,9 @@ echo $somearg
 echo
 ```
 
-## Flow control
+# Flow control
 
-## Functions
+# Functions
 
 Defining functions is very easy, for example:
 
@@ -81,9 +79,9 @@ echo $res
 #Output:"ERROR: Wrong number of arguments for function concat. Expected 2 but found 3"
 ```
 
-## Operators
+# Operators
 
-### + (Concatenation)
+## + (Concatenation)
 
 The **+** is the concatenation operator. Its behaviour
 is dependent on the type it is concatenating. It
@@ -94,7 +92,7 @@ The language is dynamically typed, but it is strongly
 typed, types can't be mixed on operations, there is no
 implicit type coercion.
 
-#### string
+### string
 
 String concatenation is pretty straightforward.
 For example:
@@ -107,11 +105,11 @@ echo $a+$b
 #Output:"12"
 ```
 
-## Iterating
+# Iterating
 
-## Built-in functions
+# Built-in functions
 
-### len
+## len
 
 The function **len** returns the length of a list.
 An example to check for the length of a list:
@@ -127,7 +125,7 @@ argslen <= len($args)
 echo $argslen
 ```
 
-### append
+## append
 
 The function **append** appends one element to the end of a exist list.
 Append returns the updated list.
@@ -144,4 +142,4 @@ example_list <= append($example_list, "2")
 echo $example_list
 ```
 
-## Packages
+# Packages

@@ -8,12 +8,10 @@
     - [bindfn](#bindfn)
 <!-- mdtocend -->
 
-# Interactive mode
-
 When used as an interactive shell, nash supports a few features to
 enhance user experience.
 
-## Line mode
+# Line mode
 
 Nash supports line editing with `emacs` and `vim` modes. The default
 mode is `emacs` but it can be changed by the command `set mode vim`,
@@ -45,7 +43,7 @@ When in emacs mode, the following shortcuts can be used:
 | `Meta`+`Backspace` | Cut previous word                 |
 | `Enter`            | Line feed                         |
 
-## Autocomplete
+# Autocomplete
 
 Nash doesn't have autocomplete built in, but it do has triggers to you
 implement it yourself.
@@ -95,7 +93,7 @@ fn nash_complete(line, pos) {
 }
 ```
 
-## Hooks
+# Hooks
 
 There are two functions that can be used to update the environment
 while typing commands. The function `nash_repl_before` is called every
@@ -122,7 +120,7 @@ fn nash_repl_after(line, status) {
 }
 ```
 
-## bindfn
+# bindfn
 
 Functions are commonly used for nash libraries,
 but when needed it can be bind'ed to some command name,
