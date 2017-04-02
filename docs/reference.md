@@ -45,7 +45,7 @@ Defining functions is very easy, for example:
 
 ```nash
 fn concat(a, b) {
-        return $a, $b
+        return $a + $b
 }
 
 res <= concat("1","9")
