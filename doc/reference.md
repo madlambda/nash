@@ -1,3 +1,20 @@
+<!-- mdtocstart -->
+# Table of Contents
+
+- [Reference](#reference)
+    - [Command line arguments](#command-line-arguments)
+    - [Flow control](#flow-control)
+    - [Functions](#functions)
+    - [Operators](#operators)
+        - [+ (Concatenation)](#-concatenation)
+            - [string](#string)
+    - [Iterating](#iterating)
+    - [Built-in functions](#builtin-functions)
+        - [len](#len)
+        - [append](#append)
+    - [Packages](#packages)
+<!-- mdtocend -->
+
 # Reference
 
 Here lies a comprehensive reference documentation of nash

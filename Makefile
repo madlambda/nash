@@ -7,6 +7,13 @@ build:
 deps:
 	go get -v -t golang.org/x/exp/ebnf
 
+docsdeps:
+	go get github.com/katcipis/mdtoc
+
+docs: docsdeps
+	mdtoc -w ./doc/interactive.md
+	mdtoc -w ./doc/reference.md
+
 test: deps build
 	GO15VENDOREXPERIMENT=1 ./hack/check.sh
 
