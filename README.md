@@ -167,7 +167,7 @@ For example, trying to evaluate an unbound variable aborts the program with erro
 ERROR: Variable '$bleh' not set
 ```
 
-Long commands can be splited in multiple lines:
+Long commands can be split in multiple lines:
 
 ```sh
 λ> (aws ec2 attach-internet-gateway	--internet-gateway-id $igwid

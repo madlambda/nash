@@ -149,10 +149,10 @@ echo $res
 
 ## +
 
-The **+** is the concatenation operator. Its behaviour
-is dependent on the type it is concatenating. It
+The **+** operator behaviour
+is dependent on the type its operands. It
 is always invalid to mix types on the operation
-(like concatenating a string with a integer).
+(like one operand is a string and the other one is a integer).
 
 The language is dynamically typed, but it is strongly
 typed, types can't be mixed on operations, there is no
