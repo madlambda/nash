@@ -30,11 +30,11 @@ that is a list populated with the arguments passed to your script
 when it is executed, like:
 
 ```nash
-echo ""
+echo
 echo "acessing individual parameter"
 somearg = $ARGS[0]
 echo $somearg
-echo ""
+echo
 ```
 
 ## Flow control

@@ -12,8 +12,8 @@ docsdeps:
 
 docs: docsdeps
 	mdtoc -w ./README.md
-	mdtoc -w ./doc/interactive.md
-	mdtoc -w ./doc/reference.md
+	mdtoc -w ./docs/interactive.md
+	mdtoc -w ./docs/reference.md
 
 test: deps build
 	GO15VENDOREXPERIMENT=1 ./hack/check.sh
