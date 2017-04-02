@@ -1,3 +1,24 @@
+<!-- mdtocstart -->
+# Table of Contents
+
+- [nash](#nash)
+- [Show time!](#show-time)
+    - [Useful stuff](#useful-stuff)
+    - [Why nash scripts are reliable?](#why-nash-scripts-are-reliable)
+    - [Installation](#installation)
+    - [Getting started](#getting-started)
+- [Accessing command line args](#accessing-command-line-args)
+- [Namespace features](#namespace-features)
+- [OK, but how scripts should look like?](#ok-but-how-scripts-should-look-like)
+- [Didn't work?](#didnt-work)
+- [Language specification](#language-specification)
+- [Some Bash comparisons](#some-bash-comparisons)
+- [Security](#security)
+- [Concept](#concept)
+- [Motivation](#motivation)
+- [Want to contribute?](#want-to-contribute)
+<!-- mdtocend -->
+
 # nash
 
 [![Join the chat at https://gitter.im/NeowayLabs/nash](https://badges.gitter.im/NeowayLabs/nash.svg)](https://gitter.im/NeowayLabs/nash?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![GoDoc](https://godoc.org/github.com/NeowayLabs/nash?status.svg)](https://godoc.org/github.com/NeowayLabs/nash) 

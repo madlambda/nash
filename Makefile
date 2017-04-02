@@ -11,6 +11,7 @@ docsdeps:
 	go get github.com/katcipis/mdtoc
 
 docs: docsdeps
+	mdtoc -w ./README.md
 	mdtoc -w ./doc/interactive.md
 	mdtoc -w ./doc/reference.md
 
