@@ -45,7 +45,7 @@ Defining functions is very easy, for example:
 
 ```nash
 fn concat(a, b) {
-        return $a + $b
+        return $a+$b
 }
 
 res <= concat("1","9")
@@ -103,7 +103,7 @@ For example:
 a = "1"
 b = "2"
 
-echo $a + $b
+echo $a+$b
 #Output:"12"
 ```
 
@@ -117,7 +117,7 @@ The function **len** returns the length of a list.
 An example to check for the length of a list:
 
 ```
-echo "define one list with two elemnts"
+echo "define one list with two elements"
 args = (
     "one"
     "two"
