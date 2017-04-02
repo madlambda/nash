@@ -36,6 +36,45 @@ echo
 
 # Flow control
 
+## Branching
+
+To branch you can use **if** statement, it requires
+a boolean expression, like the comparison operator:
+
+```nash
+a = "nash"
+echo $a
+if $a == "nash" {
+    a = "rocks"
+}
+echo $a
+#Output:"nashrocks"
+```
+
+You can also use a junction of boolean expressions:
+
+```nash
+a = "nash"
+b = "rocks"
+if $a == "nash" && $b == "rocks"{
+    echo "hellyeah"
+}
+#Output:"hellyeah"
+```
+
+You can also use a disjunction of boolean expressions:
+
+```nash
+a = "nash"
+b = "rocks"
+if $a == "bash" || $b == "rocks"{
+    echo "hellyeah"
+}
+#Output:"hellyeah"
+```
+
+## Looping
+
 # Functions
 
 Defining functions is very easy, for example:
@@ -80,7 +119,7 @@ echo $res
 
 # Operators
 
-## + (Concatenation)
+## +
 
 The **+** is the concatenation operator. Its behaviour
 is dependent on the type it is concatenating. It
