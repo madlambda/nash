@@ -75,6 +75,34 @@ if $a == "bash" || $b == "rocks"{
 
 ## Looping
 
+Right now there are two kind of loops, on lists
+and the forever kind :-).
+
+### Lists
+
+You can iterate lists like this:
+
+```nash
+a = ""
+for i in ("nash" "rocks"){
+    a = $a + $i
+}
+echo $a
+#Output:"nashrocks"
+```
+
+### Forever
+
+It would be cool to loop on boolean expressions, but
+right now we can only loop forever (besides list
+looping):
+
+```nash
+for {
+    echo "hi"
+}
+```
+
 # Functions
 
 Defining functions is very easy, for example:
