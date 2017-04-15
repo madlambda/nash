@@ -80,19 +80,25 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 
 	if err != nil {
 		if err.Error() != testcase.expectedErr {
-			t.Errorf("Error differs: Expected '%s' but got '%s'",
-				testcase.expectedErr, err.Error())
+			t.Errorf("[%s] Error differs: Expected '%s' but got '%s'",
+				testcase.desc,
+				testcase.expectedErr,
+				err.Error())
 		}
 	}
 
 	if testcase.expectedStdout != string(bout.Bytes()) {
-		t.Errorf("Stdout differs: '%s' != '%s'", testcase.expectedStdout,
+		t.Errorf("[%s] Stdout differs: '%s' != '%s'",
+			testcase.desc,
+			testcase.expectedStdout,
 			string(bout.Bytes()))
 		return
 	}
 
 	if testcase.expectedStderr != string(berr.Bytes()) {
-		t.Errorf("Stderr differs: '%s' != '%s'", testcase.expectedStderr,
+		t.Errorf("[%s] Stderr differs: '%s' != '%s'",
+			testcase.desc,
+			testcase.expectedStderr,
 			string(berr.Bytes()))
 		return
 	}
