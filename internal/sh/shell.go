@@ -948,7 +948,6 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) (sh.Obj, error) {
 		}
 
 		cmd.SetStdin(shell.stdin)
-		cmd.SetStderr(shell.stderr)
 
 		if i < last {
 			closeFiles, err = shell.setRedirects(cmd, nodeCmd.Redirects())
@@ -972,8 +971,6 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) (sh.Obj, error) {
 		var (
 			stdin io.ReadCloser
 		)
-
-		cmd.SetStderr(shell.stderr)
 
 		stdin, err = cmd.StdoutPipe()
 

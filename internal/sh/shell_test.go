@@ -1173,54 +1173,26 @@ func TestExecuteBindFn(t *testing.T) {
 }
 
 func TestExecutePipe(t *testing.T) {
-	var out bytes.Buffer
 
-	path := os.Getenv("PATH")
-	path = "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:" + path
-
-	os.Setenv("PATH", path)
-
-	shell, err := NewShell()
-
-	if err != nil {
-		t.Error(err)
-		return
+	for _, test := range []execTestCase{
+		{
+			"test pipe",
+			`echo hello | wc -l`,
+			"1\n", "", "",
+		},
+		{
+			"test pipe stderr",
+			`cat stuff >[2=] | grep file`,
+			"", "", "<interactive>:1:16: exit status 1|success",
+		},
+		{
+			"test pipe 3",
+			`echo hello | wc -l | grep 1`,
+			"1\n", "", "",
+		},
+	} {
+		testExec(t, test)
 	}
-
-	shell.SetNashdPath(nashdPath)
-	shell.SetStdout(&out)
-
-	err = shell.Exec("test pipe", `echo hello | wc -l`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	strOut := strings.TrimSpace(string(out.Bytes()))
-
-	if strOut != "1" {
-		t.Errorf("Expected '1' but found '%s'", strOut)
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("test pipe 3", `echo hello | wc -l | grep 1`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	strOut = strings.TrimSpace(string(out.Bytes()))
-
-	if strOut != "1" {
-		t.Errorf("Expected '1' but found '%s'", strOut)
-		return
-	}
-
-	out.Reset()
 }
 
 func testTCPRedirection(t *testing.T, port, command string) {
