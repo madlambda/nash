@@ -106,6 +106,8 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 			strErr)
 		return
 	}
+	bout.Reset()
+	berr.Reset()
 }
 
 func testExec(t *testing.T, testcase execTestCase) {

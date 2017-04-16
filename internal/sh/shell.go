@@ -1181,6 +1181,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			cmd.SetStdout(file)
+			closeAfterWait = append(closeAfterWait, file)
 		}
 	case 2:
 		switch redirDecl.RightFD() {
