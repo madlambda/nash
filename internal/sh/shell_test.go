@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -1203,22 +1204,15 @@ func TestExecutePipe(t *testing.T) {
 }
 
 func TestExecuteRedirectionPipe(t *testing.T) {
-	var stdErr bytes.Buffer
+	var stderr bytes.Buffer
 
-	shell, err := NewShell()
+	cmd := exec.Command(nashdPath, "-c", `cat stuff >[2=] | grep file`)
 
-	shell.SetStderr(&stdErr)
+	cmd.Stderr = &stderr
 
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	err := cmd.Run()
 
-	shell.SetNashdPath(nashdPath)
-
-	err = shell.Exec("test pipe stderr", `cat stuff >[2=] | grep file`)
-
-	expectedError := "<interactive>:1:16: exit status 1|success"
+	expectedError := "exit status 1"
 
 	if err != nil {
 		if err.Error() != expectedError {
@@ -1229,10 +1223,13 @@ func TestExecuteRedirectionPipe(t *testing.T) {
 		}
 	}
 
-	strErr := strings.TrimSpace(string(stdErr.Bytes()))
+	expectedStdErr := "<interactive>:1:16: exit status 1|success"
+	strErr := strings.TrimSpace(string(stderr.Bytes()))
 
-	if strErr != "" {
-		t.Errorf("Expected stderr to be empty but got '%s'", strErr)
+	if strErr != expectedStdErr {
+		t.Errorf("Expected stderr to be '%s' but got '%s'",
+			expectedStdErr,
+			strErr)
 		return
 	}
 }
