@@ -1193,17 +1193,34 @@ func TestExecutePipe(t *testing.T) {
 			"1", "", "",
 		},
 		{
-			"test pipe stderr",
-			`cat stuff >[2=] | grep file`,
-			"", "", "<interactive>:1:16: exit status 1|success",
-		},
-		{
 			"test pipe 3",
 			`echo hello | wc -l | grep 1`,
 			"1", "", "",
 		},
 	} {
 		testExec(t, test)
+	}
+}
+
+func TestExecuteRedirectionPipe(t *testing.T) {
+	var stderr bytes.Buffer
+
+	shell, err := NewShell()
+
+	shell.SetStderr(&stderr)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	shell.SetNashdPath(nashdPath)
+
+	err = shell.Exec("test pipe stderr", `cat stuff >[2=] | grep file`)
+
+	if err == nil {
+		t.Error(err)
+		return
 	}
 }
 
