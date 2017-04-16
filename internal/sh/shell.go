@@ -1214,6 +1214,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			cmd.SetStderr(file)
+			closeAfterWait = append(closeAfterWait, file)
 		}
 	case ast.RedirMapNoValue:
 		if redirDecl.Location() == nil {
