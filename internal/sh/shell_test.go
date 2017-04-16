@@ -1203,11 +1203,11 @@ func TestExecutePipe(t *testing.T) {
 }
 
 func TestExecuteRedirectionPipe(t *testing.T) {
-	var stderr bytes.Buffer
+	var stdErr bytes.Buffer
 
 	shell, err := NewShell()
 
-	shell.SetStderr(&stderr)
+	shell.SetStderr(&stdErr)
 
 	if err != nil {
 		t.Error(err)
@@ -1218,8 +1218,21 @@ func TestExecuteRedirectionPipe(t *testing.T) {
 
 	err = shell.Exec("test pipe stderr", `cat stuff >[2=] | grep file`)
 
-	if err == nil {
-		t.Error(err)
+	expectedError := "<interactive>:1:16: exit status 1|success"
+
+	if err != nil {
+		if err.Error() != expectedError {
+			t.Errorf("Error differs: Expected '%s' but got '%s'",
+				expectedError,
+				err.Error())
+			return
+		}
+	}
+
+	strErr := strings.TrimSpace(string(stdErr.Bytes()))
+
+	if strErr != "" {
+		t.Errorf("Expected stderr to be empty but got '%s'", strErr)
 		return
 	}
 }
