@@ -386,13 +386,22 @@ func (shell *Shell) SetNashdPath(path string) {
 }
 
 // SetStdin sets the stdin for commands
-func (shell *Shell) SetStdin(in io.Reader) { shell.stdin = in }
+func (shell *Shell) SetStdin(in io.Reader) {
+	shell.stdin = in
+	shell.updateBuiltinFnIO()
+}
 
 // SetStdout sets stdout for commands
-func (shell *Shell) SetStdout(out io.Writer) { shell.stdout = out }
+func (shell *Shell) SetStdout(out io.Writer) {
+	shell.stdout = out
+	shell.updateBuiltinFnIO()
+}
 
 // SetStderr sets stderr for commands
-func (shell *Shell) SetStderr(err io.Writer) { shell.stderr = err }
+func (shell *Shell) SetStderr(err io.Writer) {
+	shell.stderr = err
+	shell.updateBuiltinFnIO()
+}
 
 func (shell *Shell) Stdout() io.Writer { return shell.stdout }
 func (shell *Shell) Stderr() io.Writer { return shell.stderr }
@@ -435,6 +444,14 @@ func (shell *Shell) setupBuiltin() {
 		)
 		shell.builtins[name] = fn
 		shell.Setvar(name, sh.NewFnObj(fn))
+	}
+}
+
+func (shell *Shell) updateBuiltinFnIO() {
+	for _, builtinfn := range shell.builtins {
+		builtinfn.SetStdin(shell.stdin)
+		builtinfn.SetStdout(shell.stdout)
+		builtinfn.SetStderr(shell.stderr)
 	}
 }
 

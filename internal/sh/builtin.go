@@ -56,7 +56,7 @@ func (f *builtinFn) Start() error {
 	f.done = make(chan struct{})
 
 	go func() {
-		f.results, f.err = f.fn.Run()
+		f.results, f.err = f.fn.Run(f.stdin, f.stdout, f.stderr)
 		f.done <- struct{}{}
 	}()
 

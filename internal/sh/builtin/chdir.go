@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"io"
 	"os"
 
 	"github.com/NeowayLabs/nash/errors"
@@ -21,7 +22,11 @@ func (chdir *chdirFn) ArgNames() []string {
 	return []string{"dir"}
 }
 
-func (chdir *chdirFn) Run() ([]sh.Obj, error) {
+func (chdir *chdirFn) Run(
+	stdin io.Reader,
+	stdout io.Writer,
+	stderr io.Writer,
+) ([]sh.Obj, error) {
 	return nil, os.Chdir(chdir.arg)
 }
 

@@ -1,6 +1,11 @@
 package builtin
 
-import "github.com/NeowayLabs/nash/sh"
+import (
+	"fmt"
+	"io"
+
+	"github.com/NeowayLabs/nash/sh"
+)
 
 type (
 	printfFn struct {
@@ -17,7 +22,12 @@ func (s *printfFn) ArgNames() []string {
 	return []string{"fmt", "args"}
 }
 
-func (s *printfFn) Run() ([]sh.Obj, error) {
+func (s *printfFn) Run(
+	stdin io.Reader,
+	stdout io.Writer,
+	stderr io.Writer,
+) ([]sh.Obj, error) {
+	fmt.Fprintf(stdout, "helloworld")
 	return nil, nil
 }
 

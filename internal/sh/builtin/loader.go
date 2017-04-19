@@ -1,13 +1,21 @@
 package builtin
 
-import "github.com/NeowayLabs/nash/sh"
+import (
+	"io"
+
+	"github.com/NeowayLabs/nash/sh"
+)
 
 // Fn is the contract of a built in function, that is simpler
 // than the core nash Fn.
 type Fn interface {
 	ArgNames() []string
 	SetArgs(args []sh.Obj) error
-	Run() ([]sh.Obj, error)
+	Run(
+		stdin io.Reader,
+		stdout io.Writer,
+		stderr io.Writer,
+	) ([]sh.Obj, error)
 }
 
 //Load loads all available builtin functions. The return is a map

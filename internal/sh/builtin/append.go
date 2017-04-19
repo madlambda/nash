@@ -1,6 +1,8 @@
 package builtin
 
 import (
+	"io"
+
 	"github.com/NeowayLabs/nash/errors"
 	"github.com/NeowayLabs/nash/sh"
 )
@@ -20,7 +22,11 @@ func (appendfn *appendFn) ArgNames() []string {
 	return []string{"list"}
 }
 
-func (appendfn *appendFn) Run() ([]sh.Obj, error) {
+func (appendfn *appendFn) Run(
+	stdin io.Reader,
+	stdout io.Writer,
+	stderr io.Writer,
+) ([]sh.Obj, error) {
 	newobj := append(appendfn.obj, appendfn.arg)
 	return []sh.Obj{sh.NewListObj(newobj)}, nil
 }
