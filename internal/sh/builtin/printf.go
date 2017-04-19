@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/NeowayLabs/nash/errors"
 	"github.com/NeowayLabs/nash/sh"
 )
 
@@ -32,13 +33,9 @@ func (s *printfFn) Run(
 }
 
 func (s *printfFn) SetArgs(args []sh.Obj) error {
-	//if len(args) != 1 {
-	//return errors.NewError("splitfn expects 2 arguments")
-	//}
-
-	//if args[0].Type() != sh.StringType {
-	//return errors.NewError("content must be of type string")
-	//}
+	if len(args) == 0 {
+		return errors.NewError("printf expects at least 1 argument")
+	}
 
 	s.fmt = args[0].String()
 	for _, arg := range args[1:] {
