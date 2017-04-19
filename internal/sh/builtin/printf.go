@@ -10,7 +10,7 @@ import (
 type (
 	printfFn struct {
 		fmt  string
-		args []sh.Obj
+		args []interface{}
 	}
 )
 
@@ -27,7 +27,7 @@ func (s *printfFn) Run(
 	stdout io.Writer,
 	stderr io.Writer,
 ) ([]sh.Obj, error) {
-	fmt.Fprintf(stdout, "helloworld")
+	fmt.Fprintf(stdout, s.fmt, s.args...)
 	return nil, nil
 }
 
@@ -39,8 +39,11 @@ func (s *printfFn) SetArgs(args []sh.Obj) error {
 	//if args[0].Type() != sh.StringType {
 	//return errors.NewError("content must be of type string")
 	//}
-	//content := args[0].(*sh.StrObj)
-	//s.content = content.Str()
-	//s.sep = args[1]
+
+	s.fmt = args[0].String()
+	for _, arg := range args[1:] {
+		s.args = append(s.args, arg.String())
+	}
+
 	return nil
 }

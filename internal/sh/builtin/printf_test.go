@@ -18,6 +18,10 @@ func TestPrintf(t *testing.T) {
 			script: `printf("helloworld")`,
 			output: "helloworld",
 		},
+		"fmtstring": {
+			script: `printf("%s:%s", "hello", "world")`,
+			output: "hello:world",
+		},
 	}
 
 	for name, desc := range tests {
