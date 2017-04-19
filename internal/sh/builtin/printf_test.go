@@ -50,6 +50,10 @@ func TestPrintf(t *testing.T) {
 			`,
 			output: "1 2",
 		},
+		"invalidFmt": {
+			script: `printf("%d%s", "invalid")`,
+			output: "%!d(string=invalid)%!s(MISSING)",
+		},
 	}
 
 	for name, desc := range tests {
