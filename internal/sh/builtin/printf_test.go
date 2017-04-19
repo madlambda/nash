@@ -29,6 +29,20 @@ func TestPrintf(t *testing.T) {
 			`,
 			output: "list:1 2 3",
 		},
+		"funconly": {
+			script: `
+				fn func() {}
+				printf($func)
+			`,
+			output: "<fn func>",
+		},
+		"funcfmt": {
+			script: `
+				fn func() {}
+				printf("calling:%s", $func)
+			`,
+			output: "calling:<fn func>",
+		},
 		"listonly": {
 			script: `
 				list = ("1" "2" "3")
