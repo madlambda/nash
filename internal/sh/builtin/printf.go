@@ -20,15 +20,11 @@ func newPrintf() *printfFn {
 }
 
 func (s *printfFn) ArgNames() []string {
-	return []string{"fmt", "args"}
+	return []string{"fmt", "args..."}
 }
 
-func (s *printfFn) Run(
-	stdin io.Reader,
-	stdout io.Writer,
-	stderr io.Writer,
-) ([]sh.Obj, error) {
-	fmt.Fprintf(stdout, s.fmt, s.args...)
+func (s *printfFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
+	fmt.Fprintf(out, s.fmt, s.args...)
 	return nil, nil
 }
 

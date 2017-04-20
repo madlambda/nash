@@ -22,11 +22,7 @@ func (chdir *chdirFn) ArgNames() []string {
 	return []string{"dir"}
 }
 
-func (chdir *chdirFn) Run(
-	stdin io.Reader,
-	stdout io.Writer,
-	stderr io.Writer,
-) ([]sh.Obj, error) {
+func (chdir *chdirFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
 	return nil, os.Chdir(chdir.arg)
 }
 

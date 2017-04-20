@@ -23,11 +23,7 @@ func (s *splitFn) ArgNames() []string {
 	return []string{"sep", "content"}
 }
 
-func (s *splitFn) Run(
-	stdin io.Reader,
-	stdout io.Writer,
-	stderr io.Writer,
-) ([]sh.Obj, error) {
+func (s *splitFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
 	var output []string
 
 	content := s.content
