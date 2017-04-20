@@ -1186,13 +1186,13 @@ func TestExecutePipe(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
 			"test pipe",
-			`echo hello | wc`,
-			"      1       1       6\n", "", "",
+			`echo hello | tr -d "[:space:]"`,
+			"hello", "", "",
 		},
 		{
 			"test pipe 3",
-			`echo hello | wc | grep 6`,
-			"      1       1       6\n", "", "",
+			`echo hello | wc -l | tr -d "[:space:]"`,
+			"1", "", "",
 		},
 	} {
 		testExec(t, test)
