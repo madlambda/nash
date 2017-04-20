@@ -88,23 +88,19 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 		}
 	}
 
-	strOut := strings.TrimSpace(string(bout.Bytes()))
-
-	if testcase.expectedStdout != strOut {
+	if testcase.expectedStdout != string(bout.Bytes()) {
 		t.Errorf("[%s] Stdout differs: '%s' != '%s'",
 			testcase.desc,
 			testcase.expectedStdout,
-			strOut)
+			string(bout.Bytes()))
 		return
 	}
 
-	strErr := strings.TrimSpace(string(berr.Bytes()))
-
-	if testcase.expectedStderr != strErr {
+	if testcase.expectedStderr != string(berr.Bytes()) {
 		t.Errorf("[%s] Stderr differs: '%s' != '%s'",
 			testcase.desc,
 			testcase.expectedStderr,
-			strErr)
+			string(berr.Bytes()))
 		return
 	}
 	bout.Reset()
@@ -210,7 +206,7 @@ func TestExecuteAssignment(t *testing.T) {
 			"assignment",
 			`name="i4k"
                          echo $name`,
-			"i4k", "",
+			"i4k\n", "",
 			"",
 		},
 		{
@@ -667,19 +663,19 @@ func TestExecuteSetenv(t *testing.T) {
 			`test = "hello"
                          setenv test
                          ` + nashdPath + ` -c "echo $test"`,
-			"hello", "", "",
+			"hello\n", "", "",
 		},
 		{
 			"test setenv assignment",
 			`setenv test = "hello"
                          ` + nashdPath + ` -c "echo $test"`,
-			"hello", "", "",
+			"hello\n", "", "",
 		},
 		{
 			"test setenv exec cmd",
 			`setenv test <= echo -n "hello"
                          ` + nashdPath + ` -c "echo $test"`,
-			"hello", "", "",
+			"hello\n", "", "",
 		},
 		{
 			"test setenv semicolon",
@@ -698,7 +694,7 @@ func TestExecuteCd(t *testing.T) {
 			"test cd",
 			`cd /
         pwd`,
-			"/", "", "",
+			"/\n", "", "",
 		},
 		{
 			"test cd",
@@ -706,7 +702,7 @@ func TestExecuteCd(t *testing.T) {
         setenv HOME
         cd
         pwd`,
-			"/",
+			"/\n",
 			"", "",
 		},
 		{
@@ -715,7 +711,7 @@ func TestExecuteCd(t *testing.T) {
         var="/"
         cd $var
         pwd`,
-			"/",
+			"/\n",
 			"",
 			"",
 		},
@@ -1167,7 +1163,7 @@ func TestExecuteBindFn(t *testing.T) {
 
         bindfn cd cd
         cd`,
-			"override builtin cd", "", "",
+			"override builtin cd\n", "", "",
 		},
 		{
 			"test bindfn args",
@@ -1190,13 +1186,13 @@ func TestExecutePipe(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
 			"test pipe",
-			`echo hello | wc -l`,
-			"1", "", "",
+			`echo hello | wc -m`,
+			"6\n", "", "",
 		},
 		{
 			"test pipe 3",
-			`echo hello | wc -l | grep 1`,
-			"1", "", "",
+			`echo hello | wc -m | grep 6`,
+			"6\n", "", "",
 		},
 	} {
 		testExec(t, test)
