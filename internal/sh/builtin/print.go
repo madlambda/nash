@@ -9,33 +9,33 @@ import (
 )
 
 type (
-	printfFn struct {
+	printFn struct {
 		fmt  string
 		args []interface{}
 	}
 )
 
-func newPrintf() *printfFn {
-	return &printfFn{}
+func newPrintf() *printFn {
+	return &printFn{}
 }
 
-func (s *printfFn) ArgNames() []string {
+func (p *printFn) ArgNames() []string {
 	return []string{"fmt", "args..."}
 }
 
-func (s *printfFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
-	fmt.Fprintf(out, s.fmt, s.args...)
+func (p *printFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
+	fmt.Fprintf(out, p.fmt, p.args...)
 	return nil, nil
 }
 
-func (s *printfFn) SetArgs(args []sh.Obj) error {
+func (p *printFn) SetArgs(args []sh.Obj) error {
 	if len(args) == 0 {
 		return errors.NewError("printf expects at least 1 argument")
 	}
 
-	s.fmt = args[0].String()
+	p.fmt = args[0].String()
 	for _, arg := range args[1:] {
-		s.args = append(s.args, arg.String())
+		p.args = append(p.args, arg.String())
 	}
 
 	return nil

@@ -8,64 +8,64 @@ import (
 )
 
 func TestPrintf(t *testing.T) {
-	type printfDesc struct {
+	type printDesc struct {
 		script string
 		output string
 	}
 
-	tests := map[string]printfDesc{
+	tests := map[string]printDesc{
 		"textonly": {
-			script: `printf("helloworld")`,
+			script: `print("helloworld")`,
 			output: "helloworld",
 		},
 		"fmtstring": {
-			script: `printf("%s:%s", "hello", "world")`,
+			script: `print("%s:%s", "hello", "world")`,
 			output: "hello:world",
 		},
 		"fmtlist": {
 			script: `
 				list = ("1" "2" "3")
-				printf("%s:%s", "list", $list)
+				print("%s:%s", "list", $list)
 			`,
 			output: "list:1 2 3",
 		},
 		"funconly": {
 			script: `
 				fn func() {}
-				printf($func)
+				print($func)
 			`,
 			output: "<fn func>",
 		},
 		"funcfmt": {
 			script: `
 				fn func() {}
-				printf("calling:%s", $func)
+				print("calling:%s", $func)
 			`,
 			output: "calling:<fn func>",
 		},
 		"listonly": {
 			script: `
 				list = ("1" "2" "3")
-				printf($list)
+				print($list)
 			`,
 			output: "1 2 3",
 		},
 		"listoflists": {
 			script: `
 				list = (("1" "2" "3") ("4" "5" "6"))
-				printf("%s:%s", "listoflists", $list)
+				print("%s:%s", "listoflists", $list)
 			`,
 			output: "listoflists:1 2 3 4 5 6",
 		},
 		"listasfmt": {
 			script: `
 				list = ("%s" "%s")
-				printf($list, "1", "2")
+				print($list, "1", "2")
 			`,
 			output: "1 2",
 		},
 		"invalidFmt": {
-			script: `printf("%d%s", "invalid")`,
+			script: `print("%d%s", "invalid")`,
 			output: "%!d(string=invalid)%!s(MISSING)",
 		},
 	}
@@ -94,13 +94,13 @@ func TestPrintf(t *testing.T) {
 }
 
 func TestPrintfErrors(t *testing.T) {
-	type printfDesc struct {
+	type printDesc struct {
 		script string
 	}
 
-	tests := map[string]printfDesc{
+	tests := map[string]printDesc{
 		"noParams": {
-			script: `printf()`,
+			script: `print()`,
 		},
 	}
 
