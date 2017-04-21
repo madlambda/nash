@@ -948,7 +948,6 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) (sh.Obj, error) {
 		}
 
 		cmd.SetStdin(shell.stdin)
-		cmd.SetStderr(shell.stderr)
 
 		if i < last {
 			closeFiles, err = shell.setRedirects(cmd, nodeCmd.Redirects())
@@ -972,8 +971,6 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) (sh.Obj, error) {
 		var (
 			stdin io.ReadCloser
 		)
-
-		cmd.SetStderr(shell.stderr)
 
 		stdin, err = cmd.StdoutPipe()
 
@@ -1184,6 +1181,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			cmd.SetStdout(file)
+			closeAfterWait = append(closeAfterWait, file)
 		}
 	case 2:
 		switch redirDecl.RightFD() {
@@ -1216,6 +1214,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			cmd.SetStderr(file)
+			closeAfterWait = append(closeAfterWait, file)
 		}
 	case ast.RedirMapNoValue:
 		if redirDecl.Location() == nil {
