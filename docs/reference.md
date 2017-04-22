@@ -175,6 +175,23 @@ echo $a+$b
 
 # Built-in functions
 
+## printf
+
+The function **printf** is used to print simple
+messages directly to stdout:
+
+```nash
+printf("hi")
+#Output:"hi"
+```
+
+And supports formatting:
+
+```nash
+printf("%s:%s", "1", "2")
+#Output:"1:2"
+```
+
 ## len
 
 The function **len** returns the length of a list.
