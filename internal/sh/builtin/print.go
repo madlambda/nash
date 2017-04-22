@@ -15,7 +15,7 @@ type (
 	}
 )
 
-func newPrintf() *printFn {
+func newPrint() *printFn {
 	return &printFn{}
 }
 
@@ -30,7 +30,7 @@ func (p *printFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, err
 
 func (p *printFn) SetArgs(args []sh.Obj) error {
 	if len(args) == 0 {
-		return errors.NewError("printf expects at least 1 argument")
+		return errors.NewError("print expects at least 1 argument")
 	}
 
 	p.fmt = args[0].String()

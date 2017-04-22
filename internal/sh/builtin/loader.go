@@ -22,7 +22,8 @@ type Fn interface {
 //of the builtin function name and its implementation.
 func Load() map[string]Fn {
 	return map[string]Fn{
-		"print":  newPrintf(),
+		"print":  newPrint(),
+		"sprint": newSprint(),
 		"split":  newSplit(),
 		"len":    newLen(),
 		"chdir":  newChdir(),
