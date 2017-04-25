@@ -23,7 +23,7 @@ type Fn interface {
 func Load() map[string]Fn {
 	return map[string]Fn{
 		"print":  newPrint(),
-		"sprint": newSprint(),
+		"format": newFormat(),
 		"split":  newSplit(),
 		"len":    newLen(),
 		"chdir":  newChdir(),

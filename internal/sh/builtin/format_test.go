@@ -7,23 +7,23 @@ import (
 	"github.com/NeowayLabs/nash"
 )
 
-func TestSprint(t *testing.T) {
-	type sprintDesc struct {
+func TestFormat(t *testing.T) {
+	type formatDesc struct {
 		script string
 		output string
 	}
 
-	tests := map[string]sprintDesc{
+	tests := map[string]formatDesc{
 		"textonly": {
 			script: `
-				r <= sprint("helloworld")
+				r <= format("helloworld")
 				echo $r
 			`,
 			output: "helloworld\n",
 		},
 		"fmtstring": {
 			script: `
-				r <= sprint("%s:%s", "hello", "world")
+				r <= format("%s:%s", "hello", "world")
 				echo $r
 			`,
 			output: "hello:world\n",
@@ -31,7 +31,7 @@ func TestSprint(t *testing.T) {
 		"fmtlist": {
 			script: `
 				list = ("1" "2" "3")
-				r <= sprint("%s:%s", "list", $list)
+				r <= format("%s:%s", "list", $list)
 				echo $r
 			`,
 			output: "list:1 2 3\n",
@@ -39,7 +39,7 @@ func TestSprint(t *testing.T) {
 		"funconly": {
 			script: `
 				fn func() {}
-				r <= sprint($func)
+				r <= format($func)
 				echo $r
 			`,
 			output: "<fn func>\n",
@@ -47,7 +47,7 @@ func TestSprint(t *testing.T) {
 		"funcfmt": {
 			script: `
 				fn func() {}
-				r <= sprint("calling:%s", $func)
+				r <= format("calling:%s", $func)
 				echo $r
 			`,
 			output: "calling:<fn func>\n",
@@ -55,7 +55,7 @@ func TestSprint(t *testing.T) {
 		"listonly": {
 			script: `
 				list = ("1" "2" "3")
-				r <= sprint($list)
+				r <= format($list)
 				echo $r
 			`,
 			output: "1 2 3\n",
@@ -63,7 +63,7 @@ func TestSprint(t *testing.T) {
 		"listoflists": {
 			script: `
 				list = (("1" "2" "3") ("4" "5" "6"))
-				r <= sprint("%s:%s", "listoflists", $list)
+				r <= format("%s:%s", "listoflists", $list)
 				echo $r
 			`,
 			output: "listoflists:1 2 3 4 5 6\n",
@@ -71,14 +71,14 @@ func TestSprint(t *testing.T) {
 		"listasfmt": {
 			script: `
 				list = ("%s" "%s")
-				r <= sprint($list, "1", "2")
+				r <= format($list, "1", "2")
 				echo $r
 			`,
 			output: "1 2\n",
 		},
 		"invalidFmt": {
 			script: `
-				r <= sprint("%d%s", "invalid")
+				r <= format("%d%s", "invalid")
 				echo $r
 			`,
 			output: "%!d(string=invalid)%!s(MISSING)\n",
@@ -108,13 +108,13 @@ func TestSprint(t *testing.T) {
 	}
 }
 
-func TestSprintfErrors(t *testing.T) {
-	type sprintDesc struct {
+func TestFormatfErrors(t *testing.T) {
+	type formatDesc struct {
 		script string
 	}
 
-	tests := map[string]sprintDesc{
-		"noParams": {script: `sprint()`},
+	tests := map[string]formatDesc{
+		"noParams": {script: `format()`},
 	}
 
 	for name, desc := range tests {
