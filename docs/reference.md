@@ -192,21 +192,14 @@ print("%s:%s", "1", "2")
 #Output:"1:2"
 ```
 
-## sprint
+## format
 
-The function **sprint** is used like **print**, but
-instead of writing to stdout it will return the string:
-
-```nash
-a <= sprint("hi")
-echo $a
-#Output:"hi"
-```
-
-And supports formatting just as print:
+The function **format** is used like **print**, but
+instead of writing to stdout it will return the string
+according to the format provided:
 
 ```nash
-a <= sprint("%s:%s", "1", "2")
+a <= format("%s:%s", "1", "2")
 echo $a
 #Output:"1:2"
 ```
