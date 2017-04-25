@@ -175,20 +175,32 @@ echo $a+$b
 
 # Built-in functions
 
-## printf
+## print
 
-The function **printf** is used to print simple
+The function **print** is used to print simple
 messages directly to stdout:
 
 ```nash
-printf("hi")
+print("hi")
 #Output:"hi"
 ```
 
 And supports formatting:
 
 ```nash
-printf("%s:%s", "1", "2")
+print("%s:%s", "1", "2")
+#Output:"1:2"
+```
+
+## format
+
+The function **format** is used like **print**, but
+instead of writing to stdout it will return the string
+according to the format provided:
+
+```nash
+a <= format("%s:%s", "1", "2")
+echo $a
 #Output:"1:2"
 ```
 

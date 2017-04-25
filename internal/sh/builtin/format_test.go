@@ -7,66 +7,81 @@ import (
 	"github.com/NeowayLabs/nash"
 )
 
-func TestPrint(t *testing.T) {
-	type printDesc struct {
+func TestFormat(t *testing.T) {
+	type formatDesc struct {
 		script string
 		output string
 	}
 
-	tests := map[string]printDesc{
+	tests := map[string]formatDesc{
 		"textonly": {
-			script: `print("helloworld")`,
-			output: "helloworld",
+			script: `
+				r <= format("helloworld")
+				echo $r
+			`,
+			output: "helloworld\n",
 		},
 		"fmtstring": {
-			script: `print("%s:%s", "hello", "world")`,
-			output: "hello:world",
+			script: `
+				r <= format("%s:%s", "hello", "world")
+				echo $r
+			`,
+			output: "hello:world\n",
 		},
 		"fmtlist": {
 			script: `
 				list = ("1" "2" "3")
-				print("%s:%s", "list", $list)
+				r <= format("%s:%s", "list", $list)
+				echo $r
 			`,
-			output: "list:1 2 3",
+			output: "list:1 2 3\n",
 		},
 		"funconly": {
 			script: `
 				fn func() {}
-				print($func)
+				r <= format($func)
+				echo $r
 			`,
-			output: "<fn func>",
+			output: "<fn func>\n",
 		},
 		"funcfmt": {
 			script: `
 				fn func() {}
-				print("calling:%s", $func)
+				r <= format("calling:%s", $func)
+				echo $r
 			`,
-			output: "calling:<fn func>",
+			output: "calling:<fn func>\n",
 		},
 		"listonly": {
 			script: `
 				list = ("1" "2" "3")
-				print($list)
+				r <= format($list)
+				echo $r
 			`,
-			output: "1 2 3",
+			output: "1 2 3\n",
 		},
 		"listoflists": {
 			script: `
 				list = (("1" "2" "3") ("4" "5" "6"))
-				print("%s:%s", "listoflists", $list)
+				r <= format("%s:%s", "listoflists", $list)
+				echo $r
 			`,
-			output: "listoflists:1 2 3 4 5 6",
+			output: "listoflists:1 2 3 4 5 6\n",
 		},
 		"listasfmt": {
 			script: `
 				list = ("%s" "%s")
-				print($list, "1", "2")
+				r <= format($list, "1", "2")
+				echo $r
 			`,
-			output: "1 2",
+			output: "1 2\n",
 		},
 		"invalidFmt": {
-			script: `print("%d%s", "invalid")`,
-			output: "%!d(string=invalid)%!s(MISSING)",
+			script: `
+				r <= format("%d%s", "invalid")
+				echo $r
+			`,
+			output: "%!d(string=invalid)%!s(MISSING)\n",
 		},
 	}
 
@@ -93,15 +108,13 @@ func TestPrint(t *testing.T) {
 	}
 }
 
-func TestPrintErrors(t *testing.T) {
-	type printDesc struct {
+func TestFormatfErrors(t *testing.T) {
+	type formatDesc struct {
 		script string
 	}
 
-	tests := map[string]printDesc{
-		"noParams": {
-			script: `print()`,
-		},
+	tests := map[string]formatDesc{
+		"noParams": {script: `format()`},
 	}
 
 	for name, desc := range tests {
