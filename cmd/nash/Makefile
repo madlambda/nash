@@ -13,5 +13,6 @@ endif
 build:
 	@echo "building nash version: "$(VERSION)
 	GO15VENDOREXPERIMENT=1 go build $(BUILDARGS)
+	strip -s ./nash
 install:
 	GO15VENDOREXPERIMENT=1 go install $(BUILDARGS)
