@@ -16,57 +16,57 @@ func TestPrint(t *testing.T) {
 	tests := map[string]printDesc{
 		"textonly": {
 			script: `print("helloworld")`,
-			output: "helloworld",
+			output: "helloworld\n",
 		},
 		"fmtstring": {
 			script: `print("%s:%s", "hello", "world")`,
-			output: "hello:world",
+			output: "hello:world\n",
 		},
 		"fmtlist": {
 			script: `
 				list = ("1" "2" "3")
 				print("%s:%s", "list", $list)
 			`,
-			output: "list:1 2 3",
+			output: "list:1 2 3\n",
 		},
 		"funconly": {
 			script: `
 				fn func() {}
 				print($func)
 			`,
-			output: "<fn func>",
+			output: "<fn func>\n",
 		},
 		"funcfmt": {
 			script: `
 				fn func() {}
 				print("calling:%s", $func)
 			`,
-			output: "calling:<fn func>",
+			output: "calling:<fn func>\n",
 		},
 		"listonly": {
 			script: `
 				list = ("1" "2" "3")
 				print($list)
 			`,
-			output: "1 2 3",
+			output: "1 2 3\n",
 		},
 		"listoflists": {
 			script: `
 				list = (("1" "2" "3") ("4" "5" "6"))
 				print("%s:%s", "listoflists", $list)
 			`,
-			output: "listoflists:1 2 3 4 5 6",
+			output: "listoflists:1 2 3 4 5 6\n",
 		},
 		"listasfmt": {
 			script: `
 				list = ("%s" "%s")
 				print($list, "1", "2")
 			`,
-			output: "1 2",
+			output: "1 2\n",
 		},
 		"invalidFmt": {
 			script: `print("%d%s", "invalid")`,
-			output: "%!d(string=invalid)%!s(MISSING)",
+			output: "%!d(string=invalid)%!s(MISSING)\n",
 		},
 	}
 
