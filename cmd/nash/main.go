@@ -50,7 +50,7 @@ func main() {
 	flag.Parse()
 
 	if version {
-		fmt.Printf("%s\n", VersionString)
+		fmt.Printf("build tag: %s\n", VersionString)
 		os.Exit(0)
 	}
 
