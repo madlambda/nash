@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"sync"
 )
 
 type AutoCompleter interface {
@@ -28,6 +29,7 @@ type opCompleter struct {
 	w     io.Writer
 	op    *Operation
 	width int
+	mu    *sync.Mutex
 
 	inCompleteMode  bool
 	inSelectMode    bool
@@ -43,6 +45,7 @@ func newOpCompleter(w io.Writer, op *Operation, width int) *opCompleter {
 		w:     w,
 		op:    op,
 		width: width,
+		mu:    &sync.Mutex{},
 	}
 }
 
@@ -65,6 +68,9 @@ func (o *opCompleter) nextCandidate(i int) {
 }
 
 func (o *opCompleter) OnComplete() bool {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	if o.width == 0 {
 		return false
 	}
@@ -187,6 +193,9 @@ func (o *opCompleter) getMatrixSize() int {
 }
 
 func (o *opCompleter) OnWidthChange(newWidth int) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	o.width = newWidth
 }
 
@@ -205,8 +214,10 @@ func (o *opCompleter) CompleteRefresh() {
 	colWidth += o.candidateOff + 1
 	same := o.op.buf.RuneSlice(-o.candidateOff)
 
+	o.mu.Lock()
 	// -1 to avoid reach the end of line
 	width := o.width - 1
+	o.mu.Unlock()
 	colNum := width / colWidth
 	colWidth += (width - (colWidth * colNum)) / colNum
 
