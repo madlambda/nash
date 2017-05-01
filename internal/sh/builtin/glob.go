@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"fmt"
 	"io"
 	"path/filepath"
 
@@ -22,10 +23,12 @@ func (p *globFn) ArgNames() []string {
 	return []string{"fmt", "args..."}
 }
 
-func (g *globFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
+func (g *globFn) Run(in io.Reader, out io.Writer, e io.Writer) ([]sh.Obj, error) {
 	listobjs := []sh.Obj{}
-	matches, _ := filepath.Glob(g.pattern)
-	// TODO: exercise error
+	matches, err := filepath.Glob(g.pattern)
+	if err != nil {
+		return nil, fmt.Errorf("glob:error: %q", err)
+	}
 	for _, match := range matches {
 		listobjs = append(listobjs, sh.NewStrObj(match))
 	}

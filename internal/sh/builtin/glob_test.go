@@ -117,4 +117,8 @@ func TestGlobWrongType(t *testing.T) {
 }
 
 func TestGlobInvalidPatternError(t *testing.T) {
+	execFailure(t, `
+		res <= glob("*[.go")
+		print($res)
+	`)
 }
