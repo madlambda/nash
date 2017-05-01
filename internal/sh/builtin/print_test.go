@@ -71,19 +71,7 @@ func TestPrint(t *testing.T) {
 
 	for name, desc := range tests {
 		t.Run(name, func(t *testing.T) {
-			shell, err := nash.New()
-
-			if err != nil {
-				t.Fatalf("unexpected err: %s", err)
-			}
-
-			out, err := shell.ExecOutput("", desc.script)
-
-			if err != nil {
-				t.Fatalf("unexpected err: %s", err)
-			}
-
-			output := string(out)
+			output := execSuccess(t, desc.script)
 			if output != desc.output {
 				t.Fatalf("got %q expected %q", output, desc.output)
 			}
