@@ -102,6 +102,10 @@ func TestGlobMultipleResults(t *testing.T) {
 }
 
 func TestGlobNoParamError(t *testing.T) {
+	execFailure(t, `
+		res <= glob()
+		print($res)
+	`)
 }
 
 func TestGlobInvalidPatternError(t *testing.T) {

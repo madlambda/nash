@@ -4,6 +4,7 @@ import (
 	"io"
 	"path/filepath"
 
+	"github.com/NeowayLabs/nash/errors"
 	"github.com/NeowayLabs/nash/sh"
 )
 
@@ -32,9 +33,9 @@ func (g *globFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, erro
 }
 
 func (g *globFn) SetArgs(args []sh.Obj) error {
-	//if len(args) == 0 {
-	//return errors.NewError("glob expects at least 1 argument")
-	//}
+	if len(args) == 0 {
+		return errors.NewError("glob expects 1 string argument (the pattern)")
+	}
 
 	obj := args[0]
 	//if obj.Type() != sh.StringType {

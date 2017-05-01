@@ -1,10 +1,6 @@
 package builtin_test
 
-import (
-	"testing"
-
-	"github.com/NeowayLabs/nash"
-)
+import "testing"
 
 func TestPrint(t *testing.T) {
 	type printDesc struct {
@@ -92,21 +88,7 @@ func TestPrintErrors(t *testing.T) {
 
 	for name, desc := range tests {
 		t.Run(name, func(t *testing.T) {
-			shell, err := nash.New()
-
-			if err != nil {
-				t.Fatalf("unexpected err: %s", err)
-			}
-
-			out, err := shell.ExecOutput("", desc.script)
-
-			if err == nil {
-				t.Fatalf("expected err, got success, output: %s", string(out))
-			}
-
-			if len(out) > 0 {
-				t.Fatalf("expected empty output, got: %s", string(out))
-			}
+			execFailure(t, desc.script)
 		})
 	}
 }
