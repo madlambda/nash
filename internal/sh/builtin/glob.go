@@ -24,6 +24,7 @@ func (p *globFn) ArgNames() []string {
 func (g *globFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
 	listobjs := []sh.Obj{}
 	matches, _ := filepath.Glob(g.pattern)
+	// TODO: exercise error
 	for _, match := range matches {
 		listobjs = append(listobjs, sh.NewStrObj(match))
 	}
