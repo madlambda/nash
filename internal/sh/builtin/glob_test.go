@@ -108,5 +108,13 @@ func TestGlobNoParamError(t *testing.T) {
 	`)
 }
 
+func TestGlobWrongType(t *testing.T) {
+	execFailure(t, `
+		param = ("hi")
+		res <= glob($param)
+		print($res)
+	`)
+}
+
 func TestGlobInvalidPatternError(t *testing.T) {
 }

@@ -38,12 +38,12 @@ func (g *globFn) SetArgs(args []sh.Obj) error {
 	}
 
 	obj := args[0]
-	//if obj.Type() != sh.StringType {
-	//return errors.NewError(
-	//"exit expects a status string, but a %s was provided",
-	//obj.Type(),
-	//)
-	//}
+	if obj.Type() != sh.StringType {
+		return errors.NewError(
+			"glob expects a pattern string, but a %s was provided",
+			obj.Type(),
+		)
+	}
 	g.pattern = obj.(*sh.StrObj).Str()
 	return nil
 }
