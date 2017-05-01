@@ -18,16 +18,25 @@ func setup(t *testing.T) (string, func()) {
 	}
 }
 
+func createFile(t *testing.T, path string) {
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.WriteString("hi")
+	f.Close()
+}
+
 func TestGlobNoResult(t *testing.T) {
 	dir, teardown := setup(t)
 	defer teardown()
 
-	filenotfound := dir + "/*.la"
+	pattern := dir + "/*.la"
 
 	out := execSuccess(t, fmt.Sprintf(`
 		res <= glob("%s")
 		print($res)
-	`, filenotfound))
+	`, pattern))
 
 	if out != "" {
 		t.Fatalf("expected no results, got: %q", out)
@@ -35,6 +44,21 @@ func TestGlobNoResult(t *testing.T) {
 }
 
 func TestGlobOneResult(t *testing.T) {
+	dir, teardown := setup(t)
+	defer teardown()
+
+	filename := dir + "/whatever.go"
+	createFile(t, filename)
+	pattern := dir + "/*.go"
+
+	out := execSuccess(t, fmt.Sprintf(`
+		res <= glob("%s")
+		print($res)
+	`, pattern))
+
+	if out != filename {
+		t.Fatalf("expected %q, got: %q", filename, out)
+	}
 }
 
 func TestGlobMultipleResults(t *testing.T) {
