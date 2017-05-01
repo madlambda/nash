@@ -3,6 +3,7 @@
 package nash
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 
@@ -97,6 +98,26 @@ func (nash *Shell) SetNashdPath(path string) {
 // setting path to this filename should improve debugging (or no).
 func (nash *Shell) Exec(path, content string) error {
 	return nash.interp.Exec(path, content)
+}
+
+// ExecOutput executes the code specified by string content.
+//
+// It behaves like **Exec** with the exception that it will ignore any
+// stdout parameter (and the default os.Stdout) and will return the
+// whole stdout output in memory.
+//
+// This method has no side effects, it will preserve any previously
+// setted stdout, it will only ignore the configured stdout to run
+// the provided script content;
+func (nash *Shell) ExecOutput(path, content string) ([]byte, error) {
+	oldstdout := nash.Stdout()
+	defer nash.SetStdout(oldstdout)
+
+	var output bytes.Buffer
+	nash.SetStdout(&output)
+
+	err := nash.interp.Exec(path, content)
+	return output.Bytes(), err
 }
 
 // ExecuteString executes the script content.

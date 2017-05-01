@@ -1,7 +1,6 @@
 package builtin_test
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/NeowayLabs/nash"
@@ -87,22 +86,20 @@ func TestFormat(t *testing.T) {
 
 	for name, desc := range tests {
 		t.Run(name, func(t *testing.T) {
-			var output bytes.Buffer
 			shell, err := nash.New()
+			if err != nil {
+				t.Fatalf("unexpected err: %s", err)
+			}
+
+			out, err := shell.ExecOutput("", desc.script)
 
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
 
-			shell.SetStdout(&output)
-			err = shell.Exec("", desc.script)
-
-			if err != nil {
-				t.Fatalf("unexpected err: %s", err)
-			}
-
-			if output.String() != desc.output {
-				t.Fatalf("got %q expected %q", output.String(), desc.output)
+			output := string(out)
+			if output != desc.output {
+				t.Fatalf("got %q expected %q", output, desc.output)
 			}
 		})
 	}
@@ -119,22 +116,20 @@ func TestFormatfErrors(t *testing.T) {
 
 	for name, desc := range tests {
 		t.Run(name, func(t *testing.T) {
-			var output bytes.Buffer
 			shell, err := nash.New()
 
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
 
-			shell.SetStdout(&output)
-			err = shell.Exec("", desc.script)
+			out, err := shell.ExecOutput("", desc.script)
 
 			if err == nil {
-				t.Fatalf("expected err, got success, output: %s", output)
+				t.Fatalf("expected err, got success, output: %s", string(out))
 			}
 
-			if output.Len() > 0 {
-				t.Fatalf("expected empty output, got: %s", output)
+			if len(out) > 0 {
+				t.Fatalf("expected empty output, got: %s", string(out))
 			}
 		})
 	}
