@@ -21,6 +21,33 @@ func TestFormat(t *testing.T) {
 			`,
 			output: "helloworld\n",
 		},
+		"ncallsRegressionTest": {
+			script: `
+				fn formatstuff() {
+					r <= format("helloworld")
+					s <= format("hacktheworld")
+					echo $r
+					echo $s
+				}
+				formatstuff()
+				formatstuff()
+			`,
+			output: "helloworld\nhacktheworld\nhelloworld\nhacktheworld\n",
+		},
+		"ncallsWithVarsRegressionTest": {
+			script: `
+				fn formatstuff() {
+					b = "world"
+					r <= format("hello%s", $b)
+					s <= format("hackthe%s", $b)
+					echo $r
+					echo $s
+				}
+				formatstuff()
+				formatstuff()
+			`,
+			output: "helloworld\nhacktheworld\nhelloworld\nhacktheworld\n",
+		},
 		"fmtstring": {
 			script: `
 				r <= format("%s:%s", "hello", "world")
