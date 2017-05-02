@@ -33,6 +33,8 @@ func (f *formatFn) SetArgs(args []sh.Obj) error {
 	}
 
 	f.fmt = args[0].String()
+	f.args = nil
+
 	for _, arg := range args[1:] {
 		f.args = append(f.args, arg.String())
 	}

@@ -13,9 +13,16 @@ func TestPrint(t *testing.T) {
 			script: `print("helloworld")`,
 			output: "helloworld",
 		},
-		"fmtstring": {
+		"nCallsRegresion": {
 			script: `print("%s:%s", "hello", "world")`,
 			output: "hello:world",
+		},
+		"fmtstring": {
+			script: `
+				print("%s:%s", "hello", "world")
+				print("%s:%s", "hello", "world")
+			`,
+			output: "hello:worldhello:world",
 		},
 		"fmtlist": {
 			script: `
