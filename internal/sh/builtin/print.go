@@ -24,7 +24,7 @@ func (p *printFn) ArgNames() []string {
 }
 
 func (p *printFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
-	fmt.Fprintf(out, p.fmt, p.args...)
+	fmt.Fprintf(out, p.fmt+"\n", p.args...)
 	return nil, nil
 }
 
