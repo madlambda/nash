@@ -1323,6 +1323,9 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 		return nil, ignoreError, err
 	}
 
+	cmd.SetStdin(shell.stdin)
+	cmd.SetStderr(shell.stderr)
+
 	return cmd, ignoreError, nil
 }
 
@@ -1367,9 +1370,7 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 		goto cmdError
 	}
 
-	cmd.SetStdin(shell.stdin)
 	cmd.SetStdout(shell.stdout)
-	cmd.SetStderr(shell.stderr)
 
 	closeAfterWait, err = shell.setRedirects(cmd, c.Redirects())
 
