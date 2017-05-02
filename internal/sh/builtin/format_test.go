@@ -24,15 +24,13 @@ func TestFormat(t *testing.T) {
 		"ncallsRegressionTest": {
 			script: `
 				fn formatstuff() {
-					r <= format("helloworld")
-					s <= format("hacktheworld")
+					r <= format("hello%s", "world")
 					echo $r
-					echo $s
 				}
 				formatstuff()
 				formatstuff()
 			`,
-			output: "helloworld\nhacktheworld\nhelloworld\nhacktheworld\n",
+			output: "helloworld\nhelloworld\n",
 		},
 		"ncallsWithVarsRegressionTest": {
 			script: `

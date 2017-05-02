@@ -34,6 +34,7 @@ func (p *printFn) SetArgs(args []sh.Obj) error {
 	}
 
 	p.fmt = args[0].String()
+	p.args = nil
 	for _, arg := range args[1:] {
 		p.args = append(p.args, arg.String())
 	}
