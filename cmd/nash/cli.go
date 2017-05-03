@@ -47,8 +47,6 @@ func execFn(shell *nash.Shell, fn sh.Fn) {
 }
 
 func setupCli(shell *nash.Shell) error {
-	// initShell will run only if the nash command is ran
-	// without arguments or interactive flag, hence interactive mode
 	shell.SetInteractive(true)
 	initFile := shell.DotDir() + "/init"
 
