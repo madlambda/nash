@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"fmt"
 	"io"
 	"path/filepath"
 
@@ -27,7 +26,7 @@ func (g *globFn) Run(in io.Reader, out io.Writer, e io.Writer) ([]sh.Obj, error)
 	listobjs := []sh.Obj{}
 	matches, err := filepath.Glob(g.pattern)
 	if err != nil {
-		return nil, fmt.Errorf("glob:error: %q", err)
+		return nil, errors.NewError("glob:error: %q", err)
 	}
 	for _, match := range matches {
 		listobjs = append(listobjs, sh.NewStrObj(match))
