@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"testing"
@@ -80,22 +81,30 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 
 	if err != nil {
 		if err.Error() != testcase.expectedErr {
-			t.Errorf("Error differs: Expected '%s' but got '%s'",
-				testcase.expectedErr, err.Error())
+			t.Errorf("[%s] Error differs: Expected '%s' but got '%s'",
+				testcase.desc,
+				testcase.expectedErr,
+				err.Error())
 		}
 	}
 
 	if testcase.expectedStdout != string(bout.Bytes()) {
-		t.Errorf("Stdout differs: '%s' != '%s'", testcase.expectedStdout,
+		t.Errorf("[%s] Stdout differs: '%s' != '%s'",
+			testcase.desc,
+			testcase.expectedStdout,
 			string(bout.Bytes()))
 		return
 	}
 
 	if testcase.expectedStderr != string(berr.Bytes()) {
-		t.Errorf("Stderr differs: '%s' != '%s'", testcase.expectedStderr,
+		t.Errorf("[%s] Stderr differs: '%s' != '%s'",
+			testcase.desc,
+			testcase.expectedStderr,
 			string(berr.Bytes()))
 		return
 	}
+	bout.Reset()
+	berr.Reset()
 }
 
 func testExec(t *testing.T, testcase execTestCase) {
@@ -1173,54 +1182,52 @@ func TestExecuteBindFn(t *testing.T) {
 }
 
 func TestExecutePipe(t *testing.T) {
-	var out bytes.Buffer
 
-	path := os.Getenv("PATH")
-	path = "/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin:" + path
+	for _, test := range []execTestCase{
+		{
+			"test pipe",
+			`echo hello | tr -d "[:space:]"`,
+			"hello", "", "",
+		},
+		{
+			"test pipe 3",
+			`echo hello | wc -l | tr -d "[:space:]"`,
+			"1", "", "",
+		},
+	} {
+		testExec(t, test)
+	}
+}
 
-	os.Setenv("PATH", path)
+func TestExecuteRedirectionPipe(t *testing.T) {
+	var stderr bytes.Buffer
 
-	shell, err := NewShell()
+	cmd := exec.Command(nashdPath, "-c", `cat stuff >[2=] | grep file`)
+
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+
+	expectedError := "exit status 1"
 
 	if err != nil {
-		t.Error(err)
-		return
+		if err.Error() != expectedError {
+			t.Errorf("Error differs: Expected '%s' but got '%s'",
+				expectedError,
+				err.Error())
+			return
+		}
 	}
 
-	shell.SetNashdPath(nashdPath)
-	shell.SetStdout(&out)
+	expectedStdErr := "<interactive>:1:16: exit status 1|success"
+	strErr := strings.TrimSpace(string(stderr.Bytes()))
 
-	err = shell.Exec("test pipe", `echo hello | wc -l`)
-
-	if err != nil {
-		t.Error(err)
+	if strErr != expectedStdErr {
+		t.Errorf("Expected stderr to be '%s' but got '%s'",
+			expectedStdErr,
+			strErr)
 		return
 	}
-
-	strOut := strings.TrimSpace(string(out.Bytes()))
-
-	if strOut != "1" {
-		t.Errorf("Expected '1' but found '%s'", strOut)
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("test pipe 3", `echo hello | wc -l | grep 1`)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	strOut = strings.TrimSpace(string(out.Bytes()))
-
-	if strOut != "1" {
-		t.Errorf("Expected '1' but found '%s'", strOut)
-		return
-	}
-
-	out.Reset()
 }
 
 func testTCPRedirection(t *testing.T, port, command string) {

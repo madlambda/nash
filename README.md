@@ -1,3 +1,24 @@
+<!-- mdtocstart -->
+# Table of Contents
+
+- [nash](#nash)
+- [Show time!](#show-time)
+    - [Useful stuff](#useful-stuff)
+    - [Why nash scripts are reliable?](#why-nash-scripts-are-reliable)
+    - [Installation](#installation)
+    - [Getting started](#getting-started)
+- [Accessing command line args](#accessing-command-line-args)
+- [Namespace features](#namespace-features)
+- [OK, but how scripts should look like?](#ok-but-how-scripts-should-look-like)
+- [Didn't work?](#didnt-work)
+- [Language specification](#language-specification)
+- [Some Bash comparisons](#some-bash-comparisons)
+- [Security](#security)
+- [Concept](#concept)
+- [Motivation](#motivation)
+- [Want to contribute?](#want-to-contribute)
+<!-- mdtocend -->
+
 # nash
 
 [![Join the chat at https://gitter.im/NeowayLabs/nash](https://badges.gitter.im/NeowayLabs/nash.svg)](https://gitter.im/NeowayLabs/nash?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![GoDoc](https://godoc.org/github.com/NeowayLabs/nash?status.svg)](https://godoc.org/github.com/NeowayLabs/nash) 
@@ -91,10 +112,12 @@ for f in $files {
 }
 ```
 
-To avoid problems with spaces in variables being passed as multiple arguments to commands,
-nash pass the contents of each variable as a single argument to the command. It works like
-enclosing every variable with quotes before executing the command. Then the following example
-do the right thing:
+To avoid problems with spaces in variables being passed as
+multiple arguments to commands, nash pass the contents of each
+variable as a single argument to the command. It works like
+enclosing every variable with quotes before executing the command.
+Then the following example do the right thing:
+
 ```sh
 fullname = "John Nash"
 ./ci-register --name $fullname --option somevalue
@@ -103,44 +126,14 @@ On bash you need to enclose the `$fullname` variable in quotes to avoid problems
 
 Nash syntax does not support shell expansion from strings. There's no way to
 do things like the following in nash:
+
 ```bash
 echo "The date is: $(date +%D)" # DOESNT WORKS!
 ```
-Instead you need to assign each command output to a proper variable and then concat
-it with another string when needed. In nash, the example above must be something
-like that:
-```sh
-today <= date "+%D"
-echo "The date is: " + $today
-```
-The concat operator (+) could be used between variables and literal strings.
 
-Functions can be declared with "fn" keyword:
-```sh
-fn cd(path) {
-    fullpath <= realpath $path | xargs echo -n
-    chdir($path)
-    PROMPT="[" + $fullpath + "]> "
-    setenv PROMPT
-}
-```
+Instead you need to assign each command output to a proper variable and then
+concat it with another string when needed (see the [reference docs](./doc/reference.md)).
 
-And can be invoked as a normal function invocation:
-```sh
-λ> cd("/etc")
-[/etc]>
-```
-Functions are commonly used for nash libraries, but when needed it can be bind'ed
-to some command name. Using the `cd` function below, we can override the builtin `cd`
-with that command with `bindfn` statement.
-```sh
-λ> # bindfn syntax is:
-λ> # bindfn <function-name> <cmd-name>
-λ> bindfn cd cd
-λ> cd /var/log
-[/var/log]>
-```
-The only control statements available are `if`, `else` and `for`.
 In the same way, nash doesn't support shell expansion at `if` condition.
 For check if a directory exists you must use:
 ```sh
@@ -174,7 +167,7 @@ For example, trying to evaluate an unbound variable aborts the program with erro
 ERROR: Variable '$bleh' not set
 ```
 
-Long commands can be splited in multiple lines:
+Long commands can be split in multiple lines:
 
 ```sh
 λ> (aws ec2 attach-internet-gateway	--internet-gateway-id $igwid

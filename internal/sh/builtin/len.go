@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"io"
 	"strconv"
 
 	"github.com/NeowayLabs/nash/errors"
@@ -25,7 +26,7 @@ func lenresult(res int) []sh.Obj {
 	return []sh.Obj{sh.NewStrObj(strconv.Itoa(res))}
 }
 
-func (l *lenFn) Run() ([]sh.Obj, error) {
+func (l *lenFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
 	if l.arg.Type() == sh.ListType {
 		arglist := l.arg.(*sh.ListObj)
 		return lenresult(len(arglist.List())), nil

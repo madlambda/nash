@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"io"
 	"strings"
 
 	"github.com/NeowayLabs/nash/errors"
@@ -22,7 +23,7 @@ func (s *splitFn) ArgNames() []string {
 	return []string{"sep", "content"}
 }
 
-func (s *splitFn) Run() ([]sh.Obj, error) {
+func (s *splitFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
 	var output []string
 
 	content := s.content

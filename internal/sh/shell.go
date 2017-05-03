@@ -386,13 +386,22 @@ func (shell *Shell) SetNashdPath(path string) {
 }
 
 // SetStdin sets the stdin for commands
-func (shell *Shell) SetStdin(in io.Reader) { shell.stdin = in }
+func (shell *Shell) SetStdin(in io.Reader) {
+	shell.stdin = in
+	shell.updateBuiltinFnIO()
+}
 
 // SetStdout sets stdout for commands
-func (shell *Shell) SetStdout(out io.Writer) { shell.stdout = out }
+func (shell *Shell) SetStdout(out io.Writer) {
+	shell.stdout = out
+	shell.updateBuiltinFnIO()
+}
 
 // SetStderr sets stderr for commands
-func (shell *Shell) SetStderr(err io.Writer) { shell.stderr = err }
+func (shell *Shell) SetStderr(err io.Writer) {
+	shell.stderr = err
+	shell.updateBuiltinFnIO()
+}
 
 func (shell *Shell) Stdout() io.Writer { return shell.stdout }
 func (shell *Shell) Stderr() io.Writer { return shell.stderr }
@@ -435,6 +444,14 @@ func (shell *Shell) setupBuiltin() {
 		)
 		shell.builtins[name] = fn
 		shell.Setvar(name, sh.NewFnObj(fn))
+	}
+}
+
+func (shell *Shell) updateBuiltinFnIO() {
+	for _, builtinfn := range shell.builtins {
+		builtinfn.SetStdin(shell.stdin)
+		builtinfn.SetStdout(shell.stdout)
+		builtinfn.SetStderr(shell.stderr)
 	}
 }
 
@@ -948,7 +965,6 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) (sh.Obj, error) {
 		}
 
 		cmd.SetStdin(shell.stdin)
-		cmd.SetStderr(shell.stderr)
 
 		if i < last {
 			closeFiles, err = shell.setRedirects(cmd, nodeCmd.Redirects())
@@ -972,8 +988,6 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) (sh.Obj, error) {
 		var (
 			stdin io.ReadCloser
 		)
-
-		cmd.SetStderr(shell.stderr)
 
 		stdin, err = cmd.StdoutPipe()
 
@@ -1184,6 +1198,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			cmd.SetStdout(file)
+			closeAfterWait = append(closeAfterWait, file)
 		}
 	case 2:
 		switch redirDecl.RightFD() {
@@ -1216,6 +1231,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			cmd.SetStderr(file)
+			closeAfterWait = append(closeAfterWait, file)
 		}
 	case ast.RedirMapNoValue:
 		if redirDecl.Location() == nil {

@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 
@@ -23,7 +24,7 @@ func (e *exitFn) ArgNames() []string {
 	return []string{"status"}
 }
 
-func (e *exitFn) Run() ([]sh.Obj, error) {
+func (e *exitFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
 	os.Exit(e.status)
 	return nil, nil //Unrecheable code
 }
