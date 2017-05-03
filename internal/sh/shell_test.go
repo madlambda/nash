@@ -1047,8 +1047,7 @@ path="AAA"
 	got := string(out.Bytes())
 	expected := "1"
 	if got != expected {
-		t.Errorf("String differs: '%s' != '%s'", got, expected)
-		return
+		t.Fatalf("String differs: '%s' != '%s'", got, expected)
 	}
 
 }

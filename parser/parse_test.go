@@ -947,8 +947,7 @@ func TestParseFuncall(t *testing.T) {
 		parser := NewParser("test", tc)
 		_, err := parser.Parse()
 		if err != nil {
-			t.Error(err)
-			return
+			t.Fatal(err)
 		}
 	}
 }
@@ -967,8 +966,7 @@ func TestParseFuncallInvalid(t *testing.T) {
 		parser := NewParser("test", tc)
 		_, err := parser.Parse()
 		if err == nil {
-			t.Errorf("Syntax '%s' must fail...", tc)
-			return
+			t.Fatalf("Syntax '%s' must fail...", tc)
 		}
 	}
 }
