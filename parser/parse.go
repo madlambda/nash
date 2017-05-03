@@ -1143,15 +1143,21 @@ func (p *Parser) parseFnInv(ident scanner.Token, allowSemicolon bool) (ast.Node,
 			} else {
 				goto parseError
 			}
-		} else {
-			goto parseError
 		}
 
-		if p.peek().Type() == token.Comma {
+		it = p.peek()
+		if it.Type() == token.Comma {
 			p.ignore()
 
 			continue
 		}
+
+		if it.Type() == token.RParen {
+			p.next()
+			break
+		}
+
+		goto parseError
 	}
 
 	// semicolon is optional here
