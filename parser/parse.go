@@ -1104,7 +1104,6 @@ func (p *Parser) parseFnInv(ident scanner.Token, allowSemicolon bool) (ast.Node,
 	n := ast.NewFnInvNode(ident.FileInfo, ident.Value())
 
 	it := p.next()
-
 	if it.Type() != token.LParen {
 		return nil, newParserError(it, p.name, "Invalid token %v. Expected '('", it)
 	}
@@ -1120,6 +1119,12 @@ func (p *Parser) parseFnInv(ident scanner.Token, allowSemicolon bool) (ast.Node,
 			}
 
 			n.AddArg(arg)
+		} else if it.Type() == token.LParen {
+			listArg, err := p.parseList(nil)
+			if err != nil {
+				return nil, err
+			}
+			n.AddArg(listArg)
 		} else if it.Type() == token.RParen {
 			p.next()
 			break
@@ -1130,7 +1135,6 @@ func (p *Parser) parseFnInv(ident scanner.Token, allowSemicolon bool) (ast.Node,
 
 			if it.Type() == token.LParen {
 				arg, err := p.parseFnInv(ident, false)
-
 				if err != nil {
 					return nil, err
 				}
@@ -1285,33 +1289,10 @@ func (p *Parser) parseReturn(retTok scanner.Token) (ast.Node, error) {
 		}
 
 		if tok.Type() == token.LParen {
-			listInfo := tok.FileInfo
-			p.ignore()
-
-			var values []ast.Expr
-
-			for tok = p.peek(); tok.Type() != token.RParen; tok = p.peek() {
-				if tok.Type() == token.EOF {
-					// list unfinished
-					break
-				}
-
-				arg, err := p.getArgument(true, true)
-
-				if err != nil {
-					return nil, err
-				}
-
-				values = append(values, arg)
+			listArg, err := p.parseList(nil)
+			if err != nil {
+				return nil, err
 			}
-
-			if tok.Type() != token.RParen {
-				return nil, errors.NewUnfinishedListError(p.name, tok)
-			}
-
-			p.ignore()
-
-			listArg := ast.NewListExpr(listInfo, values)
 			returnExprs = append(returnExprs, listArg)
 		} else if tok.Type() == token.Ident {
 			p.next()

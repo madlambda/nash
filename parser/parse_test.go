@@ -865,7 +865,7 @@ func TestParseIf(t *testing.T) {
 }`, expected, t, true)
 }
 
-func TestParseFnInv(t *testing.T) {
+func TestParseFuncall(t *testing.T) {
 	expected := ast.NewTree("fn inv")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	aFn := ast.NewFnInvNode(token.NewFileInfo(1, 0), "a")
@@ -907,6 +907,19 @@ func TestParseFnInv(t *testing.T) {
 	expected.Root = ln
 
 	parserTest("test fn composition", `a(b(b()))`, expected, t, true)
+
+	expected = ast.NewTree("fn inv list")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	aFn = ast.NewFnInvNode(token.NewFileInfo(1, 0), "a")
+	lExpr := ast.NewListExpr(token.NewFileInfo(1, 2), []ast.Expr{
+		ast.NewStringExpr(token.NewFileInfo(1, 4), "1", true),
+		ast.NewStringExpr(token.NewFileInfo(1, 8), "2", true),
+		ast.NewStringExpr(token.NewFileInfo(1, 12), "3", true),
+	})
+	aFn.AddArg(lExpr)
+	ln.Push(aFn)
+	expected.Root = ln
+	parserTest("test fn list arg", `a(("1" "2" "3"))`, expected, t, true)
 }
 
 func TestParseIfFnInv(t *testing.T) {
