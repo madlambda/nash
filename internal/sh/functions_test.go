@@ -21,27 +21,27 @@ func TestFunctionsClosures(t *testing.T) {
 			`,
 			expectedStdout: "12",
 		},
-		//{
-		//desc: "closuresSharingState",
-		//execStr: `
-		//fn func() {
-		//a = ()
-		//fn add(elem) {
-		//a <= append($a, $elem)
-		//}
-		//fn dump() {
-		//print($a)
-		//}
-		//return $add, $dump
-		//}
+		{
+			desc: "closuresSharingState",
+			execStr: `
+				fn func() {
+					a = ()
+					fn add(elem) {
+						a <= append($a, $elem)
+					}
+					fn view() {
+						print($a)
+					}
+					return $add, $view
+				}
 
-		//add, dump <= func()
-		//$add("1")
-		//$add("3")
-		//$dump()
-		//`,
-		//expectedStdout: "1 3",
-		//},
+				add, view <= func()
+				$add("1")
+				$add("3")
+				$view()
+			`,
+			expectedStdout: "1 3",
+		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
 			testExec(t, test)
