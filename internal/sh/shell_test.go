@@ -546,30 +546,40 @@ func TestExecuteRedirection(t *testing.T) {
 	}
 
 	shell.SetNashdPath(nashdPath)
-
 	path := "/tmp/nashell.test.txt"
+	defer os.Remove(path)
 
 	err = shell.Exec("redirect", `
         echo -n "hello world" > `+path+`
         `)
-
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	content, err := ioutil.ReadFile(path)
-
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
-	os.Remove(path)
-
 	if string(content) != "hello world" {
-		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
-		return
+		t.Fatalf("File differ: '%s' != '%s'", string(content), "hello world")
+	}
+
+	// Test redirection truncate the file
+	err = shell.Exec("redirect", `
+        echo -n "a" > `+path+`
+        `)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err = ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(content) != "a" {
+		t.Fatalf("File differ: '%s' != '%s'", string(content), "a")
 	}
 
 	// Test redirection to variable
@@ -579,12 +589,10 @@ func TestExecuteRedirection(t *testing.T) {
         `)
 
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	content, err = ioutil.ReadFile(path)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -594,8 +602,6 @@ func TestExecuteRedirection(t *testing.T) {
 		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
 		return
 	}
-
-	os.Remove(path)
 
 	// Test redirection to concat
 	err = shell.Exec("redirect", `
@@ -603,25 +609,20 @@ func TestExecuteRedirection(t *testing.T) {
 a = ".2"
         echo -n "hello world" > $location+$a
         `)
+	defer os.Remove(path + ".2")
 
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	content, err = ioutil.ReadFile(path + ".2")
-
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	if string(content) != "hello world" {
-		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
-		return
+		t.Fatalf("File differ: '%s' != '%s'", string(content), "hello world")
 	}
-
-	os.Remove(path + ".2")
 }
 
 func TestExecuteRedirectionMap(t *testing.T) {

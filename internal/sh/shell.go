@@ -1081,7 +1081,6 @@ func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, err
 	)
 
 	locationObj, err := shell.evalExpr(location)
-
 	if err != nil {
 		return nil, err
 	}
@@ -1106,7 +1105,7 @@ func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, err
 	}
 
 	if protocol == "" {
-		return os.OpenFile(locationStr, os.O_RDWR|os.O_CREATE, 0644)
+		return os.OpenFile(locationStr, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	}
 
 	switch protocol {
