@@ -22,25 +22,23 @@ func TestFunctionsClosures(t *testing.T) {
 			expectedStdout: "12",
 		},
 		{
-			desc: "closuresSharingState",
+			desc: "eachCallCreatesNewVar",
 			execStr: `
 				fn func() {
 					a = ()
 					fn add(elem) {
 						a <= append($a, $elem)
+						print("a:%s,",$a)
 					}
-					fn view() {
-						print($a)
-					}
-					return $add, $view
+					return $add
 				}
 
-				add, view <= func()
+				add <= func()
 				$add("1")
 				$add("3")
-				$view()
+				$add("5")
 			`,
-			expectedStdout: "1 3",
+			expectedStdout: "a:1,a:3,a:5,",
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
