@@ -19,7 +19,7 @@ func newGlob() *globFn {
 }
 
 func (p *globFn) ArgNames() []string {
-	return []string{"fmt", "args..."}
+	return []string{"pattern"}
 }
 
 func (g *globFn) Run(in io.Reader, out io.Writer, e io.Writer) ([]sh.Obj, error) {
