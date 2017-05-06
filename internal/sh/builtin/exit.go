@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"fmt"
 	"io"
 	"os"
 	"strconv"
@@ -44,7 +43,7 @@ func (e *exitFn) SetArgs(args []sh.Obj) error {
 	statusstr := obj.(*sh.StrObj).Str()
 	status, err := strconv.Atoi(statusstr)
 	if err != nil {
-		return fmt.Errorf(
+		return errors.NewError(
 			"exit:error[%s] converting status[%s] to int",
 			err,
 			statusstr,
