@@ -93,7 +93,8 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 		}
 	}
 
-	for i := 0; i < len(fn.argNames); i++ {
+	var i int
+	for i = 0; i < len(fn.argNames) && i < len(args); i++ {
 		arg := args[i]
 		argName := fn.argNames[i].Name
 		isVariadic := fn.argNames[i].IsVariadic
@@ -109,6 +110,15 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 		} else {
 			fn.Setvar(argName, arg)
 		}
+	}
+
+	// set remaining (variadic) list
+	if len(fn.argNames) > 0 && i < len(fn.argNames) {
+		last := fn.argNames[len(fn.argNames)-1]
+		if !last.IsVariadic {
+			return errors.NewError("internal error: optional arguments only for variadic parameter")
+		}
+		fn.Setvar(last.Name, sh.NewListObj([]sh.Obj{}))
 	}
 
 	return nil

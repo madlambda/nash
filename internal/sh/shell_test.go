@@ -2323,6 +2323,22 @@ print("%s %s %s %s", $args...)`,
 println()`,
 			expectedStdout: "\n",
 		},
+		{
+			desc: "the first argument isn't optional",
+			execStr: `fn a(b, c...) {
+    print($b, $c...)
+}
+a("test")`,
+			expectedStdout: "test",
+		},
+		{
+			desc: "the first argument isn't optional",
+			execStr: `fn a(b, c...) {
+    print($b, $c...)
+}
+a()`,
+			expectedErr: "Wrong number of arguments for function a. Expected at least 1 arguments but found 0",
+		},
 	} {
 		testExec(t, test)
 	}

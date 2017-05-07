@@ -956,7 +956,6 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) (sh.Obj, error) {
 		}
 
 		err = cmd.SetArgs(args)
-
 		if err != nil {
 			errIndex = i
 			goto pipeError
