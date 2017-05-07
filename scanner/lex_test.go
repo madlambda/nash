@@ -1178,7 +1178,7 @@ func TestLexerFnBasic(t *testing.T) {
 }`, expected, t)
 }
 
-func TestLexerFnInvocation(t *testing.T) {
+func TestLexerFuncall(t *testing.T) {
 	expected := []Token{
 		{typ: token.Ident, val: "build"},
 		{typ: token.LParen, val: "("},
@@ -1238,6 +1238,25 @@ func TestLexerFnInvocation(t *testing.T) {
 	}
 
 	testTable("test fn composition", `a(b())`, expected, t)
+
+	expected = []Token{
+		{typ: token.Ident, val: "ids_luns"},
+		{typ: token.AssignCmd, val: "<="},
+		{typ: token.Ident, val: "append"},
+		{typ: token.LParen, val: "("},
+		{typ: token.Variable, val: "$ids_luns"},
+		{typ: token.Comma, val: ","},
+		{typ: token.LParen, val: "("},
+		{typ: token.Variable, val: "$id"},
+		{typ: token.Variable, val: "$lun"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test katcipis bad mood", `ids_luns <= append($ids_luns, ($id $lun))`,
+		expected, t)
 }
 
 func TestLexerAssignCmdOut(t *testing.T) {
