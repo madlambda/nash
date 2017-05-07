@@ -286,7 +286,8 @@ func lexStart(l *Lexer) stateFn {
 		if next != eof && !isSpace(next) &&
 			!isEndOfLine(next) && next != ';' &&
 			next != ')' && next != ',' && next != '+' &&
-			next != '[' && next != ']' && next != '(' {
+			next != '[' && next != ']' && next != '(' &&
+			next != '.' {
 			l.errorf("Unrecognized character in action: %#U", next)
 			return nil
 		}
@@ -348,6 +349,17 @@ func lexStart(l *Lexer) stateFn {
 		return lexStart
 	case r == ',':
 		l.emit(token.Comma)
+		return lexStart
+	case r == '.':
+		if r = l.peek(); r != '.' {
+			return lexStart
+		}
+		l.next()
+		if r = l.peek(); r != '.' {
+			return lexStart
+		}
+		l.next()
+		l.emit(token.Dotdotdot)
 		return lexStart
 	case isIdentifier(r):
 		// nash literals are lowercase

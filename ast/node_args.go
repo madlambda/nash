@@ -84,20 +84,19 @@ func (i *IntExpr) IsEqual(other Node) bool {
 	return i.val == o.val
 }
 
-func NewListExpr(info token.FileInfo, values []Expr) *ListExpr {
+func NewListExpr(info token.FileInfo, values []Expr, variadic bool) *ListExpr {
 	return &ListExpr{
 		NodeType: NodeListExpr,
 		FileInfo: info,
 
-		list: values,
+		List:       values,
+		IsVariadic: variadic,
 	}
 }
 
-func (l *ListExpr) List() []Expr { return l.list }
-
 // PushExpr push an expression to end of the list
 func (l *ListExpr) PushExpr(a Expr) {
-	l.list = append(l.list, a)
+	l.List = append(l.List, a)
 }
 
 func (l *ListExpr) IsEqual(other Node) bool {
@@ -111,14 +110,14 @@ func (l *ListExpr) IsEqual(other Node) bool {
 		return false
 	}
 
-	if len(l.list) != len(o.list) {
+	if len(l.List) != len(o.List) {
 		return false
 	}
 
-	for i := 0; i < len(l.list); i++ {
-		if !l.list[i].IsEqual(o.list[i]) {
-			debug("%v(%s) != %v(%s)", l.list[i], l.list[i].Type(),
-				o.list[i], o.list[i].Type())
+	for i := 0; i < len(l.List); i++ {
+		if !l.List[i].IsEqual(o.List[i]) {
+			debug("%v(%s) != %v(%s)", l.List[i], l.List[i].Type(),
+				o.List[i], o.List[i].Type())
 			return false
 		}
 	}
@@ -175,11 +174,9 @@ func NewVarExpr(info token.FileInfo, name string) *VarExpr {
 	return &VarExpr{
 		NodeType: NodeVarExpr,
 		FileInfo: info,
-		name:     name,
+		Name:     name,
 	}
 }
-
-func (v *VarExpr) Name() string { return v.name }
 
 func (v *VarExpr) IsEqual(other Node) bool {
 	if !v.equal(v, other) {
@@ -187,26 +184,24 @@ func (v *VarExpr) IsEqual(other Node) bool {
 	}
 
 	o, ok := other.(*VarExpr)
-
 	if !ok {
 		return false
 	}
 
-	return v.name == o.name
+	return v.Name == o.Name &&
+		v.IsVariadic == o.IsVariadic
 }
 
-func NewIndexExpr(info token.FileInfo, variable *VarExpr, index Expr) *IndexExpr {
+func NewIndexExpr(info token.FileInfo, va *VarExpr, idx Expr, variadic bool) *IndexExpr {
 	return &IndexExpr{
 		NodeType: NodeIndexExpr,
 		FileInfo: info,
 
-		variable: variable,
-		index:    index,
+		Var:        va,
+		Index:      idx,
+		IsVariadic: variadic,
 	}
 }
-
-func (i *IndexExpr) Var() *VarExpr { return i.variable }
-func (i *IndexExpr) Index() Expr   { return i.index }
 
 func (i *IndexExpr) IsEqual(other Node) bool {
 	if !i.equal(i, other) {
@@ -214,10 +209,11 @@ func (i *IndexExpr) IsEqual(other Node) bool {
 	}
 
 	o, ok := other.(*IndexExpr)
-
 	if !ok {
 		return false
 	}
 
-	return i.variable.IsEqual(o.variable) && i.index.IsEqual(o.index)
+	return i.Var.IsEqual(o.Var) &&
+		i.Index.IsEqual(o.Index) &&
+		i.IsVariadic == o.IsVariadic
 }

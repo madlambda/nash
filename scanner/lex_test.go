@@ -1827,3 +1827,30 @@ func TestLexerLongAssignment(t *testing.T) {
 	jq ".GroupId" |
 	xargs echo -n)`, expected, t)
 }
+
+func TestLexerVarArgs(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "println"},
+		{typ: token.LParen, val: "("},
+		{typ: token.Ident, val: "fmt"},
+		{typ: token.Comma, val: ","},
+		{typ: token.Dotdotdot, val: "..."},
+		{typ: token.Ident, val: "args"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.LBrace, val: "{"},
+		{typ: token.Ident, val: "print"},
+		{typ: token.LParen, val: "("},
+		{typ: token.Variable, val: "$fmt"},
+		{typ: token.Comma, val: ","},
+		{typ: token.Variable, val: "$args"},
+		{typ: token.Dotdotdot, val: "..."},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.RBrace, val: "}"},
+		{typ: token.EOF},
+	}
+
+	testTable("test var args", `println(fmt, ...args) {
+	print($fmt, $args...)
+}`, expected, t)
+}

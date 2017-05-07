@@ -49,6 +49,7 @@ const (
 	Pipe
 
 	Comma
+	Dotdotdot
 
 	Variable
 
@@ -99,7 +100,8 @@ var tokens = [...]string{
 	RBrack: "]",
 	Pipe:   "|",
 
-	Comma: ",",
+	Comma:     ",",
+	Dotdotdot: "...",
 
 	Variable: "VARIABLE",
 

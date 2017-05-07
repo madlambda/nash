@@ -133,14 +133,12 @@ func cmdArgs(nodeArgs []ast.Expr, envShell *Shell) ([]sh.Obj, error) {
 	for i := 0; i < len(nodeArgs); i++ {
 		carg := nodeArgs[i]
 
-		obj, err := envShell.evalExpr(carg)
-
+		objs, err := envShell.evalExpr(carg)
 		if err != nil {
 			return nil, err
 		}
 
-		args = append(args, obj)
-
+		args = append(args, objs)
 	}
 
 	return args, nil

@@ -10,8 +10,13 @@ import (
 )
 
 type (
+	FnArg struct {
+		Name       string
+		IsVariadic bool
+	}
+
 	UserFn struct {
-		argNames []string   // argNames store parameter name
+		argNames []FnArg    // argNames store parameter name
 		done     chan error // for async execution
 		results  []sh.Obj
 
@@ -41,22 +46,38 @@ func NewUserFn(name string, parent *Shell) (*UserFn, error) {
 	return &fn, nil
 }
 
-func (fn *UserFn) ArgNames() []string { return fn.argNames }
+func (fn *UserFn) ArgNames() []FnArg { return fn.argNames }
 
-func (fn *UserFn) AddArgName(name string) {
-	fn.argNames = append(fn.argNames, name)
+func (fn *UserFn) AddArgName(arg FnArg) {
+	fn.argNames = append(fn.argNames, arg)
 }
 
 func (fn *UserFn) SetArgs(args []sh.Obj) error {
-	if len(fn.argNames) != len(args) {
+	if len(args) < len(fn.argNames) {
 		return errors.NewError("Wrong number of arguments for function %s. Expected %d but found %d",
 			fn.name, len(fn.argNames), len(args))
 	}
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
-		argName := fn.argNames[i]
-		fn.Setvar(argName, arg)
+		argName := fn.argNames[i].Name
+		isVariadic := fn.argNames[i].IsVariadic
+
+		if isVariadic {
+			if i != len(fn.argNames)-1 {
+				return errors.NewError("variadic expansion must be last argument")
+			}
+			var valist []sh.Obj
+
+			for ; i < len(args); i++ {
+				arg = args[i]
+				valist = append(valist, arg)
+			}
+			valistarg := sh.NewListObj(valist)
+			fn.Setvar(argName, valistarg)
+		} else {
+			fn.Setvar(argName, arg)
+		}
 	}
 
 	return nil

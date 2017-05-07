@@ -262,16 +262,19 @@ func (p *Parser) parseVariable(tok *scanner.Token) (ast.Expr, error) {
 	variable := ast.NewVarExpr(it.FileInfo, it.Value())
 
 	it = p.peek()
-
 	if it.Type() == token.LBrack {
 		p.ignore()
 		index, err := p.parseIndexing()
-
 		if err != nil {
 			return nil, err
 		}
 
-		return ast.NewIndexExpr(variable.FileInfo, variable, index), nil
+		isVariadic := p.peek().Type() == token.Dotdotdot
+		indexedVar := ast.NewIndexExpr(variable.FileInfo, variable, index, isVariadic)
+		if isVariadic {
+			p.ignore()
+		}
+		return indexedVar, nil
 	}
 
 	return variable, nil
@@ -777,7 +780,13 @@ func (p *Parser) parseList(tok *scanner.Token) (ast.Node, error) {
 	}
 
 	p.ignore()
-	return ast.NewListExpr(lit.FileInfo, values), nil
+
+	var isVariadic bool
+	if p.peek().Type() == token.Dotdotdot {
+		isVariadic = true
+		p.ignore()
+	}
+	return ast.NewListExpr(lit.FileInfo, values, isVariadic), nil
 }
 
 func (p *Parser) parseAssignValues(names []*ast.NameNode) (ast.Node, error) {
@@ -1006,8 +1015,8 @@ func (p *Parser) parseIf(it scanner.Token) (ast.Node, error) {
 	return n, nil
 }
 
-func (p *Parser) parseFnArgs() ([]string, error) {
-	var args []string
+func (p *Parser) parseFnArgs() ([]*ast.FnArgNode, error) {
+	var args []*ast.FnArgNode
 
 	if p.peek().Type() == token.RParen {
 		// no argument
@@ -1017,24 +1026,27 @@ func (p *Parser) parseFnArgs() ([]string, error) {
 
 	for {
 		it := p.next()
-
 		if it.Type() == token.Ident {
-			args = append(args, it.Value())
+			argName := it.Value()
+			isVariadic := false
+			if p.peek().Type() == token.Dotdotdot {
+				isVariadic = true
+				p.ignore()
+			}
+			args = append(args, ast.NewFnArgNode(it.FileInfo,
+				argName, isVariadic))
 		} else {
 			return nil, newParserError(it, p.name, "Unexpected token %v. Expected identifier or ')'", it)
 		}
 
 		it = p.peek()
-
 		if it.Type() == token.Comma {
 			p.ignore()
-
 			it = p.peek()
 
 			if it.Type() == token.RParen {
-				return nil, newParserError(it, p.name, "Unexpected '%v'", it)
+				break
 			}
-
 			continue
 		}
 
@@ -1043,7 +1055,6 @@ func (p *Parser) parseFnArgs() ([]string, error) {
 		}
 
 		p.ignore()
-
 		break
 	}
 
@@ -1054,7 +1065,6 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 	n := ast.NewFnDeclNode(it.FileInfo, "")
 
 	it = p.next()
-
 	if it.Type() == token.Ident {
 		n.SetName(it.Value())
 
@@ -1067,7 +1077,6 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 	}
 
 	args, err := p.parseFnArgs()
-
 	if err != nil {
 		return nil, err
 	}
