@@ -618,6 +618,16 @@ func TestParseCd(t *testing.T) {
 
 	parserTest("test cd into home", "cd", expected, t, true)
 
+	// test cd ..
+	expected = ast.NewTree("test cd ..")
+	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
+	cd = ast.NewCommandNode(token.NewFileInfo(1, 0), "cd", false)
+	cd.AddArg(ast.NewStringExpr(token.NewFileInfo(1, 3), "..", false))
+	ln.Push(cd)
+	expected.Root = ln
+
+	parserTest("test cd ..", "cd ..", expected, t, true)
+
 	expected = ast.NewTree("cd into HOME by setenv")
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 

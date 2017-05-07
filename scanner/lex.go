@@ -351,15 +351,19 @@ func lexStart(l *Lexer) stateFn {
 		l.emit(token.Comma)
 		return lexStart
 	case r == '.':
-		if r = l.peek(); r != '.' {
-			return lexStart
+		dotLine, dotColumn := l.line, l.column
+		next := l.peek()
+		if next == '.' {
+			l.next()
+			next = l.peek()
+			if next == '.' {
+				l.next()
+				l.emitVal(token.Dotdotdot, "...", dotLine, dotColumn)
+				return lexStart
+			}
 		}
-		l.next()
-		if r = l.peek(); r != '.' {
-			return lexStart
-		}
-		l.next()
-		l.emit(token.Dotdotdot)
+		absorbArgument(l)
+		l.emit(token.Arg)
 		return lexStart
 	case isIdentifier(r):
 		// nash literals are lowercase
@@ -379,6 +383,8 @@ func lexStart(l *Lexer) stateFn {
 				l.emit(token.Ident)
 			}
 		} else if next == '.' {
+			// because of shell idiosyncrasies I've to replicate
+			// almost same dotdotdot lex here...
 			ident := l.input[l.start:l.pos]
 			identLine, identCol := l.lineStart, l.columnStart
 			dotLine, dotColumn := l.line, l.column

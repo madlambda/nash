@@ -53,9 +53,44 @@ func (fn *UserFn) AddArgName(arg sh.FnArg) {
 }
 
 func (fn *UserFn) SetArgs(args []sh.Obj) error {
-	if len(args) < len(fn.argNames) {
-		return errors.NewError("Wrong number of arguments for function %s. Expected %d but found %d",
+	var (
+		isVariadic      bool
+		countNormalArgs int
+	)
+
+	for i := 0; i < len(fn.argNames); i++ {
+		argName := fn.argNames[i]
+		if argName.IsVariadic {
+			if i != len(fn.argNames)-1 {
+				return errors.NewError("variadic expansion must be last argument")
+			}
+			isVariadic = true
+		} else {
+			countNormalArgs++
+		}
+	}
+
+	if !isVariadic && len(args) != len(fn.argNames) {
+		return errors.NewError("Wrong number of arguments for function %s. "+
+			"Expected %d but found %d",
 			fn.name, len(fn.argNames), len(args))
+	}
+
+	if isVariadic {
+		if len(args) < countNormalArgs {
+			return errors.NewError("Wrong number of arguments for function %s. "+
+				"Expected at least %d arguments but found %d", fn.name,
+				countNormalArgs, len(args))
+		}
+
+		if len(args) == 0 {
+			// there's only a variadic (optional) argument
+			// and user supplied no argument...
+			// then only initialize the variadic variable to
+			// empty list
+			fn.Setvar(fn.argNames[0].Name, sh.NewListObj([]sh.Obj{}))
+			return nil
+		}
 	}
 
 	for i := 0; i < len(fn.argNames); i++ {
@@ -64,9 +99,6 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 		isVariadic := fn.argNames[i].IsVariadic
 
 		if isVariadic {
-			if i != len(fn.argNames)-1 {
-				return errors.NewError("variadic expansion must be last argument")
-			}
 			var valist []sh.Obj
 			for ; i < len(args); i++ {
 				arg = args[i]

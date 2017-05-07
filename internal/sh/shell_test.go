@@ -2312,6 +2312,17 @@ print("%s %s %s %s", $args...)`,
 			execStr:     `fn println(arg..., fmt) {}`,
 			expectedErr: "<interactive>:1:11: Vararg 'arg...' isn't the last argument",
 		},
+		{
+			desc: "variadic argument are optional",
+			execStr: `fn println(b...) {
+	for v in $b {
+		print($v)
+	}
+	print("\n")
+}
+println()`,
+			expectedStdout: "\n",
+		},
 	} {
 		testExec(t, test)
 	}
