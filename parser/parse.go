@@ -662,7 +662,6 @@ hasConcat:
 		p.ignore()
 
 		arg, err := p.getArgument(true, false, false)
-
 		if err != nil {
 			return nil, err
 		}
