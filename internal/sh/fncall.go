@@ -16,7 +16,7 @@ type (
 	}
 
 	UserFn struct {
-		argNames []FnArg    // argNames store parameter name
+		argNames []sh.FnArg // argNames store parameter name
 		done     chan error // for async execution
 		results  []sh.Obj
 
@@ -46,9 +46,9 @@ func NewUserFn(name string, parent *Shell) (*UserFn, error) {
 	return &fn, nil
 }
 
-func (fn *UserFn) ArgNames() []FnArg { return fn.argNames }
+func (fn *UserFn) ArgNames() []sh.FnArg { return fn.argNames }
 
-func (fn *UserFn) AddArgName(arg FnArg) {
+func (fn *UserFn) AddArgName(arg sh.FnArg) {
 	fn.argNames = append(fn.argNames, arg)
 }
 
@@ -58,7 +58,7 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 			fn.name, len(fn.argNames), len(args))
 	}
 
-	for i := 0; i < len(args); i++ {
+	for i := 0; i < len(fn.argNames); i++ {
 		arg := args[i]
 		argName := fn.argNames[i].Name
 		isVariadic := fn.argNames[i].IsVariadic
@@ -68,7 +68,6 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 				return errors.NewError("variadic expansion must be last argument")
 			}
 			var valist []sh.Obj
-
 			for ; i < len(args); i++ {
 				arg = args[i]
 				valist = append(valist, arg)

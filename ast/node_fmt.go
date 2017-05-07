@@ -596,6 +596,14 @@ func (n *FnDeclNode) String() string {
 	return fnStr
 }
 
+func (arg *FnArgNode) String() string {
+	ret := arg.Name
+	if arg.IsVariadic {
+		ret += "..."
+	}
+	return ret
+}
+
 // String returns the string representation of function invocation
 func (n *FnInvNode) string() (string, bool) {
 	fnInvStr := n.name + "("

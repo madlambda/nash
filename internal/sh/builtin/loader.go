@@ -9,7 +9,7 @@ import (
 // Fn is the contract of a built in function, that is simpler
 // than the core nash Fn.
 type Fn interface {
-	ArgNames() []string
+	ArgNames() []sh.FnArg
 	SetArgs(args []sh.Obj) error
 	Run(
 		stdin io.Reader,

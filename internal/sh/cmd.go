@@ -126,20 +126,3 @@ func (c *Cmd) Start() error {
 }
 
 func (c *Cmd) Results() []sh.Obj { return nil }
-
-func cmdArgs(nodeArgs []ast.Expr, envShell *Shell) ([]sh.Obj, error) {
-	args := make([]sh.Obj, 0, len(nodeArgs))
-
-	for i := 0; i < len(nodeArgs); i++ {
-		carg := nodeArgs[i]
-
-		objs, err := envShell.evalExpr(carg)
-		if err != nil {
-			return nil, err
-		}
-
-		args = append(args, objs)
-	}
-
-	return args, nil
-}

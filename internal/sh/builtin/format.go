@@ -19,8 +19,11 @@ func newFormat() *formatFn {
 	return &formatFn{}
 }
 
-func (f *formatFn) ArgNames() []string {
-	return []string{"fmt", "args..."}
+func (f *formatFn) ArgNames() []sh.FnArg {
+	return []sh.FnArg{
+		sh.NewFnArg("fmt", false),
+		sh.NewFnArg("arg...", true),
+	}
 }
 
 func (f *formatFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {

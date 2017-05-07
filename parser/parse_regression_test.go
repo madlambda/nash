@@ -15,8 +15,8 @@ func TestParseIssue22(t *testing.T) {
 	expected := ast.NewTree("issue 22")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 0), "gocd")
-	fn.AddArg("path")
+	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 3), "gocd")
+	fn.AddArg(ast.NewFnArgNode(token.NewFileInfo(1, 8), "path", false))
 
 	fnTree := ast.NewTree("fn")
 	fnBlock := ast.NewBlockNode(token.NewFileInfo(1, 0))
@@ -107,7 +107,7 @@ func TestParseIssue43(t *testing.T) {
 	expected := ast.NewTree("parse issue 41")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	fnDecl := ast.NewFnDeclNode(token.NewFileInfo(1, 0), "gpull")
+	fnDecl := ast.NewFnDeclNode(token.NewFileInfo(1, 3), "gpull")
 	fnTree := ast.NewTree("fn")
 	fnBlock := ast.NewBlockNode(token.NewFileInfo(1, 0))
 

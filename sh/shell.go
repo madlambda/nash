@@ -21,12 +21,24 @@ type (
 		Stderr() io.Writer
 	}
 
+	FnArg struct {
+		Name       string
+		IsVariadic bool
+	}
+
 	Fn interface {
 		Name() string
-		ArgNames() []string
+		ArgNames() []FnArg
 
 		Runner
 
 		String() string
 	}
 )
+
+func NewFnArg(name string, isVariadic bool) FnArg {
+	return FnArg{
+		Name:       name,
+		IsVariadic: isVariadic,
+	}
+}

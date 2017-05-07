@@ -84,7 +84,11 @@ func (i *IntExpr) IsEqual(other Node) bool {
 	return i.val == o.val
 }
 
-func NewListExpr(info token.FileInfo, values []Expr, variadic bool) *ListExpr {
+func NewListExpr(info token.FileInfo, values []Expr) *ListExpr {
+	return NewListVariadicExpr(info, values, false)
+}
+
+func NewListVariadicExpr(info token.FileInfo, values []Expr, variadic bool) *ListExpr {
 	return &ListExpr{
 		NodeType: NodeListExpr,
 		FileInfo: info,
@@ -171,10 +175,15 @@ func (c *ConcatExpr) IsEqual(other Node) bool {
 }
 
 func NewVarExpr(info token.FileInfo, name string) *VarExpr {
+	return NewVarVariadicExpr(info, name, false)
+}
+
+func NewVarVariadicExpr(info token.FileInfo, name string, isVariadic bool) *VarExpr {
 	return &VarExpr{
-		NodeType: NodeVarExpr,
-		FileInfo: info,
-		Name:     name,
+		NodeType:   NodeVarExpr,
+		FileInfo:   info,
+		Name:       name,
+		IsVariadic: isVariadic,
 	}
 }
 
@@ -192,7 +201,11 @@ func (v *VarExpr) IsEqual(other Node) bool {
 		v.IsVariadic == o.IsVariadic
 }
 
-func NewIndexExpr(info token.FileInfo, va *VarExpr, idx Expr, variadic bool) *IndexExpr {
+func NewIndexExpr(info token.FileInfo, va *VarExpr, idx Expr) *IndexExpr {
+	return NewIndexVariadicExpr(info, va, idx, false)
+}
+
+func NewIndexVariadicExpr(info token.FileInfo, va *VarExpr, idx Expr, variadic bool) *IndexExpr {
 	return &IndexExpr{
 		NodeType: NodeIndexExpr,
 		FileInfo: info,

@@ -2273,3 +2273,46 @@ world`)
 		return
 	}
 }
+
+func TestExecuteVariadicFn(t *testing.T) {
+	for _, test := range []execTestCase{
+		{
+			desc: "println",
+			execStr: `fn println(fmt, arg...) {
+	print($fmt+"\n", $arg...)
+}
+println("%s %s", "test", "test")`,
+			expectedStdout: "test test\n",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "lots of args",
+			execStr: `fn println(fmt, arg...) {
+	print($fmt+"\n", $arg...)
+}
+println("%s%s%s%s%s%s%s%s%s%s", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10")`,
+			expectedStdout: "12345678910\n",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "... expansion",
+			execStr: `args = ("plan9" "from" "outer" "space")
+print("%s %s %s %s", $args...)`,
+			expectedStdout: "plan9 from outer space",
+		},
+		{
+			desc:           "literal ... expansion",
+			execStr:        `print("%s:%s:%s", ("a" "b" "c")...)`,
+			expectedStdout: "a:b:c",
+		},
+		{
+			desc:        "varargs only as last argument",
+			execStr:     `fn println(arg..., fmt) {}`,
+			expectedErr: "<interactive>:1:11: Vararg 'arg...' isn't the last argument",
+		},
+	} {
+		testExec(t, test)
+	}
+}

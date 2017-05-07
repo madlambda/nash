@@ -1125,7 +1125,7 @@ func TestParseFnBasic(t *testing.T) {
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	// fn
-	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 0), "build")
+	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 3), "build")
 	tree := ast.NewTree("fn body")
 	lnBody := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	tree.Root = lnBody
@@ -1144,7 +1144,7 @@ func TestParseFnBasic(t *testing.T) {
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	// fn
-	fn = ast.NewFnDeclNode(token.NewFileInfo(1, 0), "build")
+	fn = ast.NewFnDeclNode(token.NewFileInfo(1, 3), "build")
 	tree = ast.NewTree("fn body")
 	lnBody = ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd := ast.NewCommandNode(token.NewFileInfo(1, 0), "ls", false)
@@ -1165,8 +1165,8 @@ func TestParseFnBasic(t *testing.T) {
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	// fn
-	fn = ast.NewFnDeclNode(token.NewFileInfo(1, 0), "build")
-	fn.AddArg("image")
+	fn = ast.NewFnDeclNode(token.NewFileInfo(1, 3), "build")
+	fn.AddArg(ast.NewFnArgNode(token.NewFileInfo(1, 9), "image", false))
 	tree = ast.NewTree("fn body")
 	lnBody = ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd = ast.NewCommandNode(token.NewFileInfo(1, 0), "ls", false)
@@ -1187,9 +1187,9 @@ func TestParseFnBasic(t *testing.T) {
 	ln = ast.NewBlockNode(token.NewFileInfo(1, 0))
 
 	// fn
-	fn = ast.NewFnDeclNode(token.NewFileInfo(1, 0), "build")
-	fn.AddArg("image")
-	fn.AddArg("debug")
+	fn = ast.NewFnDeclNode(token.NewFileInfo(1, 3), "build")
+	fn.AddArg(ast.NewFnArgNode(token.NewFileInfo(1, 9), "image", false))
+	fn.AddArg(ast.NewFnArgNode(token.NewFileInfo(1, 16), "debug", false))
 	tree = ast.NewTree("fn body")
 	lnBody = ast.NewBlockNode(token.NewFileInfo(1, 0))
 	cmd = ast.NewCommandNode(token.NewFileInfo(1, 0), "ls", false)
@@ -1210,7 +1210,7 @@ func TestParseInlineFnDecl(t *testing.T) {
 	expected := ast.NewTree("fn")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
 
-	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 0), "cd")
+	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 3), "cd")
 	tree := ast.NewTree("fn body")
 	lnBody := ast.NewBlockNode(token.NewFileInfo(1, 0))
 	echo := ast.NewCommandNode(token.NewFileInfo(1, 11), "echo", false)
@@ -1577,6 +1577,70 @@ func TestMultiPipe(t *testing.T) {
 	echo "hello world" |
 	awk "{print AAAAAAAAAAAAAAAAAAAAAA}"
 )`, expected, t, true)
+}
+
+func TestFnVariadic(t *testing.T) {
+	// root
+	expected := ast.NewTree("variadic")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+
+	// fn
+	fn := ast.NewFnDeclNode(token.NewFileInfo(1, 3), "println")
+	fn.AddArg(ast.NewFnArgNode(token.NewFileInfo(1, 11), "fmt", false))
+	fn.AddArg(ast.NewFnArgNode(token.NewFileInfo(1, 16), "arg", true))
+	tree := ast.NewTree("fn body")
+	lnBody := ast.NewBlockNode(token.NewFileInfo(1, 0))
+	print := ast.NewFnInvNode(token.NewFileInfo(2, 2), "print")
+	print.AddArg(ast.NewConcatExpr(token.NewFileInfo(1, 7), []ast.Expr{
+		ast.NewVarExpr(token.NewFileInfo(2, 7), "$fmt"),
+		ast.NewStringExpr(token.NewFileInfo(2, 12), "\n", true),
+	}))
+	print.AddArg(ast.NewVarVariadicExpr(token.NewFileInfo(2, 12), "$arg", true))
+	lnBody.Push(print)
+	tree.Root = lnBody
+	fn.SetTree(tree)
+
+	// root
+	ln.Push(fn)
+	expected.Root = ln
+
+	parserTest("fn", `fn println(fmt, arg...) {
+	print($fmt+"\n", $arg...)
+}`, expected, t, true)
+}
+
+func TestParseValidDotdotdot(t *testing.T) {
+	for _, tc := range []string{
+		// things that should not break
+		"ls ...",
+		"go get ./...",
+		`echo "..."`,
+		`strangecmd... -h`,
+		`bad_designed...fail -f`,
+	} {
+		parser := NewParser("", tc)
+		_, err := parser.Parse()
+		if err != nil {
+			t.Fatalf("Code: '%s' failed: %s", tc, err.Error())
+		}
+	}
+}
+
+func TestParseInvalidDotdotdot(t *testing.T) {
+	for _, tc := range []string{
+		"...",
+		`if ... == "" {}`,
+		`if $var... == "" {}`,
+		`a = $var...`,
+		`a, b, c = ("a" "b" "c")...`, // please, no
+		// `fn println(arg..., fmt) {}`, // Not sure if must fail at parsing...
+	} {
+		parser := NewParser("", tc)
+		_, err := parser.Parse()
+		if err == nil {
+			t.Fatalf("Syntax '%s' must fail", tc)
+		}
+	}
 }
 
 func TestFunctionPipes(t *testing.T) {

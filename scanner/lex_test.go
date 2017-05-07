@@ -1853,8 +1853,8 @@ func TestLexerVarArgs(t *testing.T) {
 		{typ: token.LParen, val: "("},
 		{typ: token.Ident, val: "fmt"},
 		{typ: token.Comma, val: ","},
-		{typ: token.Dotdotdot, val: "..."},
 		{typ: token.Ident, val: "args"},
+		{typ: token.Dotdotdot, val: "..."},
 		{typ: token.RParen, val: ")"},
 		{typ: token.LBrace, val: "{"},
 		{typ: token.Ident, val: "print"},
@@ -1869,7 +1869,31 @@ func TestLexerVarArgs(t *testing.T) {
 		{typ: token.EOF},
 	}
 
-	testTable("test var args", `println(fmt, ...args) {
+	testTable("test var args", `println(fmt, args...) {
 	print($fmt, $args...)
 }`, expected, t)
+	testTable("test var args", `println(fmt, args ...) {
+	print($fmt, $args...)
+}`, expected, t)
+
+	expected = []Token{
+		{typ: token.Ident, val: "print"},
+		{typ: token.LParen, val: "("},
+		{typ: token.String, val: "%s:%s:%s"},
+		{typ: token.Comma, val: ","},
+		{typ: token.LParen, val: "("},
+		{typ: token.String, val: "a"},
+		{typ: token.String, val: "b"},
+		{typ: token.String, val: "c"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Dotdotdot, val: "..."},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test literal expansion", `print("%s:%s:%s", ("a" "b" "c")...)`,
+		expected, t)
+	testTable("test literal expansion", `print("%s:%s:%s", ("a" "b" "c") ...)`,
+		expected, t)
 }

@@ -800,7 +800,7 @@ func (shell *Shell) executeReturn(n *ast.ReturnNode) ([]sh.Obj, error) {
 }
 
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
-	obj, err := shell.evalSingleExpr(node.Path)
+	obj, err := shell.evalExpr(node.Path)
 	if err != nil {
 		return errors.NewEvalError(shell.filename,
 			node, err.Error())
@@ -1078,8 +1078,7 @@ func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, err
 		protocol string
 	)
 
-	locationObj, err := shell.evalSingleExpr(location)
-
+	locationObj, err := shell.evalExpr(location)
 	if err != nil {
 		return nil, err
 	}
@@ -1342,7 +1341,6 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 	}()
 
 	cmd, ignoreError, err = shell.getCommand(c)
-
 	if err != nil {
 		goto cmdError
 	}
@@ -1353,14 +1351,12 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 	envVars = buildenv(shell.Environ())
 	cmd.SetEnviron(envVars)
 
-	args, err = cmdArgs(c.Args(), shell)
-
+	args, err = shell.evalExprs(c.Args())
 	if err != nil {
 		goto cmdError
 	}
 
 	err = cmd.SetArgs(args)
-
 	if err != nil {
 		goto cmdError
 	}
@@ -1376,13 +1372,11 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 	}
 
 	err = cmd.Start()
-
 	if err != nil {
 		goto cmdError
 	}
 
 	err = cmd.Wait()
-
 	if err != nil {
 		goto cmdError
 	}
@@ -1400,10 +1394,10 @@ cmdError:
 }
 
 func (shell *Shell) evalList(argList *ast.ListExpr) (sh.Obj, error) {
-	values := make([]sh.Obj, 0, len(argList.List()))
+	values := make([]sh.Obj, 0, len(argList.List))
 
-	for _, arg := range argList.List() {
-		obj, err := shell.evalSingleExpr(arg)
+	for _, arg := range argList.List {
+		obj, err := shell.evalExpr(arg)
 		if err != nil {
 			return nil, err
 		}
@@ -1415,9 +1409,9 @@ func (shell *Shell) evalList(argList *ast.ListExpr) (sh.Obj, error) {
 }
 
 func (shell *Shell) evalArgList(argList *ast.ListExpr) ([]sh.Obj, error) {
-	values := make([]sh.Obj, 0, len(argList.List()))
+	values := make([]sh.Obj, 0, len(argList.List))
 
-	for _, arg := range argList.List() {
+	for _, arg := range argList.List {
 		obj, err := shell.evalExpr(arg)
 		if err != nil {
 			return nil, err
@@ -1430,7 +1424,7 @@ func (shell *Shell) evalArgList(argList *ast.ListExpr) ([]sh.Obj, error) {
 		return values, nil
 	}
 
-	return sh.Obj{sh.NewListObj(values)}, nil
+	return []sh.Obj{sh.NewListObj(values)}, nil
 }
 
 func (shell *Shell) evalIndex(index ast.Expr) (int, error) {
@@ -1608,6 +1602,21 @@ func (shell *Shell) evalExprs(exprs []ast.Expr) ([]sh.Obj, error) {
 	return objs, nil
 }
 
+func (shell *Shell) evalArgExprs(exprs []ast.Expr) ([]sh.Obj, error) {
+	ret := make([]sh.Obj, 0, len(exprs))
+
+	for _, expr := range exprs {
+		objs, err := shell.evalArgExpr(expr)
+		if err != nil {
+			return nil, err
+		}
+
+		ret = append(ret, objs...)
+	}
+
+	return ret, nil
+}
+
 func (shell *Shell) evalArgExpr(expr ast.Expr) ([]sh.Obj, error) {
 	switch expr.Type() {
 	case ast.NodeStringExpr:
@@ -1635,8 +1644,7 @@ func (shell *Shell) evalArgExpr(expr ast.Expr) ([]sh.Obj, error) {
 		}
 	case ast.NodeListExpr:
 		if listExpr, ok := expr.(*ast.ListExpr); ok {
-			l, err := shell.evalArgList(listExpr)
-			return []sh.Obj{l}, err
+			return shell.evalArgList(listExpr)
 		}
 	case ast.NodeFnInv:
 		if fnInv, ok := expr.(*ast.FnInvNode); ok {
@@ -1713,23 +1721,12 @@ func (shell *Shell) evalExpr(expr ast.Expr) (sh.Obj, error) {
 					len(objs), objs)
 			}
 
-			return objs, nil
+			return objs[0], nil
 		}
 	}
 
 	return nil, errors.NewEvalError(shell.filename,
 		expr, "Failed to eval expression: %+v", expr)
-}
-
-func (shell *Shell) evalSingleExpr(expr ast.Expr) (sh.Obj, error) {
-	objs, err := shell.evalExpr(expr)
-	if err != nil {
-		return nil, err
-	}
-	if len(objs) != 1 {
-		return errors.NewError("internal error: Expects single object")
-	}
-	return objs[0]
 }
 
 func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
@@ -2035,41 +2032,6 @@ func (shell *Shell) executeIfNotEqual(n *ast.IfNode) ([]sh.Obj, error) {
 	return nil, nil
 }
 
-func (shell *Shell) executeFn(fn sh.Fn, nodeArgs []ast.Expr) ([]sh.Obj, error) {
-	argNames := fn.ArgNames()
-	var args []sh.Obj
-
-	for i := 0; i < len(nodeArgs); i++ {
-		nodeArg := nodeArgs[i]
-
-	}
-	args, err := shell.evalExprs(nodeArgs)
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = fn.SetArgs(args)
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = fn.Start()
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = fn.Wait()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return fn.Results(), nil
-}
-
 func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 	var (
 		fn sh.Runner
@@ -2077,7 +2039,6 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 	)
 
 	fnName := n.Name()
-
 	if len(fnName) > 1 && fnName[0] == '$' {
 		argVar := ast.NewVarExpr(token.NewFileInfo(n.Line(), n.Column()), fnName)
 
@@ -2107,26 +2068,22 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 		}
 	}
 
-	args, err := shell.evalExprs(n.Args())
-
+	args, err := shell.evalArgExprs(n.Args())
 	if err != nil {
 		return nil, err
 	}
 
 	err = fn.SetArgs(args)
-
 	if err != nil {
 		return nil, err
 	}
 
 	err = fn.Start()
-
 	if err != nil {
 		return nil, err
 	}
 
 	err = fn.Wait()
-
 	if err != nil {
 		return nil, err
 	}
@@ -2287,7 +2244,6 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 
 func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 	fn, err := NewUserFn(n.Name(), shell)
-
 	if err != nil {
 		return err
 	}
@@ -2295,15 +2251,19 @@ func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 	fn.SetRepr(n.String())
 
 	args := n.Args()
-
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 
-		fn.AddArgName(arg)
+		if i < len(args)-1 && arg.IsVariadic {
+			return errors.NewEvalError(shell.filename,
+				arg, "Vararg '%s' isn't the last argument",
+				arg.String())
+		}
+
+		fn.AddArgName(sh.FnArg{arg.Name, arg.IsVariadic})
 	}
 
 	fn.SetTree(n.Tree())
-
 	fnName := n.Name()
 
 	if fnName == "" {
