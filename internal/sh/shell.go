@@ -989,6 +989,8 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) (sh.Obj, error) {
 			stdin io.ReadCloser
 		)
 
+		// StdoutPipe complains if Stdout is already set
+		cmd.SetStdout(nil)
 		stdin, err = cmd.StdoutPipe()
 
 		if err != nil {
@@ -1323,6 +1325,10 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 		return nil, ignoreError, err
 	}
 
+	cmd.SetStdin(shell.stdin)
+	cmd.SetStdout(shell.stdout)
+	cmd.SetStderr(shell.stderr)
+
 	return cmd, ignoreError, nil
 }
 
@@ -1366,10 +1372,6 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 	if err != nil {
 		goto cmdError
 	}
-
-	cmd.SetStdin(shell.stdin)
-	cmd.SetStdout(shell.stdout)
-	cmd.SetStderr(shell.stderr)
 
 	closeAfterWait, err = shell.setRedirects(cmd, c.Redirects())
 

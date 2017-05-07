@@ -1182,20 +1182,49 @@ func TestExecuteBindFn(t *testing.T) {
 }
 
 func TestExecutePipe(t *testing.T) {
+	var stderr bytes.Buffer
+	var stdout bytes.Buffer
 
-	for _, test := range []execTestCase{
-		{
-			"test pipe",
-			`echo hello | tr -d "[:space:]"`,
-			"hello", "", "",
-		},
-		{
-			"test pipe 3",
-			`echo hello | wc -l | tr -d "[:space:]"`,
-			"1", "", "",
-		},
-	} {
-		testExec(t, test)
+	// Case 1
+	cmd := exec.Command(nashdPath, "-c", `echo hello | tr -d "[:space:]"`)
+
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+
+	err := cmd.Run()
+
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err.Error())
+	}
+
+	expectedOutput := "hello"
+	actualOutput   := string(stdout.Bytes())
+
+	if actualOutput != expectedOutput {
+		t.Errorf("'%s' != '%s'", actualOutput, expectedOutput)
+		return
+	}
+	stdout.Reset()
+	stderr.Reset()
+
+	// Case 2
+	cmd = exec.Command(nashdPath, "-c", `echo hello | wc -l | tr -d "[:space:]"`)
+
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+
+	err = cmd.Run()
+
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err.Error())
+	}
+
+	expectedOutput = "1"
+	actualOutput   = string(stdout.Bytes())
+
+	if actualOutput != expectedOutput {
+		t.Errorf("'%s' != '%s'", actualOutput, expectedOutput)
+		return
 	}
 }
 
