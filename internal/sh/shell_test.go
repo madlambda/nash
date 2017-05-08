@@ -1032,6 +1032,24 @@ path="AAA"
 		return
 	}
 
+	out.Reset()
+	err = shell.Exec("test fn list arg", `
+	ids_luns = ()
+	id = "1"
+	lun = "lunar"
+	ids_luns <= append($ids_luns, ($id $lun))
+	print(len($ids_luns))`)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	got := string(out.Bytes())
+	expected := "1"
+	if got != expected {
+		t.Fatalf("String differs: '%s' != '%s'", got, expected)
+	}
+
 }
 
 func TestFnComposition(t *testing.T) {
