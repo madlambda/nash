@@ -59,7 +59,7 @@ returnDecl = "return" [ ( variable | stringLit | list | fnInv ) ] .
 fnInv = ( variable | identifier ) "(" fnArgValues ")" .
 
 fnArgValues = { fnArgValue [ "," ] } .
-fnArgValue  = [ stringLit | stringConcat | variable | fnInv ] .
+fnArgValue  = [ stringLit | stringConcat | list | variable | fnInv ] .
 
 /* Function binding */
 bindfn = "bindfn" identifier identifier .
