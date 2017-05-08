@@ -549,9 +549,9 @@ func TestExecuteRedirection(t *testing.T) {
 	path := "/tmp/nashell.test.txt"
 	defer os.Remove(path)
 
-	err = shell.Exec("redirect", `
-        echo -n "hello world" > `+path+`
-        `)
+	err = shell.Exec("redirect", fmt.Sprintf(`
+        echo -n "hello world" > %s
+        `, path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -566,9 +566,9 @@ func TestExecuteRedirection(t *testing.T) {
 	}
 
 	// Test redirection truncate the file
-	err = shell.Exec("redirect", `
-        echo -n "a" > `+path+`
-        `)
+	err = shell.Exec("redirect", fmt.Sprintf(`
+        echo -n "a" > %s
+        `, path))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -604,17 +604,15 @@ func TestExecuteRedirection(t *testing.T) {
 	}
 
 	// Test redirection to concat
-	err = shell.Exec("redirect", `
-	location = "`+path+`"
+	err = shell.Exec("redirect", fmt.Sprintf(`
+	location = "%s"
 a = ".2"
         echo -n "hello world" > $location+$a
-        `)
-	defer os.Remove(path + ".2")
-
+        `, path))
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	defer os.Remove(path + ".2")
 	content, err = ioutil.ReadFile(path + ".2")
 	if err != nil {
 		t.Fatal(err)
