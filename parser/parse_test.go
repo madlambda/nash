@@ -14,6 +14,7 @@ func parserTest(name, content string, expected *ast.Tree, t *testing.T, enableRe
 
 	if err != nil {
 		t.Error(err)
+		t.Logf("Failed syntax: '%s'", content)
 		return nil
 	}
 
@@ -24,6 +25,7 @@ func parserTest(name, content string, expected *ast.Tree, t *testing.T, enableRe
 
 	if !expected.IsEqual(tr) {
 		t.Errorf("Expected: %s\n\nResult: %s\n", expected, tr)
+		t.Logf("Failed syntax: '%s'", content)
 		return tr
 	}
 
@@ -930,6 +932,53 @@ func TestParseFuncall(t *testing.T) {
 	ln.Push(aFn)
 	expected.Root = ln
 	parserTest("test fn list arg", `a(("1" "2" "3"))`, expected, t, true)
+
+	// test valid funcall syntaxes (do not verify AST)
+	for _, tc := range []string{
+		`func()`,
+		`func(())`, // empty list
+		`func($a)`,
+		`_($a, $b)`,
+		`__((((()))))`, // perfect fit for a nash obfuscating code contest
+		`_(
+			()
+		)`,
+		`_(
+		(), (), (), (), (),
+		)`,
+		`_((() () () () ()))`,
+		`deploy((bomb shell))`, // unquoted list elements are still supported :-(
+		`func("a", ())`,
+		`_($a+$b)`,
+		`_($a+"")`,
+		`_(""+$a)`,
+		`func((()()))`,
+	} {
+		parser := NewParser("test", tc)
+		_, err := parser.Parse()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestParseFuncallInvalid(t *testing.T) {
+	for _, tc := range []string{
+		`test(()`,
+		`_())`,
+		`func(a)`,
+		`func("a", a)`,
+		`func(_(((((()))))`,
+		`func(()+())`,
+		`func("1"+("2" "3"))`,
+		`func(()())`,
+	} {
+		parser := NewParser("test", tc)
+		_, err := parser.Parse()
+		if err == nil {
+			t.Fatalf("Syntax '%s' must fail...", tc)
+		}
+	}
 }
 
 func TestParseIfFnInv(t *testing.T) {
