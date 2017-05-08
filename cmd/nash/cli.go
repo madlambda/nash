@@ -46,11 +46,28 @@ func execFn(shell *nash.Shell, fn sh.Fn) {
 	}
 }
 
+func setupCli(shell *nash.Shell) error {
+	shell.SetInteractive(true)
+	initFile := shell.DotDir() + "/init"
+
+	if d, err := os.Stat(initFile); err == nil && !noInit {
+		if m := d.Mode(); !m.IsDir() {
+			err = shell.ExecuteString("init", `import "`+initFile+`"`)
+			if err != nil {
+				return fmt.Errorf("Failed to evaluate '%s': %s\n", initFile, err.Error())
+			}
+		}
+	}
+
+	return nil
+}
+
 func cli(shell *nash.Shell) error {
-	var err error
+	if err := setupCli(shell); err != nil {
+		return err
+	}
 
 	historyFile := shell.DotDir() + "/history"
-
 	cfg := readline.Config{
 		Prompt:          shell.Prompt(),
 		HistoryFile:     historyFile,
@@ -59,7 +76,6 @@ func cli(shell *nash.Shell) error {
 	}
 
 	term, err := readline.NewTerminal(&cfg)
-
 	if err != nil {
 		return err
 	}
@@ -74,7 +90,6 @@ func cli(shell *nash.Shell) error {
 	defer rline.Close()
 
 	completer := NewCompleter(op, term, shell)
-
 	cfg.AutoComplete = completer
 
 	if lineMode, ok := shell.Getvar("LINEMODE"); ok {
@@ -110,7 +125,6 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 		}
 
 		rline.SetPrompt(prompt)
-
 		line, err = rline.Readline()
 
 		if err == readline.ErrInterrupt {
@@ -121,11 +135,9 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 		}
 
 		lineidx++
-
 		line = strings.TrimSpace(line)
 
 		// handle special cli commands
-
 		switch {
 		case strings.HasPrefix(line, "set mode "):
 			switch line[9:] {
@@ -146,19 +158,15 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 			}
 
 			goto cont
-
 		case line == "exit":
 			break
 		}
 
 		content.Write([]byte(line + "\n"))
-
 		parse = parser.NewParser(fmt.Sprintf("<stdin line %d>", lineidx), string(content.Bytes()))
-
 		line = string(content.Bytes())
 
 		tr, err = parse.Parse()
-
 		if err != nil {
 			if interrupted, ok := err.(Interrupted); ok && interrupted.Interrupted() {
 				content.Reset()
@@ -170,7 +178,6 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 			}
 
 			fmt.Printf("ERROR: %s\n", err.Error())
-
 			content.Reset()
 			goto cont
 		}
@@ -179,7 +186,6 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 		content.Reset()
 
 		_, err = shell.ExecuteTree(tr)
-
 		if err != nil {
 			fmt.Printf("ERROR: %s\n", err.Error())
 		}
@@ -194,7 +200,6 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 			}
 
 			err = fn.SetArgs([]sh.Obj{sh.NewStrObj(line), status})
-
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
 			} else {

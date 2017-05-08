@@ -1,11 +1,6 @@
 package builtin_test
 
-import (
-	"bytes"
-	"testing"
-
-	"github.com/NeowayLabs/nash"
-)
+import "testing"
 
 func TestPrint(t *testing.T) {
 	type printDesc struct {
@@ -79,22 +74,9 @@ func TestPrint(t *testing.T) {
 
 	for name, desc := range tests {
 		t.Run(name, func(t *testing.T) {
-			var output bytes.Buffer
-			shell, err := nash.New()
-
-			if err != nil {
-				t.Fatalf("unexpected err: %s", err)
-			}
-
-			shell.SetStdout(&output)
-			err = shell.Exec("", desc.script)
-
-			if err != nil {
-				t.Fatalf("unexpected err: %s", err)
-			}
-
-			if output.String() != desc.output {
-				t.Fatalf("got %q expected %q", output.String(), desc.output)
+			output := execSuccess(t, desc.script)
+			if output != desc.output {
+				t.Fatalf("got %q expected %q", output, desc.output)
 			}
 		})
 	}
@@ -113,23 +95,7 @@ func TestPrintErrors(t *testing.T) {
 
 	for name, desc := range tests {
 		t.Run(name, func(t *testing.T) {
-			var output bytes.Buffer
-			shell, err := nash.New()
-
-			if err != nil {
-				t.Fatalf("unexpected err: %s", err)
-			}
-
-			shell.SetStdout(&output)
-			err = shell.Exec("", desc.script)
-
-			if err == nil {
-				t.Fatalf("expected err, got success, output: %s", output)
-			}
-
-			if output.Len() > 0 {
-				t.Fatalf("expected empty output, got: %s", output)
-			}
+			execFailure(t, desc.script)
 		})
 	}
 }

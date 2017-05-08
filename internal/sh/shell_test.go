@@ -1031,6 +1031,24 @@ path="AAA"
 		return
 	}
 
+	out.Reset()
+	err = shell.Exec("test fn list arg", `
+	ids_luns = ()
+	id = "1"
+	lun = "lunar"
+	ids_luns <= append($ids_luns, ($id $lun))
+	print(len($ids_luns))`)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	got := string(out.Bytes())
+	expected := "1"
+	if got != expected {
+		t.Fatalf("String differs: '%s' != '%s'", got, expected)
+	}
+
 }
 
 func TestFnComposition(t *testing.T) {
@@ -1181,20 +1199,49 @@ func TestExecuteBindFn(t *testing.T) {
 }
 
 func TestExecutePipe(t *testing.T) {
+	var stderr bytes.Buffer
+	var stdout bytes.Buffer
 
-	for _, test := range []execTestCase{
-		{
-			"test pipe",
-			`echo hello | tr -d "[:space:]"`,
-			"hello", "", "",
-		},
-		{
-			"test pipe 3",
-			`echo hello | wc -l | tr -d "[:space:]"`,
-			"1", "", "",
-		},
-	} {
-		testExec(t, test)
+	// Case 1
+	cmd := exec.Command(nashdPath, "-c", `echo hello | tr -d "[:space:]"`)
+
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+
+	err := cmd.Run()
+
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err.Error())
+	}
+
+	expectedOutput := "hello"
+	actualOutput   := string(stdout.Bytes())
+
+	if actualOutput != expectedOutput {
+		t.Errorf("'%s' != '%s'", actualOutput, expectedOutput)
+		return
+	}
+	stdout.Reset()
+	stderr.Reset()
+
+	// Case 2
+	cmd = exec.Command(nashdPath, "-c", `echo hello | wc -l | tr -d "[:space:]"`)
+
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+
+	err = cmd.Run()
+
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err.Error())
+	}
+
+	expectedOutput = "1"
+	actualOutput   = string(stdout.Bytes())
+
+	if actualOutput != expectedOutput {
+		t.Errorf("'%s' != '%s'", actualOutput, expectedOutput)
+		return
 	}
 }
 

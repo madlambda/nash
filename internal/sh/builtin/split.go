@@ -53,11 +53,11 @@ func (s *splitFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, err
 
 func (s *splitFn) SetArgs(args []sh.Obj) error {
 	if len(args) != 2 {
-		return errors.NewError("splitfn expects 2 arguments")
+		return errors.NewError("split: expects 2 parameters")
 	}
 
 	if args[0].Type() != sh.StringType {
-		return errors.NewError("content must be of type string")
+		return errors.NewError("split: first parameter must be a string")
 	}
 
 	content := args[0].(*sh.StrObj)
