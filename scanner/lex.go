@@ -364,6 +364,11 @@ func lexStart(l *Lexer) stateFn {
 		}
 		absorbArgument(l)
 		l.emit(token.Arg)
+		if next == eof && l.openParens > 0 {
+			l.addSemicolon = false
+		} else {
+			l.addSemicolon = true
+		}
 		return lexStart
 	case isIdentifier(r):
 		// nash literals are lowercase

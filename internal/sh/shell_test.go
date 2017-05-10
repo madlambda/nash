@@ -169,25 +169,42 @@ func TestExecuteFile(t *testing.T) {
 func TestExecuteCommand(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
-			"command failed",
-			`non-existing-program`,
-			"", "",
-			`exec: "non-existing-program": executable file not found in $PATH`,
+			desc:           "command failed",
+			execStr:        `non-existing-program`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    `exec: "non-existing-program": executable file not found in $PATH`,
 		},
 		{
-			"err ignored",
-			`-non-existing-program`,
-			"", "", "",
+			desc:           "err ignored",
+			execStr:        `-non-existing-program`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"hello world",
-			"echo -n hello world",
-			"hello world", "", "",
+			desc:           "hello world",
+			execStr:        "echo -n hello world",
+			expectedStdout: "hello world",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"cmd with concat",
-			`echo -n "hello " + "world"`,
-			"hello world", "", "",
+			desc:           "cmd with concat",
+			execStr:        `echo -n "hello " + "world"`,
+			expectedStdout: "hello world",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "local command",
+			execStr: `echopath <= which echo
+path <= dirname $echopath
+chdir($path)
+./echo -n hello`,
+			expectedStdout: "hello",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 	} {
 		testExec(t, test)

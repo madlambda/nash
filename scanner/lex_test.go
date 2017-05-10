@@ -432,6 +432,14 @@ func TestLexerSimpleCommand(t *testing.T) {
 
 	testTable("testSimpleCommand", `ls "/home/user" + "/.gvm/pkgsets/global/src"`, expected, t)
 
+	expected = []Token{
+		{typ: token.Arg, val: "./rkt"},
+		{typ: token.Semicolon, val: ";"}, // automatic semicolon insertion
+		{typ: token.EOF},
+	}
+
+	testTable("test local command", "./rkt", expected, t)
+
 }
 
 func TestLexerPipe(t *testing.T) {
