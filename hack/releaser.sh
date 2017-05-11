@@ -15,6 +15,15 @@ setenv CGO_ENABLED = "0"
 
 mkdir -p dist
 
+fn copy_exec(src, dst) {
+	if $os == "windows" {
+		src = $src+".exe"
+		dst = $dst+".exe"
+	}
+
+	cp $src $dst
+}
+
 for os in $supported_os {
 	setenv GOOS = $os
 	setenv GOARCH = "amd64"
@@ -22,11 +31,15 @@ for os in $supported_os {
 	echo "building OS: "+$GOOS+" ARCH : "+$GOARCH
 	make build "version="+$version
 
-	binpath <= format("dist/nash-%s-%s-amd64", $version, $os)
+	source_nash = "cmd/nash/nash"
 
-	if $os != "windows" {
-		binpath = $binpath+".exe"
-	}
+	target_nash <= format("dist/nash-%s-%s-amd64", $version, $os)
 
-	cp "cmd/nash/nash" $binpath
+	copy_exec($source_nash, $target_nash)
+
+	source_nashfmt = "cmd/nashfmt/nashfmt"
+
+	target_nashfmt <= format("dist/nashfmt-%s-%s-amd64", $version, $os)
+
+	copy_exec($source_nashfmt, $target_nashfmt)
 }

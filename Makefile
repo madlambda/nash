@@ -32,4 +32,4 @@ release:
 clean:
 	rm -f cmd/nash/nash
 	rm -f cmd/nashfmt/nashfmt
-	rm -f dist
+	rm -rf dist
