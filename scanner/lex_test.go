@@ -1846,3 +1846,52 @@ func TestLexerLongAssignment(t *testing.T) {
 	jq ".GroupId" |
 	xargs echo -n)`, expected, t)
 }
+
+func TestLexerVariable(t *testing.T) {
+	base := []Token{
+		{typ: token.Variable, val: "$HOME"},
+	}
+
+	for r, tok := range map[rune]token.Token{
+		';': token.Semicolon,
+		'+': token.Plus,
+		'[': token.LBrack,
+		']': token.RBrack,
+		'(': token.LParen,
+		')': token.RParen,
+		',': token.Comma,
+		'|': token.Pipe,
+	} {
+		expected := append(base, Token{typ: tok, val: string(r)})
+
+		if r == ')' {
+			expected = append(expected, Token{typ: token.Semicolon, val: ";"})
+		}
+
+		expected = append(expected, Token{typ: token.EOF})
+		testTable("test variable", `$HOME`+string(r), expected, t)
+	}
+
+	// must fail
+	for _, r := range []rune{
+		'!', '@', '$', '%', '&', '*', '-', '=', '"', '\'',
+		'`', '{', '}', '<', '>', '.', ':', '?', '/', '\\',
+	} {
+		l := Lex("test", "$GOPATH"+string(r))
+
+		var results []Token
+
+		for tok := range l.Tokens {
+			results = append(results, tok)
+		}
+
+		if len(results) != 2 {
+			t.Fatalf("Expected 2 token, found %d", len(results))
+		}
+
+		if results[0].typ != token.Illegal {
+			t.Fatalf("Expected illegal token, but found %v", results[0])
+		}
+	}
+
+}

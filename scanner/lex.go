@@ -282,11 +282,25 @@ func lexStart(l *Lexer) stateFn {
 
 		absorbIdentifier(l)
 
+		// required to avoid the sintaxes below:
+		//   rm -rf $HOME/projects
+		//   rm -rf $GOPATH/test
+		// for being interpreted as:
+		//   rm -rf $HOME /projects
+		//   rm -rf $GOPATH /test
+		//
+		// The list of runes below are the ones allowed to exists close
+		// to the variable. Eg.:
+		//   $HOME;
+		//   $HOME[0]
+		//   $HOME()
+		//   $HOME+"a"
 		next := l.peek()
 		if next != eof && !isSpace(next) &&
 			!isEndOfLine(next) && next != ';' &&
 			next != ')' && next != ',' && next != '+' &&
-			next != '[' && next != ']' && next != '(' {
+			next != '[' && next != ']' && next != '(' &&
+			next != '|' {
 			l.errorf("Unrecognized character in action: %#U", next)
 			return nil
 		}
