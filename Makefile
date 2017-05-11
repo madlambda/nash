@@ -27,7 +27,7 @@ update-vendor:
 	cd cmd/nash && nash ./vendor.sh
 
 release:
-	./hack/releaser.sh
+	./hack/releaser.sh $(version)
 
 clean:
 	rm -f cmd/nash/nash
