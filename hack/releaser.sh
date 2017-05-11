@@ -5,8 +5,9 @@ if len($ARGS) != "2" {
 	exit("1")
 }
 
-version      = $ARGS[1]
-supported_os = ("linux" "darwin" "windows")
+version        = $ARGS[1]
+supported_os   = ("linux" "darwin" "windows")
+supported_arch = ("amd64")
 
 # Guarantee passing tests at least on the host arch/os
 make test
@@ -15,31 +16,42 @@ setenv CGO_ENABLED = "0"
 
 mkdir -p dist
 
-fn copy_exec(src, dst) {
+fn prepare_execs(distfiles, os) {
 	if $os == "windows" {
-		src = $src+".exe"
-		dst = $dst+".exe"
+		newfiles = ()
+		
+		for distfile in $distfiles {
+			file = $distfile+".exe"
+		
+			newfiles <= append($newfiles, $file)
+		}
+		
+		return $newfiles
+	}
+	if $os == "linux" {
+		for distfile in $distfiles {
+			strip $distfile
+		}
 	}
 
-	cp $src $dst
+	return $distfiles
 }
 
 for os in $supported_os {
-	setenv GOOS = $os
-	setenv GOARCH = "amd64"
+	for arch in $supported_arch {
+		setenv GOOS = $os
+		setenv GOARCH = $arch
 
-	echo "building OS: "+$GOOS+" ARCH : "+$GOARCH
-	make build "version="+$version
+		echo "building OS: "+$GOOS+" ARCH : "+$GOARCH
+		make build "version="+$version
 
-	source_nash = "cmd/nash/nash"
+		nash      = "cmd/nash/nash"
+		nashfmt   = "cmd/nashfmt/nashfmt"
+		execfiles = ($nash $nashfmt)
 
-	target_nash <= format("dist/nash-%s-%s-amd64", $version, $os)
+		distfiles <= prepare_execs($execfiles, $os)
+		distar    <= format("dist/nash-%s-%s-%s.tar.gz", $version, $os, $arch)
 
-	copy_exec($source_nash, $target_nash)
-
-	source_nashfmt = "cmd/nashfmt/nashfmt"
-
-	target_nashfmt <= format("dist/nashfmt-%s-%s-amd64", $version, $os)
-
-	copy_exec($source_nashfmt, $target_nashfmt)
+		tar cvfz $distar $distfiles
+	}
 }
