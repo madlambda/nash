@@ -2,7 +2,7 @@
 build:
   # Path to main.go file or main package.
   # Default is `.`
-  main: ./cmd/nash/main.go
+  main: ./cmd/nash
 
   # Name of the binary.
   # Default is the name of the project directory.
