@@ -58,8 +58,7 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 		countNormalArgs int
 	)
 
-	for i := 0; i < len(fn.argNames); i++ {
-		argName := fn.argNames[i]
+	for i, argName := range fn.argNames {
 		if argName.IsVariadic {
 			if i != len(fn.argNames)-1 {
 				return errors.NewError("variadic expansion must be last argument")
