@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -66,7 +67,7 @@ func (v *VarExpr) String() string {
 }
 
 func (i *IndexExpr) String() string {
-	ret := i.Var.String() + "[" + i.Index.String() + "]"
+	ret := fmt.Sprintf("%s[%s]", i.Var, i.Index)
 	if i.IsVariadic {
 		return ret + "..."
 	}

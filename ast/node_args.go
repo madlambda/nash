@@ -118,10 +118,11 @@ func (l *ListExpr) IsEqual(other Node) bool {
 		return false
 	}
 
-	for i := 0; i < len(l.List); i++ {
-		if !l.List[i].IsEqual(o.List[i]) {
-			debug("%v(%s) != %v(%s)", l.List[i], l.List[i].Type(),
-				o.List[i], o.List[i].Type())
+	for i, val := range l.List {
+		oval := o.List[i]
+		if !val.IsEqual(oval) {
+			debug("%v(%s) != %v(%s)", val, val.Type(),
+				oval, oval.Type())
 			return false
 		}
 	}
