@@ -2342,6 +2342,24 @@ println("%s%s%s%s%s%s%s%s%s%s", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10
 			expectedErr:    "",
 		},
 		{
+			desc: "passing list to var arg fn",
+			execStr: `fn puts(arg...) { for a in $arg { echo $a } }
+				a = ("1" "2" "3" "4" "5")
+				puts($a...)`,
+			expectedErr:    "",
+			expectedStdout: "1\n2\n3\n4\n5\n",
+			expectedStderr: "",
+		},
+		{
+			desc: "passing empty list to var arg fn",
+			execStr: `fn puts(arg...) { for a in $arg { echo $a } }
+				a = ()
+				puts($a...)`,
+			expectedErr:    "",
+			expectedStdout: "",
+			expectedStderr: "",
+		},
+		{
 			desc: "... expansion",
 			execStr: `args = ("plan9" "from" "outer" "space")
 print("%s %s %s %s", $args...)`,
@@ -2382,7 +2400,7 @@ a("test")`,
     print($b, $c...)
 }
 a()`,
-			expectedErr: "Wrong number of arguments for function a. Expected at least 1 arguments but found 0",
+			expectedErr: "<interactive>:4:0: Wrong number of arguments for function a. Expected at least 1 arguments but found 0",
 		},
 	} {
 		testExec(t, test)

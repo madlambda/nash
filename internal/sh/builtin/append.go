@@ -37,7 +37,8 @@ func (appendfn *appendFn) SetArgs(args []sh.Obj) error {
 
 	obj := args[0]
 	if obj.Type() != sh.ListType {
-		return errors.NewError("appendfn expects a list as first argument, but a %s[%s] was provided", obj, obj.Type())
+		return errors.NewError("appendfn expects a list as first argument, but a %s was provided",
+			obj.Type())
 	}
 
 	values := args[1:]

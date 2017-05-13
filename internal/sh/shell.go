@@ -1887,7 +1887,6 @@ func (shell *Shell) executeExecAssignFn(v ast.Node) error {
 	}
 
 	fnValues, err = shell.executeFnInv(cmd.(*ast.FnInvNode))
-
 	if err != nil {
 		return err
 	}
@@ -2058,7 +2057,6 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 		fn = objfn.Fn()
 	} else {
 		fn, ok = shell.GetBuiltin(fnName)
-
 		if !ok {
 			fn, ok = shell.GetFn(fnName)
 
@@ -2076,17 +2074,20 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 
 	err = fn.SetArgs(args)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewEvalError(shell.filename,
+			n, err.Error())
 	}
 
 	err = fn.Start()
 	if err != nil {
-		return nil, err
+		return nil, errors.NewEvalError(shell.filename,
+			n, err.Error())
 	}
 
 	err = fn.Wait()
 	if err != nil {
-		return nil, err
+		return nil, errors.NewEvalError(shell.filename,
+			n, err.Error())
 	}
 
 	return fn.Results(), nil
@@ -2174,6 +2175,9 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 	} else if inExpr.Type() == ast.NodeFnInv {
 		var objs []sh.Obj
 		objs, err = shell.executeFnInv(inExpr.(*ast.FnInvNode))
+		if err != nil {
+			return nil, err
+		}
 
 		if len(objs) != 1 {
 			return nil, errors.NewEvalError(shell.filename,
