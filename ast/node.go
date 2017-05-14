@@ -155,7 +155,8 @@ type (
 		token.FileInfo
 		egalitarian
 
-		list []Expr
+		List       []Expr
+		IsVariadic bool
 	}
 
 	// ConcatExpr is a concatenation of arguments
@@ -173,7 +174,8 @@ type (
 		token.FileInfo
 		egalitarian
 
-		name string
+		Name       string
+		IsVariadic bool
 	}
 
 	// IndexExpr is a indexed variable
@@ -182,8 +184,9 @@ type (
 		token.FileInfo
 		egalitarian
 
-		variable *VarExpr
-		index    Expr
+		Var        *VarExpr
+		Index      Expr
+		IsVariadic bool
 	}
 
 	// RedirectNode represents the output redirection part of a command
@@ -236,6 +239,16 @@ type (
 		elseTree *Tree
 	}
 
+	// FnArgNode represents function arguments
+	FnArgNode struct {
+		NodeType
+		token.FileInfo
+		egalitarian
+
+		Name       string
+		IsVariadic bool
+	}
+
 	// A FnDeclNode represents a function declaration.
 	FnDeclNode struct {
 		NodeType
@@ -243,7 +256,7 @@ type (
 		egalitarian
 
 		name string
-		args []string
+		args []*FnArgNode
 		tree *Tree
 	}
 
@@ -370,6 +383,8 @@ const (
 
 	// NodeComment are nodes for comment
 	NodeComment
+
+	NodeFnArg
 
 	// NodeFnDecl is the type for function declaration
 	NodeFnDecl
@@ -1103,6 +1118,31 @@ func (n *IfNode) IsEqual(other Node) bool {
 	return expectedTree.IsEqual(valueTree)
 }
 
+func NewFnArgNode(info token.FileInfo, name string, isVariadic bool) *FnArgNode {
+	return &FnArgNode{
+		NodeType: NodeFnArg,
+		FileInfo: info,
+
+		Name:       name,
+		IsVariadic: isVariadic,
+	}
+}
+
+func (a *FnArgNode) IsEqual(other Node) bool {
+	if !a.equal(a, other) {
+		return false
+	}
+	o, ok := other.(*FnArgNode)
+	if !ok {
+		return false
+	}
+	if a.Name != o.Name ||
+		a.IsVariadic != o.IsVariadic {
+		return false
+	}
+	return true
+}
+
 // NewFnDeclNode creates a new function declaration
 func NewFnDeclNode(info token.FileInfo, name string) *FnDeclNode {
 	return &FnDeclNode{
@@ -1124,12 +1164,12 @@ func (n *FnDeclNode) Name() string {
 }
 
 // Args returns function arguments
-func (n *FnDeclNode) Args() []string {
+func (n *FnDeclNode) Args() []*FnArgNode {
 	return n.args
 }
 
 // AddArg add a new argument to end of argument list
-func (n *FnDeclNode) AddArg(arg string) {
+func (n *FnDeclNode) AddArg(arg *FnArgNode) {
 	n.args = append(n.args, arg)
 }
 
@@ -1159,7 +1199,7 @@ func (n *FnDeclNode) IsEqual(other Node) bool {
 	}
 
 	for i := 0; i < len(n.args); i++ {
-		if n.args[i] != o.args[i] {
+		if !n.args[i].IsEqual(o.args[i]) {
 			return false
 		}
 	}

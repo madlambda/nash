@@ -26,6 +26,10 @@ install:
 update-vendor:
 	cd cmd/nash && nash ./vendor.sh
 
+release: clean
+	./hack/releaser.sh $(version)
+
 clean:
 	rm -f cmd/nash/nash
 	rm -f cmd/nashfmt/nashfmt
+	rm -rf dist

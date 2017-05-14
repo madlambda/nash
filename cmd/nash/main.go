@@ -45,8 +45,6 @@ func main() {
 	var shell *nash.Shell
 	var err error
 
-	cliMode := false
-
 	flag.Parse()
 
 	if version {
@@ -59,14 +57,7 @@ func main() {
 		file = args[0]
 	}
 
-	if (file == "" && command == "") || interactive {
-		cliMode = true
-		shell, err = initShell()
-	} else {
-		shell, err = nash.New()
-	}
-
-	if err != nil {
+	if shell, err = initShell(); err != nil {
 		goto Error
 	}
 
@@ -74,35 +65,30 @@ func main() {
 
 	if addr != "" {
 		startNashd(shell, addr)
+		return
+	}
+
+	if (file == "" && command == "") || interactive {
+		if err = cli(shell); err != nil {
+			goto Error
+		}
 
 		return
 	}
 
 	if file != "" {
-		err = shell.ExecFile(file, args...)
-
-		if err != nil {
+		if err = shell.ExecFile(file, args...); err != nil {
 			goto Error
 		}
 	}
 
 	if command != "" {
 		err = shell.ExecuteString("<argument -c>", command)
-
 		if err != nil {
 			goto Error
 		}
 	}
 
-	if cliMode {
-		err = cli(shell)
-
-		if err != nil {
-			goto Error
-		}
-
-		return
-	}
 Error:
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
@@ -112,13 +98,11 @@ Error:
 
 func getnashpath() (string, error) {
 	nashpath := os.Getenv("NASHPATH")
-
 	if nashpath != "" {
 		return nashpath, nil
 	}
 
 	home := os.Getenv("HOME")
-
 	if home == "" {
 		user := os.Getenv("USER")
 
@@ -134,36 +118,17 @@ func getnashpath() (string, error) {
 
 func initShell() (*nash.Shell, error) {
 	shell, err := nash.New()
-
 	if err != nil {
 		return nil, err
 	}
-
-	// initShell will run only if the nash command is ran
-	// without arguments or interactive flag, hence interactive mode
-	shell.SetInteractive(true)
 
 	nashpath, err := getnashpath()
-
 	if err != nil {
 		return nil, err
 	}
 
-	shell.SetDotDir(nashpath)
-
 	os.Mkdir(nashpath, 0755)
-
-	initFile := nashpath + "/init"
-
-	if d, err := os.Stat(initFile); err == nil && !noInit {
-		if m := d.Mode(); !m.IsDir() {
-			err = shell.ExecuteString("init", `import "`+initFile+`"`)
-
-			if err != nil {
-				return nil, fmt.Errorf("Failed to evaluate '%s': %s\n", initFile, err.Error())
-			}
-		}
-	}
+	shell.SetDotDir(nashpath)
 
 	return shell, nil
 }

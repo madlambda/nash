@@ -409,6 +409,16 @@ calling the parent namespace as "host". This breaks the namespace
 sharing/unsharing idea of processes. What I wanted was a copy of the
 missing plan9 'environment namespace' to child namespaces.
 
+# Releasing
+
+To generate a release basically:
+
+* Generate the release on github
+* Clone the generated tag
+* Run: ``` make release "version=<version>" ```
+
+Where **<version>** must match the version of the git tag.
+
 # Want to contribute?
 
 Open issues and PR :)

@@ -2,3 +2,5 @@
 /cmd/nash/nash
 /coverage.txt
 cmd/nashfmt/nashfmt
+dist
+*.exe

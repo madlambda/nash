@@ -169,25 +169,42 @@ func TestExecuteFile(t *testing.T) {
 func TestExecuteCommand(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
-			"command failed",
-			`non-existing-program`,
-			"", "",
-			`exec: "non-existing-program": executable file not found in $PATH`,
+			desc:           "command failed",
+			execStr:        `non-existing-program`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    `exec: "non-existing-program": executable file not found in $PATH`,
 		},
 		{
-			"err ignored",
-			`-non-existing-program`,
-			"", "", "",
+			desc:           "err ignored",
+			execStr:        `-non-existing-program`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"hello world",
-			"echo -n hello world",
-			"hello world", "", "",
+			desc:           "hello world",
+			execStr:        "echo -n hello world",
+			expectedStdout: "hello world",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"cmd with concat",
-			`echo -n "hello " + "world"`,
-			"hello world", "", "",
+			desc:           "cmd with concat",
+			execStr:        `echo -n "hello " + "world"`,
+			expectedStdout: "hello world",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "local command",
+			execStr: `echopath <= which echo
+path <= dirname $echopath
+chdir($path)
+./echo -n hello`,
+			expectedStdout: "hello",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 	} {
 		testExec(t, test)
@@ -546,30 +563,40 @@ func TestExecuteRedirection(t *testing.T) {
 	}
 
 	shell.SetNashdPath(nashdPath)
-
 	path := "/tmp/nashell.test.txt"
+	defer os.Remove(path)
 
-	err = shell.Exec("redirect", `
-        echo -n "hello world" > `+path+`
-        `)
-
+	err = shell.Exec("redirect", fmt.Sprintf(`
+        echo -n "hello world" > %s
+        `, path))
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	content, err := ioutil.ReadFile(path)
-
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
-	os.Remove(path)
-
 	if string(content) != "hello world" {
-		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
-		return
+		t.Fatalf("File differ: '%s' != '%s'", string(content), "hello world")
+	}
+
+	// Test redirection truncate the file
+	err = shell.Exec("redirect", fmt.Sprintf(`
+        echo -n "a" > %s
+        `, path))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content, err = ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if string(content) != "a" {
+		t.Fatalf("File differ: '%s' != '%s'", string(content), "a")
 	}
 
 	// Test redirection to variable
@@ -579,12 +606,10 @@ func TestExecuteRedirection(t *testing.T) {
         `)
 
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	content, err = ioutil.ReadFile(path)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -594,34 +619,25 @@ func TestExecuteRedirection(t *testing.T) {
 		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
 		return
 	}
-
-	os.Remove(path)
 
 	// Test redirection to concat
-	err = shell.Exec("redirect", `
-	location = "`+path+`"
+	err = shell.Exec("redirect", fmt.Sprintf(`
+	location = "%s"
 a = ".2"
         echo -n "hello world" > $location+$a
-        `)
-
+        `, path))
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
-
+	defer os.Remove(path + ".2")
 	content, err = ioutil.ReadFile(path + ".2")
-
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	if string(content) != "hello world" {
-		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
-		return
+		t.Fatalf("File differ: '%s' != '%s'", string(content), "hello world")
 	}
-
-	os.Remove(path + ".2")
 }
 
 func TestExecuteRedirectionMap(t *testing.T) {
@@ -1032,6 +1048,24 @@ path="AAA"
 		return
 	}
 
+	out.Reset()
+	err = shell.Exec("test fn list arg", `
+	ids_luns = ()
+	id = "1"
+	lun = "lunar"
+	ids_luns <= append($ids_luns, ($id $lun))
+	print(len($ids_luns))`)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	got := string(out.Bytes())
+	expected := "1"
+	if got != expected {
+		t.Fatalf("String differs: '%s' != '%s'", got, expected)
+	}
+
 }
 
 func TestFnComposition(t *testing.T) {
@@ -1182,20 +1216,49 @@ func TestExecuteBindFn(t *testing.T) {
 }
 
 func TestExecutePipe(t *testing.T) {
+	var stderr bytes.Buffer
+	var stdout bytes.Buffer
 
-	for _, test := range []execTestCase{
-		{
-			"test pipe",
-			`echo hello | tr -d "[:space:]"`,
-			"hello", "", "",
-		},
-		{
-			"test pipe 3",
-			`echo hello | wc -l | tr -d "[:space:]"`,
-			"1", "", "",
-		},
-	} {
-		testExec(t, test)
+	// Case 1
+	cmd := exec.Command(nashdPath, "-c", `echo hello | tr -d "[:space:]"`)
+
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+
+	err := cmd.Run()
+
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err.Error())
+	}
+
+	expectedOutput := "hello"
+	actualOutput := string(stdout.Bytes())
+
+	if actualOutput != expectedOutput {
+		t.Errorf("'%s' != '%s'", actualOutput, expectedOutput)
+		return
+	}
+	stdout.Reset()
+	stderr.Reset()
+
+	// Case 2
+	cmd = exec.Command(nashdPath, "-c", `echo hello | wc -l | tr -d "[:space:]"`)
+
+	cmd.Stderr = &stderr
+	cmd.Stdout = &stdout
+
+	err = cmd.Run()
+
+	if err != nil {
+		t.Errorf("Unexpected error: %s", err.Error())
+	}
+
+	expectedOutput = "1"
+	actualOutput = string(stdout.Bytes())
+
+	if actualOutput != expectedOutput {
+		t.Errorf("'%s' != '%s'", actualOutput, expectedOutput)
+		return
 	}
 }
 
@@ -2252,5 +2315,93 @@ world`)
 	if e, ok := err.(unfinished); !ok || !e.Unfinished() {
 		t.Errorf("Must fail with unfinished paren error. Got %s", err.Error())
 		return
+	}
+}
+
+func TestExecuteVariadicFn(t *testing.T) {
+	for _, test := range []execTestCase{
+		{
+			desc: "println",
+			execStr: `fn println(fmt, arg...) {
+	print($fmt+"\n", $arg...)
+}
+println("%s %s", "test", "test")`,
+			expectedStdout: "test test\n",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "lots of args",
+			execStr: `fn println(fmt, arg...) {
+	print($fmt+"\n", $arg...)
+}
+println("%s%s%s%s%s%s%s%s%s%s", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10")`,
+			expectedStdout: "12345678910\n",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "passing list to var arg fn",
+			execStr: `fn puts(arg...) { for a in $arg { echo $a } }
+				a = ("1" "2" "3" "4" "5")
+				puts($a...)`,
+			expectedErr:    "",
+			expectedStdout: "1\n2\n3\n4\n5\n",
+			expectedStderr: "",
+		},
+		{
+			desc: "passing empty list to var arg fn",
+			execStr: `fn puts(arg...) { for a in $arg { echo $a } }
+				a = ()
+				puts($a...)`,
+			expectedErr:    "",
+			expectedStdout: "",
+			expectedStderr: "",
+		},
+		{
+			desc: "... expansion",
+			execStr: `args = ("plan9" "from" "outer" "space")
+print("%s %s %s %s", $args...)`,
+			expectedStdout: "plan9 from outer space",
+		},
+		{
+			desc:           "literal ... expansion",
+			execStr:        `print("%s:%s:%s", ("a" "b" "c")...)`,
+			expectedStdout: "a:b:c",
+		},
+		{
+			desc:        "varargs only as last argument",
+			execStr:     `fn println(arg..., fmt) {}`,
+			expectedErr: "<interactive>:1:11: Vararg 'arg...' isn't the last argument",
+		},
+		{
+			desc: "variadic argument are optional",
+			execStr: `fn println(b...) {
+	for v in $b {
+		print($v)
+	}
+	print("\n")
+}
+println()`,
+			expectedStdout: "\n",
+		},
+		{
+			desc: "the first argument isn't optional",
+			execStr: `fn a(b, c...) {
+    print($b, $c...)
+}
+a("test")`,
+			expectedStdout: "test",
+		},
+		{
+			desc: "the first argument isn't optional",
+			execStr: `fn a(b, c...) {
+    print($b, $c...)
+}
+a()`,
+			expectedErr: "<interactive>:4:0: Wrong number of arguments for function a. Expected at least 1 arguments but found 0",
+		},
+	} {
+		testExec(t, test)
 	}
 }

@@ -630,27 +630,25 @@ func (shell *Shell) evalConcat(path ast.Expr) (string, error) {
 		part := concat[i]
 
 		switch part.Type() {
-
 		case ast.NodeConcatExpr:
 			return "", errors.NewEvalError(shell.filename, part,
 				"Nested concat is not allowed: %s", part)
 		case ast.NodeVarExpr, ast.NodeIndexExpr:
-			partValues, err := shell.evalVariable(part)
-
+			partValue, err := shell.evalVariable(part)
 			if err != nil {
 				return "", err
 			}
 
-			if partValues.Type() == sh.ListType {
+			if partValue.Type() == sh.ListType {
 				return "", errors.NewEvalError(shell.filename,
 					part, "Concat of list variables is not allowed: %v = %v",
-					part, partValues)
-			} else if partValues.Type() != sh.StringType {
+					part, partValue)
+			} else if partValue.Type() != sh.StringType {
 				return "", errors.NewEvalError(shell.filename, part,
-					"Invalid concat element: %v", partValues)
+					"Invalid concat element: %v", partValue)
 			}
 
-			strval := partValues.(*sh.StrObj)
+			strval := partValue.(*sh.StrObj)
 			pathStr += strval.Str()
 		case ast.NodeStringExpr:
 			str, ok := part.(*ast.StringExpr)
@@ -791,7 +789,6 @@ func (shell *Shell) executeReturn(n *ast.ReturnNode) ([]sh.Obj, error) {
 		retExpr := returnExprs[i]
 
 		obj, err := shell.evalExpr(retExpr)
-
 		if err != nil {
 			return nil, err
 		}
@@ -804,9 +801,9 @@ func (shell *Shell) executeReturn(n *ast.ReturnNode) ([]sh.Obj, error) {
 
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	obj, err := shell.evalExpr(node.Path)
-
 	if err != nil {
-		return err
+		return errors.NewEvalError(shell.filename,
+			node, err.Error())
 	}
 
 	if obj.Type() != sh.StringType {
@@ -820,9 +817,10 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 
 	shell.logf("Importing '%s'", fname)
 
-	var tries []string
-
-	var hasExt bool
+	var (
+		tries  []string
+		hasExt bool
+	)
 
 	if len(fname) > 3 && fname[len(fname)-3:] == ".sh" {
 		hasExt = true
@@ -958,7 +956,6 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) (sh.Obj, error) {
 		}
 
 		err = cmd.SetArgs(args)
-
 		if err != nil {
 			errIndex = i
 			goto pipeError
@@ -989,6 +986,8 @@ func (shell *Shell) executePipe(pipe *ast.PipeNode) (sh.Obj, error) {
 			stdin io.ReadCloser
 		)
 
+		// StdoutPipe complains if Stdout is already set
+		cmd.SetStdout(nil)
 		stdin, err = cmd.StdoutPipe()
 
 		if err != nil {
@@ -1081,7 +1080,6 @@ func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, err
 	)
 
 	locationObj, err := shell.evalExpr(location)
-
 	if err != nil {
 		return nil, err
 	}
@@ -1106,7 +1104,7 @@ func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, err
 	}
 
 	if protocol == "" {
-		return os.OpenFile(locationStr, os.O_RDWR|os.O_CREATE, 0644)
+		return os.OpenFile(locationStr, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	}
 
 	switch protocol {
@@ -1298,7 +1296,7 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 			return nil, ignoreError, err
 		}
 
-		for i := 0 + len(c.Args()); i < len(fn.ArgNames()); i++ {
+		for i := len(c.Args()); i < len(fn.ArgNames()); i++ {
 			// fill missing args with empty string
 			// safe?
 			c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
@@ -1323,6 +1321,10 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 		return nil, ignoreError, err
 	}
 
+	cmd.SetStdin(shell.stdin)
+	cmd.SetStdout(shell.stdout)
+	cmd.SetStderr(shell.stderr)
+
 	return cmd, ignoreError, nil
 }
 
@@ -1344,7 +1346,6 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 	}()
 
 	cmd, ignoreError, err = shell.getCommand(c)
-
 	if err != nil {
 		goto cmdError
 	}
@@ -1355,21 +1356,15 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 	envVars = buildenv(shell.Environ())
 	cmd.SetEnviron(envVars)
 
-	args, err = cmdArgs(c.Args(), shell)
-
+	args, err = shell.evalExprs(c.Args())
 	if err != nil {
 		goto cmdError
 	}
 
 	err = cmd.SetArgs(args)
-
 	if err != nil {
 		goto cmdError
 	}
-
-	cmd.SetStdin(shell.stdin)
-	cmd.SetStdout(shell.stdout)
-	cmd.SetStderr(shell.stderr)
 
 	closeAfterWait, err = shell.setRedirects(cmd, c.Redirects())
 
@@ -1378,13 +1373,11 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 	}
 
 	err = cmd.Start()
-
 	if err != nil {
 		goto cmdError
 	}
 
 	err = cmd.Wait()
-
 	if err != nil {
 		goto cmdError
 	}
@@ -1402,11 +1395,10 @@ cmdError:
 }
 
 func (shell *Shell) evalList(argList *ast.ListExpr) (sh.Obj, error) {
-	values := make([]sh.Obj, 0, len(argList.List()))
+	values := make([]sh.Obj, 0, len(argList.List))
 
-	for _, arg := range argList.List() {
+	for _, arg := range argList.List {
 		obj, err := shell.evalExpr(arg)
-
 		if err != nil {
 			return nil, err
 		}
@@ -1415,6 +1407,25 @@ func (shell *Shell) evalList(argList *ast.ListExpr) (sh.Obj, error) {
 	}
 
 	return sh.NewListObj(values), nil
+}
+
+func (shell *Shell) evalArgList(argList *ast.ListExpr) ([]sh.Obj, error) {
+	values := make([]sh.Obj, 0, len(argList.List))
+
+	for _, arg := range argList.List {
+		obj, err := shell.evalExpr(arg)
+		if err != nil {
+			return nil, err
+		}
+
+		values = append(values, obj)
+	}
+
+	if argList.IsVariadic {
+		return values, nil
+	}
+
+	return []sh.Obj{sh.NewListObj(values)}, nil
 }
 
 func (shell *Shell) evalIndex(index ast.Expr) (int, error) {
@@ -1429,7 +1440,6 @@ func (shell *Shell) evalIndex(index ast.Expr) (int, error) {
 	}
 
 	idxObj, err := shell.evalVariable(index)
-
 	if err != nil {
 		return 0, err
 	}
@@ -1450,21 +1460,18 @@ func (shell *Shell) evalIndex(index ast.Expr) (int, error) {
 }
 
 func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
-	variable := indexVar.Var()
-	index := indexVar.Index()
-
-	v, err := shell.evalVariable(variable)
+	v, err := shell.evalVariable(indexVar.Var)
 
 	if err != nil {
 		return nil, err
 	}
 
 	if v.Type() != sh.ListType {
-		return nil, errors.NewEvalError(shell.filename, variable, "Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var,
+			"Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
 	}
 
-	indexNum, err := shell.evalIndex(index)
-
+	indexNum, err := shell.evalIndex(indexVar.Index)
 	if err != nil {
 		return nil, err
 	}
@@ -1474,17 +1481,57 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 
 	if indexNum < 0 || indexNum >= len(values) {
 		return nil, errors.NewEvalError(shell.filename,
-			variable,
-			"Index out of bounds. len(%s) == %d, but given %d", variable.Name(), len(values), indexNum)
+			indexVar.Var,
+			"Index out of bounds. len(%s) == %d, but given %d", indexVar.Var.Name,
+			len(values), indexNum)
 	}
 
 	return values[indexNum], nil
 }
 
+func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error) {
+	v, err := shell.evalVariable(indexVar.Var)
+	if err != nil {
+		return nil, err
+	}
+
+	if v.Type() != sh.ListType {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var,
+			"Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
+	}
+
+	indexNum, err := shell.evalIndex(indexVar.Index)
+	if err != nil {
+		return nil, err
+	}
+
+	vlist := v.(*sh.ListObj)
+	values := vlist.List()
+
+	if indexNum < 0 || indexNum >= len(values) {
+		return nil, errors.NewEvalError(shell.filename,
+			indexVar.Var,
+			"Index out of bounds. len(%s) == %d, but given %d", indexVar.Var.Name,
+			len(values), indexNum)
+	}
+
+	retval := values[indexNum]
+
+	if indexVar.IsVariadic {
+		if retval.Type() != sh.ListType {
+			return nil, errors.NewEvalError(shell.filename,
+				indexVar, "Use of '...' on a non-list variable")
+		}
+		retlist := retval.(*sh.ListObj)
+		return retlist.List(), nil
+	}
+	return []sh.Obj{values[indexNum]}, nil
+}
+
 func (shell *Shell) evalVariable(a ast.Expr) (sh.Obj, error) {
 	var (
-		v  sh.Obj
-		ok bool
+		value sh.Obj
+		ok    bool
 	)
 
 	if a.Type() == ast.NodeIndexExpr {
@@ -1497,14 +1544,48 @@ func (shell *Shell) evalVariable(a ast.Expr) (sh.Obj, error) {
 	}
 
 	vexpr := a.(*ast.VarExpr)
-	varName := vexpr.Name()
+	varName := vexpr.Name
 
-	if v, ok = shell.Getvar(varName[1:]); !ok {
+	if value, ok = shell.Getvar(varName[1:]); !ok {
 		return nil, errors.NewEvalError(shell.filename,
 			a, "Variable %s not set on shell %s", varName, shell.name)
 	}
+	return value, nil
+}
 
-	return v, nil
+func (shell *Shell) evalArgVariable(a ast.Expr) ([]sh.Obj, error) {
+	var (
+		value sh.Obj
+		ok    bool
+	)
+
+	if a.Type() == ast.NodeIndexExpr {
+		return shell.evalArgIndexedVar(a.(*ast.IndexExpr))
+	}
+
+	if a.Type() != ast.NodeVarExpr {
+		return nil, errors.NewEvalError(shell.filename,
+			a, "Invalid eval of non variable argument: %s", a)
+	}
+
+	vexpr := a.(*ast.VarExpr)
+	if value, ok = shell.Getvar(vexpr.Name[1:]); !ok {
+		return nil, errors.NewEvalError(shell.filename,
+			a, "Variable %s not set on shell %s", vexpr.Name,
+			shell.name)
+	}
+
+	if vexpr.IsVariadic {
+		if value.Type() != sh.ListType {
+			return nil, errors.NewEvalError(shell.filename,
+				a, "Variable expansion (%s) on a non-list object",
+				vexpr.String())
+		}
+
+		return value.(*sh.ListObj).List(), nil
+	}
+
+	return []sh.Obj{value}, nil
 }
 
 func (shell *Shell) evalExprs(exprs []ast.Expr) ([]sh.Obj, error) {
@@ -1512,7 +1593,6 @@ func (shell *Shell) evalExprs(exprs []ast.Expr) ([]sh.Obj, error) {
 
 	for _, expr := range exprs {
 		obj, err := shell.evalExpr(expr)
-
 		if err != nil {
 			return nil, err
 		}
@@ -1521,6 +1601,79 @@ func (shell *Shell) evalExprs(exprs []ast.Expr) ([]sh.Obj, error) {
 	}
 
 	return objs, nil
+}
+
+func (shell *Shell) evalArgExprs(exprs []ast.Expr) ([]sh.Obj, error) {
+	ret := make([]sh.Obj, 0, len(exprs))
+
+	for _, expr := range exprs {
+		objs, err := shell.evalArgExpr(expr)
+		if err != nil {
+			return nil, err
+		}
+
+		ret = append(ret, objs...)
+	}
+
+	return ret, nil
+}
+
+func (shell *Shell) evalArgExpr(expr ast.Expr) ([]sh.Obj, error) {
+	switch expr.Type() {
+	case ast.NodeStringExpr:
+		if str, ok := expr.(*ast.StringExpr); ok {
+			return []sh.Obj{
+				sh.NewStrObj(str.Value()),
+			}, nil
+		}
+	case ast.NodeConcatExpr:
+		if concat, ok := expr.(*ast.ConcatExpr); ok {
+			argVal, err := shell.evalConcat(concat)
+			if err != nil {
+				return nil, err
+			}
+
+			return []sh.Obj{
+				sh.NewStrObj(argVal),
+			}, nil
+		}
+	case ast.NodeVarExpr:
+		return shell.evalArgVariable(expr)
+	case ast.NodeIndexExpr:
+		if indexedVar, ok := expr.(*ast.IndexExpr); ok {
+			return shell.evalArgIndexedVar(indexedVar)
+		}
+	case ast.NodeListExpr:
+		if listExpr, ok := expr.(*ast.ListExpr); ok {
+			return shell.evalArgList(listExpr)
+		}
+	case ast.NodeFnInv:
+		if fnInv, ok := expr.(*ast.FnInvNode); ok {
+			objs, err := shell.executeFnInv(fnInv)
+			if err != nil {
+				return nil, err
+			}
+
+			if len(objs) == 0 {
+				return nil, errors.NewEvalError(shell.filename,
+					expr,
+					"Function used in"+
+						" expression but do not return any value: %s",
+					fnInv)
+			} else if len(objs) != 1 {
+				return nil, errors.NewEvalError(shell.filename,
+					expr,
+					"Function used in"+
+						" expression but it returns %d values: %10q",
+					len(objs), objs)
+			}
+
+			return []sh.Obj{objs[0]}, nil
+		}
+	}
+
+	return nil, errors.NewEvalError(shell.filename,
+		expr, "Failed to eval expression: %+v", expr)
 }
 
 func (shell *Shell) evalExpr(expr ast.Expr) (sh.Obj, error) {
@@ -1532,7 +1685,6 @@ func (shell *Shell) evalExpr(expr ast.Expr) (sh.Obj, error) {
 	case ast.NodeConcatExpr:
 		if concat, ok := expr.(*ast.ConcatExpr); ok {
 			argVal, err := shell.evalConcat(concat)
-
 			if err != nil {
 				return nil, err
 			}
@@ -1552,7 +1704,6 @@ func (shell *Shell) evalExpr(expr ast.Expr) (sh.Obj, error) {
 	case ast.NodeFnInv:
 		if fnInv, ok := expr.(*ast.FnInvNode); ok {
 			objs, err := shell.executeFnInv(fnInv)
-
 			if err != nil {
 				return nil, err
 			}
@@ -1736,7 +1887,6 @@ func (shell *Shell) executeExecAssignFn(v ast.Node) error {
 	}
 
 	fnValues, err = shell.executeFnInv(cmd.(*ast.FnInvNode))
-
 	if err != nil {
 		return err
 	}
@@ -1882,34 +2032,6 @@ func (shell *Shell) executeIfNotEqual(n *ast.IfNode) ([]sh.Obj, error) {
 	return nil, nil
 }
 
-func (shell *Shell) executeFn(fn sh.Fn, nodeArgs []ast.Expr) ([]sh.Obj, error) {
-	args, err := shell.evalExprs(nodeArgs)
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = fn.SetArgs(args)
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = fn.Start()
-
-	if err != nil {
-		return nil, err
-	}
-
-	err = fn.Wait()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return fn.Results(), nil
-}
-
 func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 	var (
 		fn sh.Runner
@@ -1917,7 +2039,6 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 	)
 
 	fnName := n.Name()
-
 	if len(fnName) > 1 && fnName[0] == '$' {
 		argVar := ast.NewVarExpr(token.NewFileInfo(n.Line(), n.Column()), fnName)
 
@@ -1936,7 +2057,6 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 		fn = objfn.Fn()
 	} else {
 		fn, ok = shell.GetBuiltin(fnName)
-
 		if !ok {
 			fn, ok = shell.GetFn(fnName)
 
@@ -1947,28 +2067,27 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 		}
 	}
 
-	args, err := shell.evalExprs(n.Args())
-
+	args, err := shell.evalArgExprs(n.Args())
 	if err != nil {
 		return nil, err
 	}
 
 	err = fn.SetArgs(args)
-
 	if err != nil {
-		return nil, err
+		return nil, errors.NewEvalError(shell.filename,
+			n, err.Error())
 	}
 
 	err = fn.Start()
-
 	if err != nil {
-		return nil, err
+		return nil, errors.NewEvalError(shell.filename,
+			n, err.Error())
 	}
 
 	err = fn.Wait()
-
 	if err != nil {
-		return nil, err
+		return nil, errors.NewEvalError(shell.filename,
+			n, err.Error())
 	}
 
 	return fn.Results(), nil
@@ -2056,6 +2175,9 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 	} else if inExpr.Type() == ast.NodeFnInv {
 		var objs []sh.Obj
 		objs, err = shell.executeFnInv(inExpr.(*ast.FnInvNode))
+		if err != nil {
+			return nil, err
+		}
 
 		if len(objs) != 1 {
 			return nil, errors.NewEvalError(shell.filename,
@@ -2127,7 +2249,6 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 
 func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 	fn, err := NewUserFn(n.Name(), shell)
-
 	if err != nil {
 		return err
 	}
@@ -2135,15 +2256,19 @@ func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 	fn.SetRepr(n.String())
 
 	args := n.Args()
-
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 
-		fn.AddArgName(arg)
+		if i < len(args)-1 && arg.IsVariadic {
+			return errors.NewEvalError(shell.filename,
+				arg, "Vararg '%s' isn't the last argument",
+				arg.String())
+		}
+
+		fn.AddArgName(sh.FnArg{arg.Name, arg.IsVariadic})
 	}
 
 	fn.SetTree(n.Tree())
-
 	fnName := n.Name()
 
 	if fnName == "" {

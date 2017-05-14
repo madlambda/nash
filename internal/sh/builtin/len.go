@@ -18,8 +18,10 @@ func newLen() *lenFn {
 	return &lenFn{}
 }
 
-func (l *lenFn) ArgNames() []string {
-	return []string{"list"}
+func (l *lenFn) ArgNames() []sh.FnArg {
+	return []sh.FnArg{
+		sh.NewFnArg("list", false),
+	}
 }
 
 func lenresult(res int) []sh.Obj {

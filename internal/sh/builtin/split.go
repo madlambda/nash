@@ -19,8 +19,11 @@ func newSplit() *splitFn {
 	return &splitFn{}
 }
 
-func (s *splitFn) ArgNames() []string {
-	return []string{"sep", "content"}
+func (s *splitFn) ArgNames() []sh.FnArg {
+	return []sh.FnArg{
+		sh.NewFnArg("sep", false),
+		sh.NewFnArg("content", false),
+	}
 }
 
 func (s *splitFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
@@ -43,7 +46,6 @@ func (s *splitFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, err
 	}
 
 	listobjs := make([]sh.Obj, len(output))
-
 	for i := 0; i < len(output); i++ {
 		listobjs[i] = sh.NewStrObj(output[i])
 	}
@@ -53,18 +55,16 @@ func (s *splitFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, err
 
 func (s *splitFn) SetArgs(args []sh.Obj) error {
 	if len(args) != 2 {
-		return errors.NewError("splitfn expects 2 arguments")
+		return errors.NewError("split: expects 2 parameters")
 	}
 
 	if args[0].Type() != sh.StringType {
-		return errors.NewError("content must be of type string")
+		return errors.NewError("split: first parameter must be a string")
 	}
 
 	content := args[0].(*sh.StrObj)
-
 	s.content = content.Str()
 	s.sep = args[1]
-
 	return nil
 }
 
