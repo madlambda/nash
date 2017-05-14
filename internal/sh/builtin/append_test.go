@@ -52,14 +52,14 @@ func testAppend(t *testing.T, tc testcase) {
 func TestAppend(t *testing.T) {
 	for _, tc := range []testcase{
 		{
-			name:        "at least two arguments",
+			name:        "no argument fails",
 			code:        `append()`,
-			expectedErr: "<interactive>:1:0: appendfn expects at least two arguments",
+			expectedErr: "<interactive>:1:0: append expects at least two arguments",
 		},
 		{
-			name:        "at least two arguments",
+			name:        "one argument fails",
 			code:        `append("1")`,
-			expectedErr: "<interactive>:1:0: appendfn expects at least two arguments",
+			expectedErr: "<interactive>:1:0: append expects at least two arguments",
 		},
 		{
 			name: "simple append",
@@ -76,7 +76,7 @@ func TestAppend(t *testing.T) {
 			code: `a = "something"
 		 a <= append($a, "other")
 		 echo -n $a...`,
-			expectedErr: "<interactive>:2:8: appendfn expects a " +
+			expectedErr: "<interactive>:2:8: append expects a " +
 				"list as first argument, but a StringType was provided",
 			expectedStdout: "",
 			expectedStderr: "",

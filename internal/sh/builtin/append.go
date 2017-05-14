@@ -32,12 +32,12 @@ func (appendfn *appendFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.
 
 func (appendfn *appendFn) SetArgs(args []sh.Obj) error {
 	if len(args) < 2 {
-		return errors.NewError("appendfn expects at least two arguments")
+		return errors.NewError("append expects at least two arguments")
 	}
 
 	obj := args[0]
 	if obj.Type() != sh.ListType {
-		return errors.NewError("appendfn expects a list as first argument, but a %s was provided",
+		return errors.NewError("append expects a list as first argument, but a %s was provided",
 			obj.Type())
 	}
 
