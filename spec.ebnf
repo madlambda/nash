@@ -50,7 +50,7 @@ fnDecl = "fn" identifier "(" fnArgs ")" "{"
          program [ returnDecl ]
          "}" .
 fnArgs = { fnArg [ "," ] } .
-fnArg  = identifier .
+fnArg  = identifier [ "..." ] .
 
 /* return declaration */
 returnDecl = "return" [ ( variable | stringLit | list | fnInv ) ] .
@@ -59,7 +59,7 @@ returnDecl = "return" [ ( variable | stringLit | list | fnInv ) ] .
 fnInv = ( variable | identifier ) "(" fnArgValues ")" .
 
 fnArgValues = { fnArgValue [ "," ] } .
-fnArgValue  = [ stringLit | stringConcat | list | variable | fnInv ] .
+fnArgValue  = [ stringLit | stringConcat | list | (variable [ "..." ]) | (list [ "..." ]) fnInv ] .
 
 /* Function binding */
 bindfn = "bindfn" identifier identifier .

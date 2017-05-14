@@ -19,8 +19,11 @@ func newPrint() *printFn {
 	return &printFn{}
 }
 
-func (p *printFn) ArgNames() []string {
-	return []string{"fmt", "args..."}
+func (p *printFn) ArgNames() []sh.FnArg {
+	return []sh.FnArg{
+		sh.NewFnArg("fmt", false),
+		sh.NewFnArg("arg...", true),
+	}
 }
 
 func (p *printFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {

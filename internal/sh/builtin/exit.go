@@ -19,8 +19,10 @@ func newExit() *exitFn {
 	return &exitFn{}
 }
 
-func (e *exitFn) ArgNames() []string {
-	return []string{"status"}
+func (e *exitFn) ArgNames() []sh.FnArg {
+	return []sh.FnArg{
+		sh.NewFnArg("status", false),
+	}
 }
 
 func (e *exitFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
@@ -30,7 +32,7 @@ func (e *exitFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, erro
 
 func (e *exitFn) SetArgs(args []sh.Obj) error {
 	if len(args) != 1 {
-		return errors.NewError("exit expects one argument")
+		return errors.NewError("exit expects 1 argument")
 	}
 
 	obj := args[0]

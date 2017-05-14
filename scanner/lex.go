@@ -286,7 +286,8 @@ func lexStart(l *Lexer) stateFn {
 		if next != eof && !isSpace(next) &&
 			!isEndOfLine(next) && next != ';' &&
 			next != ')' && next != ',' && next != '+' &&
-			next != '[' && next != ']' && next != '(' {
+			next != '[' && next != ']' && next != '(' &&
+			next != '.' {
 			l.errorf("Unrecognized character in action: %#U", next)
 			return nil
 		}
@@ -349,6 +350,26 @@ func lexStart(l *Lexer) stateFn {
 	case r == ',':
 		l.emit(token.Comma)
 		return lexStart
+	case r == '.':
+		dotLine, dotColumn := l.line, l.column
+		next := l.peek()
+		if next == '.' {
+			l.next()
+			next = l.peek()
+			if next == '.' {
+				l.next()
+				l.emitVal(token.Dotdotdot, "...", dotLine, dotColumn)
+				return lexStart
+			}
+		}
+		absorbArgument(l)
+		l.emit(token.Arg)
+		if next == eof && l.openParens > 0 {
+			l.addSemicolon = false
+		} else {
+			l.addSemicolon = true
+		}
+		return lexStart
 	case isIdentifier(r):
 		// nash literals are lowercase
 		absorbIdentifier(l)
@@ -366,6 +387,26 @@ func lexStart(l *Lexer) stateFn {
 			} else {
 				l.emit(token.Ident)
 			}
+		} else if next == '.' {
+			// because of shell idiosyncrasies I've to replicate
+			// almost same dotdotdot lex here...
+			ident := l.input[l.start:l.pos]
+			identLine, identCol := l.lineStart, l.columnStart
+			dotLine, dotColumn := l.line, l.column
+			l.next()
+			next = l.peek()
+			if next == '.' {
+				l.next()
+				next = l.peek()
+				if next == '.' {
+					l.next()
+					l.emitVal(token.Ident, ident, identLine, identCol)
+					l.emitVal(token.Dotdotdot, "...", dotLine, dotColumn)
+					return lexStart
+				}
+			}
+			absorbArgument(l)
+			l.emit(token.Arg)
 		} else {
 			absorbArgument(l)
 			l.emit(token.Arg)

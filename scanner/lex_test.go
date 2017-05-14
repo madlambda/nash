@@ -432,6 +432,14 @@ func TestLexerSimpleCommand(t *testing.T) {
 
 	testTable("testSimpleCommand", `ls "/home/user" + "/.gvm/pkgsets/global/src"`, expected, t)
 
+	expected = []Token{
+		{typ: token.Arg, val: "./rkt"},
+		{typ: token.Semicolon, val: ";"}, // automatic semicolon insertion
+		{typ: token.EOF},
+	}
+
+	testTable("test local command", "./rkt", expected, t)
+
 }
 
 func TestLexerPipe(t *testing.T) {
@@ -1845,4 +1853,55 @@ func TestLexerLongAssignment(t *testing.T) {
 				$vpcarg |
 	jq ".GroupId" |
 	xargs echo -n)`, expected, t)
+}
+
+func TestLexerVarArgs(t *testing.T) {
+	expected := []Token{
+		{typ: token.Ident, val: "println"},
+		{typ: token.LParen, val: "("},
+		{typ: token.Ident, val: "fmt"},
+		{typ: token.Comma, val: ","},
+		{typ: token.Ident, val: "args"},
+		{typ: token.Dotdotdot, val: "..."},
+		{typ: token.RParen, val: ")"},
+		{typ: token.LBrace, val: "{"},
+		{typ: token.Ident, val: "print"},
+		{typ: token.LParen, val: "("},
+		{typ: token.Variable, val: "$fmt"},
+		{typ: token.Comma, val: ","},
+		{typ: token.Variable, val: "$args"},
+		{typ: token.Dotdotdot, val: "..."},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.RBrace, val: "}"},
+		{typ: token.EOF},
+	}
+
+	testTable("test var args", `println(fmt, args...) {
+	print($fmt, $args...)
+}`, expected, t)
+	testTable("test var args", `println(fmt, args ...) {
+	print($fmt, $args...)
+}`, expected, t)
+
+	expected = []Token{
+		{typ: token.Ident, val: "print"},
+		{typ: token.LParen, val: "("},
+		{typ: token.String, val: "%s:%s:%s"},
+		{typ: token.Comma, val: ","},
+		{typ: token.LParen, val: "("},
+		{typ: token.String, val: "a"},
+		{typ: token.String, val: "b"},
+		{typ: token.String, val: "c"},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Dotdotdot, val: "..."},
+		{typ: token.RParen, val: ")"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test literal expansion", `print("%s:%s:%s", ("a" "b" "c")...)`,
+		expected, t)
+	testTable("test literal expansion", `print("%s:%s:%s", ("a" "b" "c") ...)`,
+		expected, t)
 }

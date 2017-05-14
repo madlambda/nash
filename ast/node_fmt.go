@@ -1,6 +1,7 @@
 package ast
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -18,16 +19,16 @@ func (i *IntExpr) String() string {
 }
 
 func (l *ListExpr) string() (string, bool) {
-	elems := make([]string, len(l.list))
+	elems := make([]string, len(l.List))
 	columnCount := 0
 	forceMulti := false
 
-	for i := 0; i < len(l.list); i++ {
-		if l.list[i].Type() == NodeListExpr {
+	for i := 0; i < len(l.List); i++ {
+		if l.List[i].Type() == NodeListExpr {
 			forceMulti = true
 		}
 
-		elems[i] = l.list[i].String()
+		elems[i] = l.List[i].String()
 		columnCount += len(elems[i])
 	}
 
@@ -59,11 +60,18 @@ func (c *ConcatExpr) String() string {
 }
 
 func (v *VarExpr) String() string {
-	return v.name
+	if v.IsVariadic {
+		return v.Name + "..."
+	}
+	return v.Name
 }
 
 func (i *IndexExpr) String() string {
-	return i.variable.String() + "[" + i.index.String() + "]"
+	ret := fmt.Sprintf("%s[%s]", i.Var, i.Index)
+	if i.IsVariadic {
+		return ret + "..."
+	}
+	return ret
 }
 
 func (l *BlockNode) adjustGroupAssign(node assignable, nodes []Node) {
@@ -564,8 +572,7 @@ func (n *FnDeclNode) String() string {
 	}
 
 	for i := 0; i < len(n.args); i++ {
-		fnStr += n.args[i]
-
+		fnStr += n.args[i].String()
 		if i < (len(n.args) - 1) {
 			fnStr += ", "
 		}
@@ -588,6 +595,14 @@ func (n *FnDeclNode) String() string {
 	fnStr += "}"
 
 	return fnStr
+}
+
+func (arg *FnArgNode) String() string {
+	ret := arg.Name
+	if arg.IsVariadic {
+		ret += "..."
+	}
+	return ret
 }
 
 // String returns the string representation of function invocation

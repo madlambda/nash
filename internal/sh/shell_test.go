@@ -169,25 +169,42 @@ func TestExecuteFile(t *testing.T) {
 func TestExecuteCommand(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
-			"command failed",
-			`non-existing-program`,
-			"", "",
-			`exec: "non-existing-program": executable file not found in $PATH`,
+			desc:           "command failed",
+			execStr:        `non-existing-program`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    `exec: "non-existing-program": executable file not found in $PATH`,
 		},
 		{
-			"err ignored",
-			`-non-existing-program`,
-			"", "", "",
+			desc:           "err ignored",
+			execStr:        `-non-existing-program`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"hello world",
-			"echo -n hello world",
-			"hello world", "", "",
+			desc:           "hello world",
+			execStr:        "echo -n hello world",
+			expectedStdout: "hello world",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"cmd with concat",
-			`echo -n "hello " + "world"`,
-			"hello world", "", "",
+			desc:           "cmd with concat",
+			execStr:        `echo -n "hello " + "world"`,
+			expectedStdout: "hello world",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "local command",
+			execStr: `echopath <= which echo
+path <= dirname $echopath
+chdir($path)
+./echo -n hello`,
+			expectedStdout: "hello",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 	} {
 		testExec(t, test)
@@ -1215,7 +1232,7 @@ func TestExecutePipe(t *testing.T) {
 	}
 
 	expectedOutput := "hello"
-	actualOutput   := string(stdout.Bytes())
+	actualOutput := string(stdout.Bytes())
 
 	if actualOutput != expectedOutput {
 		t.Errorf("'%s' != '%s'", actualOutput, expectedOutput)
@@ -1237,7 +1254,7 @@ func TestExecutePipe(t *testing.T) {
 	}
 
 	expectedOutput = "1"
-	actualOutput   = string(stdout.Bytes())
+	actualOutput = string(stdout.Bytes())
 
 	if actualOutput != expectedOutput {
 		t.Errorf("'%s' != '%s'", actualOutput, expectedOutput)
@@ -2298,5 +2315,93 @@ world`)
 	if e, ok := err.(unfinished); !ok || !e.Unfinished() {
 		t.Errorf("Must fail with unfinished paren error. Got %s", err.Error())
 		return
+	}
+}
+
+func TestExecuteVariadicFn(t *testing.T) {
+	for _, test := range []execTestCase{
+		{
+			desc: "println",
+			execStr: `fn println(fmt, arg...) {
+	print($fmt+"\n", $arg...)
+}
+println("%s %s", "test", "test")`,
+			expectedStdout: "test test\n",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "lots of args",
+			execStr: `fn println(fmt, arg...) {
+	print($fmt+"\n", $arg...)
+}
+println("%s%s%s%s%s%s%s%s%s%s", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10")`,
+			expectedStdout: "12345678910\n",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "passing list to var arg fn",
+			execStr: `fn puts(arg...) { for a in $arg { echo $a } }
+				a = ("1" "2" "3" "4" "5")
+				puts($a...)`,
+			expectedErr:    "",
+			expectedStdout: "1\n2\n3\n4\n5\n",
+			expectedStderr: "",
+		},
+		{
+			desc: "passing empty list to var arg fn",
+			execStr: `fn puts(arg...) { for a in $arg { echo $a } }
+				a = ()
+				puts($a...)`,
+			expectedErr:    "",
+			expectedStdout: "",
+			expectedStderr: "",
+		},
+		{
+			desc: "... expansion",
+			execStr: `args = ("plan9" "from" "outer" "space")
+print("%s %s %s %s", $args...)`,
+			expectedStdout: "plan9 from outer space",
+		},
+		{
+			desc:           "literal ... expansion",
+			execStr:        `print("%s:%s:%s", ("a" "b" "c")...)`,
+			expectedStdout: "a:b:c",
+		},
+		{
+			desc:        "varargs only as last argument",
+			execStr:     `fn println(arg..., fmt) {}`,
+			expectedErr: "<interactive>:1:11: Vararg 'arg...' isn't the last argument",
+		},
+		{
+			desc: "variadic argument are optional",
+			execStr: `fn println(b...) {
+	for v in $b {
+		print($v)
+	}
+	print("\n")
+}
+println()`,
+			expectedStdout: "\n",
+		},
+		{
+			desc: "the first argument isn't optional",
+			execStr: `fn a(b, c...) {
+    print($b, $c...)
+}
+a("test")`,
+			expectedStdout: "test",
+		},
+		{
+			desc: "the first argument isn't optional",
+			execStr: `fn a(b, c...) {
+    print($b, $c...)
+}
+a()`,
+			expectedErr: "<interactive>:4:0: Wrong number of arguments for function a. Expected at least 1 arguments but found 0",
+		},
+	} {
+		testExec(t, test)
 	}
 }

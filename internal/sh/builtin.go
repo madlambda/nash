@@ -48,7 +48,7 @@ func (f *builtinFn) Name() string {
 	return f.name
 }
 
-func (f *builtinFn) ArgNames() []string {
+func (f *builtinFn) ArgNames() []sh.FnArg {
 	return f.fn.ArgNames()
 }
 
