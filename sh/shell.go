@@ -3,6 +3,9 @@ package sh
 import "io"
 
 type (
+	Envs map[string]Obj
+	Vars map[string]Obj
+
 	Runner interface {
 		Start() error
 		Wait() error

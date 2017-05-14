@@ -22,7 +22,8 @@ type (
 
 	FnObj struct {
 		objType
-		fn Fn
+		Fn      Fn
+		Closure Vars
 	}
 
 	StrObj struct {
@@ -46,16 +47,14 @@ func (o *StrObj) Str() string { return o.str }
 
 func (o *StrObj) String() string { return o.Str() }
 
-func NewFnObj(val Fn) *FnObj {
+func NewFnObj(val Fn, closure Vars) *FnObj {
 	return &FnObj{
-		fn:      val,
+		Fn:      val,
 		objType: FnType,
 	}
 }
 
-func (o *FnObj) Fn() Fn { return o.fn }
-
-func (o *FnObj) String() string { return "<fn " + o.Fn().Name() + ">" }
+func (o *FnObj) String() string { return "<fn " + o.Fn.Name() + ">" }
 
 func NewListObj(val []Obj) *ListObj {
 	return &ListObj{

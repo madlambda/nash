@@ -39,7 +39,7 @@ func (s *splitFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, err
 		sepList := s.sep.(*sh.ListObj).List()
 		output = splitByList(content, sepList)
 	case sh.FnType:
-		sepFn := s.sep.(*sh.FnObj).Fn()
+		sepFn := s.sep.(*sh.FnObj).Fn
 		output = splitByFn(content, sepFn)
 	default:
 		return nil, errors.NewError("Invalid separator value: %v", s.sep)

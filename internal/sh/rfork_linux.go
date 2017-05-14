@@ -65,7 +65,7 @@ retryRforkDial:
 // executeRfork executes the calling program again but passing
 // a new name for the process on os.Args[0] and passing an unix
 // socket file to communicate to.
-func (sh *Shell) executeRfork(rfork *ast.RforkNode) error {
+func (sh *Interpreter) executeRfork(rfork *ast.RforkNode) error {
 	var (
 		tr               *ast.Tree
 		i                int

@@ -27,7 +27,7 @@ func randRunes(n int) string {
 	return string(b)
 }
 
-func buildenv(e Env) []string {
+func buildenv(e sh.Envs) []string {
 	env := make([]string, 0, len(e))
 
 	for k, v := range e {
