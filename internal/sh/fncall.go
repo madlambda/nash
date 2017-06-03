@@ -171,7 +171,12 @@ func (fn *UserFn) execute() ([]sh.Obj, error) {
 }
 
 func (fn *UserFn) Start() error {
-	// TODO: what we'll do with fn return values in case of pipes?
+	if fn.subshell == nil {
+		err := fn.setup()
+		if err != nil {
+			return err
+		}
+	}
 
 	go func() {
 		var err error
@@ -188,6 +193,7 @@ func (fn *UserFn) Wait() error {
 	err := <-fn.done
 
 	fn.closeDescriptors(fn.closeAfterWait)
+	fn.subshell = nil
 	return err
 }
 

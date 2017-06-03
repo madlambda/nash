@@ -345,6 +345,7 @@ func (shell *Shell) GetBuiltin(name string) (sh.Fn, bool) {
 func (shell *Shell) GetFn(name string) (sh.Fn, bool) {
 	shell.logf("Looking for function '%s' on shell '%s'\n", name, shell.name)
 
+	shell.logf("fns = %+v\n", shell.fns)
 	if fn, ok := shell.fns[name]; ok {
 		return fn, ok
 	}
@@ -2250,7 +2251,6 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 	fn := NewUserFn(n.Name(), shell)
 	fn.SetRepr(n.String())
-
 	args := n.Args()
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -2275,8 +2275,8 @@ func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 	shell.fns[fnName] = fn
 
 	shell.Setvar(fnName, sh.NewFnObj(fn))
-	shell.logf("Function %s declared on '%s'", fnName, shell.name)
 
+	shell.logf("Function %s declared on '%s'", fnName, shell.name)
 	return nil
 }
 
