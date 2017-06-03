@@ -2248,11 +2248,7 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 }
 
 func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
-	fn, err := NewUserFn(n.Name(), shell)
-	if err != nil {
-		return err
-	}
-
+	fn := NewUserFn(n.Name(), shell)
 	fn.SetRepr(n.String())
 
 	args := n.Args()
