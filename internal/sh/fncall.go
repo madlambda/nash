@@ -30,20 +30,22 @@ type (
 		stdin          io.Reader
 		stdout, stderr io.Writer
 
-		tree           *ast.Tree
+		body           *ast.Tree
 		repr           string
 		closeAfterWait []io.Closer
 	}
 )
 
-func NewUserFn(name string, parent *Shell) *UserFn {
+func NewUserFn(name string, args []sh.FnArg, body *ast.Tree, parent *Shell) *UserFn {
 	return &UserFn{
-		name:   name,
-		done:   make(chan error),
-		parent: parent,
-		stdin:  parent.Stdin(),
-		stdout: parent.Stdout(),
-		stderr: parent.Stderr(),
+		name:     name,
+		argNames: args,
+		body:     body,
+		done:     make(chan error),
+		parent:   parent,
+		stdin:    parent.Stdin(),
+		stdout:   parent.Stdout(),
+		stderr:   parent.Stderr(),
 	}
 }
 
@@ -53,7 +55,7 @@ func (fn *UserFn) setup() error {
 		return err
 	}
 
-	subshell.SetTree(fn.tree)
+	subshell.SetTree(fn.body)
 	subshell.SetRepr(fn.repr)
 	subshell.SetDebug(fn.parent.debug)
 	subshell.SetStdout(fn.stdout)
@@ -152,10 +154,6 @@ func (fn *UserFn) SetRepr(repr string) {
 	fn.repr = repr
 }
 
-func (fn *UserFn) SetTree(t *ast.Tree) {
-	fn.tree = t
-}
-
 func (fn *UserFn) closeDescriptors(closers []io.Closer) {
 	for _, fd := range closers {
 		fd.Close()
@@ -163,8 +161,8 @@ func (fn *UserFn) closeDescriptors(closers []io.Closer) {
 }
 
 func (fn *UserFn) execute() ([]sh.Obj, error) {
-	if fn.tree != nil {
-		return fn.subshell.ExecuteTree(fn.tree)
+	if fn.body != nil {
+		return fn.subshell.ExecuteTree(fn.body)
 	}
 
 	return nil, fmt.Errorf("fn not properly created")
@@ -218,8 +216,8 @@ func (fn *UserFn) Stdout() io.Writer { return fn.stdout }
 func (fn *UserFn) Stderr() io.Writer { return fn.stderr }
 
 func (fn *UserFn) String() string {
-	if fn.tree != nil {
-		return fn.tree.String()
+	if fn.body != nil {
+		return fn.body.String()
 	}
 	panic("fn not initialized")
 }

@@ -78,7 +78,6 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 	shell.SetStdout(&bout)
 
 	err := shell.Exec(testcase.desc, testcase.execStr)
-
 	if err != nil {
 		if err.Error() != testcase.expectedErr {
 			t.Errorf("[%s] Error differs: Expected '%s' but got '%s'",
@@ -109,7 +108,6 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 
 func testExec(t *testing.T, testcase execTestCase) {
 	shell, err := NewShell()
-
 	if err != nil {
 		t.Error(err)
 		return

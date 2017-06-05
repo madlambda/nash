@@ -10,7 +10,7 @@ import (
 )
 
 type (
-	// builtinFn maps a built in function to a nash sh.Fn
+	// builtinFn maps a builtin function to a nash sh.FnDef
 	// avoiding a lot of duplicated code and decoupling the
 	// builtin functions of some unnecessary details on how
 	// the sh.Fn works (lots of complexity to provide features of
@@ -28,7 +28,7 @@ type (
 	}
 )
 
-func NewBuiltInFunc(
+func NewBuiltinFn(
 	name string,
 	fn builtin.Fn,
 	in io.Reader,
@@ -85,9 +85,15 @@ func (f *builtinFn) SetEnviron(env []string) {
 	// terrible design smell having functions that do nothing =/
 }
 
-func (f *builtinFn) SetStdin(r io.Reader)  { f.stdin = r }
-func (f *builtinFn) SetStderr(w io.Writer) { f.stderr = w }
-func (f *builtinFn) SetStdout(w io.Writer) { f.stdout = w }
+func (f *builtinFn) SetStdin(r io.Reader) {
+	f.stdin = r
+}
+func (f *builtinFn) SetStderr(w io.Writer) {
+	f.stderr = w
+}
+func (f *builtinFn) SetStdout(w io.Writer) {
+	f.stdout = w
+}
 func (f *builtinFn) StdoutPipe() (io.ReadCloser, error) {
 	return nil, errors.NewError("builtin functions doesn't works with pipes")
 }
