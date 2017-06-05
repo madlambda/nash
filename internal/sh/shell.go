@@ -324,14 +324,14 @@ func (shell *Shell) GetFn(name string) (*sh.FnObj, error) {
 			fnObj := obj.(*sh.FnObj)
 			return fnObj, nil
 		}
-		return nil, errors.NewError("%s isn't a function", name)
+		return nil, errors.NewError("Identifier '%s' is not a function", name)
 	}
 
 	if shell.parent != nil {
 		return shell.parent.GetFn(name)
 	}
 
-	return nil, fmt.Errorf("function %s not found")
+	return nil, fmt.Errorf("function '%s' not found", name)
 }
 
 func (shell *Shell) Setbindfn(name string, value sh.FnDef) {
@@ -2005,7 +2005,7 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 
 		if obj.Type() != sh.FnType {
 			return nil, errors.NewEvalError(shell.filename,
-				n, "Variable '%s' isnt a function.", fnName)
+				n, "Variable '%s' is not a function.", fnName)
 		}
 
 		objfn := obj.(*sh.FnObj)
