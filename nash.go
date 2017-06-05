@@ -182,7 +182,7 @@ func (nash *Shell) Setvar(name string, value sh.Obj) {
 
 // Getvar retrieves a variable from nash session
 func (nash *Shell) Getvar(name string) (sh.Obj, bool) {
-	return nash.interp.Getvar(name)
+	return nash.interp.Getvar(name, false)
 }
 
 func args2Nash(args []string) string {

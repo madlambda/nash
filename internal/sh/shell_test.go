@@ -722,10 +722,10 @@ func TestExecuteCd(t *testing.T) {
 			"", "",
 		},
 		{
-			"test cd into $var",
+			"test cd into $val",
 			`
-        var="/"
-        cd $var
+        val="/"
+        cd $val
         pwd`,
 			"/\n",
 			"",
@@ -733,8 +733,8 @@ func TestExecuteCd(t *testing.T) {
 		},
 		{
 			"test error",
-			`var=("val1" "val2" "val3")
-        cd $var
+			`val=("val1" "val2" "val3")
+        cd $val
         pwd`,
 			"", "",
 			"<interactive>:2:12: lvalue is not comparable: (val1 val2 val3) -> ListType.",
@@ -2088,8 +2088,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 		return
 	}
 
-	scode, ok := shell.Getvar("status")
-
+	scode, ok := shell.Getvar("status", false)
 	if !ok || scode.Type() != sh.StringType || scode.String() != strconv.Itoa(ENotFound) {
 		t.Errorf("Invalid status code %s", scode.String())
 		return
@@ -2102,8 +2101,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 		return
 	}
 
-	scode, ok = shell.Getvar("status")
-
+	scode, ok = shell.Getvar("status", false)
 	if !ok || scode.Type() != sh.StringType || scode.String() != "0" {
 		t.Errorf("Invalid status code %s", scode)
 		return
@@ -2123,7 +2121,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 		return
 	}
 
-	scode, ok = shell.Getvar("status")
+	scode, ok = shell.Getvar("status", false)
 
 	if !ok || scode.Type() != sh.StringType || scode.String() != "255|127" {
 		t.Errorf("Invalid status code %s", scode)

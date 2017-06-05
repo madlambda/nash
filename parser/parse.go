@@ -41,6 +41,7 @@ func NewParser(name, content string) *Parser {
 		token.For:     p.parseFor,
 		token.If:      p.parseIf,
 		token.Fn:      p.parseFnDecl,
+		token.Var:     p.parseVar,
 		token.Return:  p.parseReturn,
 		token.Import:  p.parseImport,
 		token.SetEnv:  p.parseSetenv,
@@ -1071,6 +1072,50 @@ func (p *Parser) parseFnArgs() ([]*ast.FnArgNode, error) {
 	}
 
 	return args, nil
+}
+
+func (p *Parser) parseVar(it scanner.Token) (ast.Node, error) {
+	var varTok = it
+
+	it = p.next()
+	next := p.peek()
+
+	if it.Type() != token.Ident {
+		return nil, newParserError(it, p.name,
+			"Unexpected token %v. Expected IDENT",
+			next,
+		)
+	}
+
+	if !isAssignment(next.Type()) {
+		return nil, newParserError(next, p.name,
+			"Unexpected token %v. Expected '=' or ','",
+			next,
+		)
+	}
+
+	assign, err := p.parseAssignment(it)
+	if err != nil {
+		return nil, err
+	}
+
+	switch assign.Type() {
+	case ast.NodeAssign:
+		return ast.NewVarAssignDecl(
+			varTok.FileInfo,
+			assign.(*ast.AssignNode),
+		), nil
+	case ast.NodeExecAssign:
+		return ast.NewVarExecAssignDecl(
+			varTok.FileInfo,
+			assign.(*ast.ExecAssignNode),
+		), nil
+	}
+
+	return nil, newParserError(next, p.name,
+		"Unexpected token %v. Expected ASSIGN or EXECASSIGN",
+		next,
+	)
 }
 
 func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {

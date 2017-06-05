@@ -227,6 +227,31 @@ func TestBasicAssignment(t *testing.T) {
 	}
 }
 
+func TestVarAssignment(t *testing.T) {
+	expected := ast.NewTree("var assignment")
+	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
+	varAssign := ast.NewVarAssignDecl(token.NewFileInfo(1, 0),
+		ast.NewSingleAssignNode(token.NewFileInfo(1, 4),
+			ast.NewNameNode(token.NewFileInfo(1, 4), "test", nil),
+			ast.NewStringExpr(token.NewFileInfo(1, 12), "hello", true)),
+	)
+	ln.Push(varAssign)
+	expected.Root = ln
+
+	parserTest("var assignment", `var test = "hello"`, expected, t, true)
+
+	for _, test := range []string{
+		"var test=hello",
+		"var",
+		"var test",
+		"var test = false",
+		"var test = -1",
+		`var test = "1", "2"`,
+	} {
+		parserTestFail(t, test)
+	}
+}
+
 func TestParseMultipleAssign(t *testing.T) {
 	one := ast.NewNameNode(token.NewFileInfo(1, 0), "one", nil)
 	two := ast.NewNameNode(token.NewFileInfo(1, 5), "two", nil)

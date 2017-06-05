@@ -316,13 +316,13 @@ func (shell *Shell) SetEnviron(processEnv []string) {
 	}
 }
 
-func (shell *Shell) Getvar(name string) (sh.Obj, bool) {
+func (shell *Shell) Getvar(name string, local bool) (sh.Obj, bool) {
 	if value, ok := shell.vars[name]; ok {
 		return value, ok
 	}
 
-	if shell.parent != nil {
-		return shell.parent.Getvar(name)
+	if !local && shell.parent != nil {
+		return shell.parent.Getvar(name, false)
 	}
 
 	return nil, false
@@ -579,7 +579,7 @@ func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
 	finalObj := value
 
 	if name.Index != nil {
-		if list, ok := shell.Getvar(name.Ident); ok {
+		if list, ok := shell.Getvar(name.Ident, false); ok {
 			index, err := shell.evalIndex(name.Index)
 
 			if err != nil {
@@ -687,8 +687,10 @@ func (shell *Shell) executeNode(node ast.Node, builtin bool) ([]sh.Obj, error) {
 		// ignore
 	case ast.NodeSetenv:
 		err = shell.executeSetenv(node.(*ast.SetenvNode))
+	case ast.NodeVarAssignDecl:
+		err = shell.executeVarAssign(node.(*ast.VarAssignDeclNode))
 	case ast.NodeAssign:
-		err = shell.executeAssignment(node.(*ast.AssignNode))
+		err = shell.executeAssignment(node.(*ast.AssignNode), false)
 	case ast.NodeExecAssign:
 		err = shell.executeExecAssign(node.(*ast.ExecAssignNode))
 	case ast.NodeCommand:
@@ -1546,7 +1548,7 @@ func (shell *Shell) evalVariable(a ast.Expr) (sh.Obj, error) {
 	vexpr := a.(*ast.VarExpr)
 	varName := vexpr.Name
 
-	if value, ok = shell.Getvar(varName[1:]); !ok {
+	if value, ok = shell.Getvar(varName[1:], false); !ok {
 		return nil, errors.NewEvalError(shell.filename,
 			a, "Variable %s not set on shell %s", varName, shell.name)
 	}
@@ -1569,7 +1571,7 @@ func (shell *Shell) evalArgVariable(a ast.Expr) ([]sh.Obj, error) {
 	}
 
 	vexpr := a.(*ast.VarExpr)
-	if value, ok = shell.Getvar(vexpr.Name[1:]); !ok {
+	if value, ok = shell.Getvar(vexpr.Name[1:], false); !ok {
 		return nil, errors.NewEvalError(shell.filename,
 			a, "Variable %s not set on shell %s", vexpr.Name,
 			shell.name)
@@ -1741,7 +1743,7 @@ func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 	if assign != nil {
 		switch assign.Type() {
 		case ast.NodeAssign:
-			err = shell.executeAssignment(assign.(*ast.AssignNode))
+			err = shell.executeAssignment(assign.(*ast.AssignNode), false)
 		case ast.NodeExecAssign:
 			err = shell.executeExecAssign(assign.(*ast.ExecAssignNode))
 		default:
@@ -1755,7 +1757,7 @@ func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 		}
 	}
 
-	if varValue, ok = shell.Getvar(v.Name); !ok {
+	if varValue, ok = shell.Getvar(v.Name, false); !ok {
 		return fmt.Errorf("Variable '%s' not set on shell %s", v.Name, shell.name)
 	}
 
@@ -1921,28 +1923,54 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 		assign)
 }
 
-func (shell *Shell) executeAssignment(v *ast.AssignNode) error {
+func (shell *Shell) executeVarAssign(v *ast.VarAssignDeclNode) error {
+	return shell.executeAssignment(v.Assign, true)
+}
+
+func (shell *Shell) executeAssignment(v *ast.AssignNode, newDecl bool) error {
 	if len(v.Names) != len(v.Values) {
 		return errors.NewEvalError(shell.filename,
 			v, "Invalid multiple assignment. Different amount of variables and values",
 		)
 	}
 
+	var (
+		someNotExists bool
+		existentVars  []string
+	)
+
 	for i := 0; i < len(v.Names); i++ {
 		name := v.Names[i]
 		value := v.Values[i]
 
-		obj, err := shell.evalExpr(value)
+		_, varExists := shell.Getvar(name.Ident, true)
+		if !varExists {
+			someNotExists = true
+		} else {
+			existentVars = append(existentVars, name.Ident)
+		}
 
+		if !newDecl && !varExists {
+			return errors.NewEvalError(shell.filename,
+				name, "Variable '%s' is not initialized. Use 'var %s = %s'",
+				name, name, value)
+		}
+
+		obj, err := shell.evalExpr(value)
 		if err != nil {
 			return err
 		}
 
 		err = shell.setvar(name, obj)
-
 		if err != nil {
 			return err
 		}
+	}
+
+	if newDecl && !someNotExists {
+		return errors.NewEvalError(shell.filename,
+			v, "Cannot redeclare variables: %s. At least one must be new.",
+			strings.Join(existentVars, ", "))
 	}
 
 	return nil

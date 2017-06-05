@@ -1905,3 +1905,16 @@ func TestLexerVarArgs(t *testing.T) {
 	testTable("test literal expansion", `print("%s:%s:%s", ("a" "b" "c") ...)`,
 		expected, t)
 }
+
+func TestLexerVar(t *testing.T) {
+	expected := []Token{
+		{typ: token.Var, val: "var"},
+		{typ: token.Ident, val: "a"},
+		{typ: token.Assign, val: "="},
+		{typ: token.String, val: "hello world"},
+		{typ: token.Semicolon, val: ";"},
+		{typ: token.EOF},
+	}
+
+	testTable("test simple var decl", `var a = "hello world"`, expected, t)
+}

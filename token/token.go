@@ -66,6 +66,7 @@ const (
 	For
 	Rfork
 	Fn
+	Var
 
 	keyword_end
 )
@@ -116,6 +117,7 @@ var tokens = [...]string{
 	For:     "for",
 	Rfork:   "rfork",
 	Fn:      "fn",
+	Var:     "var",
 }
 
 var keywords map[string]Token

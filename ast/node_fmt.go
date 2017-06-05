@@ -563,6 +563,9 @@ func (n *IfNode) String() string {
 	return ifStr
 }
 
+func (n *VarAssignDeclNode) String() string     { return "var " + n.Assign.String() }
+func (n *VarExecAssignDeclNode) String() string { return "var " + n.ExecAssign.String() }
+
 // String returns the string representation of function declaration
 func (n *FnDeclNode) String() string {
 	fnStr := "fn"

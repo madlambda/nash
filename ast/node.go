@@ -239,6 +239,24 @@ type (
 		elseTree *Tree
 	}
 
+	// VarAssignDeclNode is a "var" declaration to assign values
+	VarAssignDeclNode struct {
+		NodeType
+		token.FileInfo
+		egalitarian
+
+		Assign *AssignNode
+	}
+
+	// VarExecAssignDeclNode is a var declaration to assign output of fn/cmd
+	VarExecAssignDeclNode struct {
+		NodeType
+		token.FileInfo
+		egalitarian
+
+		ExecAssign *ExecAssignNode
+	}
+
 	// FnArgNode represents function arguments
 	FnArgNode struct {
 		NodeType
@@ -385,6 +403,12 @@ const (
 	NodeComment
 
 	NodeFnArg
+
+	// NodeVarAssignDecl is the type for var declaration of values
+	NodeVarAssignDecl
+
+	// NodeVarExecAssignDecl
+	NodeVarExecAssignDecl
 
 	// NodeFnDecl is the type for function declaration
 	NodeFnDecl
@@ -1141,6 +1165,46 @@ func (a *FnArgNode) IsEqual(other Node) bool {
 		return false
 	}
 	return true
+}
+
+func NewVarAssignDecl(info token.FileInfo, assignNode *AssignNode) *VarAssignDeclNode {
+	return &VarAssignDeclNode{
+		NodeType: NodeVarAssignDecl,
+		Assign:   assignNode,
+	}
+}
+
+func (n *VarAssignDeclNode) IsEqual(other Node) bool {
+	if !n.equal(n, other) {
+		return false
+	}
+
+	o, ok := other.(*VarAssignDeclNode)
+	if !ok {
+		return false
+	}
+
+	return n.Assign.IsEqual(o.Assign)
+}
+
+func NewVarExecAssignDecl(info token.FileInfo, assignNode *ExecAssignNode) *VarExecAssignDeclNode {
+	return &VarExecAssignDeclNode{
+		NodeType:   NodeVarExecAssignDecl,
+		ExecAssign: assignNode,
+	}
+}
+
+func (n *VarExecAssignDeclNode) IsEqual(other Node) bool {
+	if !n.equal(n, other) {
+		return false
+	}
+
+	o, ok := other.(*VarExecAssignDeclNode)
+	if !ok {
+		return false
+	}
+
+	return n.ExecAssign.IsEqual(o.ExecAssign)
 }
 
 // NewFnDeclNode creates a new function declaration
