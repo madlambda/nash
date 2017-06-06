@@ -63,7 +63,7 @@ func TestAppend(t *testing.T) {
 		},
 		{
 			name: "simple append",
-			code: `a = ()
+			code: `var a = ()
 		 a <= append($a, "hello")
 		 a <= append($a, "world")
 		 echo -n $a...`,
@@ -73,7 +73,7 @@ func TestAppend(t *testing.T) {
 		},
 		{
 			name: "append is for lists",
-			code: `a = "something"
+			code: `var a = "something"
 		 a <= append($a, "other")
 		 echo -n $a...`,
 			expectedErr: "<interactive>:2:8: append expects a " +

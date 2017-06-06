@@ -28,7 +28,15 @@ const (
 	defPrompt = "\033[31mλ>\033[0m "
 )
 
+const (
+	varNewDecl varOpt = iota
+	varSet
+	varOff
+)
+
 type (
+	varOpt int
+
 	// Env is the environment map of lists
 	Env map[string]sh.Obj
 	Var Env
@@ -690,7 +698,7 @@ func (shell *Shell) executeNode(node ast.Node, builtin bool) ([]sh.Obj, error) {
 	case ast.NodeVarAssignDecl:
 		err = shell.executeVarAssign(node.(*ast.VarAssignDeclNode))
 	case ast.NodeAssign:
-		err = shell.executeAssignment(node.(*ast.AssignNode), false)
+		err = shell.executeAssignment(node.(*ast.AssignNode), varSet)
 	case ast.NodeExecAssign:
 		err = shell.executeExecAssign(node.(*ast.ExecAssignNode))
 	case ast.NodeCommand:
@@ -1743,7 +1751,7 @@ func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 	if assign != nil {
 		switch assign.Type() {
 		case ast.NodeAssign:
-			err = shell.executeAssignment(assign.(*ast.AssignNode), false)
+			err = shell.executeAssignment(assign.(*ast.AssignNode), varOff)
 		case ast.NodeExecAssign:
 			err = shell.executeExecAssign(assign.(*ast.ExecAssignNode))
 		default:
@@ -1924,10 +1932,10 @@ func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) error {
 }
 
 func (shell *Shell) executeVarAssign(v *ast.VarAssignDeclNode) error {
-	return shell.executeAssignment(v.Assign, true)
+	return shell.executeAssignment(v.Assign, varNewDecl)
 }
 
-func (shell *Shell) executeAssignment(v *ast.AssignNode, newDecl bool) error {
+func (shell *Shell) executeAssignment(v *ast.AssignNode, opt varOpt) error {
 	if len(v.Names) != len(v.Values) {
 		return errors.NewEvalError(shell.filename,
 			v, "Invalid multiple assignment. Different amount of variables and values",
@@ -1943,17 +1951,21 @@ func (shell *Shell) executeAssignment(v *ast.AssignNode, newDecl bool) error {
 		name := v.Names[i]
 		value := v.Values[i]
 
-		_, varExists := shell.Getvar(name.Ident, true)
-		if !varExists {
+		_, varLocalExists := shell.Getvar(name.Ident, true)
+		if !varLocalExists {
 			someNotExists = true
 		} else {
 			existentVars = append(existentVars, name.Ident)
 		}
 
-		if !newDecl && !varExists {
-			return errors.NewEvalError(shell.filename,
-				name, "Variable '%s' is not initialized. Use 'var %s = %s'",
-				name, name, value)
+		if opt == varSet && !varLocalExists {
+			// look into the parent scopes
+			_, varParentExists := shell.Getvar(name.Ident, false)
+			if !varParentExists {
+				return errors.NewEvalError(shell.filename,
+					name, "Variable '%s' is not initialized. Use 'var %s = %s'",
+					name, name, value)
+			}
 		}
 
 		obj, err := shell.evalExpr(value)
@@ -1967,9 +1979,9 @@ func (shell *Shell) executeAssignment(v *ast.AssignNode, newDecl bool) error {
 		}
 	}
 
-	if newDecl && !someNotExists {
+	if opt == varNewDecl && !someNotExists {
 		return errors.NewEvalError(shell.filename,
-			v, "Cannot redeclare variables: %s. At least one must be new.",
+			v, "Cannot redeclare variables in current block: %s. At least one must be new.",
 			strings.Join(existentVars, ", "))
 	}
 

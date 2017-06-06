@@ -215,27 +215,27 @@ func TestExecuteAssignment(t *testing.T) {
 	for _, test := range []execTestCase{
 		{ // wrong assignment
 			"wrong assignment",
-			`name=i4k`,
+			`var name=i4k`,
 			"", "",
-			"wrong assignment:1:5: Unexpected token IDENT. Expecting VARIABLE, STRING or (",
+			"wrong assignment:1:9: Unexpected token IDENT. Expecting VARIABLE, STRING or (",
 		},
 		{
 			"assignment",
-			`name="i4k"
+			`var name="i4k"
                          echo $name`,
 			"i4k\n", "",
 			"",
 		},
 		{
 			"list assignment",
-			`name=(honda civic)
+			`var name=(honda civic)
                          echo -n $name`,
 			"honda civic", "",
 			"",
 		},
 		{
 			"list of lists",
-			`l = (
+			`var l = (
 		(name Archlinux)
 		(arch amd64)
 		(kernel 4.7.1)
@@ -252,7 +252,7 @@ kernel 4.7.1`,
 		},
 		{
 			"list assignment",
-			`l = (0 1 2 3)
+			`var l = (0 1 2 3)
                          l[0] = "666"
                          echo -n $l`,
 			`666 1 2 3`,
@@ -261,8 +261,8 @@ kernel 4.7.1`,
 		},
 		{
 			"list assignment",
-			`l = (0 1 2 3)
-                         a = "2"
+			`var l = (0 1 2 3)
+                         var a = "2"
                          l[$a] = "666"
                          echo -n $l`,
 			`0 1 666 3`,
@@ -278,7 +278,7 @@ func TestExecuteMultipleAssignment(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
 			desc: "multiple assignment",
-			execStr: `_1, _2 = "1", "2"
+			execStr: `var _1, _2 = "1", "2"
 				echo -n $_1 $_2`,
 			expectedStdout: "1 2",
 			expectedStderr: "",
@@ -286,7 +286,7 @@ func TestExecuteMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc: "multiple assignment",
-			execStr: `_1, _2, _3 = "1", "2", "3"
+			execStr: `var _1, _2, _3 = "1", "2", "3"
 				echo -n $_1 $_2 $_3`,
 			expectedStdout: "1 2 3",
 			expectedStderr: "",
@@ -294,7 +294,7 @@ func TestExecuteMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc: "multiple assignment",
-			execStr: `_1, _2 = (), ()
+			execStr: `var _1, _2 = (), ()
 				echo -n $_1 $_2`,
 			expectedStdout: "",
 			expectedStderr: "",
@@ -302,7 +302,7 @@ func TestExecuteMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc: "multiple assignment",
-			execStr: `_1, _2 = (1 2 3 4 5), (6 7 8 9 10)
+			execStr: `var _1, _2 = (1 2 3 4 5), (6 7 8 9 10)
 				echo -n $_1 $_2`,
 			expectedStdout: "1 2 3 4 5 6 7 8 9 10",
 			expectedStderr: "",
@@ -310,7 +310,7 @@ func TestExecuteMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc: "multiple assignment",
-			execStr: `_1, _2, _3, _4, _5, _6, _7, _8, _9, _10 = "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"
+			execStr: `var _1, _2, _3, _4, _5, _6, _7, _8, _9, _10 = "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"
 				echo -n $_1 $_2 $_3 $_4 $_5 $_6 $_7 $_8 $_9 $_10`,
 			expectedStdout: "1 2 3 4 5 6 7 8 9 10",
 			expectedStderr: "",
@@ -318,7 +318,7 @@ func TestExecuteMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc: "multiple assignment",
-			execStr: `_1, _2 = (a b c), "d"
+			execStr: `var _1, _2 = (a b c), "d"
 				echo -n $_1 $_2`,
 			expectedStdout: "a b c d",
 			expectedStderr: "",
@@ -328,7 +328,7 @@ func TestExecuteMultipleAssignment(t *testing.T) {
 			desc: "multiple assignment",
 			execStr: `fn a() { echo -n "a" }
 				  fn b() { echo -n "b" }
-				  _a, _b = $a, $b
+				  var _a, _b = $a, $b
 				  $_a(); $_b()`,
 			expectedStdout: "ab",
 			expectedStderr: "",
@@ -369,7 +369,7 @@ func TestExecuteCmdAssignment(t *testing.T) {
 		},
 		{
 			"list assignment",
-			`l = (0 1 2 3)
+			`var l = (0 1 2 3)
                          l[0] <= echo -n 666
                          echo -n $l`,
 			`666 1 2 3`,
@@ -378,8 +378,8 @@ func TestExecuteCmdAssignment(t *testing.T) {
 		},
 		{
 			"list assignment",
-			`l = (0 1 2 3)
-                         a = "2"
+			`var l = (0 1 2 3)
+                         var a = "2"
                          l[$a] <= echo -n "666"
                          echo -n $l`,
 			`0 1 666 3`,
@@ -425,7 +425,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 		},
 		{
 			"list assignment",
-			`l = (0 1 2 3)
+			`var l = (0 1 2 3)
                          l[0], err <= echo -n 666
                          if $err == "0" {
                              echo -n $l
@@ -436,8 +436,8 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc: "list assignment",
-			execStr: `l = (0 1 2 3)
-                         a = "2"
+			execStr: `var l = (0 1 2 3)
+                         var a = "2"
                          l[$a], err <= echo -n "666"
                          if $err == "0" {
                              echo -n $l
@@ -507,7 +507,7 @@ func TestExecuteCmdAssignmentIFSDontWork(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
 			"ifs",
-			`IFS = (" ")
+			`var IFS = (" ")
 range <= echo 1 2 3 4 5 6 7 8 9 10
 
 for i in $range {
@@ -518,7 +518,7 @@ for i in $range {
 		},
 		{
 			"ifs",
-			`IFS = (";")
+			`var IFS = (";")
 range <= echo "1;2;3;4;5;6;7;8;9;10"
 
 for i in $range {
@@ -529,7 +529,7 @@ for i in $range {
 		},
 		{
 			"ifs",
-			`IFS = (" " ";")
+			`var IFS = (" " ";")
 range <= echo "1;2;3;4;5;6 7;8;9;10"
 
 for i in $range {
@@ -540,7 +540,7 @@ for i in $range {
 		},
 		{
 			"ifs",
-			`IFS = (" " "-")
+			`var IFS = (" " "-")
 range <= echo "1;2;3;4;5;6;7-8;9;10"
 
 for i in $range {
@@ -601,7 +601,7 @@ func TestExecuteRedirection(t *testing.T) {
 
 	// Test redirection to variable
 	err = shell.Exec("redirect", `
-	location = "`+path+`"
+	var location = "`+path+`"
         echo -n "hello world" > $location
         `)
 
@@ -623,7 +623,7 @@ func TestExecuteRedirection(t *testing.T) {
 	// Test redirection to concat
 	err = shell.Exec("redirect", fmt.Sprintf(`
 	location = "%s"
-a = ".2"
+var a = ".2"
         echo -n "hello world" > $location+$a
         `, path))
 	if err != nil {
@@ -676,7 +676,7 @@ func TestExecuteSetenv(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
 			"test setenv basic",
-			`test = "hello"
+			`var test = "hello"
                          setenv test
                          ` + nashdPath + ` -c "echo $test"`,
 			"hello\n", "", "",
@@ -724,7 +724,7 @@ func TestExecuteCd(t *testing.T) {
 		{
 			"test cd into $val",
 			`
-        val="/"
+        var val="/"
         cd $val
         pwd`,
 			"/\n",
@@ -733,7 +733,7 @@ func TestExecuteCd(t *testing.T) {
 		},
 		{
 			"test error",
-			`val=("val1" "val2" "val3")
+			`var val=("val1" "val2" "val3")
         cd $val
         pwd`,
 			"", "",
@@ -757,8 +757,7 @@ func TestExecuteImport(t *testing.T) {
 	shell.SetNashdPath(nashdPath)
 	shell.SetStdout(&out)
 
-	err = ioutil.WriteFile("/tmp/test.sh", []byte(`TESTE="teste"`), 0644)
-
+	err = ioutil.WriteFile("/tmp/test.sh", []byte(`var TESTE="teste"`), 0644)
 	if err != nil {
 		t.Error(err)
 		return
@@ -767,7 +766,6 @@ func TestExecuteImport(t *testing.T) {
 	err = shell.Exec("test import", `import /tmp/test.sh
         echo $TESTE
         `)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -783,7 +781,6 @@ func TestExecuteIfEqual(t *testing.T) {
 	var out bytes.Buffer
 
 	shell, err := NewShell()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -796,7 +793,6 @@ func TestExecuteIfEqual(t *testing.T) {
         if "" == "" {
             echo "empty string works"
         }`)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -813,7 +809,6 @@ func TestExecuteIfEqual(t *testing.T) {
         if "i4k" == "_i4k_" {
             echo "do not print"
         }`)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -829,7 +824,6 @@ func TestExecuteIfElse(t *testing.T) {
 	var out bytes.Buffer
 
 	shell, err := NewShell()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -844,7 +838,6 @@ func TestExecuteIfElse(t *testing.T) {
         } else {
             echo "nop"
         }`)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -983,7 +976,7 @@ echo -n $integers
 
 	// Test fn scope
 	err = shell.Exec("test fn inv", `
-OUTSIDE = "some value"
+var OUTSIDE = "some value"
 
 fn getOUTSIDE() {
         return $OUTSIDE
@@ -1005,7 +998,7 @@ echo -n $val
 
 	err = shell.Exec("test fn inv", `
 fn notset() {
-        INSIDE = "camshaft"
+        var INSIDE = "camshaft"
 }
 
 notset()
@@ -1020,9 +1013,9 @@ echo -n $INSIDE
 	out.Reset()
 
 	// test variables shadow the global ones
-	err = shell.Exec("test shadow", `path="AAA"
-fn test(path) {
-echo -n $path
+	err = shell.Exec("test shadow", `var _path="AAA"
+fn test(_path) {
+echo -n $_path
 }
         test("BBB")
 `)
@@ -1035,11 +1028,11 @@ echo -n $path
 	out.Reset()
 
 	err = shell.Exec("test shadow", `
-fn test(path) {
-echo -n $path
+fn test(_path) {
+echo -n $_path
 }
 
-path="AAA"
+_path="AAA"
         test("BBB")
 `)
 
@@ -1050,9 +1043,9 @@ path="AAA"
 
 	out.Reset()
 	err = shell.Exec("test fn list arg", `
-	ids_luns = ()
-	id = "1"
-	lun = "lunar"
+	var ids_luns = ()
+	var id = "1"
+	var lun = "lunar"
 	ids_luns <= append($ids_luns, ($id $lun))
 	print(len($ids_luns))`)
 	if err != nil {
@@ -1535,7 +1528,7 @@ echo -n $res`,
 		{
 			"ret from for",
 			`fn test() {
-	values = (0 1 2 3 4 5 6 7 8 9)
+	var values = (0 1 2 3 4 5 6 7 8 9)
 
 	for i in $values {
 		if $i == "5" {
@@ -1644,7 +1637,7 @@ func TestExecuteDump(t *testing.T) {
 		return
 	}
 
-	err = shell.Exec("", `TEST = "some value"`)
+	err = shell.Exec("", `var TEST = "some value"`)
 
 	if err != nil {
 		t.Error(err)
@@ -1739,7 +1732,7 @@ func TestExecuteDumpVariable(t *testing.T) {
 		os.RemoveAll(tempDir)
 	}()
 
-	err = shell.Exec("", `dumpFile = "`+dumpFile+`"`)
+	err = shell.Exec("", `var dumpFile = "`+dumpFile+`"`)
 
 	if err != nil {
 		t.Error(err)
@@ -1792,9 +1785,9 @@ func TestExecuteConcat(t *testing.T) {
 
 	shell.SetStdout(&out)
 
-	err = shell.Exec("", `a = "A"
-b = "B"
-c = $a + $b + "C"
+	err = shell.Exec("", `var a = "A"
+var b = "B"
+var c = $a + $b + "C"
 echo -n $c`)
 
 	if err != nil {
@@ -1809,7 +1802,7 @@ echo -n $c`)
 
 	out.Reset()
 
-	err = shell.Exec("concat indexed var", `tag = (Name some)
+	err = shell.Exec("concat indexed var", `var tag = (Name some)
 	echo -n "Key="+$tag[0]+",Value="+$tag[1]`)
 
 	if err != nil {
@@ -1839,7 +1832,7 @@ func TestExecuteFor(t *testing.T) {
 
 	shell.SetStdout(&out)
 
-	err = shell.Exec("simple loop", `files = (/etc/passwd /etc/shells)
+	err = shell.Exec("simple loop", `var files = (/etc/passwd /etc/shells)
 for f in $files {
         echo $f
         echo "loop"
@@ -1931,7 +1924,7 @@ func TestExecuteVariableIndexing(t *testing.T) {
 	shell.SetNashdPath(nashdPath)
 	shell.SetStdout(&out)
 
-	err = shell.Exec("indexing", `list = ("1" "2" "3")
+	err = shell.Exec("indexing", `var list = ("1" "2" "3")
         echo -n $list[0]`)
 
 	if err != nil {
@@ -1949,7 +1942,7 @@ func TestExecuteVariableIndexing(t *testing.T) {
 
 	out.Reset()
 
-	err = shell.Exec("indexing", `i = "0"
+	err = shell.Exec("indexing", `var i = "0"
 echo -n $list[$i]`)
 
 	if err != nil {
@@ -1998,7 +1991,7 @@ for i in $seq {
 
 	out.Reset()
 
-	err = shell.Exec("indexing", `a = ("0")
+	err = shell.Exec("indexing", `var a = ("0")
 echo -n $list[$a[0]]`)
 
 	if err != nil {
@@ -2064,7 +2057,7 @@ func TestExecuteInterruptDoesNotCancelLoop(t *testing.T) {
 
 	time.Sleep(time.Second * 1)
 
-	err = shell.Exec("interrupting loop", `seq = (1 2 3 4 5)
+	err = shell.Exec("interrupting loop", `var seq = (1 2 3 4 5)
 for i in $seq {}`)
 
 	if err != nil {
@@ -2341,7 +2334,7 @@ println("%s%s%s%s%s%s%s%s%s%s", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10
 		{
 			desc: "passing list to var arg fn",
 			execStr: `fn puts(arg...) { for a in $arg { echo $a } }
-				a = ("1" "2" "3" "4" "5")
+				var a = ("1" "2" "3" "4" "5")
 				puts($a...)`,
 			expectedErr:    "",
 			expectedStdout: "1\n2\n3\n4\n5\n",
@@ -2350,7 +2343,7 @@ println("%s%s%s%s%s%s%s%s%s%s", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10
 		{
 			desc: "passing empty list to var arg fn",
 			execStr: `fn puts(arg...) { for a in $arg { echo $a } }
-				a = ()
+				var a = ()
 				puts($a...)`,
 			expectedErr:    "",
 			expectedStdout: "",
@@ -2358,7 +2351,7 @@ println("%s%s%s%s%s%s%s%s%s%s", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10
 		},
 		{
 			desc: "... expansion",
-			execStr: `args = ("plan9" "from" "outer" "space")
+			execStr: `var args = ("plan9" "from" "outer" "space")
 print("%s %s %s %s", $args...)`,
 			expectedStdout: "plan9 from outer space",
 		},

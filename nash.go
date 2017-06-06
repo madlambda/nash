@@ -130,7 +130,7 @@ func (nash *Shell) ExecuteString(path, content string) error {
 // and passes as arguments to the script the given args slice.
 func (nash *Shell) ExecFile(path string, args ...string) error {
 	if len(args) > 0 {
-		err := nash.ExecuteString("setting args", `ARGS = `+args2Nash(args))
+		err := nash.ExecuteString("setting args", `var ARGS = `+args2Nash(args))
 		if err != nil {
 			return fmt.Errorf("Failed to set nash arguments: %s", err.Error())
 		}

@@ -1,7 +1,7 @@
 #!/usr/bin/env nash
 
-word = $ARGS[1]
-sep =$ARGS[2]
+var word = $ARGS[1]
+var sep =$ARGS[2]
 
 fn splitter(char) {
         if $char == $sep {

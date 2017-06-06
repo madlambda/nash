@@ -92,7 +92,7 @@ func TestExecuteRforkEnvVars(t *testing.T) {
 
 	sh.SetNashdPath(nashdPath)
 
-	err = sh.Exec("test env", `abra = "cadabra"
+	err = sh.Exec("test env", `var abra = "cadabra"
 setenv abra
 rfork up {
 	echo $abra
