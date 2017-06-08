@@ -25,7 +25,7 @@ func TestFunctionsClosures(t *testing.T) {
 			desc: "eachCallCreatesNewVar",
 			execStr: `
 				fn func() {
-					a = ()
+					var a = ()
 					fn add(elem) {
 						a <= append($a, $elem)
 						print("a:%s,",$a)
