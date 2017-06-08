@@ -72,7 +72,13 @@ func (nash *Shell) Environ() shell.Env {
 }
 
 // GetFn gets the function object.
-func (nash *Shell) GetFn(name string) (sh.Fn, bool) { return nash.interp.GetFn(name) }
+func (nash *Shell) GetFn(name string) (sh.FnDef, error) {
+	fnObj, err := nash.interp.GetFn(name)
+	if err != nil {
+		return nil, err
+	}
+	return fnObj.Fn(), nil
+}
 
 // Prompt returns the environment prompt or the default one
 func (nash *Shell) Prompt() string {
