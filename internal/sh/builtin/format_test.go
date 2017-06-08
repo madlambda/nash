@@ -30,7 +30,7 @@ func TestFormat(t *testing.T) {
 		"ncallsWithVarsRegressionTest": {
 			script: `
 				fn formatstuff() {
-					b = "world"
+					var b = "world"
 					r <= format("hello%s", $b)
 					s <= format("hackthe%s", $b)
 					echo $r
@@ -50,7 +50,7 @@ func TestFormat(t *testing.T) {
 		},
 		"fmtlist": {
 			script: `
-				list = ("1" "2" "3")
+				var list = ("1" "2" "3")
 				r <= format("%s:%s", "list", $list)
 				echo $r
 			`,
@@ -74,7 +74,7 @@ func TestFormat(t *testing.T) {
 		},
 		"listonly": {
 			script: `
-				list = ("1" "2" "3")
+				var list = ("1" "2" "3")
 				r <= format($list)
 				echo $r
 			`,
@@ -82,7 +82,7 @@ func TestFormat(t *testing.T) {
 		},
 		"listoflists": {
 			script: `
-				list = (("1" "2" "3") ("4" "5" "6"))
+				var list = (("1" "2" "3") ("4" "5" "6"))
 				r <= format("%s:%s", "listoflists", $list)
 				echo $r
 			`,
@@ -90,7 +90,7 @@ func TestFormat(t *testing.T) {
 		},
 		"listasfmt": {
 			script: `
-				list = ("%s" "%s")
+				var list = ("%s" "%s")
 				r <= format($list, "1", "2")
 				echo $r
 			`,

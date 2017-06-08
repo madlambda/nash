@@ -21,7 +21,7 @@ func TestLen(t *testing.T) {
 
 	err = sh.Exec(
 		"test len",
-		`a = (1 2 3 4 5 6 7 8 9 0)
+		`var a = (1 2 3 4 5 6 7 8 9 0)
 		 len_a <= len($a)
 		 echo -n $len_a`,
 	)
@@ -42,7 +42,7 @@ func TestLen(t *testing.T) {
 
 	err = sh.Exec(
 		"test len fail",
-		`a = "test"
+		`var a = "test"
 		 l <= len($a)
 		 echo -n $l
 		`,
