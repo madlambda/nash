@@ -14,8 +14,8 @@ func TestFunctionsClosures(t *testing.T) {
 					return $closure
 				}
 
-				x <= func("1")
-				y <= func("2")
+				var x <= func("1")
+				var y <= func("2")
 				$x()
 				$y()
 			`,
@@ -33,27 +33,27 @@ func TestFunctionsClosures(t *testing.T) {
 					return $add
 				}
 
-				add <= func()
+				var add <= func()
 				$add("1")
 				$add("3")
 				$add("5")
 			`,
-			expectedStdout: "a:1,a:3,a:5,",
+			expectedStdout: "a:1,a:1 3,a:1 3 5,",
 		},
 		{
 			desc: "adder example",
 			execStr: `
 fn makeAdder(x) {
     fn add(y) {
-        ret <= expr $x "+" $y
+        var ret <= expr $x "+" $y
         return $ret
     }
     return $add
 }
 
-add1 <= makeAdder("1")
-add5 <= makeAdder("5")
-add1000 <= makeAdder("1000")
+var add1 <= makeAdder("1")
+var add5 <= makeAdder("5")
+var add1000 <= makeAdder("1000")
 
 print("%s\n", add5("5"))
 print("%s\n", add5("10"))
@@ -82,9 +82,9 @@ print("%s\n", add1("10"))
     return $log
 }
 
-info <= getlogger("[info] ")
-error <= getlogger("[error] ")
-warn <= getlogger("[warn] ")
+var info <= getlogger("[info] ")
+var error <= getlogger("[error] ")
+var warn <= getlogger("[warn] ")
 
 $info("nuke initialized successfully")
 $warn("temperature above anormal circunstances: %s°", "870")
@@ -130,8 +130,8 @@ func TestFunctionsStateless(t *testing.T) {
 		{
 			desc: "functions have no shared state",
 			execStr: `fn iter(first, last, func) {
-   sequence <= seq $first $last
-   range <= split($sequence, "\n")
+   var sequence <= seq $first $last
+   var range <= split($sequence, "\n")
    for i in $range {
        $func($i)
    }

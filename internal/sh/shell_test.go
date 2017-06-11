@@ -196,8 +196,8 @@ func TestExecuteCommand(t *testing.T) {
 		},
 		{
 			desc: "local command",
-			execStr: `echopath <= which echo
-path <= dirname $echopath
+			execStr: `var echopath <= which echo
+var path <= dirname $echopath
 chdir($path)
 ./echo -n hello`,
 			expectedStdout: "hello",
@@ -341,29 +341,29 @@ func TestExecuteCmdAssignment(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
 			"cmd assignment",
-			`name <= echo -n i4k
+			`var name <= echo -n i4k
                          echo -n $name`,
 			"i4k", "",
 			"",
 		},
 		{
 			"list cmd assignment",
-			`name <= echo "honda civic"
+			`var name <= echo "honda civic"
                          echo -n $name`,
 			"honda civic", "", "",
 		},
 		{
 			"wrong cmd assignment",
-			`name <= ""`,
-			"", "", "wrong cmd assignment:1:9: Invalid token STRING. Expected command or function invocation",
+			`var name <= ""`,
+			"", "", "wrong cmd assignment:1:13: Invalid token STRING. Expected command or function invocation",
 		},
 		{
 			"fn must return value",
 			`fn e() {}
-                         v <= e()`,
+                         var v <= e()`,
 			"",
 			"",
-			"<interactive>:2:25: Functions returns 0 objects, but statement expects 1",
+			"<interactive>:2:29: Functions returns 0 objects, but statement expects 1",
 		},
 		{
 			"list assignment",
@@ -393,7 +393,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
 			"cmd assignment",
-			`name, err <= echo -n i4k
+			`var name, err <= echo -n i4k
                          if $err == "0" {
                              echo -n $name
                          }`,
@@ -402,7 +402,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 		},
 		{
 			"list cmd assignment",
-			`name, err2 <= echo "honda civic"
+			`var name, err2 <= echo "honda civic"
                          if $err2 == "0" {
                              echo -n $name
                          }`,
@@ -410,21 +410,21 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 		},
 		{
 			"wrong cmd assignment",
-			`name, err <= ""`,
-			"", "", "wrong cmd assignment:1:14: Invalid token STRING. Expected command or function invocation",
+			`var name, err <= ""`,
+			"", "", "wrong cmd assignment:1:18: Invalid token STRING. Expected command or function invocation",
 		},
 		{
 			"fn must return value",
 			`fn e() {}
-                         v, err <= e()`,
+                         var v, err <= e()`,
 			"",
 			"",
-			"<interactive>:2:25: Functions returns 0 objects, but statement expects 2",
+			"<interactive>:2:29: Functions returns 0 objects, but statement expects 2",
 		},
 		{
 			"list assignment",
 			`var l = (0 1 2 3)
-                         l[0], err <= echo -n 666
+                         var l[0], err <= echo -n 666
                          if $err == "0" {
                              echo -n $l
                          }`,
@@ -436,7 +436,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 			desc: "list assignment",
 			execStr: `var l = (0 1 2 3)
                          var a = "2"
-                         l[$a], err <= echo -n "666"
+                         var l[$a], err <= echo -n "666"
                          if $err == "0" {
                              echo -n $l
                          }`,
@@ -446,14 +446,14 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc:           "cmd assignment works with 1 or 2 variables",
-			execStr:        "out, err1, err2 <= echo something",
+			execStr:        "var out, err1, err2 <= echo something",
 			expectedStdout: "",
 			expectedStderr: "",
-			expectedErr:    "<interactive>:1:0: multiple assignment of commands requires two variable names, but got 3",
+			expectedErr:    "<interactive>:1:4: multiple assignment of commands requires two variable names, but got 3",
 		},
 		{
 			desc: "ignore error",
-			execStr: `out, _ <= cat /file-not-found/test >[2=]
+			execStr: `var out, _ <= cat /file-not-found/test >[2=]
 					echo -n $out`,
 			expectedStdout: "",
 			expectedStderr: "",
@@ -461,7 +461,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc: "exec without '-' and getting status still fails",
-			execStr: `out <= cat /file-not-found/test >[2=]
+			execStr: `var out <= cat /file-not-found/test >[2=]
 					echo $out`,
 			expectedStdout: "",
 			expectedStderr: "",
@@ -469,7 +469,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc: "check status",
-			execStr: `out, status <= cat /file-not-found/test >[2=]
+			execStr: `var out, status <= cat /file-not-found/test >[2=]
 					if $status == "0" {
 						echo -n "must fail.. sniff"
 					} else if $status == "1" {
@@ -488,7 +488,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 					return "1", "2"
 				}
 
-				a, b <= fun()
+				var a, b <= fun()
 				echo -n $a $b`,
 			expectedStdout: "1 2",
 			expectedStderr: "",
@@ -506,7 +506,7 @@ func TestExecuteCmdAssignmentIFSDontWork(t *testing.T) {
 		{
 			"ifs",
 			`var IFS = (" ")
-range <= echo 1 2 3 4 5 6 7 8 9 10
+var range <= echo 1 2 3 4 5 6 7 8 9 10
 
 for i in $range {
     echo "i = " + $i
@@ -517,7 +517,7 @@ for i in $range {
 		{
 			"ifs",
 			`var IFS = (";")
-range <= echo "1;2;3;4;5;6;7;8;9;10"
+var range <= echo "1;2;3;4;5;6;7;8;9;10"
 
 for i in $range {
     echo "i = " + $i
@@ -528,7 +528,7 @@ for i in $range {
 		{
 			"ifs",
 			`var IFS = (" " ";")
-range <= echo "1;2;3;4;5;6 7;8;9;10"
+var range <= echo "1;2;3;4;5;6 7;8;9;10"
 
 for i in $range {
     echo "i = " + $i
@@ -539,7 +539,7 @@ for i in $range {
 		{
 			"ifs",
 			`var IFS = (" " "-")
-range <= echo "1;2;3;4;5;6;7-8;9;10"
+var range <= echo "1;2;3;4;5;6;7-8;9;10"
 
 for i in $range {
     echo "i = " + $i
@@ -956,7 +956,7 @@ fn getints() {
         return ("1" "2" "3" "4" "5" "6" "7" "8" "9" "0")
 }
 
-integers <= getints()
+var integers <= getints()
 echo -n $integers
 `)
 
@@ -980,7 +980,7 @@ fn getOUTSIDE() {
         return $OUTSIDE
 }
 
-val <= getOUTSIDE()
+var val <= getOUTSIDE()
 echo -n $val
 `)
 
@@ -1044,7 +1044,7 @@ _path="AAA"
 	var ids_luns = ()
 	var id = "1"
 	var lun = "lunar"
-	ids_luns <= append($ids_luns, ($id $lun))
+	var ids_luns <= append($ids_luns, ($id $lun))
 	print(len($ids_luns))`)
 	if err != nil {
 		t.Error(err)
@@ -1105,12 +1105,12 @@ fn _getints() {
 }
 
 fn getints() {
-        values <= _getints()
+        var values <= _getints()
 
         return $values
 }
 
-integers <= getints()
+var integers <= getints()
 echo -n $integers
 `)
 
@@ -1519,7 +1519,7 @@ test()`,
 	return "0"
 }
 
-res <= test()
+var res <= test()
 echo -n $res`,
 			"1", "", "",
 		},
@@ -1536,7 +1536,7 @@ echo -n $res`,
 
 	return "0"
 }
-a <= test()
+var a <= test()
 echo -n $a`,
 			"5", "", "",
 		},
@@ -1552,7 +1552,7 @@ echo -n $a`,
 	# never happen
 	return "bleh"
 }
-a <= test()
+var a <= test()
 echo -n $a`,
 			"1", "", "",
 		},
@@ -1560,7 +1560,7 @@ echo -n $a`,
 			"test returning funcall",
 			`fn a() { return "1" }
                          fn b() { return a() }
-                         c <= b()
+                         var c <= b()
                          echo -n $c`,
 			"1", "", "",
 		},
@@ -1958,8 +1958,8 @@ echo -n $list[$i]`)
 
 	out.Reset()
 
-	err = shell.Exec("indexing", `tmp <= seq 0 2
-seq <= split($tmp, "\n")
+	err = shell.Exec("indexing", `var tmp <= seq 0 2
+var seq <= split($tmp, "\n")
 
 for i in $seq {
     echo -n $list[$i]
@@ -2216,7 +2216,7 @@ func TestExecuteMultilineCmdAssign(t *testing.T) {
 
 	shell.SetStdout(&out)
 
-	err = shell.Exec("test", `val <= (echo -n
+	err = shell.Exec("test", `var val <= (echo -n
 		hello
 		world)
 

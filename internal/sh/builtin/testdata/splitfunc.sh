@@ -10,8 +10,7 @@ fn splitter(char) {
         return "1"
 }
 
-output <= split($word, $splitter)
-
+var output <= split($word, $splitter)
 for o in $output {
 	echo $o
 }

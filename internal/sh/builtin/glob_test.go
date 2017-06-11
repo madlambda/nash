@@ -35,7 +35,7 @@ func TestGlobNoResult(t *testing.T) {
 	pattern := dir + "/*.la"
 
 	out := execSuccess(t, fmt.Sprintf(`
-		res <= glob("%s")
+		var res <= glob("%s")
 		print($res)
 	`, pattern))
 
@@ -53,7 +53,7 @@ func TestGlobOneResult(t *testing.T) {
 	pattern := dir + "/*.go"
 
 	out := execSuccess(t, fmt.Sprintf(`
-		res <= glob("%s")
+		var res <= glob("%s")
 		print($res)
 	`, pattern))
 
@@ -75,7 +75,7 @@ func TestGlobMultipleResults(t *testing.T) {
 	pattern := dir + "/*.h"
 
 	out := execSuccess(t, fmt.Sprintf(`
-		res <= glob("%s")
+		var res <= glob("%s")
 		print($res)
 	`, pattern))
 
@@ -103,7 +103,7 @@ func TestGlobMultipleResults(t *testing.T) {
 
 func TestGlobNoParamError(t *testing.T) {
 	execFailure(t, `
-		res <= glob()
+		var res <= glob()
 		print($res)
 	`)
 }
@@ -111,14 +111,14 @@ func TestGlobNoParamError(t *testing.T) {
 func TestGlobWrongType(t *testing.T) {
 	execFailure(t, `
 		param = ("hi")
-		res <= glob($param)
+		var res <= glob($param)
 		print($res)
 	`)
 }
 
 func TestGlobInvalidPatternError(t *testing.T) {
 	execFailure(t, `
-		res <= glob("*[.go")
+		var res <= glob("*[.go")
 		print($res)
 	`)
 }

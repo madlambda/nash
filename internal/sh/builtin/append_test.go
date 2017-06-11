@@ -83,7 +83,7 @@ func TestAppend(t *testing.T) {
 		},
 		{
 			name: "var args",
-			code: `a <= append((), "1", "2", "3", "4", "5", "6")
+			code: `var a <= append((), "1", "2", "3", "4", "5", "6")
 				echo -n $a...`,
 			expectedErr:    "",
 			expectedStdout: "1 2 3 4 5 6",
@@ -91,7 +91,7 @@ func TestAppend(t *testing.T) {
 		},
 		{
 			name: "append of lists",
-			code: `a <= append((), (), ())
+			code: `var a <= append((), (), ())
 				if len($a) != "2" {
 					print("wrong")
 				} else if len($a[0]) != "0" {
