@@ -29,7 +29,7 @@ when it is executed, like:
 ```nash
 echo
 echo "acessing individual parameter"
-somearg = $ARGS[0]
+var somearg = $ARGS[0]
 echo $somearg
 echo
 ```
@@ -42,8 +42,8 @@ To branch you can use **if** statement, it requires
 a boolean expression, like the comparison operator:
 
 ```nash
-a = "nash"
-echo $a
+var a = "nash"
+echo -n $a
 if $a == "nash" {
     a = "rocks"
 }
