@@ -50,7 +50,7 @@ func (nash *Shell) SetInteractive(b bool) {
 func (nash *Shell) SetDotDir(path string) {
 	obj := sh.NewStrObj(path)
 	nash.interp.Setenv("NASHPATH", obj)
-	nash.interp.Setvar("NASHPATH", obj)
+	nash.interp.Setvar("NASHPATH", obj, true)
 }
 
 // DotDir returns the value of the NASHPATH environment variable
@@ -183,7 +183,7 @@ func (nash *Shell) Stderr() io.Writer { return nash.interp.Stderr() }
 
 // Setvar sets or updates the variable in the nash session
 func (nash *Shell) Setvar(name string, value sh.Obj) {
-	nash.interp.Setvar(name, value)
+	nash.interp.Setvar(name, value, true)
 }
 
 // Getvar retrieves a variable from nash session
