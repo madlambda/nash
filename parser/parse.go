@@ -1144,7 +1144,6 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 	}
 
 	it = p.next()
-
 	if it.Type() != token.LBrace {
 		return nil, newParserError(it, p.name,
 			"Unexpected token %v. Expected '{'", it)
@@ -1153,7 +1152,6 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 	p.openblocks++
 
 	tree := ast.NewTree(fmt.Sprintf("fn %s body", n.Name()))
-
 	r, err := p.parseBlock(it.Line(), it.Column())
 
 	if err != nil {
@@ -1161,9 +1159,7 @@ func (p *Parser) parseFnDecl(it scanner.Token) (ast.Node, error) {
 	}
 
 	tree.Root = r
-
 	n.SetTree(tree)
-
 	return n, nil
 }
 
