@@ -11,7 +11,6 @@ fn splitter(char) {
 }
 
 output <= split($word, $splitter)
-
 for o in $output {
 	echo $o
 }

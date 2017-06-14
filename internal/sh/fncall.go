@@ -37,7 +37,7 @@ type (
 )
 
 func NewUserFn(name string, args []sh.FnArg, body *ast.Tree, parent *Shell) *UserFn {
-	return &UserFn{
+	fn := &UserFn{
 		name:     name,
 		argNames: args,
 		body:     body,
@@ -46,25 +46,17 @@ func NewUserFn(name string, args []sh.FnArg, body *ast.Tree, parent *Shell) *Use
 		stdin:    parent.Stdin(),
 		stdout:   parent.Stdout(),
 		stderr:   parent.Stderr(),
-	}
-}
-
-func (fn *UserFn) setup() error {
-	subshell, err := NewSubShell(fn.name, fn.parent)
-	if err != nil {
-		return err
+		subshell: NewSubShell(name, parent),
 	}
 
-	subshell.SetTree(fn.body)
-	subshell.SetRepr(fn.repr)
-	subshell.SetDebug(fn.parent.debug)
-	subshell.SetStdout(fn.stdout)
-	subshell.SetStderr(fn.stderr)
-	subshell.SetStdin(fn.stdin)
-	subshell.SetEnviron(fn.environ)
-
-	fn.subshell = subshell
-	return nil
+	fn.subshell.SetTree(fn.body)
+	fn.subshell.SetRepr(fn.repr)
+	fn.subshell.SetDebug(fn.parent.debug)
+	fn.subshell.SetStdout(fn.stdout)
+	fn.subshell.SetStderr(fn.stderr)
+	fn.subshell.SetStdin(fn.stdin)
+	fn.subshell.SetEnviron(fn.environ)
+	return fn
 }
 
 func (fn *UserFn) ArgNames() []sh.FnArg { return fn.argNames }
@@ -78,10 +70,6 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 		isVariadic      bool
 		countNormalArgs int
 	)
-
-	if err := fn.setup(); err != nil {
-		return err
-	}
 
 	for i, argName := range fn.argNames {
 		if argName.IsVariadic {
@@ -169,13 +157,6 @@ func (fn *UserFn) execute() ([]sh.Obj, error) {
 }
 
 func (fn *UserFn) Start() error {
-	if fn.subshell == nil {
-		err := fn.setup()
-		if err != nil {
-			return err
-		}
-	}
-
 	go func() {
 		var err error
 		fn.results, err = fn.execute()
