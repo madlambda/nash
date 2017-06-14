@@ -33,15 +33,14 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	defer c.op.Refresh()
 	defer c.term.PauseRead(false)
 
-	nashFunc, ok := c.sh.GetFn("nash_complete")
-
-	if !ok {
+	fnDef, err := c.sh.GetFn("nash_complete")
+	if err != nil {
 		// no complete available
 		return [][]rune{[]rune{'\t'}}, offset
 	}
 
-	err := nashFunc.SetArgs([]sh.Obj{lineArg, posArg})
-
+	nashFunc := fnDef.Build()
+	err = nashFunc.SetArgs([]sh.Obj{lineArg, posArg})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
 		return newLine, offset

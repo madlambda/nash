@@ -32,7 +32,7 @@ type (
 	// Env is the environment map of lists
 	Env map[string]sh.Obj
 	Var Env
-	Fns map[string]sh.Fn
+	Fns map[string]sh.FnDef
 
 	StatusCode uint8
 
@@ -41,7 +41,6 @@ type (
 		name        string
 		debug       bool
 		interactive bool
-		lambdas     uint
 		logf        LogFn
 		nashdPath   string
 		isFn        bool
@@ -54,12 +53,9 @@ type (
 		stdout io.Writer
 		stderr io.Writer
 
-		env  Env
-		vars Var
-		fns  Fns
-
-		builtins Fns
-		binds    Fns
+		env   Env
+		vars  Var
+		binds Fns
 
 		root   *ast.Tree
 		parent *Shell
@@ -127,21 +123,17 @@ func NewShell() (*Shell, error) {
 		stdin:       os.Stdin,
 		env:         make(Env),
 		vars:        make(Var),
-		fns:         make(Fns),
-		builtins:    make(Fns),
 		binds:       make(Fns),
 		Mutex:       &sync.Mutex{},
 		filename:    "<interactive>",
 	}
 
 	err := shell.setup()
-
 	if err != nil {
 		return nil, err
 	}
 
 	shell.setupSignals()
-
 	return shell, nil
 }
 
@@ -149,12 +141,8 @@ func NewShell() (*Shell, error) {
 // stdout, stderr and mutex lock.
 // Every variable and function lookup is done first in the subshell and then, if
 // not found, in the parent shell recursively.
-func NewSubShell(name string, parent *Shell) (*Shell, error) {
-	if parent == nil {
-		return nil, errors.NewError("A sub Shell requires a parent shell")
-	}
-
-	sh := &Shell{
+func NewSubShell(name string, parent *Shell) *Shell {
+	return &Shell{
 		name:      name,
 		isFn:      true,
 		parent:    parent,
@@ -165,14 +153,10 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 		stdin:     parent.Stdin(),
 		env:       make(Env),
 		vars:      make(Var),
-		fns:       make(Fns),
 		binds:     make(Fns),
-		builtins:  nil, // subshell does not have builtins
 		Mutex:     parent.Mutex,
 		filename:  parent.filename,
 	}
-
-	return sh, nil
 }
 
 // initEnv creates a new environment from old one
@@ -232,7 +216,6 @@ func (shell *Shell) initEnv(processEnv []string) error {
 
 // Reset internal state
 func (shell *Shell) Reset() {
-	shell.fns = make(Fns)
 	shell.vars = make(Var)
 	shell.env = make(Env)
 	shell.binds = make(Fns)
@@ -328,39 +311,28 @@ func (shell *Shell) Getvar(name string) (sh.Obj, bool) {
 	return nil, false
 }
 
-func (shell *Shell) GetBuiltin(name string) (sh.Fn, bool) {
-	shell.logf("Looking for builtin '%s' on shell '%s'\n", name, shell.name)
-
-	if shell.parent != nil {
-		return shell.parent.GetBuiltin(name)
-	}
-
-	if fn, ok := shell.builtins[name]; ok {
-		return fn, true
-	}
-
-	return nil, false
-}
-
-func (shell *Shell) GetFn(name string) (sh.Fn, bool) {
+func (shell *Shell) GetFn(name string) (*sh.FnObj, error) {
 	shell.logf("Looking for function '%s' on shell '%s'\n", name, shell.name)
-
-	if fn, ok := shell.fns[name]; ok {
-		return fn, ok
+	if obj, ok := shell.vars[name]; ok {
+		if obj.Type() == sh.FnType {
+			fnObj := obj.(*sh.FnObj)
+			return fnObj, nil
+		}
+		return nil, errors.NewError("Identifier '%s' is not a function", name)
 	}
 
 	if shell.parent != nil {
 		return shell.parent.GetFn(name)
 	}
 
-	return nil, false
+	return nil, fmt.Errorf("function '%s' not found", name)
 }
 
-func (shell *Shell) Setbindfn(name string, value sh.Fn) {
+func (shell *Shell) Setbindfn(name string, value sh.FnDef) {
 	shell.binds[name] = value
 }
 
-func (shell *Shell) Getbindfn(cmdName string) (sh.Fn, bool) {
+func (shell *Shell) Getbindfn(cmdName string) (sh.FnDef, bool) {
 	if fn, ok := shell.binds[cmdName]; ok {
 		return fn, true
 	}
@@ -388,19 +360,16 @@ func (shell *Shell) SetNashdPath(path string) {
 // SetStdin sets the stdin for commands
 func (shell *Shell) SetStdin(in io.Reader) {
 	shell.stdin = in
-	shell.updateBuiltinFnIO()
 }
 
 // SetStdout sets stdout for commands
 func (shell *Shell) SetStdout(out io.Writer) {
 	shell.stdout = out
-	shell.updateBuiltinFnIO()
 }
 
 // SetStderr sets stderr for commands
 func (shell *Shell) SetStderr(err io.Writer) {
 	shell.stderr = err
-	shell.updateBuiltinFnIO()
 }
 
 func (shell *Shell) Stdout() io.Writer { return shell.stdout }
@@ -434,24 +403,9 @@ func (shell *Shell) String() string {
 }
 
 func (shell *Shell) setupBuiltin() {
-	for name, builtinfn := range builtin.Load() {
-		fn := NewBuiltInFunc(
-			name,
-			builtinfn,
-			shell.stdin,
-			shell.stdout,
-			shell.stderr,
-		)
-		shell.builtins[name] = fn
-		shell.Setvar(name, sh.NewFnObj(fn))
-	}
-}
-
-func (shell *Shell) updateBuiltinFnIO() {
-	for _, builtinfn := range shell.builtins {
-		builtinfn.SetStdin(shell.stdin)
-		builtinfn.SetStdout(shell.stdout)
-		builtinfn.SetStderr(shell.stderr)
+	for name, constructor := range builtin.Constructors() {
+		fnDef := newBuiltinFnDef(name, shell, constructor)
+		shell.Setvar(name, sh.NewFnObj(fnDef))
 	}
 }
 
@@ -472,7 +426,6 @@ func (shell *Shell) setupDefaultBindings() error {
 
 func (shell *Shell) setup() error {
 	err := shell.initEnv(os.Environ())
-
 	if err != nil {
 		return err
 	}
@@ -671,7 +624,7 @@ func (shell *Shell) evalConcat(path ast.Expr) (string, error) {
 	return pathStr, nil
 }
 
-func (shell *Shell) executeNode(node ast.Node, builtin bool) ([]sh.Obj, error) {
+func (shell *Shell) executeNode(node ast.Node) ([]sh.Obj, error) {
 	var (
 		objs   []sh.Obj
 		err    error
@@ -744,7 +697,7 @@ func (shell *Shell) executeTree(tr *ast.Tree, stopable bool) ([]sh.Obj, error) {
 	root := tr.Root
 
 	for _, node := range root.Nodes {
-		objs, err := shell.executeNode(node, false)
+		objs, err := shell.executeNode(node)
 
 		if err != nil {
 			type (
@@ -1273,36 +1226,36 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 			c, "Empty command name...")
 	}
 
-	if fn, ok := shell.Getbindfn(cmdName); ok {
+	if fnDef, ok := shell.Getbindfn(cmdName); ok {
 		shell.logf("Executing bind %s", cmdName)
-		shell.logf("%s bind to %s", cmdName, fn)
+		shell.logf("%s bind to %s", cmdName, fnDef.Name())
 
 		if !shell.Interactive() {
 			err = errors.NewEvalError(shell.filename,
 				c, "'%s' is a bind to '%s'. "+
 					"No binds allowed in non-interactive mode.",
 				cmdName,
-				fn.Name())
+				fnDef.Name())
 			return nil, ignoreError, err
 		}
 
-		if len(c.Args()) > len(fn.ArgNames()) {
+		if len(c.Args()) > len(fnDef.ArgNames()) {
 			err = errors.NewEvalError(shell.filename,
 				c, "Too much arguments for"+
 					" function '%s'. It expects %d args, but given %d. Arguments: %q",
-				fn.Name(),
-				len(fn.ArgNames()),
+				fnDef.Name(),
+				len(fnDef.ArgNames()),
 				len(c.Args()), c.Args())
 			return nil, ignoreError, err
 		}
 
-		for i := len(c.Args()); i < len(fn.ArgNames()); i++ {
+		for i := len(c.Args()); i < len(fnDef.ArgNames()); i++ {
 			// fill missing args with empty string
 			// safe?
 			c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
 		}
 
-		return fn, ignoreError, nil
+		return fnDef.Build(), ignoreError, nil
 	}
 
 	cmd, err = NewCmd(cmdName)
@@ -2033,39 +1986,34 @@ func (shell *Shell) executeIfNotEqual(n *ast.IfNode) ([]sh.Obj, error) {
 }
 
 func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
-	var (
-		fn sh.Runner
-		ok bool
-	)
+	var fnDef sh.FnDef
 
 	fnName := n.Name()
 	if len(fnName) > 1 && fnName[0] == '$' {
 		argVar := ast.NewVarExpr(token.NewFileInfo(n.Line(), n.Column()), fnName)
 
 		obj, err := shell.evalVariable(argVar)
-
 		if err != nil {
 			return nil, err
 		}
 
 		if obj.Type() != sh.FnType {
 			return nil, errors.NewEvalError(shell.filename,
-				n, "Variable '%s' isnt a function.", fnName)
+				n, "Variable '%s' is not a function.", fnName)
 		}
 
 		objfn := obj.(*sh.FnObj)
-		fn = objfn.Fn()
+		fnDef = objfn.Fn()
 	} else {
-		fn, ok = shell.GetBuiltin(fnName)
-		if !ok {
-			fn, ok = shell.GetFn(fnName)
-
-			if !ok {
-				return nil, errors.NewEvalError(shell.filename,
-					n, "no such function '%s'", fnName)
-			}
+		fnObj, err := shell.GetFn(fnName)
+		if err != nil {
+			return nil, errors.NewEvalError(shell.filename,
+				n, err.Error())
 		}
+		fnDef = fnObj.Fn()
 	}
+
+	fn := fnDef.Build()
 
 	args, err := shell.evalArgExprs(n.Args())
 	if err != nil {
@@ -2077,6 +2025,10 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 		return nil, errors.NewEvalError(shell.filename,
 			n, err.Error())
 	}
+
+	fn.SetStdin(shell.stdin)
+	fn.SetStdout(shell.stdout)
+	fn.SetStderr(shell.stderr)
 
 	err = fn.Start()
 	if err != nil {
@@ -2248,39 +2200,13 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 }
 
 func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
-	fn, err := NewUserFn(n.Name(), shell)
+	fnDef, err := newUserFnDef(n.Name(), shell, n.Args(), n.Tree())
 	if err != nil {
 		return err
 	}
 
-	fn.SetRepr(n.String())
-
-	args := n.Args()
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-
-		if i < len(args)-1 && arg.IsVariadic {
-			return errors.NewEvalError(shell.filename,
-				arg, "Vararg '%s' isn't the last argument",
-				arg.String())
-		}
-
-		fn.AddArgName(sh.FnArg{arg.Name, arg.IsVariadic})
-	}
-
-	fn.SetTree(n.Tree())
-	fnName := n.Name()
-
-	if fnName == "" {
-		fnName = fmt.Sprintf("lambda %d", int(shell.lambdas))
-		shell.lambdas++
-	}
-
-	shell.fns[fnName] = fn
-
-	shell.Setvar(fnName, sh.NewFnObj(fn))
-	shell.logf("Function %s declared on '%s'", fnName, shell.name)
-
+	shell.Setvar(n.Name(), sh.NewFnObj(fnDef))
+	shell.logf("Function %s declared on '%s'", n.Name(), shell.name)
 	return nil
 }
 
@@ -2300,16 +2226,9 @@ func (shell *Shell) dumpEnv(file io.Writer) {
 	}
 }
 
-func (shell *Shell) dumpFns(file io.Writer) {
-	for _, f := range shell.fns {
-		fmt.Fprintf(file, "%s\n\n", f.String())
-	}
-}
-
 func (shell *Shell) dump(out io.Writer) {
 	shell.dumpVar(out)
 	shell.dumpEnv(out)
-	shell.dumpFns(out)
 }
 
 func (shell *Shell) executeDump(n *ast.DumpNode) error {
@@ -2358,13 +2277,13 @@ func (shell *Shell) executeBindFn(n *ast.BindFnNode) error {
 			n, "'bindfn' is not allowed in non-interactive mode.")
 	}
 
-	if fn, ok := shell.GetFn(n.Name()); ok {
-		shell.Setbindfn(n.CmdName(), fn)
-	} else {
+	fnDef, err := shell.GetFn(n.Name())
+	if err != nil {
 		return errors.NewEvalError(shell.filename,
-			n, "No such function '%s'", n.Name())
+			n, err.Error())
 	}
 
+	shell.Setbindfn(n.CmdName(), fnDef.Fn())
 	return nil
 }
 

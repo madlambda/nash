@@ -34,6 +34,12 @@ type (
 
 		String() string
 	}
+
+	FnDef interface {
+		Name() string
+		ArgNames() []FnArg
+		Build() Fn
+	}
 )
 
 func NewFnArg(name string, isVariadic bool) FnArg {

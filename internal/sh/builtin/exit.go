@@ -15,7 +15,7 @@ type (
 	}
 )
 
-func newExit() *exitFn {
+func newExit() Fn {
 	return &exitFn{}
 }
 

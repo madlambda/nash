@@ -86,24 +86,22 @@ func splitByList(content string, delims []sh.Obj) []string {
 	})
 }
 
-func splitByFn(content string, splitFunc sh.Fn) []string {
+func splitByFn(content string, splitFunc sh.FnDef) []string {
 	return strings.FieldsFunc(content, func(r rune) bool {
+		fn := splitFunc.Build()
 		arg := sh.NewStrObj(string(r))
-		splitFunc.SetArgs([]sh.Obj{arg})
-		err := splitFunc.Start()
-
+		fn.SetArgs([]sh.Obj{arg})
+		err := fn.Start()
 		if err != nil {
 			return false
 		}
 
-		err = splitFunc.Wait()
-
+		err = fn.Wait()
 		if err != nil {
 			return false
 		}
 
-		results := splitFunc.Results()
-
+		results := fn.Results()
 		if len(results) != 1 {
 			// expects a single return fn
 			return false
@@ -118,7 +116,6 @@ func splitByFn(content string, splitFunc sh.Fn) []string {
 		}
 
 		status := result.(*sh.StrObj)
-
 		if status.Str() == "0" {
 			return true
 		}

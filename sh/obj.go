@@ -1,5 +1,7 @@
 package sh
 
+import "fmt"
+
 //go:generate stringer -type=objType
 const (
 	StringType objType = iota + 1
@@ -22,7 +24,7 @@ type (
 
 	FnObj struct {
 		objType
-		fn Fn
+		fn FnDef
 	}
 
 	StrObj struct {
@@ -46,16 +48,16 @@ func (o *StrObj) Str() string { return o.str }
 
 func (o *StrObj) String() string { return o.Str() }
 
-func NewFnObj(val Fn) *FnObj {
+func NewFnObj(val FnDef) *FnObj {
 	return &FnObj{
 		fn:      val,
 		objType: FnType,
 	}
 }
 
-func (o *FnObj) Fn() Fn { return o.fn }
+func (o *FnObj) Fn() FnDef { return o.fn }
 
-func (o *FnObj) String() string { return "<fn " + o.Fn().Name() + ">" }
+func (o *FnObj) String() string { return fmt.Sprintf("<fn %s>", o.fn.Name()) }
 
 func NewListObj(val []Obj) *ListObj {
 	return &ListObj{

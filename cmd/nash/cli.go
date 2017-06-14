@@ -30,18 +30,23 @@ type (
 
 var completers = []readline.PrefixCompleterInterface{}
 
-func execFn(shell *nash.Shell, fn sh.Fn) {
+func execFn(shell *nash.Shell, fnDef sh.FnDef, args []sh.Obj) {
+	fn := fnDef.Build()
+	err := fn.SetArgs(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s failed: %s\n", fnDef.Name(), err.Error())
+	}
 	fn.SetStdin(shell.Stdin())
 	fn.SetStdout(shell.Stdout())
 	fn.SetStderr(shell.Stderr())
 
 	if err := fn.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s failed: %s\n", fn.Name(), err.Error())
+		fmt.Fprintf(os.Stderr, "%s failed: %s\n", fnDef.Name(), err.Error())
 		return
 	}
 
 	if err := fn.Wait(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s failed: %s\n", fn.Name(), err.Error())
+		fmt.Fprintf(os.Stderr, "%s failed: %s\n", fnDef.Name(), err.Error())
 		return
 	}
 }
@@ -116,8 +121,8 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 	)
 
 	for {
-		if fn, ok := shell.GetFn("nash_repl_before"); ok && !unfinished {
-			execFn(shell, fn)
+		if fnDef, err := shell.GetFn("nash_repl_before"); err == nil && !unfinished {
+			execFn(shell, fnDef, nil)
 		}
 
 		if !unfinished {
@@ -191,7 +196,7 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 		}
 
 	cont:
-		if fn, ok := shell.GetFn("nash_repl_after"); ok && !unfinished {
+		if fnDef, err := shell.GetFn("nash_repl_after"); err == nil && !unfinished {
 			var status sh.Obj
 			var ok bool
 
@@ -199,12 +204,7 @@ func docli(shell *nash.Shell, rline *readline.Instance) error {
 				status = sh.NewStrObj("")
 			}
 
-			err = fn.SetArgs([]sh.Obj{sh.NewStrObj(line), status})
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
-			} else {
-				execFn(shell, fn)
-			}
+			execFn(shell, fnDef, []sh.Obj{sh.NewStrObj(line), status})
 		}
 
 		rline.SetPrompt(prompt)

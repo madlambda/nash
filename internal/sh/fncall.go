@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
 	"github.com/NeowayLabs/nash/sh"
 )
@@ -20,30 +21,42 @@ type (
 		done     chan error // for async execution
 		results  []sh.Obj
 
-		closeAfterWait []io.Closer
+		name     string // debugging purposes
+		parent   *Shell
+		subshell *Shell
 
-		*Shell // sub-shell
+		environ []string
+
+		stdin          io.Reader
+		stdout, stderr io.Writer
+
+		body           *ast.Tree
+		repr           string
+		closeAfterWait []io.Closer
 	}
 )
 
-func NewUserFn(name string, parent *Shell) (*UserFn, error) {
-	fn := UserFn{
-		done: make(chan error),
+func NewUserFn(name string, args []sh.FnArg, body *ast.Tree, parent *Shell) *UserFn {
+	fn := &UserFn{
+		name:     name,
+		argNames: args,
+		body:     body,
+		done:     make(chan error),
+		parent:   parent,
+		stdin:    parent.Stdin(),
+		stdout:   parent.Stdout(),
+		stderr:   parent.Stderr(),
+		subshell: NewSubShell(name, parent),
 	}
 
-	subshell, err := NewSubShell(name, parent)
-
-	if err != nil {
-		return nil, err
-	}
-
-	fn.Shell = subshell
-	fn.SetDebug(parent.debug)
-	fn.SetStdout(parent.stdout)
-	fn.SetStderr(parent.stderr)
-	fn.SetStdin(parent.stdin)
-
-	return &fn, nil
+	fn.subshell.SetTree(fn.body)
+	fn.subshell.SetRepr(fn.repr)
+	fn.subshell.SetDebug(fn.parent.debug)
+	fn.subshell.SetStdout(fn.stdout)
+	fn.subshell.SetStderr(fn.stderr)
+	fn.subshell.SetStdin(fn.stdin)
+	fn.subshell.SetEnviron(fn.environ)
+	return fn
 }
 
 func (fn *UserFn) ArgNames() []sh.FnArg { return fn.argNames }
@@ -87,7 +100,7 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 			// and user supplied no argument...
 			// then only initialize the variadic variable to
 			// empty list
-			fn.Setvar(fn.argNames[0].Name, sh.NewListObj([]sh.Obj{}))
+			fn.subshell.Setvar(fn.argNames[0].Name, sh.NewListObj([]sh.Obj{}))
 			return nil
 		}
 	}
@@ -105,9 +118,9 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 				valist = append(valist, arg)
 			}
 			valistarg := sh.NewListObj(valist)
-			fn.Setvar(argName, valistarg)
+			fn.subshell.Setvar(argName, valistarg)
 		} else {
-			fn.Setvar(argName, arg)
+			fn.subshell.Setvar(argName, arg)
 		}
 	}
 
@@ -117,10 +130,16 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 		if !last.IsVariadic {
 			return errors.NewError("internal error: optional arguments only for variadic parameter")
 		}
-		fn.Setvar(last.Name, sh.NewListObj([]sh.Obj{}))
+		fn.subshell.Setvar(last.Name, sh.NewListObj([]sh.Obj{}))
 	}
 
 	return nil
+}
+
+func (fn *UserFn) Name() string { return fn.name }
+
+func (fn *UserFn) SetRepr(repr string) {
+	fn.repr = repr
 }
 
 func (fn *UserFn) closeDescriptors(closers []io.Closer) {
@@ -130,16 +149,14 @@ func (fn *UserFn) closeDescriptors(closers []io.Closer) {
 }
 
 func (fn *UserFn) execute() ([]sh.Obj, error) {
-	if fn.root != nil {
-		return fn.ExecuteTree(fn.root)
+	if fn.body != nil {
+		return fn.subshell.ExecuteTree(fn.body)
 	}
 
 	return nil, fmt.Errorf("fn not properly created")
 }
 
 func (fn *UserFn) Start() error {
-	// TODO: what we'll do with fn return values in case of pipes?
-
 	go func() {
 		var err error
 		fn.results, err = fn.execute()
@@ -155,7 +172,35 @@ func (fn *UserFn) Wait() error {
 	err := <-fn.done
 
 	fn.closeDescriptors(fn.closeAfterWait)
+	fn.subshell = nil
 	return err
+}
+
+func (fn *UserFn) SetEnviron(env []string) {
+	fn.environ = env
+}
+
+func (fn *UserFn) SetStderr(w io.Writer) {
+	fn.stderr = w
+}
+
+func (fn *UserFn) SetStdout(w io.Writer) {
+	fn.stdout = w
+}
+
+func (fn *UserFn) SetStdin(r io.Reader) {
+	fn.stdin = r
+}
+
+func (fn *UserFn) Stdin() io.Reader  { return fn.stdin }
+func (fn *UserFn) Stdout() io.Writer { return fn.stdout }
+func (fn *UserFn) Stderr() io.Writer { return fn.stderr }
+
+func (fn *UserFn) String() string {
+	if fn.body != nil {
+		return fn.body.String()
+	}
+	panic("fn not initialized")
 }
 
 func (fn *UserFn) StdoutPipe() (io.ReadCloser, error) {
@@ -165,7 +210,7 @@ func (fn *UserFn) StdoutPipe() (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	fn.SetStdout(pw)
+	fn.subshell.SetStdout(pw)
 
 	// As fn doesn't fork, both fd can be closed after wait is called
 	fn.closeAfterWait = append(fn.closeAfterWait, pw, pr)
