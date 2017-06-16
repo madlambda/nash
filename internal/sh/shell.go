@@ -1856,12 +1856,12 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 	assign := v.(*ast.ExecAssignNode)
 	cmd := assign.Command()
 
+	outstr, errstr, status, cmdErr := shell.execCmdOutput(cmd, false)
+
 	// Only getting command output
 	// In this case the script must abort in case of errors
 	if len(assign.Names) == 1 {
-		outstr, errstr, status, cmdErr := shell.execCmdOutput(cmd, false)
 		shell.stderr.Write(errstr) // flush stderr
-
 		err := shell.setvar(assign.Names[0], sh.NewStrObj(outstr), local)
 
 		if cmdErr != nil {
@@ -1881,9 +1881,7 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 
 	// Only getting stdout and exit status
 	if len(assign.Names) == 2 {
-		outstr, errstr, status, cmdErr := shell.execCmdOutput(cmd, true)
 		shell.stderr.Write(errstr) // flush stderr
-
 		err := shell.setvar(assign.Names[0], sh.NewStrObj(output), local)
 
 		if cmdErr != nil {
@@ -1902,12 +1900,23 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 		return nil
 	}
 
-	if len(assign.Names) != 2 {
-		return errors.NewEvalError(shell.filename,
-			v, "multiple assignment of commands requires two variable names, but got %d",
-			len(assign.Names))
+	if len(assign.Names) == 3 {
+		err1 := shell.setvar(assign.Names[0], sh.NewStrObj(outstr), local)
+		err2 := shell.setvar(assign.Names[1], sh.NewStrObj(errstr), local)
+		err3 := shell.setvar(assign.Names[2], sh.NewStrObj(status), local)
+		errs := []error{cmdErr, err1, err2, err3}
+
+		for _, e := range errs {
+			if e != nil {
+				return e
+			}
+		}
+		return nil
 	}
 
+	return errors.NewEvalError(shell.filename,
+		v, "multiple assignment of commands requires between one and three variable names, but got %d",
+		len(assign.Names))
 }
 
 func (shell *Shell) executeExecAssignFn(assign *ast.ExecAssignNode, local bool) error {
