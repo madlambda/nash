@@ -1375,7 +1375,6 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 
 cmdError:
 	statusObj := sh.NewStrObj(getErrStatus(err, status))
-
 	if ignoreError {
 		return statusObj, newErrIgnore(err.Error())
 	}
@@ -1829,9 +1828,7 @@ func (shell *Shell) execCmdOutput(cmd ast.Node, ignoreError bool) (string, sh.Ob
 	}
 
 	bkStdout := shell.stdout
-
 	shell.SetStdout(&varOut)
-
 	defer shell.SetStdout(bkStdout)
 
 	if cmd.Type() == ast.NodeCommand {
@@ -1841,7 +1838,6 @@ func (shell *Shell) execCmdOutput(cmd ast.Node, ignoreError bool) (string, sh.Ob
 	}
 
 	output := varOut.Bytes()
-
 	if len(output) > 0 && output[len(output)-1] == '\n' {
 		// remove the trailing new line
 		// Why? because it's what user wants in 99.99% of times...
@@ -1860,17 +1856,50 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 	assign := v.(*ast.ExecAssignNode)
 	cmd := assign.Command()
 
+	// Only getting command output
+	// In this case the script must abort in case of errors
 	if len(assign.Names) == 1 {
-		output, status, cmdErr := shell.execCmdOutput(cmd, false)
+		outstr, errstr, status, cmdErr := shell.execCmdOutput(cmd, false)
+		shell.stderr.Write(errstr) // flush stderr
 
-		// compatibility mode
-		shell.Setvar("status", status, true)
-		err := shell.setvar(assign.Names[0], sh.NewStrObj(output), local)
+		err := shell.setvar(assign.Names[0], sh.NewStrObj(outstr), local)
+
+		if cmdErr != nil {
+			return cmdErr
+		}
+
+		if status != 0 {
+			return errors.NewEvalError(shell.filename, v,
+				"exit status: %d", status)
+		}
 		if err != nil {
 			return err
 		}
 
-		return cmdErr
+		return nil
+	}
+
+	// Only getting stdout and exit status
+	if len(assign.Names) == 2 {
+		outstr, errstr, status, cmdErr := shell.execCmdOutput(cmd, true)
+		shell.stderr.Write(errstr) // flush stderr
+
+		err := shell.setvar(assign.Names[0], sh.NewStrObj(output), local)
+
+		if cmdErr != nil {
+			return cmdErr
+		}
+
+		if err != nil {
+			return err
+		}
+
+		err = shell.setvar(assign.Names[1], sh.NewStrObj(status), false)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	if len(assign.Names) != 2 {
@@ -1879,18 +1908,6 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 			len(assign.Names))
 	}
 
-	output, status, cmdErr := shell.execCmdOutput(cmd, true)
-	err := shell.setvar(assign.Names[0], sh.NewStrObj(output), local)
-	if err != nil {
-		return err
-	}
-
-	err = shell.setvar(assign.Names[1], status, true) // status is always local
-	if err != nil {
-		return err
-	}
-
-	return cmdErr
 }
 
 func (shell *Shell) executeExecAssignFn(assign *ast.ExecAssignNode, local bool) error {
@@ -2167,7 +2184,6 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 	}
 
 	fn := fnDef.Build()
-
 	args, err := shell.evalArgExprs(n.Args())
 	if err != nil {
 		return nil, err
