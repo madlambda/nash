@@ -87,8 +87,8 @@ func splitByList(content string, delims []sh.Obj) []string {
 }
 
 func splitByFn(content string, splitFunc sh.FnDef) []string {
-	fn := splitFunc.Build()
 	return strings.FieldsFunc(content, func(r rune) bool {
+		fn := splitFunc.Build()
 		arg := sh.NewStrObj(string(r))
 		fn.SetArgs([]sh.Obj{arg})
 		err := fn.Start()

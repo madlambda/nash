@@ -2129,7 +2129,6 @@ func TestExecuteGracefullyError(t *testing.T) {
 	}
 
 	err = shell.Exec("someinput.sh", "(")
-
 	if err == nil {
 		t.Errorf("Must fail...")
 		return
@@ -2143,7 +2142,6 @@ func TestExecuteGracefullyError(t *testing.T) {
 	}
 
 	err = shell.Exec("input", "echo(")
-
 	if err == nil {
 		t.Errorf("Must fail...")
 		return

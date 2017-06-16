@@ -151,12 +151,8 @@ func NewShell() (*Shell, error) {
 // stdout, stderr and mutex lock.
 // Every variable and function lookup is done first in the subshell and then, if
 // not found, in the parent shell recursively.
-func NewSubShell(name string, parent *Shell) (*Shell, error) {
-	if parent == nil {
-		return nil, errors.NewError("A sub Shell requires a parent shell")
-	}
-
-	sh := &Shell{
+func NewSubShell(name string, parent *Shell) *Shell {
+	return &Shell{
 		name:      name,
 		isFn:      true,
 		parent:    parent,
@@ -171,8 +167,6 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 		Mutex:     parent.Mutex,
 		filename:  parent.filename,
 	}
-
-	return sh, nil
 }
 
 // initEnv creates a new environment from old one
