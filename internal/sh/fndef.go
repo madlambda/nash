@@ -92,7 +92,6 @@ func newUserFnDef(name string, parent *Shell, args []*ast.FnArgNode, body *ast.T
 }
 
 func (ufnDef *userFnDef) Build() sh.Fn {
-	// TODO: make this fail earlier here
 	userfn := NewUserFn(ufnDef.Name(), ufnDef.ArgNames(), ufnDef.Body, ufnDef.Parent)
 	userfn.SetStdin(ufnDef.stdin)
 	userfn.SetStdout(ufnDef.stdout)

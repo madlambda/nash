@@ -151,12 +151,8 @@ func NewShell() (*Shell, error) {
 // stdout, stderr and mutex lock.
 // Every variable and function lookup is done first in the subshell and then, if
 // not found, in the parent shell recursively.
-func NewSubShell(name string, parent *Shell) (*Shell, error) {
-	if parent == nil {
-		return nil, errors.NewError("A sub Shell requires a parent shell")
-	}
-
-	sh := &Shell{
+func NewSubShell(name string, parent *Shell) *Shell {
+	return &Shell{
 		name:      name,
 		isFn:      true,
 		parent:    parent,
@@ -171,8 +167,6 @@ func NewSubShell(name string, parent *Shell) (*Shell, error) {
 		Mutex:     parent.Mutex,
 		filename:  parent.filename,
 	}
-
-	return sh, nil
 }
 
 // initEnv creates a new environment from old one
@@ -1375,7 +1369,6 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 
 cmdError:
 	statusObj := sh.NewStrObj(getErrStatus(err, status))
-
 	if ignoreError {
 		return statusObj, newErrIgnore(err.Error())
 	}
@@ -1829,9 +1822,7 @@ func (shell *Shell) execCmdOutput(cmd ast.Node, ignoreError bool) (string, sh.Ob
 	}
 
 	bkStdout := shell.stdout
-
 	shell.SetStdout(&varOut)
-
 	defer shell.SetStdout(bkStdout)
 
 	if cmd.Type() == ast.NodeCommand {
@@ -1841,7 +1832,6 @@ func (shell *Shell) execCmdOutput(cmd ast.Node, ignoreError bool) (string, sh.Ob
 	}
 
 	output := varOut.Bytes()
-
 	if len(output) > 0 && output[len(output)-1] == '\n' {
 		// remove the trailing new line
 		// Why? because it's what user wants in 99.99% of times...
@@ -1860,37 +1850,67 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 	assign := v.(*ast.ExecAssignNode)
 	cmd := assign.Command()
 
-	if len(assign.Names) == 1 {
-		output, status, cmdErr := shell.execCmdOutput(cmd, false)
+	outstr, errstr, status, cmdErr := shell.execCmdOutput(cmd, false)
 
-		// compatibility mode
-		shell.Setvar("status", status, true)
-		err := shell.setvar(assign.Names[0], sh.NewStrObj(output), local)
+	// Only getting command output
+	// In this case the script must abort in case of errors
+	if len(assign.Names) == 1 {
+		shell.stderr.Write(errstr) // flush stderr
+		err := shell.setvar(assign.Names[0], sh.NewStrObj(outstr), local)
+
+		if cmdErr != nil {
+			return cmdErr
+		}
+
+		if status != 0 {
+			return errors.NewEvalError(shell.filename, v,
+				"exit status: %d", status)
+		}
 		if err != nil {
 			return err
 		}
 
-		return cmdErr
+		return nil
 	}
 
-	if len(assign.Names) != 2 {
-		return errors.NewEvalError(shell.filename,
-			v, "multiple assignment of commands requires two variable names, but got %d",
-			len(assign.Names))
+	// Only getting stdout and exit status
+	if len(assign.Names) == 2 {
+		shell.stderr.Write(errstr) // flush stderr
+		err := shell.setvar(assign.Names[0], sh.NewStrObj(output), local)
+
+		if cmdErr != nil {
+			return cmdErr
+		}
+
+		if err != nil {
+			return err
+		}
+
+		err = shell.setvar(assign.Names[1], sh.NewStrObj(status), false)
+		if err != nil {
+			return err
+		}
+
+		return nil
 	}
 
-	output, status, cmdErr := shell.execCmdOutput(cmd, true)
-	err := shell.setvar(assign.Names[0], sh.NewStrObj(output), local)
-	if err != nil {
-		return err
+	if len(assign.Names) == 3 {
+		err1 := shell.setvar(assign.Names[0], sh.NewStrObj(outstr), local)
+		err2 := shell.setvar(assign.Names[1], sh.NewStrObj(errstr), local)
+		err3 := shell.setvar(assign.Names[2], sh.NewStrObj(status), local)
+		errs := []error{cmdErr, err1, err2, err3}
+
+		for _, e := range errs {
+			if e != nil {
+				return e
+			}
+		}
+		return nil
 	}
 
-	err = shell.setvar(assign.Names[1], status, true) // status is always local
-	if err != nil {
-		return err
-	}
-
-	return cmdErr
+	return errors.NewEvalError(shell.filename,
+		v, "multiple assignment of commands requires between one and three variable names, but got %d",
+		len(assign.Names))
 }
 
 func (shell *Shell) executeExecAssignFn(assign *ast.ExecAssignNode, local bool) error {
@@ -2167,7 +2187,6 @@ func (shell *Shell) executeFnInv(n *ast.FnInvNode) ([]sh.Obj, error) {
 	}
 
 	fn := fnDef.Build()
-
 	args, err := shell.evalArgExprs(n.Args())
 	if err != nil {
 		return nil, err

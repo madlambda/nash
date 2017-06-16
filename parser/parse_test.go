@@ -964,6 +964,10 @@ func TestParseFuncall(t *testing.T) {
 		`func(())`, // empty list
 		`func($a)`,
 		`_($a, $b)`,
+		`func($a())`,
+		`func($a(), $b())`,
+		`func($a($b($c())))`,
+		`func($a("a"))`,
 		`__((((()))))`, // perfect fit for a nash obfuscating code contest
 		`_(
 			()
