@@ -1808,22 +1808,26 @@ func (shell *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 	return value, nil
 }
 
-func (shell *Shell) execCmdOutput(cmd ast.Node, ignoreError bool) (string, sh.Obj, error) {
+func (shell *Shell) execCmdOutput(cmd ast.Node, ignoreError bool) ([]byte, []byte, sh.Obj, error) {
 	var (
-		varOut bytes.Buffer
-		err    error
-		status sh.Obj
+		outBuf, errBuf bytes.Buffer
+		err            error
+		status         sh.Obj
 	)
 	if cmd.Type() != ast.NodeCommand &&
 		cmd.Type() != ast.NodePipe {
-		return "", nil, errors.NewEvalError(shell.filename,
+		return nil, nil, nil, errors.NewEvalError(shell.filename,
 			cmd, "Invalid node type (%v). Expected command or pipe",
 			cmd)
 	}
 
-	bkStdout := shell.stdout
-	shell.SetStdout(&varOut)
-	defer shell.SetStdout(bkStdout)
+	bkStdout, bkStderr := shell.stdout, shell.stderr
+	shell.SetStdout(&outBuf)
+	shell.SetStderr(&errBuf)
+	defer func() {
+		shell.SetStdout(bkStdout)
+		shell.SetStderr(bkStderr)
+	}()
 
 	if cmd.Type() == ast.NodeCommand {
 		status, err = shell.executeCommand(cmd.(*ast.CommandNode))
@@ -1831,41 +1835,42 @@ func (shell *Shell) execCmdOutput(cmd ast.Node, ignoreError bool) (string, sh.Ob
 		status, err = shell.executePipe(cmd.(*ast.PipeNode))
 	}
 
-	output := varOut.Bytes()
-	if len(output) > 0 && output[len(output)-1] == '\n' {
-		// remove the trailing new line
-		// Why? because it's what user wants in 99.99% of times...
+	outb := outBuf.Bytes()
+	errb := errBuf.Bytes()
 
-		output = output[0 : len(output)-1]
+	trimnl := func(data []byte) []byte {
+		if len(data) > 0 && data[len(data)-1] == '\n' {
+			// remove the trailing new line
+			// Why? because it's what user wants in 99.99% of times...
+
+			data = data[0 : len(data)-1]
+		}
+		return data[:]
 	}
 
 	if ignoreError {
 		err = nil
 	}
 
-	return string(output), status, err
+	return trimnl(outb), trimnl(errb), status, err
 }
 
 func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 	assign := v.(*ast.ExecAssignNode)
 	cmd := assign.Command()
 
-	outstr, errstr, status, cmdErr := shell.execCmdOutput(cmd, false)
+	outbuf, errbuf, status, cmdErr := shell.execCmdOutput(cmd, false)
 
 	// Only getting command output
 	// In this case the script must abort in case of errors
 	if len(assign.Names) == 1 {
-		shell.stderr.Write(errstr) // flush stderr
-		err := shell.setvar(assign.Names[0], sh.NewStrObj(outstr), local)
+		shell.stderr.Write(errbuf) // flush stderr
+		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), local)
 
 		if cmdErr != nil {
 			return cmdErr
 		}
 
-		if status != 0 {
-			return errors.NewEvalError(shell.filename, v,
-				"exit status: %d", status)
-		}
 		if err != nil {
 			return err
 		}
@@ -1875,18 +1880,14 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 
 	// Only getting stdout and exit status
 	if len(assign.Names) == 2 {
-		shell.stderr.Write(errstr) // flush stderr
-		err := shell.setvar(assign.Names[0], sh.NewStrObj(output), local)
-
-		if cmdErr != nil {
-			return cmdErr
-		}
+		shell.stderr.Write(errbuf) // flush stderr
+		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), local)
 
 		if err != nil {
 			return err
 		}
 
-		err = shell.setvar(assign.Names[1], sh.NewStrObj(status), false)
+		err = shell.setvar(assign.Names[1], status, local)
 		if err != nil {
 			return err
 		}
@@ -1895,10 +1896,10 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 	}
 
 	if len(assign.Names) == 3 {
-		err1 := shell.setvar(assign.Names[0], sh.NewStrObj(outstr), local)
-		err2 := shell.setvar(assign.Names[1], sh.NewStrObj(errstr), local)
-		err3 := shell.setvar(assign.Names[2], sh.NewStrObj(status), local)
-		errs := []error{cmdErr, err1, err2, err3}
+		err1 := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), local)
+		err2 := shell.setvar(assign.Names[1], sh.NewStrObj(string(errbuf)), local)
+		err3 := shell.setvar(assign.Names[2], status, local)
+		errs := []error{err1, err2, err3}
 
 		for _, e := range errs {
 			if e != nil {
