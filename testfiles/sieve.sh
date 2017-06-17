@@ -14,10 +14,16 @@ fn gt(a, b) {
 	return $st
 }
 
-fn gte(a, b) {
-	var _, st <= test $a -ge $b
+fn le(a, b) {
+	var _, st <= test $a -le $b
 
 	return $st
+}
+
+fn sqrt(n) {
+	var v, _ <= expr $n * $n
+
+	return $v
 }
 
 fn range(start, end) {
@@ -25,6 +31,30 @@ fn range(start, end) {
 	var list <= split($values, "\n")
 
 	return $list
+}
+
+fn xrange(start, condfn) {
+	var out = ()
+
+	if $condfn($start) == "0" {
+		out = ($start)
+	} else {
+		return ()
+	}
+
+	var next = $start
+
+	for {
+		next, _ <= expr $next "+" 1
+
+		if $condfn($next) == "0" {
+			out <= append($out, $next)
+		} else {
+			return $out
+		}
+	}
+
+	unreachable
 }
 
 fn sieve(n) {
@@ -40,7 +70,12 @@ fn sieve(n) {
 	for i in range("2", $n) {
 		tries <= append($tries, "1")
 	}
-	for i in range("2", $n) {
+
+	fn untilSqrtRoot(v) {
+		return le(sqrt($v), $n)
+	}
+
+	for i in xrange("2", $untilSqrtRoot) {
 		if $tries[$i] == "1" {
 			for j in range("0", $n) {
 				var k, _ <= expr $i * $i "+" "(" $j * $i ")"
@@ -63,8 +98,8 @@ fn sieve(n) {
 	return $primes
 }
 
-for p in sieve($ARGS[1]) {
-	print("%s ", $p)
+for prime in sieve($ARGS[1]) {
+	print("%s ", $prime)
 }
 
 print("\n")

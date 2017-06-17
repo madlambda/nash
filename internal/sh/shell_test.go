@@ -787,45 +787,99 @@ func TestExecuteImport(t *testing.T) {
 }
 
 func TestExecuteIfEqual(t *testing.T) {
-	var out bytes.Buffer
-
-	shell, err := NewShell()
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	shell.SetNashdPath(nashdPath)
-	shell.SetStdout(&out)
-
-	err = shell.Exec("test if equal", `
+	for _, test := range []execTestCase{
+		{
+			desc: "if equal",
+			execStr: `
         if "" == "" {
             echo "empty string works"
-        }`)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "empty string works" {
-		t.Errorf("Must be empty. '%s' != 'empty string works'", string(out.Bytes()))
-		return
-	}
-
-	out.Reset()
-
-	err = shell.Exec("test if equal 2", `
+        }`,
+			expectedStdout: "empty string works\n",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "if equal",
+			execStr: `
         if "i4k" == "_i4k_" {
             echo "do not print"
-        }`)
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if strings.TrimSpace(string(out.Bytes())) != "" {
-		t.Errorf("Error: '%s' != ''", strings.TrimSpace(string(out.Bytes())))
-		return
+        }`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "if lvalue concat",
+			execStr: `
+        if "i4"+"k" == "i4k" {
+            echo -n "ok"
+        }`,
+			expectedStdout: "ok",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "if lvalue concat",
+			execStr: `var name = "something"
+        if $name+"k" == "somethingk" {
+            echo -n "ok"
+        }`,
+			expectedStdout: "ok",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "if lvalue concat",
+			execStr: `var name = "something"
+        if $name+"k"+"k" == "somethingkk" {
+            echo -n "ok"
+        }`,
+			expectedStdout: "ok",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "if rvalue concat",
+			execStr: `
+        if "i4k" == "i4"+"k" {
+            echo -n "ok"
+        }`,
+			expectedStdout: "ok",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "if lvalue funcall",
+			execStr: `var a = ()
+        if len($a) == "0" {
+            echo -n "ok"
+        }`,
+			expectedStdout: "ok",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "if rvalue funcall",
+			execStr: `var a = ("1")
+        if "1" == len($a) {
+            echo -n "ok"
+        }`,
+			expectedStdout: "ok",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc: "if lvalue funcall with concat",
+			execStr: `var a = ()
+        if len($a)+"1" == "01" {
+            echo -n "ok"
+        }`,
+			expectedStdout: "ok",
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+	} {
+		testExec(t, test)
 	}
 }
 

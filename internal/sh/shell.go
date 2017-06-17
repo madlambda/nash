@@ -631,13 +631,32 @@ func (shell *Shell) evalConcat(path ast.Expr) (string, error) {
 			pathStr += strval.Str()
 		case ast.NodeStringExpr:
 			str, ok := part.(*ast.StringExpr)
-
 			if !ok {
 				return "", errors.NewEvalError(shell.filename, part,
 					"Failed to eval string: %s", part)
 			}
 
 			pathStr += str.Value()
+		case ast.NodeFnInv:
+			fnNode := part.(*ast.FnInvNode)
+			result, err := shell.executeFnInv(fnNode)
+			if err != nil {
+				return "", err
+			}
+
+			if len(result) == 0 || len(result) > 1 {
+				return "", errors.NewEvalError(shell.filename, part,
+					"Function '%s' used in string concat but returns %d values.",
+					fnNode.Name)
+			}
+			obj := result[0]
+			if obj.Type() != sh.StringType {
+				return "", errors.NewEvalError(shell.filename, part,
+					"Function '%s' used in concat but returns a '%s'", obj.Type())
+			}
+
+			str := obj.(*sh.StrObj)
+			pathStr += str.Str()
 		case ast.NodeListExpr:
 			return "", errors.NewEvalError(shell.filename, part,
 				"Concat of lists is not allowed: %+v", part.String())
