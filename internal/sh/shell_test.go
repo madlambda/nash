@@ -44,11 +44,10 @@ func init() {
 	os.Setenv("NASHPATH", "/tmp/.nash")
 }
 
-func testExecuteFile(t *testing.T, path, expected string) {
+func testExecuteFile(t *testing.T, path, expected string, before string) {
 	var out bytes.Buffer
 
 	shell, err := NewShell()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -56,6 +55,10 @@ func testExecuteFile(t *testing.T, path, expected string) {
 
 	shell.SetNashdPath(nashdPath)
 	shell.SetStdout(&out)
+
+	if before != "" {
+		shell.Exec("", before)
+	}
 
 	err = shell.ExecFile(path)
 
@@ -153,14 +156,22 @@ func TestInitEnv(t *testing.T) {
 
 func TestExecuteFile(t *testing.T) {
 	type fileTests struct {
-		path     string
-		expected string
+		path       string
+		expected   string
+		execBefore string
 	}
 
 	for _, ftest := range []fileTests{
 		{path: "/ex1.sh", expected: "hello world\n"},
+		{path: "/sieve.sh", expected: "\n", execBefore: `var ARGS = ("" "0")`},
+		{path: "/sieve.sh", expected: "\n", execBefore: `var ARGS = ("" "1")`},
+		{path: "/sieve.sh", expected: "2 \n", execBefore: `var ARGS = ("" "2")`},
+		{path: "/sieve.sh", expected: "2 3 \n", execBefore: `var ARGS = ("" "3")`},
+		{path: "/sieve.sh", expected: "2 3 \n", execBefore: `var ARGS = ("" "4")`},
+		{path: "/sieve.sh", expected: "2 3 5 \n", execBefore: `var ARGS = ("" "5")`},
+		{path: "/sieve.sh", expected: "2 3 5 7 \n", execBefore: `var ARGS = ("" "10")`},
 	} {
-		testExecuteFile(t, testDir+ftest.path, ftest.expected)
+		testExecuteFile(t, testDir+ftest.path, ftest.expected, ftest.execBefore)
 	}
 }
 
