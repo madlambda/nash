@@ -34,8 +34,6 @@ const (
 )
 
 type (
-	varOpt int
-
 	// Env is the environment map of lists
 	Env map[string]sh.Obj
 	Var Env
@@ -71,8 +69,6 @@ type (
 
 		*sync.Mutex
 	}
-
-	onSetvarSuccess func(name *ast.NameNode, val sh.Obj) error
 
 	errIgnore struct {
 		*errors.NashError
