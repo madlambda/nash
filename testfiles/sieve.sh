@@ -78,6 +78,7 @@ fn sieve(n) {
 	for i in xrange("2", $untilSqrtRoot) {
 		if $tries[$i] == "1" {
 			for j in range("0", $n) {
+				# arithmetic seems cryptic without integers =(
 				var k, _ <= expr $i * $i "+" "(" $j * $i ")"
 
 				if gt($k, $n) != "0" {

@@ -7,12 +7,9 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/NeowayLabs/nash/sh"
 )
 
 type execTestCase struct {
@@ -2150,43 +2147,21 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 		return
 	}
 
-	scode, ok := shell.Getvar("status", false)
-	if !ok || scode.Type() != sh.StringType || scode.String() != strconv.Itoa(ENotFound) {
-		t.Errorf("Invalid status code %s", scode.String())
-		return
-	}
-
 	err = shell.Exec("-input-", `echo works >[1=]`)
-
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	scode, ok = shell.Getvar("status", false)
-	if !ok || scode.Type() != sh.StringType || scode.String() != "0" {
-		t.Errorf("Invalid status code %s", scode)
-		return
-	}
-
 	err = shell.Exec("-input-", `echo works | cmd-does-not-exists`)
-
 	if err == nil {
 		t.Errorf("Must fail")
 		return
 	}
 
 	expectedError := `<interactive>:1:11: not started|exec: "cmd-does-not-exists": executable file not found in $PATH`
-
 	if err.Error() != expectedError {
 		t.Errorf("Unexpected error: %s", err.Error())
-		return
-	}
-
-	scode, ok = shell.Getvar("status", false)
-
-	if !ok || scode.Type() != sh.StringType || scode.String() != "255|127" {
-		t.Errorf("Invalid status code %s", scode)
 		return
 	}
 }

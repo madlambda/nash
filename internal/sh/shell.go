@@ -671,9 +671,8 @@ func (shell *Shell) evalConcat(path ast.Expr) (string, error) {
 
 func (shell *Shell) executeNode(node ast.Node) ([]sh.Obj, error) {
 	var (
-		objs   []sh.Obj
-		err    error
-		status sh.Obj = nil
+		objs []sh.Obj
+		err  error
 	)
 
 	shell.logf("Executing node: %v\n", node)
@@ -694,9 +693,9 @@ func (shell *Shell) executeNode(node ast.Node) ([]sh.Obj, error) {
 	case ast.NodeExecAssign:
 		err = shell.executeExecAssign(node.(*ast.ExecAssignNode), false)
 	case ast.NodeCommand:
-		status, err = shell.executeCommand(node.(*ast.CommandNode))
+		_, err = shell.executeCommand(node.(*ast.CommandNode))
 	case ast.NodePipe:
-		status, err = shell.executePipe(node.(*ast.PipeNode))
+		_, err = shell.executePipe(node.(*ast.PipeNode))
 	case ast.NodeRfork:
 		err = shell.executeRfork(node.(*ast.RforkNode))
 	case ast.NodeIf:
@@ -724,10 +723,6 @@ func (shell *Shell) executeNode(node ast.Node) ([]sh.Obj, error) {
 		// should never get here
 		return nil, errors.NewEvalError(shell.filename, node,
 			"invalid node: %v.", node.Type())
-	}
-
-	if status != nil {
-		shell.Setvar("status", status, true)
 	}
 
 	return objs, err
