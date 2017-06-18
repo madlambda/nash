@@ -1822,7 +1822,7 @@ func (shell *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 	return value, nil
 }
 
-func (shell *Shell) execCmdOutput(cmd ast.Node, ignoreError bool) ([]byte, []byte, sh.Obj, error) {
+func (shell *Shell) execCmdOutput(cmd ast.Node, getstderr, ignoreError bool) ([]byte, []byte, sh.Obj, error) {
 	var (
 		outBuf, errBuf bytes.Buffer
 		err            error
@@ -1837,7 +1837,9 @@ func (shell *Shell) execCmdOutput(cmd ast.Node, ignoreError bool) ([]byte, []byt
 
 	bkStdout, bkStderr := shell.stdout, shell.stderr
 	shell.SetStdout(&outBuf)
-	shell.SetStderr(&errBuf)
+	if getstderr {
+		shell.SetStderr(&errBuf)
+	}
 	defer func() {
 		shell.SetStdout(bkStdout)
 		shell.SetStderr(bkStderr)
@@ -1869,16 +1871,14 @@ func (shell *Shell) execCmdOutput(cmd ast.Node, ignoreError bool) ([]byte, []byt
 	return trimnl(outb), trimnl(errb), status, err
 }
 
-func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
+func (shell *Shell) executeExecAssignCmd(v ast.Node, where bool) error {
 	assign := v.(*ast.ExecAssignNode)
 	cmd := assign.Command()
-
-	outbuf, errbuf, status, cmdErr := shell.execCmdOutput(cmd, false)
 
 	// Only getting command output
 	// In this case the script must abort in case of errors
 	if len(assign.Names) == 1 {
-		shell.stderr.Write(errbuf) // flush stderr
+		outbuf, _, _, cmdErr := shell.execCmdOutput(cmd, false, false)
 		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), Local)
 
 		if cmdErr != nil {
@@ -1894,7 +1894,7 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 
 	// Only getting stdout and exit status
 	if len(assign.Names) == 2 {
-		shell.stderr.Write(errbuf) // flush stderr
+		outbuf, _, status, _ := shell.execCmdOutput(cmd, false, false)
 		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), Local)
 
 		if err != nil {
@@ -1910,6 +1910,7 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 	}
 
 	if len(assign.Names) == 3 {
+		outbuf, errbuf, status, _ := shell.execCmdOutput(cmd, true, false)
 		err1 := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), Local)
 		err2 := shell.setvar(assign.Names[1], sh.NewStrObj(string(errbuf)), Local)
 		err3 := shell.setvar(assign.Names[2], status, Local)
