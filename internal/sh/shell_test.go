@@ -225,29 +225,32 @@ chdir($path)
 
 func TestExecuteAssignment(t *testing.T) {
 	for _, test := range []execTestCase{
-		{ // wrong assignment
-			"wrong assignment",
-			`var name=i4k`,
-			"", "",
-			"wrong assignment:1:9: Unexpected token IDENT. Expecting VARIABLE, STRING or (",
+		{
+			desc:           "wrong assignment",
+			execStr:        `var name=i4k`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "wrong assignment:1:9: Unexpected token IDENT. Expecting VARIABLE, STRING or (",
 		},
 		{
-			"assignment",
-			`var name="i4k"
+			desc: "assignment",
+			execStr: `var name="i4k"
                          echo $name`,
-			"i4k\n", "",
-			"",
+			expectedStdout: "i4k\n",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"list assignment",
-			`var name=(honda civic)
+			desc: "list assignment",
+			execStr: `var name=(honda civic)
                          echo -n $name`,
-			"honda civic", "",
-			"",
+			expectedStdout: "honda civic",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"list of lists",
-			`var l = (
+			desc: "list of lists",
+			execStr: `var l = (
 		(name Archlinux)
 		(arch amd64)
 		(kernel 4.7.1)
@@ -256,30 +259,37 @@ func TestExecuteAssignment(t *testing.T) {
 	echo $l[0]
 	echo $l[1]
 	echo -n $l[2]`,
-			`name Archlinux
+			expectedStdout: `name Archlinux
 arch amd64
 kernel 4.7.1`,
-			"",
-			"",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"list assignment",
-			`var l = (0 1 2 3)
+			desc: "list assignment",
+			execStr: `var l = (0 1 2 3)
                          l[0] = "666"
                          echo -n $l`,
-			`666 1 2 3`,
-			"",
-			"",
+			expectedStdout: `666 1 2 3`,
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"list assignment",
-			`var l = (0 1 2 3)
+			desc: "list assignment",
+			execStr: `var l = (0 1 2 3)
                          var a = "2"
                          l[$a] = "666"
                          echo -n $l`,
-			`0 1 666 3`,
-			"",
-			"",
+			expectedStdout: `0 1 666 3`,
+			expectedStderr: "",
+			expectedErr:    "",
+		},
+		{
+			desc:           "_ always exists",
+			execStr:        `_ = "something"`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 	} {
 		testExec(t, test)

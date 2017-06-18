@@ -29,9 +29,8 @@ const (
 )
 
 const (
-	varNewDecl varOpt = iota
-	varSet
-	varOff
+	Local  = true
+	Global = false
 )
 
 type (
@@ -180,7 +179,7 @@ func (shell *Shell) initEnv(processEnv []string) error {
 	argv := sh.NewListObj(largs)
 
 	shell.Setenv("argv", argv)
-	shell.Setvar("argv", argv, true)
+	shell.Setvar("argv", argv, Local)
 
 	for _, penv := range processEnv {
 		var value sh.Obj
@@ -196,19 +195,19 @@ func (shell *Shell) initEnv(processEnv []string) error {
 			value = sh.NewStrObj(strings.Join(p[1:], "="))
 
 			shell.Setenv(p[0], value)
-			shell.Setvar(p[0], value, true)
+			shell.Setvar(p[0], value, Local)
 		}
 	}
 
 	pidVal := sh.NewStrObj(strconv.Itoa(os.Getpid()))
 
 	shell.Setenv("PID", pidVal)
-	shell.Setvar("PID", pidVal, true)
+	shell.Setvar("PID", pidVal, Local)
 
 	if _, ok := shell.Getenv("SHELL"); !ok {
 		shellVal := sh.NewStrObj(nashdAutoDiscover())
 		shell.Setenv("SHELL", shellVal)
-		shell.Setvar("SHELL", shellVal, true)
+		shell.Setvar("SHELL", shellVal, Local)
 	}
 
 	cwd, err := os.Getwd()
@@ -219,7 +218,7 @@ func (shell *Shell) initEnv(processEnv []string) error {
 
 	cwdObj := sh.NewStrObj(cwd)
 	shell.Setenv("PWD", cwdObj)
-	shell.Setvar("PWD", cwdObj, true)
+	shell.Setvar("PWD", cwdObj, Local)
 
 	return nil
 }
@@ -287,7 +286,7 @@ func (shell *Shell) Setenv(name string, value sh.Obj) {
 		return
 	}
 
-	shell.Setvar(name, value, true)
+	shell.Setvar(name, value, Local)
 
 	shell.env[name] = value
 	os.Setenv(name, value.String())
@@ -303,19 +302,19 @@ func (shell *Shell) SetEnviron(processEnv []string) {
 		if len(p) == 2 {
 			value = sh.NewStrObj(p[1])
 
-			shell.Setvar(p[0], value, true)
+			shell.Setvar(p[0], value, Local)
 			shell.Setenv(p[0], value)
 		}
 	}
 }
 
-func (shell *Shell) Getvar(name string, local bool) (sh.Obj, bool) {
+func (shell *Shell) Getvar(name string, where bool) (sh.Obj, bool) {
 	if value, ok := shell.vars[name]; ok {
 		return value, ok
 	}
 
-	if !local && shell.parent != nil {
-		return shell.parent.Getvar(name, false)
+	if where == Global && shell.parent != nil {
+		return shell.parent.Getvar(name, Global)
 	}
 
 	return nil, false
@@ -354,15 +353,15 @@ func (shell *Shell) Getbindfn(cmdName string) (sh.FnDef, bool) {
 	return nil, false
 }
 
-func (shell *Shell) Setvar(name string, value sh.Obj, local bool) bool {
+func (shell *Shell) Setvar(name string, value sh.Obj, where bool) bool {
 	_, ok := shell.vars[name]
-	if ok || local {
+	if ok || where == Local {
 		shell.vars[name] = value
 		return true
 	}
 
 	if shell.parent != nil {
-		return shell.parent.Setvar(name, value, false)
+		return shell.parent.Setvar(name, value, Global)
 	}
 
 	return false
@@ -425,7 +424,7 @@ func (shell *Shell) String() string {
 func (shell *Shell) setupBuiltin() {
 	for name, constructor := range builtin.Constructors() {
 		fnDef := newBuiltinFnDef(name, shell, constructor)
-		_ = shell.Setvar(name, sh.NewFnObj(fnDef), true)
+		_ = shell.Setvar(name, sh.NewFnObj(fnDef), Local)
 	}
 }
 
@@ -453,7 +452,12 @@ func (shell *Shell) setup() error {
 	if shell.env["PROMPT"] == nil {
 		pobj := sh.NewStrObj(defPrompt)
 		shell.Setenv("PROMPT", pobj)
-		shell.Setvar("PROMPT", pobj, true)
+		shell.Setvar("PROMPT", pobj, Local)
+	}
+
+	_, ok := shell.Getvar("_", Global)
+	if !ok {
+		shell.Setvar("_", sh.NewStrObj(""), Local)
 	}
 
 	shell.setupBuiltin()
@@ -550,11 +554,11 @@ func (shell *Shell) ExecFile(path string) error {
 
 // setVar tries to set value into variable name. It looks for the variable
 // first in the current scope and then in the parents if not found.
-func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj, local bool) error {
+func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj, where bool) error {
 	finalObj := value
 
 	if name.Index != nil {
-		if list, ok := shell.Getvar(name.Ident, false); ok {
+		if list, ok := shell.Getvar(name.Ident, Global); ok {
 			index, err := shell.evalIndex(name.Index)
 
 			if err != nil {
@@ -585,7 +589,7 @@ func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj, local bool) error {
 		}
 	}
 
-	if !shell.Setvar(name.Ident, finalObj, local) {
+	if !shell.Setvar(name.Ident, finalObj, where) {
 		return errors.NewEvalError(shell.filename,
 			name, "Variable '%s' is not initialized. Use 'var %s = <value>'",
 			name, name)
@@ -1542,7 +1546,7 @@ func (shell *Shell) evalVariable(a ast.Expr) (sh.Obj, error) {
 	vexpr := a.(*ast.VarExpr)
 	varName := vexpr.Name
 
-	if value, ok = shell.Getvar(varName[1:], false); !ok {
+	if value, ok = shell.Getvar(varName[1:], Global); !ok {
 		return nil, errors.NewEvalError(shell.filename,
 			a, "Variable %s not set on shell %s", varName, shell.name)
 	}
@@ -1565,7 +1569,7 @@ func (shell *Shell) evalArgVariable(a ast.Expr) ([]sh.Obj, error) {
 	}
 
 	vexpr := a.(*ast.VarExpr)
-	if value, ok = shell.Getvar(vexpr.Name[1:], false); !ok {
+	if value, ok = shell.Getvar(vexpr.Name[1:], Global); !ok {
 		return nil, errors.NewEvalError(shell.filename,
 			a, "Variable %s not set on shell %s", vexpr.Name,
 			shell.name)
@@ -1734,7 +1738,7 @@ func (shell *Shell) executeSetenvAssign(assign *ast.AssignNode) error {
 		if err != nil {
 			return err
 		}
-		obj, ok := shell.Getvar(name.Ident, true)
+		obj, ok := shell.Getvar(name.Ident, Local)
 		if !ok {
 			return errors.NewEvalError(shell.filename,
 				assign,
@@ -1754,7 +1758,7 @@ func (shell *Shell) executeSetenvExec(assign *ast.ExecAssignNode) error {
 	}
 	for i := 0; i < len(assign.Names); i++ {
 		name := assign.Names[i]
-		obj, ok := shell.Getvar(name.Ident, true)
+		obj, ok := shell.Getvar(name.Ident, Local)
 		if !ok {
 			return errors.NewEvalError(shell.filename,
 				assign,
@@ -1786,7 +1790,7 @@ func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 			assign)
 	}
 
-	varValue, ok = shell.Getvar(v.Name, false)
+	varValue, ok = shell.Getvar(v.Name, Global)
 	if !ok {
 		return errors.NewEvalError(shell.filename,
 			v, "Variable '%s' not set on shell %s", v.Name,
@@ -1879,7 +1883,7 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 	// In this case the script must abort in case of errors
 	if len(assign.Names) == 1 {
 		shell.stderr.Write(errbuf) // flush stderr
-		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), local)
+		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), Local)
 
 		if cmdErr != nil {
 			return cmdErr
@@ -1895,13 +1899,13 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 	// Only getting stdout and exit status
 	if len(assign.Names) == 2 {
 		shell.stderr.Write(errbuf) // flush stderr
-		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), local)
+		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), Local)
 
 		if err != nil {
 			return err
 		}
 
-		err = shell.setvar(assign.Names[1], status, local)
+		err = shell.setvar(assign.Names[1], status, Local)
 		if err != nil {
 			return err
 		}
@@ -1910,9 +1914,9 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 	}
 
 	if len(assign.Names) == 3 {
-		err1 := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), local)
-		err2 := shell.setvar(assign.Names[1], sh.NewStrObj(string(errbuf)), local)
-		err3 := shell.setvar(assign.Names[2], status, local)
+		err1 := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), Local)
+		err2 := shell.setvar(assign.Names[1], sh.NewStrObj(string(errbuf)), Local)
+		err3 := shell.setvar(assign.Names[2], status, Local)
 		errs := []error{err1, err2, err3}
 
 		for _, e := range errs {
@@ -1928,7 +1932,7 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, local bool) error {
 		len(assign.Names))
 }
 
-func (shell *Shell) executeExecAssignFn(assign *ast.ExecAssignNode, local bool) error {
+func (shell *Shell) executeExecAssignFn(assign *ast.ExecAssignNode, where bool) error {
 	var (
 		err      error
 		fnValues []sh.Obj
@@ -1953,7 +1957,7 @@ func (shell *Shell) executeExecAssignFn(assign *ast.ExecAssignNode, local bool) 
 	}
 
 	for i := 0; i < len(assign.Names); i++ {
-		err := shell.setvar(assign.Names[i], fnValues[i], local)
+		err := shell.setvar(assign.Names[i], fnValues[i], where)
 		if err != nil {
 			return err
 		}
@@ -1962,14 +1966,14 @@ func (shell *Shell) executeExecAssignFn(assign *ast.ExecAssignNode, local bool) 
 	return nil
 }
 
-func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode, local bool) error {
+func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode, where bool) error {
 	assign := v.Command()
 
 	if assign.Type() == ast.NodeFnInv {
-		return shell.executeExecAssignFn(v, local)
+		return shell.executeExecAssignFn(v, where)
 	} else if assign.Type() == ast.NodeCommand ||
 		assign.Type() == ast.NodePipe {
-		return shell.executeExecAssignCmd(v, local)
+		return shell.executeExecAssignCmd(v, where)
 	}
 
 	return errors.NewEvalError(shell.filename,
@@ -2005,7 +2009,7 @@ func (shell *Shell) executeVarAssign(v *ast.VarAssignDeclNode) error {
 	for i := 0; i < len(assign.Names); i++ {
 		name := assign.Names[i]
 		value := assign.Values[i]
-		_, varLocalExists := shell.Getvar(name.Ident, true)
+		_, varLocalExists := shell.Getvar(name.Ident, Local)
 		if !varLocalExists {
 			initVarNames = append(initVarNames, name)
 			initVarValues = append(initVarValues, value)
@@ -2096,7 +2100,6 @@ func (shell *Shell) evalIfArgument(arg ast.Node) (sh.Obj, error) {
 	)
 
 	obj, err = shell.evalExpr(arg)
-
 	if err != nil {
 		return nil, err
 	} else if obj == nil {
@@ -2341,7 +2344,7 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 	objlist := obj.(*sh.ListObj)
 
 	for _, val := range objlist.List() {
-		shell.Setvar(id, val, true)
+		shell.Setvar(id, val, Local)
 
 		objs, err := shell.executeTree(n.Tree(), false)
 
@@ -2392,7 +2395,7 @@ func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 		return err
 	}
 
-	shell.Setvar(n.Name(), sh.NewFnObj(fnDef), true)
+	shell.Setvar(n.Name(), sh.NewFnObj(fnDef), Local)
 	shell.logf("Function %s declared on '%s'", n.Name(), shell.name)
 	return nil
 }
