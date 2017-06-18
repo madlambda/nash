@@ -163,6 +163,7 @@ func TestExecuteFile(t *testing.T) {
 
 	for _, ftest := range []fileTests{
 		{path: "/ex1.sh", expected: "hello world\n"},
+
 		{path: "/sieve.sh", expected: "\n", execBefore: `var ARGS = ("" "0")`},
 		{path: "/sieve.sh", expected: "\n", execBefore: `var ARGS = ("" "1")`},
 		{path: "/sieve.sh", expected: "2 \n", execBefore: `var ARGS = ("" "2")`},
@@ -170,6 +171,11 @@ func TestExecuteFile(t *testing.T) {
 		{path: "/sieve.sh", expected: "2 3 \n", execBefore: `var ARGS = ("" "4")`},
 		{path: "/sieve.sh", expected: "2 3 5 \n", execBefore: `var ARGS = ("" "5")`},
 		{path: "/sieve.sh", expected: "2 3 5 7 \n", execBefore: `var ARGS = ("" "10")`},
+
+		{path: "/fibonacci.sh", expected: "1 \n", execBefore: `var ARGS = ("" "1")`},
+		{path: "/fibonacci.sh", expected: "1 2 \n", execBefore: `var ARGS = ("" "2")`},
+		{path: "/fibonacci.sh", expected: "1 2 3 \n", execBefore: `var ARGS = ("" "3")`},
+		{path: "/fibonacci.sh", expected: "1 2 3 5 8 \n", execBefore: `var ARGS = ("" "5")`},
 	} {
 		testExecuteFile(t, testDir+ftest.path, ftest.expected, ftest.execBefore)
 	}
