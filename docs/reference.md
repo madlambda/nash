@@ -171,9 +171,18 @@ echo $a+$b
 #Output:"12"
 ```
 
+# Packages
+
+TODO
+
 # Iterating
 
+TODO
+
 # Built-in functions
+
+Built-in functions are functions that are embedded on the
+language. You do not have to import any package to use them.
 
 ## print
 
@@ -237,4 +246,20 @@ example_list <= append($example_list, "2")
 echo $example_list
 ```
 
-# Packages
+## exit
+
+TODO
+
+## glob
+
+TODO
+
+# Standard Library
+
+The standard library is a set of packages that comes with the
+nash install (although not obligatory).
+
+They must be imported explicitly (as any other package) to
+be used.
+
+* [fmt](docs/stdlib/fmt.md)
