@@ -7,8 +7,8 @@ buildargs = -ldflags "-X main.VersionString=$(version)" -v
 all: build test install
 
 build:
-	GO15VENDOREXPERIMENT=1 go build $(buildargs) -o ./cmd/nash/nash ./cmd/nash
-	GO15VENDOREXPERIMENT=1 go build $(buildargs) -o ./cmd/nashfmt/nashfmt ./cmd/nashfmt
+	go build $(buildargs) -o ./cmd/nash/nash ./cmd/nash
+	go build $(buildargs) -o ./cmd/nashfmt/nashfmt ./cmd/nashfmt
 
 install: build
 ifndef NASHPATH
