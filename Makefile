@@ -10,10 +10,14 @@ build:
 	go build $(buildargs) -o ./cmd/nash/nash ./cmd/nash
 	go build $(buildargs) -o ./cmd/nashfmt/nashfmt ./cmd/nashfmt
 
-install: build
-ifndef NASHPATH
-$(error NASHPATH must be set in order to install and use nash)
-endif
+
+guard-%:
+	@ if [ "${${*}}" = "" ]; then \
+                echo "'$*' must be set in order to install and use nash"; \
+                exit 1; \
+        fi
+
+install: build guard-NASHPATH
 	@echo
 	@echo "Installing nash at: "$(NASHPATH)
 	mkdir -p $(NASHPATH)/bin
@@ -38,7 +42,7 @@ docs: docsdeps
 	mdtoc -w ./docs/stdlib/fmt.md
 
 test: deps build
-	GO15VENDOREXPERIMENT=1 ./hack/check.sh
+	./hack/check.sh
 
 update-vendor:
 	cd cmd/nash && nash ./vendor.sh
