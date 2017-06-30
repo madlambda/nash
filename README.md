@@ -50,13 +50,23 @@ Nash is a system shell, inspired by plan9 `rc`, that makes it easy to create rel
 
 ## Installation
 
-If you have Go, go-get it:
+Before proceeding to any of the install procedures it is important that you
+set in your environment the **NASHPATH** variable, it will be used to find
+your libraries and the standard library shipped with the language.
 
-```sh
-# Make sure GOPATH/bin is in your PATH
-go get github.com/NeowayLabs/nash/cmd/nash
+### Release
+
+TODO
+
+### Master
+
+Run:
+
 ```
-If not, [download the latest binary release](https://github.com/NeowayLabs/nash/releases) and copy to somewhere in your PATH.
+make install
+```
+
+And add the directory **$NASHPATH/bin** to your **PATH**.
 
 ## Getting started
 
