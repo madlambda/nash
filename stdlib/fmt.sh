@@ -1,3 +1,3 @@
 
-fn println() {
+fn fmt_println() {
 }
