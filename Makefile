@@ -11,6 +11,9 @@ build:
 	GO15VENDOREXPERIMENT=1 go build $(buildargs) -o ./cmd/nashfmt/nashfmt ./cmd/nashfmt
 
 install:
+ifndef NASHPATH
+$(error NASHPATH must be set in order to install and use nash)
+endif
 	@echo "TODO"
 
 deps:
@@ -23,6 +26,7 @@ docs: docsdeps
 	mdtoc -w ./README.md
 	mdtoc -w ./docs/interactive.md
 	mdtoc -w ./docs/reference.md
+	mdtoc -w ./docs/stdlib/fmt.md
 
 test: deps build
 	GO15VENDOREXPERIMENT=1 ./hack/check.sh
