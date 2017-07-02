@@ -809,11 +809,12 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	dotDir := nashPath.String()
 
 	tries = append(tries, dotDir+"/lib/"+fname)
-	tries = append(tries, dotDir+"/stdlib/"+fname+".sh")
 
 	if !hasExt {
 		tries = append(tries, dotDir+"/lib/"+fname+".sh")
 	}
+
+	tries = append(tries, dotDir+"/stdlib/"+fname+".sh")
 
 	shell.logf("Trying %q\n", tries)
 
