@@ -1,3 +1,4 @@
+
 fn test_println() {
         got, status <= ./cmd/nash/nash ./stdlib/fmt_example.sh "hello %s" "world"
         if $status != "0" {

@@ -803,12 +803,13 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	if !ok {
 		return errors.NewError("NASHPATH environment variable not set on shell %s", shell.name)
 	} else if nashPath.Type() != sh.StringType {
-		return errors.NewError("NASHPATH must be n string")
+		return errors.NewError("NASHPATH must be a string")
 	}
 
 	dotDir := nashPath.String()
 
 	tries = append(tries, dotDir+"/lib/"+fname)
+	tries = append(tries, dotDir+"/stdlib/"+fname+".sh")
 
 	if !hasExt {
 		tries = append(tries, dotDir+"/lib/"+fname+".sh")
