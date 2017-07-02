@@ -1,17 +1,28 @@
 <!-- mdtocstart -->
+
 # Table of Contents
 
 - [Command line arguments](#command-line-arguments)
 - [Flow control](#flow-control)
+    - [Branching](#branching)
+    - [Looping](#looping)
+        - [Lists](#lists)
+        - [Forever](#forever)
 - [Functions](#functions)
 - [Operators](#operators)
-    - [+ (Concatenation)](#-concatenation)
+    - [+](#)
         - [string](#string)
+- [Packages](#packages)
 - [Iterating](#iterating)
 - [Built-in functions](#builtin-functions)
+    - [print](#print)
+    - [format](#format)
     - [len](#len)
     - [append](#append)
-- [Packages](#packages)
+    - [exit](#exit)
+    - [glob](#glob)
+- [Standard Library](#standard-library)
+
 <!-- mdtocend -->
 
 Here lies a comprehensive reference documentation of nash

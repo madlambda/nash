@@ -1,3 +1,12 @@
+<!-- mdtocstart -->
+
+# Table of Contents
+
+- [fmt](#fmt)
+    - [fmt_println](#fmtprintln)
+
+<!-- mdtocend -->
+
 # fmt
 
 ## fmt_println

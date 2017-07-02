@@ -1,4 +1,5 @@
 <!-- mdtocstart -->
+
 # Table of Contents
 
 - [nash](#nash)
@@ -6,6 +7,9 @@
     - [Useful stuff](#useful-stuff)
     - [Why nash scripts are reliable?](#why-nash-scripts-are-reliable)
     - [Installation](#installation)
+        - [Release](#release)
+            - [Linux](#linux)
+        - [Master](#master)
     - [Getting started](#getting-started)
 - [Accessing command line args](#accessing-command-line-args)
 - [Namespace features](#namespace-features)
@@ -16,7 +20,9 @@
 - [Security](#security)
 - [Concept](#concept)
 - [Motivation](#motivation)
+- [Releasing](#releasing)
 - [Want to contribute?](#want-to-contribute)
+
 <!-- mdtocend -->
 
 # nash
