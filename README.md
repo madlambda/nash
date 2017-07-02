@@ -54,9 +54,22 @@ Before proceeding to any of the install procedures it is important that you
 set in your environment the **NASHPATH** variable, it will be used to find
 your libraries and the standard library shipped with the language.
 
+Also add the directory **$NASHPATH/bin** to your **PATH** so you can run
+nash in a more practical way (although not necessary).
+
 ### Release
 
-TODO
+Installing is so stupid that we provide small scripts to install it.
+If your platform is not supported take a look at the existent ones
+and send a MR with the script for your platform.
+
+#### Linux
+
+Run:
+
+```
+./hack/install/linux.sh
+```
 
 ### Master
 
@@ -65,8 +78,6 @@ Run:
 ```
 make install
 ```
-
-And add the directory **$NASHPATH/bin** to your **PATH**.
 
 ## Getting started
 
