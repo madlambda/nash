@@ -10,7 +10,6 @@ build:
 	go build $(buildargs) -o ./cmd/nash/nash ./cmd/nash
 	go build $(buildargs) -o ./cmd/nashfmt/nashfmt ./cmd/nashfmt
 
-
 guard-%:
 	@ if [ "${${*}}" = "" ]; then \
                 echo "'$*' must be set in order to install and use nash"; \
