@@ -19,18 +19,21 @@ mkdir -p dist
 fn prepare_execs(distfiles, os) {
 	if $os == "windows" {
 		newfiles = ()
-		
+
 		for distfile in $distfiles {
-			file = $distfile+".exe"
-		
-			newfiles <= append($newfiles, $file)
+			src = $distfile[0]
+			dst = $distfile[1]
+			newsrc = $src + ".exe"
+			newdst = $dst + ".exe"
+			newfiles <= append($newfiles, ($newsrc $newdst))
 		}
-		
+
 		return $newfiles
 	}
+
 	if $os == "linux" {
 		for distfile in $distfiles {
-			strip $distfile
+			strip $distfile[0]
 		}
 	}
 
@@ -45,13 +48,36 @@ for os in $supported_os {
 		echo "building OS: "+$GOOS+" ARCH : "+$GOARCH
 		make build "version="+$version
 
-		nash      = "cmd/nash/nash"
-		nashfmt   = "cmd/nashfmt/nashfmt"
-		execfiles = ($nash $nashfmt)
+		pkgdir    <= mktemp -d
+		bindir = $pkgdir + "/bin"
+		stdlibdir = $pkgdir + "/stdlib"
+		mkdir -p $bindir
+		mkdir -p $stdlibdir
 
-		distfiles <= prepare_execs($execfiles, $os)
-		distar    <= format("dist/nash-%s-%s-%s.tar.gz", $version, $os, $arch)
+		nash_src = "./cmd/nash/nash"
+		nash_dst = $bindir + "/nash"
+		nashfmt_src = "./cmd/nashfmt/nashfmt"
+		nashfmt_dst = $bindir + "/nashfmt"
 
-		tar cvfz $distar $distfiles
+		execfiles = ( ($nash_src $nash_dst) ($nashfmt_src $nashfmt_dst) )
+		execfiles <= prepare_execs($execfiles, $os)
+
+		# TODO: Improve with glob, right now have only one package =)
+		distfiles <= append($execfiles, ("./stdlib/fmt.sh" $stdlibdir))
+
+		for distfile in $distfiles {
+			src = $distfile[0]
+			dst = $distfile[1]
+			cp -pr $src $dst
+		}
+
+		projectdir <= pwd
+		distar  <= format("%s/dist/nash-%s-%s-%s.tar.gz", $projectdir, $version, $os, $arch)
+
+		chdir($pkgdir)
+		pkgraw <= ls
+		pkgfiles <= split($pkgraw, "\n")
+		tar cvfz $distar $pkgfiles
+		chdir($projectdir)
 	}
 }
