@@ -1,13 +1,11 @@
 #!/usr/bin/env nash
 
-echo "iterating through the arguments list"
-echo ""
+print("iterating through the arguments list\n\n")
 for arg in $ARGS {
-	echo $arg
+    print("%s\n", $arg)
 }
 
-echo ""
-echo "acessing individual parameter"
-somearg = $ARGS[0]
-echo $somearg
-echo ""
+print("\n")
+print("acessing individual parameter\n")
+var somearg = $ARGS[0]
+print("%s\n", $somearg)
