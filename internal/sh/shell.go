@@ -756,14 +756,15 @@ func (shell *Shell) getNashPath() (string, error) {
 	// TODO:
 	// Test behavior without HOME
 	// Test HOME not a string
+	// It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
 
-	//h, _ := shell.Getenv("HOME")
-	//home := h.String()
+	h, _ := shell.Getenv("HOME")
+	home := h.String()
 
 	nashPath, ok := shell.Getenv("NASHPATH")
 
 	if !ok {
-		return "", errors.NewError("NASHPATH must be set")
+		return home + "/nash", nil
 	}
 
 	if nashPath.Type() != sh.StringType {

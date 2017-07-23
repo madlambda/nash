@@ -19,7 +19,7 @@ func TestLoadsLibFromNASHPATH(t *testing.T) {
 
 	writeFile(t, nashlib+"/lib.sh", `
 		fn test() {
-			echo "hi"
+			echo "hasnashpath"
 		}
 	`)
 
@@ -27,10 +27,27 @@ func TestLoadsLibFromNASHPATH(t *testing.T) {
 		import lib
 
 		test()
-	`, "hi\n")
+	`, "hasnashpath\n")
 }
 
 func TestLoadsLibFromHOMEIfNASHPATHIsUnset(t *testing.T) {
+	home, teardown := setupEnvTests(t)
+	defer teardown()
+
+	nashlib := home + "/nash/lib"
+	mkdirAll(t, nashlib)
+
+	writeFile(t, nashlib+"/lib.sh", `
+		fn test() {
+			echo "defaultnashpath"
+		}
+	`)
+
+	newTestShell(t).Exec(t, `
+		import lib
+
+		test()
+	`, "defaultnashpath\n")
 }
 
 func TestFailsToLoadLibIfHomeIsUnset(t *testing.T) {
