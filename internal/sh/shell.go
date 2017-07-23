@@ -761,7 +761,12 @@ func (shell *Shell) getNashRoot() (string, error) {
 	nashroot, ok := shell.Getenv("NASHROOT")
 
 	if !ok {
-		h, _ := shell.Getenv("HOME")
+		h, hashome := shell.Getenv("HOME")
+		if !hashome {
+			g, _ := shell.Getenv("GOPATH")
+			gopath := g.String()
+			return gopath + "/src/github.com/NeowayLabs/nash", nil
+		}
 		home := h.String()
 
 		return home + "/nashroot", nil

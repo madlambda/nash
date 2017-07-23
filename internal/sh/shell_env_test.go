@@ -95,6 +95,28 @@ func TestLoadsStdlibFromHOMEIfNASHROOTIsUnset(t *testing.T) {
 }
 
 func TestLoadsStdlibFromGOPATHOnIfHOMEIsUnset(t *testing.T) {
+	home, teardown := setupEnvTests(t)
+	defer teardown()
+
+	os.Unsetenv("HOME")
+	os.Setenv("GOPATH", home)
+	// Avoid failure of no NASHPATH/HOME
+	os.Setenv("NASHPATH", "/whatever")
+
+	nashroot := home + "/src/github.com/NeowayLabs/nash"
+	nashstdlib := nashroot + "/stdlib"
+	mkdirAll(t, nashstdlib)
+
+	writeFile(t, nashstdlib+"/lib.sh", `
+		fn test() {
+			echo "gopathnashroot"
+		}
+	`)
+
+	newTestShell(t).Exec(t, `
+		import lib
+		test()
+	`, "gopathnashroot\n")
 }
 
 func TestLoadsStdlibFromGOPATHOnIfStdlibNotOnHOME(t *testing.T) {
@@ -147,6 +169,7 @@ func setupEnvTests(t *testing.T) (string, func()) {
 	}
 
 	curhome := os.Getenv("HOME")
+	curgopath := os.Getenv("GOPATH")
 
 	err = os.Setenv("HOME", home)
 	if err != nil {
@@ -156,6 +179,7 @@ func setupEnvTests(t *testing.T) (string, func()) {
 	return home, func() {
 		errs := []error{}
 		errs = append(errs, os.Setenv("HOME", curhome))
+		errs = append(errs, os.Setenv("GOPATH", curgopath))
 		errs = append(errs, os.Unsetenv("NASHPATH"))
 		errs = append(errs, os.Unsetenv("NASHROOT"))
 		errs = append(errs, os.RemoveAll(home))
