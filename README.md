@@ -27,7 +27,7 @@
 
 # nash
 
-[![Join the chat at https://gitter.im/NeowayLabs/nash](https://badges.gitter.im/NeowayLabs/nash.svg)](https://gitter.im/NeowayLabs/nash?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![GoDoc](https://godoc.org/github.com/NeowayLabs/nash?status.svg)](https://godoc.org/github.com/NeowayLabs/nash) 
+[![Join the chat at https://gitter.im/NeowayLabs/nash](https://badges.gitter.im/NeowayLabs/nash.svg)](https://gitter.im/NeowayLabs/nash?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![GoDoc](https://godoc.org/github.com/NeowayLabs/nash?status.svg)](https://godoc.org/github.com/NeowayLabs/nash)
 [![Build Status](https://travis-ci.org/NeowayLabs/nash.svg?branch=master)](https://travis-ci.org/NeowayLabs/nash) [![Go Report Card](https://goreportcard.com/badge/github.com/NeowayLabs/nash)](https://goreportcard.com/report/github.com/NeowayLabs/nash)
 
 Nash is a system shell, inspired by plan9 `rc`, that makes it easy to create reliable and safe scripts taking advantages of operating systems namespaces (on linux and plan9) in an idiomatic way.
@@ -38,7 +38,7 @@ Nash is a system shell, inspired by plan9 `rc`, that makes it easy to create rel
 
 ## Useful stuff
 
-- nashfmt: Formats nash code (like gofmt) but no code styling defined yet.
+- nashfmt: Formats nash code (like gofmt) but no code styling defined yet (see Installation section).
 - [nashcomplete](https://github.com/NeowayLabs/nashcomplete): Autocomplete done in nash script.
 - [Dotnash](https://github.com/lborguetti/dotnash): Nash profile customizations (e.g: prompt, aliases, etc)
 - [nash-mode](https://github.com/tiago4orion/nash-mode.el): Emacs major mode integrated with `nashfmt`.
