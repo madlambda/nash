@@ -752,6 +752,18 @@ func (shell *Shell) executeReturn(n *ast.ReturnNode) ([]sh.Obj, error) {
 	return returns, newErrStopWalking()
 }
 
+func (shell *Shell) getNashRootFromGOPATH() (string, error) {
+	// TODO: NO GOPATH SET
+	g, _ := shell.Getenv("GOPATH")
+	gopath := g.String()
+	return gopath + "/src/github.com/NeowayLabs/nash", nil
+}
+
+func isValidNashRoot(nashroot string) bool {
+	_, err := os.Stat(nashroot + "/stdlib")
+	return err == nil
+}
+
 func (shell *Shell) getNashRoot() (string, error) {
 	// TODO:
 	// Test behavior without HOME
@@ -763,13 +775,16 @@ func (shell *Shell) getNashRoot() (string, error) {
 	if !ok {
 		h, hashome := shell.Getenv("HOME")
 		if !hashome {
-			g, _ := shell.Getenv("GOPATH")
-			gopath := g.String()
-			return gopath + "/src/github.com/NeowayLabs/nash", nil
+			return shell.getNashRootFromGOPATH()
 		}
 		home := h.String()
+		nashroot := home + "/nashroot"
 
-		return home + "/nashroot", nil
+		if !isValidNashRoot(nashroot) {
+			return shell.getNashRootFromGOPATH()
+		}
+
+		return nashroot, nil
 	}
 
 	if nashroot.Type() != sh.StringType {

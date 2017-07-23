@@ -103,8 +103,7 @@ func TestLoadsStdlibFromGOPATHOnIfHOMEIsUnset(t *testing.T) {
 	// Avoid failure of no NASHPATH/HOME
 	os.Setenv("NASHPATH", "/whatever")
 
-	nashroot := home + "/src/github.com/NeowayLabs/nash"
-	nashstdlib := nashroot + "/stdlib"
+	nashstdlib := nashStdlibGoPath(home)
 	mkdirAll(t, nashstdlib)
 
 	writeFile(t, nashstdlib+"/lib.sh", `
@@ -119,7 +118,25 @@ func TestLoadsStdlibFromGOPATHOnIfHOMEIsUnset(t *testing.T) {
 	`, "gopathnashroot\n")
 }
 
-func TestLoadsStdlibFromGOPATHOnIfStdlibNotOnHOME(t *testing.T) {
+func TestLoadsStdlibFromGOPATHIfStdlibNotOnHOME(t *testing.T) {
+	home, teardown := setupEnvTests(t)
+	defer teardown()
+
+	os.Setenv("GOPATH", home)
+
+	nashstdlib := nashStdlibGoPath(home)
+	mkdirAll(t, nashstdlib)
+
+	writeFile(t, nashstdlib+"/lib.sh", `
+		fn test() {
+			echo "nostdlibonhome"
+		}
+	`)
+
+	newTestShell(t).Exec(t, `
+		import lib
+		test()
+	`, "nostdlibonhome\n")
 }
 
 func TestFailsToLoadStdlibIfGOPATHIsUnset(t *testing.T) {
@@ -204,4 +221,8 @@ func writeFile(t *testing.T, filename string, data string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func nashStdlibGoPath(gopath string) string {
+	return gopath + "/src/github.com/NeowayLabs/nash/stdlib"
 }
