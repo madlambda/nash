@@ -758,13 +758,13 @@ func (shell *Shell) getNashRoot() (string, error) {
 	// Test HOME not a string
 	// It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
 
-	//h, _ := shell.Getenv("HOME")
-	//home := h.String()
-
 	nashroot, ok := shell.Getenv("NASHROOT")
 
 	if !ok {
-		return "", errors.NewError("NASHROOT must be set")
+		h, _ := shell.Getenv("HOME")
+		home := h.String()
+
+		return home + "/nashroot", nil
 	}
 
 	if nashroot.Type() != sh.StringType {
@@ -781,12 +781,11 @@ func (shell *Shell) getNashPath() (string, error) {
 	// Test HOME not a string
 	// It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
 
-	h, _ := shell.Getenv("HOME")
-	home := h.String()
-
 	nashPath, ok := shell.Getenv("NASHPATH")
 
 	if !ok {
+		h, _ := shell.Getenv("HOME")
+		home := h.String()
 		return home + "/nash", nil
 	}
 

@@ -75,12 +75,29 @@ func TestLoadsStdlibFromNASHROOT(t *testing.T) {
 }
 
 func TestLoadsStdlibFromHOMEIfNASHROOTIsUnset(t *testing.T) {
-}
+	home, teardown := setupEnvTests(t)
+	defer teardown()
 
-func TestLoadsStdlibFromGOPATHOnIfStdlibNotOnHOME(t *testing.T) {
+	nashroot := home + "/nashroot"
+	nashstdlib := nashroot + "/stdlib"
+	mkdirAll(t, nashstdlib)
+
+	writeFile(t, nashstdlib+"/lib.sh", `
+		fn test() {
+			echo "defaultnashroot"
+		}
+	`)
+
+	newTestShell(t).Exec(t, `
+		import lib
+		test()
+	`, "defaultnashroot\n")
 }
 
 func TestLoadsStdlibFromGOPATHOnIfHOMEIsUnset(t *testing.T) {
+}
+
+func TestLoadsStdlibFromGOPATHOnIfStdlibNotOnHOME(t *testing.T) {
 }
 
 func TestFailsToLoadStdlibIfGOPATHIsUnset(t *testing.T) {
