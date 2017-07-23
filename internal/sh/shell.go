@@ -752,6 +752,28 @@ func (shell *Shell) executeReturn(n *ast.ReturnNode) ([]sh.Obj, error) {
 	return returns, newErrStopWalking()
 }
 
+func (shell *Shell) getNashPath() (string, error) {
+	// TODO:
+	// Test behavior without HOME
+	// Test HOME not a string
+
+	//h, _ := shell.Getenv("HOME")
+	//home := h.String()
+
+	nashPath, ok := shell.Getenv("NASHPATH")
+
+	if !ok {
+		return "", errors.NewError("NASHPATH must be set")
+	}
+
+	if nashPath.Type() != sh.StringType {
+		return "", errors.NewError("NASHPATH must be a string")
+	}
+
+	return nashPath.String(), nil
+
+}
+
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	obj, err := shell.evalExpr(node.Path)
 	if err != nil {
@@ -798,15 +820,10 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		}
 	}
 
-	nashPath, ok := shell.Getenv("NASHPATH")
-
-	if !ok {
-		return errors.NewError("NASHPATH environment variable not set on shell %s", shell.name)
-	} else if nashPath.Type() != sh.StringType {
-		return errors.NewError("NASHPATH must be a string")
+	dotDir, err := shell.getNashPath()
+	if err != nil {
+		return err
 	}
-
-	dotDir := nashPath.String()
 
 	tries = append(tries, dotDir+"/lib/"+fname)
 

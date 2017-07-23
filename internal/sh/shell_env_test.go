@@ -8,16 +8,22 @@ import (
 )
 
 func TestLoadsLibFromNASHPATH(t *testing.T) {
-	f, teardown := setupHome(t)
+	home, teardown := setupEnvTests(t)
 	defer teardown()
 
-	writeFile(t, f.home+"/lib.sh", `
+	nashpath := home + "/testnashpath"
+	os.Setenv("NASHPATH", nashpath)
+
+	nashlib := nashpath + "/lib"
+	mkdirAll(t, nashlib)
+
+	writeFile(t, nashlib+"/lib.sh", `
 		fn test() {
 			echo "hi"
 		}
 	`)
 
-	f.Exec(t, `
+	newTestShell(t).Exec(t, `
 		import lib
 
 		test()
@@ -48,20 +54,19 @@ func TestStdlibFailsIfStdlibNotOnGOPATH(t *testing.T) {
 func TestStdlibFailsIfGOPATHIsUnset(t *testing.T) {
 }
 
-type envfixture struct {
-	home   string
+type testshell struct {
 	shell  *Shell
 	stdout *bytes.Buffer
 }
 
-func (e *envfixture) Exec(t *testing.T, code string, expectedOutupt string) {
-	err := e.shell.Exec("shellenvtest", code)
+func (s *testshell) Exec(t *testing.T, code string, expectedOutupt string) {
+	err := s.shell.Exec("shellenvtest", code)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	output := e.stdout.String()
-	e.stdout.Reset()
+	output := s.stdout.String()
+	s.stdout.Reset()
 
 	if output != expectedOutupt {
 		t.Fatalf(
@@ -72,7 +77,19 @@ func (e *envfixture) Exec(t *testing.T, code string, expectedOutupt string) {
 	}
 }
 
-func setupHome(t *testing.T) (envfixture, func()) {
+func newTestShell(t *testing.T) *testshell {
+
+	shell, err := NewShell()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	shell.SetStdout(&out)
+
+	return &testshell{shell: shell, stdout: &out}
+}
+
+func setupEnvTests(t *testing.T) (string, func()) {
 
 	home, err := ioutil.TempDir("", "nashenvtests")
 	if err != nil {
@@ -86,30 +103,26 @@ func setupHome(t *testing.T) (envfixture, func()) {
 		t.Fatal(err)
 	}
 
-	shell, err := NewShell()
+	return home, func() {
+		errs := []error{}
+		errs = append(errs, os.Setenv("HOME", curhome))
+		errs = append(errs, os.Unsetenv("NASHPATH"))
+		errs = append(errs, os.Unsetenv("NASHROOT"))
+		errs = append(errs, os.RemoveAll(home))
+
+		for _, err := range errs {
+			if err != nil {
+				t.Errorf("error tearing down: %s", err)
+			}
+		}
+	}
+}
+
+func mkdirAll(t *testing.T, nashlib string) {
+	err := os.MkdirAll(nashlib, os.ModePerm)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var out bytes.Buffer
-	shell.SetStdout(&out)
-
-	return envfixture{
-			home:   home,
-			shell:  shell,
-			stdout: &out,
-		}, func() {
-			errs := []error{}
-			errs = append(errs, os.Setenv("HOME", curhome))
-			errs = append(errs, os.Unsetenv("NASHPATH"))
-			errs = append(errs, os.Unsetenv("NASHROOT"))
-			errs = append(errs, os.RemoveAll(home))
-
-			for _, err := range errs {
-				if err != nil {
-					t.Errorf("error tearing down: %s", err)
-				}
-			}
-		}
 }
 
 func writeFile(t *testing.T, filename string, data string) {
