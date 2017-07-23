@@ -49,7 +49,7 @@ func TestExecuteRforkUserNS(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	sh, err := NewShell()
@@ -85,7 +85,7 @@ func TestExecuteRforkEnvVars(t *testing.T) {
 		return
 	}
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	sh, err := NewShell()
@@ -116,7 +116,7 @@ func TestExecuteRforkUserNSNested(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	sh, err := NewShell()

@@ -28,33 +28,39 @@ type fixture struct {
 	nashdPath string
 }
 
-func setup() (fixture, func()) {
+func setup(t *testing.T) (fixture, func()) {
 	gopath := os.Getenv("GOPATH")
 
 	if gopath == "" {
-		panic("Please, run tests from inside GOPATH")
+		t.Fatal("Please, run tests from inside GOPATH")
 	}
 
 	testDir := gopath + "/src/github.com/NeowayLabs/nash/" + "testfiles"
 	nashdPath := gopath + "/src/github.com/NeowayLabs/nash/cmd/nash/nash"
 
 	if _, err := os.Stat(nashdPath); err != nil {
-		panic("Please, run make build before running tests")
+		t.Fatal("Please, run make build before running tests")
 	}
 
-	os.Setenv("NASHPATH", "/tmp/.nash")
+	err := os.Setenv("NASHPATH", "/tmp/.nash")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	return fixture{
 			dir:       testDir,
 			nashdPath: nashdPath,
 		}, func() {
-			os.Unsetenv("NASHPATH")
+			err := os.Unsetenv("NASHPATH")
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
 }
 
 func testExecuteFile(t *testing.T, path, expected string) {
 	var out bytes.Buffer
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -118,7 +124,7 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 
 func testExec(t *testing.T, testcase execTestCase) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -133,7 +139,7 @@ func testExec(t *testing.T, testcase execTestCase) {
 }
 
 func testInteractiveExec(t *testing.T, testcase execTestCase) {
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -173,7 +179,7 @@ func TestExecuteFile(t *testing.T) {
 		path     string
 		expected string
 	}
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	for _, ftest := range []fileTests{
@@ -572,7 +578,7 @@ for i in $range {
 }
 
 func TestExecuteRedirection(t *testing.T) {
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -661,7 +667,7 @@ a = ".2"
 }
 
 func TestExecuteRedirectionMap(t *testing.T) {
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -697,7 +703,7 @@ func TestExecuteRedirectionMap(t *testing.T) {
 
 func TestExecuteSetenv(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	for _, test := range []execTestCase{
@@ -774,7 +780,7 @@ func TestExecuteCd(t *testing.T) {
 func TestExecuteImport(t *testing.T) {
 	var out bytes.Buffer
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -812,7 +818,7 @@ func TestExecuteImport(t *testing.T) {
 func TestExecuteIfEqual(t *testing.T) {
 	var out bytes.Buffer
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -861,7 +867,7 @@ func TestExecuteIfEqual(t *testing.T) {
 func TestExecuteIfElse(t *testing.T) {
 	var out bytes.Buffer
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -914,7 +920,7 @@ func TestExecuteIfElse(t *testing.T) {
 func TestExecuteIfElseIf(t *testing.T) {
 	var out bytes.Buffer
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -966,7 +972,7 @@ func TestExecuteIfElseIf(t *testing.T) {
 
 func TestExecuteFnDecl(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -991,7 +997,7 @@ func TestExecuteFnDecl(t *testing.T) {
 
 func TestExecuteFnInv(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -1143,7 +1149,7 @@ func TestFnComposition(t *testing.T) {
 
 func TestExecuteFnInvOthers(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -1187,7 +1193,7 @@ echo -n $integers
 
 func TestNonInteractive(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -1274,7 +1280,7 @@ func TestExecutePipe(t *testing.T) {
 	var stderr bytes.Buffer
 	var stdout bytes.Buffer
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	// Case 1
@@ -1323,7 +1329,7 @@ func TestExecutePipe(t *testing.T) {
 func TestExecuteRedirectionPipe(t *testing.T) {
 	var stderr bytes.Buffer
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	cmd := exec.Command(f.nashdPath, "-c", `cat stuff >[2=] | grep file`)
@@ -1365,7 +1371,7 @@ func testTCPRedirection(t *testing.T, port, command string) {
 		t.Fatal(err)
 	}
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	go func() {
@@ -1440,7 +1446,7 @@ func TestExecuteUnixRedirection(t *testing.T) {
 	done := make(chan bool)
 	writeDone := make(chan bool)
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	go func() {
@@ -1506,7 +1512,7 @@ func TestExecuteUnixRedirection(t *testing.T) {
 func TestExecuteUDPRedirection(t *testing.T) {
 	message := "hello world"
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	done := make(chan bool)
@@ -1650,7 +1656,7 @@ echo -n $a`,
 
 func TestExecuteFnAsFirstClass(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -1693,7 +1699,7 @@ func TestExecuteFnAsFirstClass(t *testing.T) {
 
 func TestExecuteDump(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -1790,7 +1796,7 @@ func TestExecuteDump(t *testing.T) {
 
 func TestExecuteDumpVariable(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -1861,7 +1867,7 @@ func TestExecuteDumpVariable(t *testing.T) {
 
 func TestExecuteConcat(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -1913,7 +1919,7 @@ echo -n $c`)
 
 func TestExecuteFor(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -1955,7 +1961,7 @@ loop`
 
 func TestExecuteInfiniteLoop(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
@@ -2014,7 +2020,7 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 
 func TestExecuteVariableIndexing(t *testing.T) {
 
-	f, teardown := setup()
+	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
