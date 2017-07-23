@@ -752,6 +752,29 @@ func (shell *Shell) executeReturn(n *ast.ReturnNode) ([]sh.Obj, error) {
 	return returns, newErrStopWalking()
 }
 
+func (shell *Shell) getNashRoot() (string, error) {
+	// TODO:
+	// Test behavior without HOME
+	// Test HOME not a string
+	// It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
+
+	//h, _ := shell.Getenv("HOME")
+	//home := h.String()
+
+	nashroot, ok := shell.Getenv("NASHROOT")
+
+	if !ok {
+		return "", errors.NewError("NASHROOT must be set")
+	}
+
+	if nashroot.Type() != sh.StringType {
+		return "", errors.NewError("NASHROOT must be a string")
+	}
+
+	return nashroot.String(), nil
+
+}
+
 func (shell *Shell) getNashPath() (string, error) {
 	// TODO:
 	// Test behavior without HOME
@@ -832,7 +855,13 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		tries = append(tries, dotDir+"/lib/"+fname+".sh")
 	}
 
-	tries = append(tries, dotDir+"/stdlib/"+fname+".sh")
+	nashroot, err := shell.getNashRoot()
+	if err == nil {
+		tries = append(tries, nashroot+"/stdlib/"+fname+".sh")
+	} else {
+		// TODO: Fail if there is no nashroot present ?
+		shell.logf("unable to define a NASHROOT, there will be no stdlib available: error[%s]\n", err)
+	}
 
 	shell.logf("Trying %q\n", tries)
 

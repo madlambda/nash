@@ -25,7 +25,6 @@ func TestLoadsLibFromNASHPATH(t *testing.T) {
 
 	newTestShell(t).Exec(t, `
 		import lib
-
 		test()
 	`, "hasnashpath\n")
 }
@@ -45,15 +44,34 @@ func TestLoadsLibFromHOMEIfNASHPATHIsUnset(t *testing.T) {
 
 	newTestShell(t).Exec(t, `
 		import lib
-
 		test()
 	`, "defaultnashpath\n")
 }
 
 func TestFailsToLoadLibIfHomeIsUnset(t *testing.T) {
+	// TODO: Explode or just fails for not founding the lib ?
 }
 
 func TestLoadsStdlibFromNASHROOT(t *testing.T) {
+	home, teardown := setupEnvTests(t)
+	defer teardown()
+
+	nashroot := home + "/testnashroot"
+	os.Setenv("NASHROOT", nashroot)
+
+	nashstdlib := nashroot + "/stdlib"
+	mkdirAll(t, nashstdlib)
+
+	writeFile(t, nashstdlib+"/lib.sh", `
+		fn test() {
+			echo "hasnashroot"
+		}
+	`)
+
+	newTestShell(t).Exec(t, `
+		import lib
+		test()
+	`, "hasnashroot\n")
 }
 
 func TestLoadsStdlibFromHOMEIfNASHROOTIsUnset(t *testing.T) {
@@ -65,10 +83,8 @@ func TestLoadsStdlibFromGOPATHOnIfStdlibNotOnHOME(t *testing.T) {
 func TestLoadsStdlibFromGOPATHOnIfHOMEIsUnset(t *testing.T) {
 }
 
-func TestStdlibFailsIfStdlibNotOnGOPATH(t *testing.T) {
-}
-
-func TestStdlibFailsIfGOPATHIsUnset(t *testing.T) {
+func TestFailsToLoadStdlibIfGOPATHIsUnset(t *testing.T) {
+	// TODO: Explode or just fails for not founding the lib ?
 }
 
 type testshell struct {
