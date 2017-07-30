@@ -161,10 +161,6 @@ func TestLoadsStdlibFromGOPATHIfStdlibNotOnHOME(t *testing.T) {
 	`, "nostdlibonhome\n")
 }
 
-func TestFailsToLoadStdlibIfGOPATHIsUnset(t *testing.T) {
-	// TODO: Explode or just fails for not founding the lib ?
-}
-
 type testshell struct {
 	shell  *Shell
 	stdout *bytes.Buffer
