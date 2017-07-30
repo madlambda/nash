@@ -765,10 +765,7 @@ func isValidNashRoot(nashroot string) bool {
 }
 
 func (shell *Shell) getNashRoot() (string, error) {
-	// TODO:
-	// Test behavior without HOME
-	// Test HOME not a string
-	// It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
+	// TODO(katcipis): It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
 
 	nashroot, ok := shell.Getenv("NASHROOT")
 
@@ -796,10 +793,7 @@ func (shell *Shell) getNashRoot() (string, error) {
 }
 
 func (shell *Shell) getNashPath() (string, error) {
-	// TODO:
-	// Test behavior without HOME
-	// Test HOME not a string
-	// It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
+	// TODO(katcipis): It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
 
 	nashPath, ok := shell.Getenv("NASHPATH")
 

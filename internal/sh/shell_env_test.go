@@ -48,8 +48,30 @@ func TestLoadsLibFromHOMEIfNASHPATHIsUnset(t *testing.T) {
 	`, "defaultnashpath\n")
 }
 
-func TestFailsToLoadLibIfHomeIsUnset(t *testing.T) {
-	// TODO: Explode or just fails for not founding the lib ?
+func TestLoadsLibIfNoEnvVarIsSet(t *testing.T) {
+	home, teardown := setupEnvTests(t)
+	defer teardown()
+
+	unsetAllEnvVars(t)
+
+	writeFile(t, home+"/lib.sh", `
+		fn test() {
+			echo "noenv"
+		}
+	`)
+
+	oldcwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	chdir(t, home)
+	defer chdir(t, oldcwd)
+
+	newTestShell(t).Exec(t, `
+		import lib
+		test()
+	`, "noenv\n")
 }
 
 func TestLoadsStdlibFromNASHROOT(t *testing.T) {
@@ -193,6 +215,8 @@ func setupEnvTests(t *testing.T) (string, func()) {
 		t.Fatal(err)
 	}
 
+	mkdirAll(t, home)
+
 	return home, func() {
 		errs := []error{}
 		errs = append(errs, os.Setenv("HOME", curhome))
@@ -209,6 +233,20 @@ func setupEnvTests(t *testing.T) (string, func()) {
 	}
 }
 
+func unsetEnv(t *testing.T, name string) {
+	err := os.Unsetenv(name)
+	if err != nil {
+		t.Fatalf("error[%s] unsetting [%s]", err, name)
+	}
+}
+
+func unsetAllEnvVars(t *testing.T) {
+	unsetEnv(t, "HOME")
+	unsetEnv(t, "GOPATH")
+	unsetEnv(t, "NASHPATH")
+	unsetEnv(t, "NASHROOT")
+}
+
 func mkdirAll(t *testing.T, nashlib string) {
 	err := os.MkdirAll(nashlib, os.ModePerm)
 	if err != nil {
@@ -220,6 +258,13 @@ func writeFile(t *testing.T, filename string, data string) {
 	err := ioutil.WriteFile(filename, []byte(data), os.ModePerm)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func chdir(t *testing.T, dir string) {
+	err := os.Chdir(dir)
+	if err != nil {
+		t.Fatalf("error[%s] changing dir to[%s]", err, dir)
 	}
 }
 
