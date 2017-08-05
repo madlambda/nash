@@ -69,3 +69,76 @@ are always referencing an outer list **l** that is empty, a new one
 is created each time the add function is called.
 
 In this document we brainstorm about possible solutions to this.
+
+## Proposal I - "var"
+
+```sh
+fn list() {
+
+        // initialize an "l" variable in this scope
+        var l = ()
+
+        fn add(val) {
+
+		        // use the "l" variable from parent scope
+				// find first in the this scope if not found
+				// then find variable in the parent scope
+
+                l <= append($l, $val)
+        }
+
+        fn get(i) {
+		        // use the "l" variable from parent scope
+                return $l[$i]
+        }
+
+        fn string() {
+		        // use the "l" variable from parent scope
+                print("list: [%s]\n", $l)
+        }
+
+        fn not_clear() {
+				// force initialize a new "l" variable in this scope
+				// because this the "l" list in the parent scope is not cleared
+		        var l = ()
+        }
+
+        return $add, $get, $string
+}
+```
+
+## Proposal II - "outer"
+
+```sh
+fn list() {
+
+        // initialize an "l" variable in this scope
+        l = ()
+
+        fn add(val) {
+                // use the "l" variable from the parent
+                outer l <= append($l, $val)
+        }
+
+        fn get(i) {
+                // use the "l" variable from the parent
+		        outer l
+                return $l[$i]
+        }
+
+        fn string() {
+                // use the "l" variable from the parent
+		        outer l
+                print("list: [%s]\n", $l)
+        }
+
+        fn not_clear() {
+				// how we not inform to use outer scope
+				// the "l" list in the parent scope is not cleared
+		        l = ()
+        }
+
+        return $add, $get, $string
+}
+
+```
