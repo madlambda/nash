@@ -149,14 +149,15 @@ variables must be used in conjunction with new ones. An example is the
 variables `$status` and `$err` that are often used to get process exit
 status and errors from functions, respectively.
 
-The PR #227 implements this proposal but deviates in multiple
-assignments to handle the downside above. The `var` statement was
-implemented with the rules below:
+The [PR #227](https://github.com/NeowayLabs/nash/pull/227) implements
+this proposal but deviates in multiple assignments to handle the
+downside above. The `var` statement was implemented with the rules
+below:
 
 1. At least one of the targeted variables must do not exists;
 2. The existent variables are just updated in the scope it resides;
 
-Below are some valid examples with #227:
+Below are some valid examples with [#227](https://github.com/NeowayLabs/nash/pull/227):
 
 ```js
 var a, b = "0", "1" # works fine, variables didn't existed before
