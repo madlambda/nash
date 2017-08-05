@@ -11,22 +11,21 @@ that manipulates the same data.
 
 ```sh
 fn list() {
+	l = ()
 
-        l = ()
+	fn add(val) {
+		l <= append($l, $val)
+	}
 
-        fn add(val) {
-                l <= append($l, $val)
-        }
+	fn get(i) {
+		return $l[$i]
+	}
 
-        fn get(i) {
-                return $l[$i]
-        }
+	fn string() {
+		print("list: [%s]\n", $l)
+	}
 
-        fn string() {
-                print("list: [%s]\n", $l)
-        }
-
-        return $add, $get, $string
+	return $add, $get, $string
 }
 ```
 
@@ -57,7 +56,7 @@ remains empty, why is that ? The problem is on the add function:
 
 ```sh
 fn add(val) {
-        l <= append($l, $val)
+	l <= append($l, $val)
 }
 ```
 
@@ -86,38 +85,49 @@ the parent, recursively, until it's found and then updated, otherwise
 (in case the variable is not found) the interpreter must abort with
 error.
 
-Below is how this proposal solves the scope management problem:
+```js
+var count = "0" # declare local variable
+
+fn inc() {
+	# update outer variable
+	count, _ <= expr $count "+" 1
+}
+
+inc()
+print($count) 	# outputs: 2
+```
+
+Below is how this proposal solves the scope management problem example:
 
 ```sh
 fn list() {
+	# initialize an "l" variable in this scope
+	var l = ()
 
-        // initialize an "l" variable in this scope
-        var l = ()
+	fn add(val) {
+		# use the "l" variable from parent scope
+		# find first in the this scope if not found
+		# then find variable in the parent scope
+		l <= append($l, $val)
+	}
 
-        fn add(val) {
-		        // use the "l" variable from parent scope
-				// find first in the this scope if not found
-				// then find variable in the parent scope
-                l <= append($l, $val)
-        }
+	fn get(i) {
+		# use the "l" variable from parent scope
+        return $l[$i]
+	}
 
-        fn get(i) {
-		        // use the "l" variable from parent scope
-                return $l[$i]
-        }
+	fn string() {
+		# use the "l" variable from parent scope
+		print("list: [%s]\n", $l)
+	}
 
-        fn string() {
-		        // use the "l" variable from parent scope
-                print("list: [%s]\n", $l)
-        }
+	fn not_clear() {
+		# force initialize a new "l" variable in this scope
+		# because this the "l" list in the parent scope is not cleared
+		var l = ()
+	}
 
-        fn not_clear() {
-				// force initialize a new "l" variable in this scope
-				// because this the "l" list in the parent scope is not cleared
-		        var l = ()
-        }
-
-        return $add, $get, $string
+	return $add, $get, $string
 }
 ```
 
