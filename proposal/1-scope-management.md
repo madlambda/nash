@@ -49,7 +49,7 @@ Will result in:
 
 ```
 list: []
-/tmp/test.sh:27:5: /tmp/test.sh:11:23: Index out of bounds. len($l) == 0, but given 0 
+/tmp/test.sh:27:5: /tmp/test.sh:11:23: Index out of bounds. len($l) == 0, but given 0
 ```
 
 As you can see, even when we call the **add** function the list
@@ -83,7 +83,6 @@ fn list() {
 		        // use the "l" variable from parent scope
 				// find first in the this scope if not found
 				// then find variable in the parent scope
-
                 l <= append($l, $val)
         }
 
@@ -121,14 +120,12 @@ fn list() {
         }
 
         fn get(i) {
-                // use the "l" variable from the parent
-		        outer l
+                // use the "l" variable from the parent outer l
                 return $l[$i]
         }
 
         fn string() {
-                // use the "l" variable from the parent
-		        outer l
+                // use the "l" variable from the parent outer l
                 print("list: [%s]\n", $l)
         }
 
