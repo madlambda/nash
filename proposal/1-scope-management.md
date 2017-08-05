@@ -72,6 +72,22 @@ In this document we brainstorm about possible solutions to this.
 
 ## Proposal I - "var"
 
+This proposal adds a new keyword `var` that will be used to declare and
+initialize variables in the local scope. Is an error to use `var` with
+an existent local variable (redeclare is forbiden).
+
+```js
+var i = "0"
+```
+
+Normal assignments will only update existent variables. The assignment
+must first look for the target variable in the local scope and then in
+the parent, recursively, until it's found and then updated, otherwise
+(in case the variable is not found) the interpreter must abort with
+error.
+
+Below is how this proposal solves the scope management problem:
+
 ```sh
 fn list() {
 
@@ -79,7 +95,6 @@ fn list() {
         var l = ()
 
         fn add(val) {
-
 		        // use the "l" variable from parent scope
 				// find first in the this scope if not found
 				// then find variable in the parent scope
@@ -105,6 +120,58 @@ fn list() {
         return $add, $get, $string
 }
 ```
+
+Sintactically, the `var` statement is an extension of the assignment
+and exec-assignment statements, and then it should support multiple
+declarations in a single statement also. Eg.:
+
+```js
+var i, j = "0", "1"
+
+var body, err <= curl -f $url
+
+var name, surname, err <= getAuthor()
+```
+
+One of the downsides of `var` is the requirement that none of the
+targeted variable exists, because it makes awkward when existent
+variables must be used in conjunction with new ones. An example is the
+variables `$status` and `$err` that are often used to get process exit
+status and errors from functions, respectively.
+
+The PR #227 implements this proposal but deviates in multiple
+assignments to handle the downside above. The `var` statement was
+implemented with the rules below:
+
+1. At least one of the targeted variables must do not exists;
+2. The existent variables are just updated in the scope it resides;
+
+Below are some valid examples with #227:
+
+```js
+var a, b = "0", "1" # works fine, variables didn't existed before
+
+var a, b = "2", "3" # error by rule 1
+
+# works! c is declared but 'a' and 'b' are updated (by rule 2)
+var a, b, c = "4", "5", "6"
+
+# works, variables first declared
+var users, err <= cat /etc/passwd | awk -F ":" "{print $1}"
+
+# also works, but $err just updated
+var pass, err <= cat /etc/shadow | awk -F ":" "{print $2}"
+```
+
+The implementation above is handy but makes the meaning of `var`
+confuse because it declares new variables **and** update existent ones
+(in outer scopes also). Then making hard to know what variables are
+being declared local and what are being updated, by just looking at
+the statement, because the meaning will depend in the current
+environment of variables.
+
+Another downside of `var` is their very incompatible nature. Every
+nash script ever created will be affected.
 
 ## Proposal II - "outer"
 
