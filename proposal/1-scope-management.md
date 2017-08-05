@@ -113,7 +113,7 @@ fn list() {
 
 	fn get(i) {
 		# use the "l" variable from parent scope
-        return $l[$i]
+		return $l[$i]
 	}
 
 	fn string() {
