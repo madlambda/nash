@@ -186,7 +186,7 @@ nash script ever created will be affected.
 
 Another behavior we need to discuss is whether all variables declared
 within a function (statement) will be created at the beginning 
-(as scope is created) or only at the time a 'var' keywork is fond.
+(as scope is created) or only at the time a 'var' keywork is found.
 
 ```sh
 var l = ()
