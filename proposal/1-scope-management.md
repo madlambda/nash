@@ -186,34 +186,39 @@ nash script ever created will be affected.
 
 ## Proposal II - "outer"
 
+This proposal adds a new `outer` keyword that permits the update of
+variables in the outer scope. Outer assignments with non-existent
+variables is an error.
+
 ```sh
 fn list() {
+	# initialize an "l" variable in this scope
+	l = ()
 
-        // initialize an "l" variable in this scope
-        l = ()
+	fn add(val) {
+		# use the "l" variable from the parent
+		outer l <= append($l, $val)
+	}
 
-        fn add(val) {
-                // use the "l" variable from the parent
-                outer l <= append($l, $val)
-        }
+	fn get(i) {
+		# use the "l" variable from the parent outer l
+		return $l[$i]
+	}
 
-        fn get(i) {
-                // use the "l" variable from the parent outer l
-                return $l[$i]
-        }
+	fn string() {
+		# use the "l" variable from the parent outer l
+		print("list: [%s]\n", $l)
+	}
 
-        fn string() {
-                // use the "l" variable from the parent outer l
-                print("list: [%s]\n", $l)
-        }
+	fn not_clear() {
+		# "l" is not cleared, but a new a new variable is created (shadowing)
+		# because "outer" isn't specified.
+		l = ()
+	}
 
-        fn not_clear() {
-				// how we not inform to use outer scope
-				// the "l" list in the parent scope is not cleared
-		        l = ()
-        }
-
-        return $add, $get, $string
+	return $add, $get, $string
 }
-
 ```
+
+The `outer` keyword has the same meaning that Python's `global`
+keyword.
