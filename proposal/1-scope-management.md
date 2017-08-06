@@ -85,7 +85,7 @@ the parent, recursively, until it's found and then updated, otherwise
 (in case the variable is not found) the interpreter must abort with
 error.
 
-```js
+```sh
 var count = "0" # declare local variable
 
 fn inc() {
@@ -135,7 +135,7 @@ Sintactically, the `var` statement is an extension of the assignment
 and exec-assignment statements, and then it should support multiple
 declarations in a single statement also. Eg.:
 
-```js
+```sh
 var i, j = "0", "1"
 
 var body, err <= curl -f $url
@@ -159,7 +159,7 @@ below:
 
 Below are some valid examples with [#227](https://github.com/NeowayLabs/nash/pull/227):
 
-```js
+```sh
 var a, b = "0", "1" # works fine, variables didn't existed before
 
 var a, b = "2", "3" # error by rule 1
