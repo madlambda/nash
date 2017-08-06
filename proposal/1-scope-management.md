@@ -94,7 +94,7 @@ fn inc() {
 }
 
 inc()
-print($count) 	# outputs: 2
+print($count) 	# outputs: 1
 ```
 
 Below is how this proposal solves the scope management problem example:
@@ -183,6 +183,21 @@ environment of variables.
 
 Another downside of `var` is their very incompatible nature. Every
 nash script ever created will be affected.
+
+Another behavior we need to discuss is whether all variables declared
+within a function (statement) will be created at the beginning 
+(as scope is created) or only at the time a 'var' keywork is fond.
+
+```sh
+var l = ()
+
+func test() {
+	l <= append($l, "1")
+	var l = ()
+}
+
+print($l) 	# outputs: "1"
+```
 
 ## Proposal II - "outer"
 
