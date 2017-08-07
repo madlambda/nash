@@ -282,6 +282,8 @@ func lexStart(l *Lexer) stateFn {
 
 		absorbIdentifier(l)
 
+		next := l.peek()
+
 		// required to avoid the sintaxes below:
 		//   rm -rf $HOME/projects
 		//   rm -rf $GOPATH/test
@@ -289,18 +291,14 @@ func lexStart(l *Lexer) stateFn {
 		//   rm -rf $HOME /projects
 		//   rm -rf $GOPATH /test
 		//
-		// The list of runes below are the ones allowed to exists close
-		// to the variable. Eg.:
+		// Below are the valid suffixes for variables:
 		//   $HOME;
-		//   $HOME[0]
-		//   $HOME()
-		//   $HOME+"a"
-		next := l.peek()
-		if next != eof && !isSpace(next) &&
-			!isEndOfLine(next) && next != ';' &&
-			next != ')' && next != ',' && next != '+' &&
-			next != '[' && next != ']' && next != '(' &&
-			next != '|' {
+		//   $HOME[    # used in: $HOME[0]
+		//   $HOME(    # used in: $callback()
+		//   $HOME+    # used in: $HOME+"/src"
+		//   $HOME]    # used in: $list[$index]
+		//   $HOME)    # used in: call($HOME)
+		if !isValidVariableSuffix(next) {
 			l.errorf("Unrecognized character in action: %#U", next)
 			return nil
 		}
@@ -563,4 +561,12 @@ func isAlpha(r rune) bool {
 // isEndOfLine reports whether r is an end-of-line character.
 func isEndOfLine(r rune) bool {
 	return r == '\r' || r == '\n'
+}
+
+func isValidVariableSuffix(r rune) bool {
+	return r == eof || isSpace(r) ||
+		isEndOfLine(r) || r == ';' ||
+		r == ')' || r == ',' || r == '+' ||
+		r == '[' || r == ']' || r == '(' ||
+		r == '|'
 }
