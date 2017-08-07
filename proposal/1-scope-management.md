@@ -191,7 +191,7 @@ within a function (statement) will be created at the beginning
 ```sh
 var l = ()
 
-func test() {
+fn test() {
 	l <= append($l, "1")
 	var l = ()
 }
