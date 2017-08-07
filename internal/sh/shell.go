@@ -752,6 +752,65 @@ func (shell *Shell) executeReturn(n *ast.ReturnNode) ([]sh.Obj, error) {
 	return returns, newErrStopWalking()
 }
 
+func (shell *Shell) getNashRootFromGOPATH(preverr error) (string, error) {
+	g, hasgopath := shell.Getenv("GOPATH")
+	if !hasgopath {
+		return "", errors.NewError("%s\nno GOPATH env var setted", preverr)
+	}
+	gopath := g.String()
+	return gopath + "/src/github.com/NeowayLabs/nash", nil
+}
+
+func isValidNashRoot(nashroot string) bool {
+	_, err := os.Stat(nashroot + "/stdlib")
+	return err == nil
+}
+
+func (shell *Shell) getNashRoot() (string, error) {
+	// TODO(katcipis): It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
+
+	nashroot, ok := shell.Getenv("NASHROOT")
+
+	if !ok {
+		h, hashome := shell.Getenv("HOME")
+		if !hashome {
+			return shell.getNashRootFromGOPATH(errors.NewError("no HOME env var setted"))
+		}
+		home := h.String()
+		nashroot := home + "/nashroot"
+
+		if !isValidNashRoot(nashroot) {
+			return shell.getNashRootFromGOPATH(errors.NewError("$HOME/nashroot is not valid NASHROOT\n%s"))
+		}
+
+		return nashroot, nil
+	}
+
+	return nashroot.String(), nil
+}
+
+func (shell *Shell) getNashPath() (string, error) {
+	// TODO(katcipis): It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
+
+	nashPath, ok := shell.Getenv("NASHPATH")
+
+	if !ok {
+		h, hashome := shell.Getenv("HOME")
+		if !hashome {
+			return "", errors.NewError("No NASHPATH and no HOME env vars set")
+		}
+		home := h.String()
+		return home + "/nash", nil
+	}
+
+	if nashPath.Type() != sh.StringType {
+		return "", errors.NewError("NASHPATH must be a string")
+	}
+
+	return nashPath.String(), nil
+
+}
+
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	obj, err := shell.evalExpr(node.Path)
 	if err != nil {
@@ -798,20 +857,17 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		}
 	}
 
-	nashPath, ok := shell.Getenv("NASHPATH")
-
-	if !ok {
-		return errors.NewError("NASHPATH environment variable not set on shell %s", shell.name)
-	} else if nashPath.Type() != sh.StringType {
-		return errors.NewError("NASHPATH must be n string")
+	dotDir, nashpatherr := shell.getNashPath()
+	if nashpatherr == nil {
+		tries = append(tries, dotDir+"/lib/"+fname)
+		if !hasExt {
+			tries = append(tries, dotDir+"/lib/"+fname+".sh")
+		}
 	}
 
-	dotDir := nashPath.String()
-
-	tries = append(tries, dotDir+"/lib/"+fname)
-
-	if !hasExt {
-		tries = append(tries, dotDir+"/lib/"+fname+".sh")
+	nashroot, nashrooterr := shell.getNashRoot()
+	if nashrooterr == nil {
+		tries = append(tries, nashroot+"/stdlib/"+fname+".sh")
 	}
 
 	shell.logf("Trying %q\n", tries)
@@ -828,10 +884,21 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		}
 	}
 
-	return errors.NewEvalError(shell.filename, node,
+	errmsg := fmt.Sprintf(
 		"Failed to import path '%s'. The locations below have been tried:\n \"%s\"",
 		fname,
-		strings.Join(tries, `", "`))
+		strings.Join(tries, `", "`),
+	)
+
+	if nashpatherr != nil {
+		errmsg += "\nnashpath error: " + nashpatherr.Error()
+	}
+
+	if nashrooterr != nil {
+		errmsg += "\nnashroot error: " + nashrooterr.Error()
+	}
+
+	return errors.NewEvalError(shell.filename, node, errmsg)
 }
 
 // executePipe executes a pipe of ast.Command's. Each command can be

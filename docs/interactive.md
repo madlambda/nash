@@ -1,10 +1,12 @@
 <!-- mdtocstart -->
+
 # Table of Contents
 
 - [Line mode](#line-mode)
 - [Autocomplete](#autocomplete)
 - [Hooks](#hooks)
 - [bindfn](#bindfn)
+
 <!-- mdtocend -->
 
 When used as an interactive shell, nash supports a few features to

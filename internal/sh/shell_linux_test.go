@@ -49,6 +49,8 @@ func TestExecuteRforkUserNS(t *testing.T) {
 	}
 
 	var out bytes.Buffer
+	f, teardown := setup(t)
+	defer teardown()
 
 	sh, err := NewShell()
 
@@ -57,7 +59,7 @@ func TestExecuteRforkUserNS(t *testing.T) {
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	sh.SetNashdPath(f.nashdPath)
 	sh.SetStdout(&out)
 
 	err = sh.Exec("rfork test", `
@@ -83,6 +85,9 @@ func TestExecuteRforkEnvVars(t *testing.T) {
 		return
 	}
 
+	f, teardown := setup(t)
+	defer teardown()
+
 	sh, err := NewShell()
 
 	if err != nil {
@@ -90,7 +95,7 @@ func TestExecuteRforkEnvVars(t *testing.T) {
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	sh.SetNashdPath(f.nashdPath)
 
 	err = sh.Exec("test env", `abra = "cadabra"
 setenv abra
@@ -111,6 +116,8 @@ func TestExecuteRforkUserNSNested(t *testing.T) {
 	}
 
 	var out bytes.Buffer
+	f, teardown := setup(t)
+	defer teardown()
 
 	sh, err := NewShell()
 
@@ -119,7 +126,7 @@ func TestExecuteRforkUserNSNested(t *testing.T) {
 		return
 	}
 
-	sh.SetNashdPath(nashdPath)
+	sh.SetNashdPath(f.nashdPath)
 	sh.SetStdout(&out)
 
 	err = sh.Exec("rfork userns nested", `

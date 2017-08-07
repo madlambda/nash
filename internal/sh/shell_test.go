@@ -23,29 +23,45 @@ type execTestCase struct {
 	expectedErr    string
 }
 
-var (
-	testDir, gopath, nashdPath string
-)
+type fixture struct {
+	dir       string
+	nashdPath string
+}
 
-func init() {
-	gopath = os.Getenv("GOPATH")
+func setup(t *testing.T) (fixture, func()) {
+	gopath := os.Getenv("GOPATH")
 
 	if gopath == "" {
-		panic("Please, run tests from inside GOPATH")
+		t.Fatal("Please, run tests from inside GOPATH")
 	}
 
-	testDir = gopath + "/src/github.com/NeowayLabs/nash/" + "testfiles"
-	nashdPath = gopath + "/src/github.com/NeowayLabs/nash/cmd/nash/nash"
+	testDir := gopath + "/src/github.com/NeowayLabs/nash/" + "testfiles"
+	nashdPath := gopath + "/src/github.com/NeowayLabs/nash/cmd/nash/nash"
 
 	if _, err := os.Stat(nashdPath); err != nil {
-		panic("Please, run make build before running tests")
+		t.Fatal("Please, run make build before running tests")
 	}
 
-	os.Setenv("NASHPATH", "/tmp/.nash")
+	err := os.Setenv("NASHPATH", "/tmp/.nash")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return fixture{
+			dir:       testDir,
+			nashdPath: nashdPath,
+		}, func() {
+			err := os.Unsetenv("NASHPATH")
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
 }
 
 func testExecuteFile(t *testing.T, path, expected string) {
 	var out bytes.Buffer
+	f, teardown := setup(t)
+	defer teardown()
 
 	shell, err := NewShell()
 
@@ -54,7 +70,7 @@ func testExecuteFile(t *testing.T, path, expected string) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	shell.SetStdout(&out)
 
 	err = shell.ExecFile(path)
@@ -107,18 +123,25 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 }
 
 func testExec(t *testing.T, testcase execTestCase) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 
 	testShellExec(t, shell, testcase)
 }
 
 func testInteractiveExec(t *testing.T, testcase execTestCase) {
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -126,7 +149,7 @@ func testInteractiveExec(t *testing.T, testcase execTestCase) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	shell.SetInteractive(true)
 
 	testShellExec(t, shell, testcase)
@@ -156,11 +179,13 @@ func TestExecuteFile(t *testing.T) {
 		path     string
 		expected string
 	}
+	f, teardown := setup(t)
+	defer teardown()
 
 	for _, ftest := range []fileTests{
 		{path: "/ex1.sh", expected: "hello world\n"},
 	} {
-		testExecuteFile(t, testDir+ftest.path, ftest.expected)
+		testExecuteFile(t, f.dir+ftest.path, ftest.expected)
 	}
 }
 
@@ -553,6 +578,9 @@ for i in $range {
 }
 
 func TestExecuteRedirection(t *testing.T) {
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -560,7 +588,7 @@ func TestExecuteRedirection(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	path := "/tmp/nashell.test.txt"
 	defer os.Remove(path)
 
@@ -639,6 +667,9 @@ a = ".2"
 }
 
 func TestExecuteRedirectionMap(t *testing.T) {
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -646,7 +677,7 @@ func TestExecuteRedirectionMap(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 
 	err = shell.Exec("redirect map", `
         echo -n "hello world" > /tmp/test1.txt
@@ -671,24 +702,28 @@ func TestExecuteRedirectionMap(t *testing.T) {
 }
 
 func TestExecuteSetenv(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	for _, test := range []execTestCase{
 		{
 			"test setenv basic",
 			`test = "hello"
                          setenv test
-                         ` + nashdPath + ` -c "echo $test"`,
+                         ` + f.nashdPath + ` -c "echo $test"`,
 			"hello\n", "", "",
 		},
 		{
 			"test setenv assignment",
 			`setenv test = "hello"
-                         ` + nashdPath + ` -c "echo $test"`,
+                         ` + f.nashdPath + ` -c "echo $test"`,
 			"hello\n", "", "",
 		},
 		{
 			"test setenv exec cmd",
 			`setenv test <= echo -n "hello"
-                         ` + nashdPath + ` -c "echo $test"`,
+                         ` + f.nashdPath + ` -c "echo $test"`,
 			"hello\n", "", "",
 		},
 		{
@@ -745,6 +780,9 @@ func TestExecuteCd(t *testing.T) {
 func TestExecuteImport(t *testing.T) {
 	var out bytes.Buffer
 
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -752,7 +790,7 @@ func TestExecuteImport(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	shell.SetStdout(&out)
 
 	err = ioutil.WriteFile("/tmp/test.sh", []byte(`TESTE="teste"`), 0644)
@@ -780,6 +818,9 @@ func TestExecuteImport(t *testing.T) {
 func TestExecuteIfEqual(t *testing.T) {
 	var out bytes.Buffer
 
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -787,7 +828,7 @@ func TestExecuteIfEqual(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	shell.SetStdout(&out)
 
 	err = shell.Exec("test if equal", `
@@ -826,6 +867,9 @@ func TestExecuteIfEqual(t *testing.T) {
 func TestExecuteIfElse(t *testing.T) {
 	var out bytes.Buffer
 
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -833,7 +877,7 @@ func TestExecuteIfElse(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	shell.SetStdout(&out)
 
 	err = shell.Exec("test if else", `
@@ -876,6 +920,9 @@ func TestExecuteIfElse(t *testing.T) {
 func TestExecuteIfElseIf(t *testing.T) {
 	var out bytes.Buffer
 
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -883,7 +930,7 @@ func TestExecuteIfElseIf(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	shell.SetStdout(&out)
 
 	err = shell.Exec("test if else", `
@@ -924,6 +971,10 @@ func TestExecuteIfElseIf(t *testing.T) {
 }
 
 func TestExecuteFnDecl(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -931,7 +982,7 @@ func TestExecuteFnDecl(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 
 	err = shell.Exec("test fnDecl", `
         fn build(image, debug) {
@@ -945,6 +996,10 @@ func TestExecuteFnDecl(t *testing.T) {
 }
 
 func TestExecuteFnInv(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -952,7 +1007,7 @@ func TestExecuteFnInv(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 
 	var out bytes.Buffer
 
@@ -1093,6 +1148,10 @@ func TestFnComposition(t *testing.T) {
 }
 
 func TestExecuteFnInvOthers(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -1100,7 +1159,7 @@ func TestExecuteFnInvOthers(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 
 	var out bytes.Buffer
 
@@ -1133,6 +1192,10 @@ echo -n $integers
 }
 
 func TestNonInteractive(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -1140,7 +1203,7 @@ func TestNonInteractive(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	shell.SetInteractive(true)
 
 	testShellExec(t, shell, execTestCase{
@@ -1217,8 +1280,11 @@ func TestExecutePipe(t *testing.T) {
 	var stderr bytes.Buffer
 	var stdout bytes.Buffer
 
+	f, teardown := setup(t)
+	defer teardown()
+
 	// Case 1
-	cmd := exec.Command(nashdPath, "-c", `echo hello | tr -d "[:space:]"`)
+	cmd := exec.Command(f.nashdPath, "-c", `echo hello | tr -d "[:space:]"`)
 
 	cmd.Stderr = &stderr
 	cmd.Stdout = &stdout
@@ -1240,7 +1306,7 @@ func TestExecutePipe(t *testing.T) {
 	stderr.Reset()
 
 	// Case 2
-	cmd = exec.Command(nashdPath, "-c", `echo hello | wc -l | tr -d "[:space:]"`)
+	cmd = exec.Command(f.nashdPath, "-c", `echo hello | wc -l | tr -d "[:space:]"`)
 
 	cmd.Stderr = &stderr
 	cmd.Stdout = &stdout
@@ -1263,7 +1329,10 @@ func TestExecutePipe(t *testing.T) {
 func TestExecuteRedirectionPipe(t *testing.T) {
 	var stderr bytes.Buffer
 
-	cmd := exec.Command(nashdPath, "-c", `cat stuff >[2=] | grep file`)
+	f, teardown := setup(t)
+	defer teardown()
+
+	cmd := exec.Command(f.nashdPath, "-c", `cat stuff >[2=] | grep file`)
 
 	cmd.Stderr = &stderr
 
@@ -1302,6 +1371,9 @@ func testTCPRedirection(t *testing.T, port, command string) {
 		t.Fatal(err)
 	}
 
+	f, teardown := setup(t)
+	defer teardown()
+
 	go func() {
 		shell, err := NewShell()
 
@@ -1310,7 +1382,7 @@ func testTCPRedirection(t *testing.T, port, command string) {
 			return
 		}
 
-		shell.SetNashdPath(nashdPath)
+		shell.SetNashdPath(f.nashdPath)
 
 		<-done
 
@@ -1374,6 +1446,9 @@ func TestExecuteUnixRedirection(t *testing.T) {
 	done := make(chan bool)
 	writeDone := make(chan bool)
 
+	f, teardown := setup(t)
+	defer teardown()
+
 	go func() {
 		defer func() {
 			writeDone <- true
@@ -1386,7 +1461,7 @@ func TestExecuteUnixRedirection(t *testing.T) {
 			return
 		}
 
-		shell.SetNashdPath(nashdPath)
+		shell.SetNashdPath(f.nashdPath)
 
 		<-done
 
@@ -1437,6 +1512,9 @@ func TestExecuteUnixRedirection(t *testing.T) {
 func TestExecuteUDPRedirection(t *testing.T) {
 	message := "hello world"
 
+	f, teardown := setup(t)
+	defer teardown()
+
 	done := make(chan bool)
 	writeDone := make(chan bool)
 
@@ -1452,7 +1530,7 @@ func TestExecuteUDPRedirection(t *testing.T) {
 			return
 		}
 
-		shell.SetNashdPath(nashdPath)
+		shell.SetNashdPath(f.nashdPath)
 
 		<-done
 
@@ -1577,6 +1655,10 @@ echo -n $a`,
 }
 
 func TestExecuteFnAsFirstClass(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -1584,7 +1666,7 @@ func TestExecuteFnAsFirstClass(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 
 	var out bytes.Buffer
 
@@ -1616,6 +1698,10 @@ func TestExecuteFnAsFirstClass(t *testing.T) {
 }
 
 func TestExecuteDump(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -1623,7 +1709,7 @@ func TestExecuteDump(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	shell.Reset()
 
 	var out bytes.Buffer
@@ -1709,6 +1795,10 @@ func TestExecuteDump(t *testing.T) {
 }
 
 func TestExecuteDumpVariable(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -1716,7 +1806,7 @@ func TestExecuteDumpVariable(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	shell.Reset()
 
 	var out bytes.Buffer
@@ -1776,6 +1866,10 @@ func TestExecuteDumpVariable(t *testing.T) {
 }
 
 func TestExecuteConcat(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -1783,7 +1877,7 @@ func TestExecuteConcat(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	shell.Reset()
 
 	var out bytes.Buffer
@@ -1824,6 +1918,10 @@ echo -n $c`)
 }
 
 func TestExecuteFor(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -1831,7 +1929,7 @@ func TestExecuteFor(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 
 	var out bytes.Buffer
 
@@ -1862,6 +1960,10 @@ loop`
 }
 
 func TestExecuteInfiniteLoop(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -1869,7 +1971,7 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 
 	doneCtrlc := make(chan bool)
 	doneLoop := make(chan bool)
@@ -1917,6 +2019,10 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 }
 
 func TestExecuteVariableIndexing(t *testing.T) {
+
+	f, teardown := setup(t)
+	defer teardown()
+
 	shell, err := NewShell()
 
 	if err != nil {
@@ -1926,7 +2032,7 @@ func TestExecuteVariableIndexing(t *testing.T) {
 
 	var out bytes.Buffer
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(f.nashdPath)
 	shell.SetStdout(&out)
 
 	err = shell.Exec("indexing", `list = ("1" "2" "3")

@@ -1,4 +1,5 @@
 <!-- mdtocstart -->
+
 # Table of Contents
 
 - [nash](#nash)
@@ -6,6 +7,9 @@
     - [Useful stuff](#useful-stuff)
     - [Why nash scripts are reliable?](#why-nash-scripts-are-reliable)
     - [Installation](#installation)
+        - [Release](#release)
+            - [Linux](#linux)
+        - [Master](#master)
     - [Getting started](#getting-started)
 - [Accessing command line args](#accessing-command-line-args)
 - [Namespace features](#namespace-features)
@@ -16,7 +20,9 @@
 - [Security](#security)
 - [Concept](#concept)
 - [Motivation](#motivation)
+- [Releasing](#releasing)
 - [Want to contribute?](#want-to-contribute)
+
 <!-- mdtocend -->
 
 # nash
@@ -50,14 +56,44 @@ Nash is a system shell, inspired by plan9 `rc`, that makes it easy to create rel
 
 ## Installation
 
-If you have Go, go-get it:
+Before proceeding to any of the install procedures it is important that you
+set in your environment the **NASHPATH** and **NASHROOT** variables.
 
-```sh
-# Make sure GOPATH/bin is in your PATH
-go get github.com/NeowayLabs/nash/cmd/nash
-go get github.com/NeowayLabs/nash/cmd/nashfmt
+The **NASHROOT** variable is used to find the stdlib, while **NASHPATH**
+is used to find libraries in general. It is important to have two different
+paths since this will allow you to delete all libraries
+(cleaning up your installation) by removing your $NASHPATH directory
+without affecting your base nash installation and standard library.
+
+If no **NASHPATH** set a default of $HOME/nash will be assumed.
+If no **NASHROOT** set a default of $HOME/nashroot will be assumed.
+
+The libraries lookup dir will be $NASHPATH/lib.
+The standard library lookup dir will be $NASHROOT/stdlib.
+
+After installing the nash binary will be located at $NASHROOT/bin.
+
+### Release
+
+Installing is so stupid that we provide small scripts to do it.
+If your platform is not supported take a look at the existent ones
+and send a MR with the script for your platform.
+
+#### Linux
+
+Run:
+
 ```
-If not, [download the latest binary release](https://github.com/NeowayLabs/nash/releases) and copy to somewhere in your PATH.
+./hack/install/linux.sh
+```
+
+### Master
+
+Run:
+
+```
+make install
+```
 
 ## Getting started
 
