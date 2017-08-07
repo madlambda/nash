@@ -35,8 +35,12 @@ $GO tool cover -func coverage.txt
 
 echo "running stdlib tests"
 export NASHPATH=`pwd`
-./cmd/nash/nash ./stdlib/fmt_test.sh
+tests=$(find ./stdlib -name "*_test.sh")
 
-# To submit the test coverage result to coveralls.io,
-# use goveralls (https://github.com/mattn/goveralls)
-# goveralls -coverprofile=profile.cov -service=travis-ci
+for t in ${tests[*]}
+do
+    echo
+    echo "running test: "$t
+    ./cmd/nash/nash $t
+    echo "success"
+done

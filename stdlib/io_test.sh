@@ -1,11 +1,12 @@
 
 fn run_example(args...) {
-        got, status <= ./cmd/nash/nash ./stdlib/fmt_example.sh $args
+        got, status <= ./cmd/nash/nash ./stdlib/io_example.sh $args
         return $got, $status
 }
 
 fn assert_success(expected, got, status) {
         if $status != "0" {
+                print("expected success, but got status code: %s\n", $status)
                 exit("1")
         }
         if $got != $expected {

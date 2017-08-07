@@ -1,4 +1,4 @@
 
-fn fmt_println(msg, args...) {
+fn io_println(msg, args...) {
         print($msg + "\n", $args...)
 }
