@@ -16,17 +16,19 @@ guard-%:
                 exit 1; \
         fi
 
-install: build guard-NASHPATH
+NASHPATH=$(HOME)/nash
+NASHROOT=$(HOME)/nashroot
+
+install: build
 	@echo
-	@echo "Installing nash at: "$(NASHPATH)
-	mkdir -p $(NASHPATH)/bin
-	mkdir -p $(NASHPATH)/lib
-	rm -f $(NASHPATH)/bin/nash
-	rm -f $(NASHPATH)/bin/nashfmt
-	cp -p ./cmd/nash/nash $(NASHPATH)/bin
-	cp -p ./cmd/nashfmt/nashfmt $(NASHPATH)/bin
-	rm -rf $(NASHPATH)/stdlib
-	cp -pr ./stdlib $(NASHPATH)/stdlib
+	@echo "Installing nash at: "$(NASHROOT)
+	mkdir -p $(NASHROOT)/bin
+	rm -f $(NASHROOT)/bin/nash
+	rm -f $(NASHROOT)/bin/nashfmt
+	cp -p ./cmd/nash/nash $(NASHROOT)/bin
+	cp -p ./cmd/nashfmt/nashfmt $(NASHROOT)/bin
+	rm -rf $(NASHROOT)/stdlib
+	cp -pr ./stdlib $(NASHROOT)/stdlib
 
 deps:
 	go get -v -t golang.org/x/exp/ebnf
