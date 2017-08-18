@@ -51,16 +51,36 @@ func execFn(shell *nash.Shell, fnDef sh.FnDef, args []sh.Obj) {
 	}
 }
 
-func setupCli(shell *nash.Shell) error {
-	shell.SetInteractive(true)
-	initFile := shell.DotDir() + "/init"
+func importInitFile(shell *nash.Shell, initFile string) error {
 
-	if d, err := os.Stat(initFile); err == nil && !noInit {
+	if d, err := os.Stat(initFile); err == nil {
 		if m := d.Mode(); !m.IsDir() {
 			err = shell.ExecuteString("init", `import "`+initFile+`"`)
 			if err != nil {
 				return fmt.Errorf("Failed to evaluate '%s': %s\n", initFile, err.Error())
 			}
+		}
+	}
+
+	return nil
+}
+
+func setupCli(shell *nash.Shell) error {
+	shell.SetInteractive(true)
+
+	if noInit {
+		return nil
+	}
+
+	initFiles := []string{
+		shell.DotDir() + "/init",
+		shell.DotDir() + "/init.sh",
+	}
+
+	for _, init := range initFiles {
+		err := importInitFile(shell, init)
+		if err != nil {
+			return err
 		}
 	}
 

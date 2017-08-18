@@ -30,7 +30,7 @@ var (
 func init() {
 	flag.BoolVar(&version, "version", false, "Show version")
 	flag.BoolVar(&debug, "debug", false, "enable debug")
-	flag.BoolVar(&noInit, "noinit", false, "do not load init file")
+	flag.BoolVar(&noInit, "noinit", false, "do not load init/init.sh file")
 	flag.StringVar(&command, "c", "", "command to execute")
 	flag.BoolVar(&interactive, "i", false, "Interactive mode (default if no args)")
 
