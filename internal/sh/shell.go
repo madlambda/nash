@@ -753,11 +753,11 @@ func (shell *Shell) getNashRootFromGOPATH(preverr error) (string, error) {
 		return "", errors.NewError("%s\nno GOPATH env var setted", preverr)
 	}
 	gopath := g.String()
-	return gopath + "/src/github.com/NeowayLabs/nash", nil
+	return filepath.Join(gopath, filepath.FromSlash("/src/github.com/NeowayLabs/nash")), nil
 }
 
 func isValidNashRoot(nashroot string) bool {
-	_, err := os.Stat(nashroot + "/stdlib")
+	_, err := os.Stat(filepath.Join(nashroot, "stdlib"))
 	return err == nil
 }
 
@@ -765,14 +765,13 @@ func (shell *Shell) getNashRoot() (string, error) {
 	// TODO(katcipis): It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
 
 	nashroot, ok := shell.Getenv("NASHROOT")
-
 	if !ok {
 		h, hashome := shell.Getenv("HOME")
 		if !hashome {
 			return shell.getNashRootFromGOPATH(errors.NewError("no HOME env var setted"))
 		}
 		home := h.String()
-		nashroot := home + "/nashroot"
+		nashroot := filepath.Join(home, "nashroot")
 
 		if !isValidNashRoot(nashroot) {
 			return shell.getNashRootFromGOPATH(errors.NewError("$HOME/nashroot is not valid NASHROOT\n%s"))
@@ -795,7 +794,7 @@ func (shell *Shell) getNashPath() (string, error) {
 			return "", errors.NewError("No NASHPATH and no HOME env vars set")
 		}
 		home := h.String()
-		return home + "/nash", nil
+		return filepath.Join(home, "nash"), nil
 	}
 
 	if nashPath.Type() != sh.StringType {
@@ -803,7 +802,6 @@ func (shell *Shell) getNashPath() (string, error) {
 	}
 
 	return nashPath.String(), nil
-
 }
 
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
@@ -849,15 +847,15 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 
 	dotDir, nashpatherr := shell.getNashPath()
 	if nashpatherr == nil {
-		tries = append(tries, dotDir+"/lib/"+fname)
+		tries = append(tries, filepath.Join(dotDir, "lib", fname))
 		if !hasExt {
-			tries = append(tries, dotDir+"/lib/"+fname+".sh")
+			tries = append(tries, filepath.Join(dotDir, "lib", fname+".sh"))
 		}
 	}
 
 	nashroot, nashrooterr := shell.getNashRoot()
 	if nashrooterr == nil {
-		tries = append(tries, nashroot+"/stdlib/"+fname+".sh")
+		tries = append(tries, filepath.Join(nashroot, "stdlib", fname+".sh"))
 	}
 
 	shell.logf("Trying %q\n", tries)
@@ -1199,14 +1197,8 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			cmd.SetStdout(file)
 			closeAfterWait = append(closeAfterWait, file)
 		case ast.RedirMapSupress:
-			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
-
-			if err != nil {
-				return closeAfterWait, err
-			}
-
+			file := ioutil.Discard
 			cmd.SetStdout(file)
-			closeAfterWait = append(closeAfterWait, file)
 		}
 	case 2:
 		switch redirDecl.RightFD() {
@@ -1232,14 +1224,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			cmd.SetStderr(file)
 			closeAfterWait = append(closeAfterWait, file)
 		case ast.RedirMapSupress:
-			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
-
-			if err != nil {
-				return closeAfterWait, err
-			}
-
-			cmd.SetStderr(file)
-			closeAfterWait = append(closeAfterWait, file)
+			cmd.SetStderr(ioutil.Discard)
 		}
 	case ast.RedirMapNoValue:
 		if redirDecl.Location() == nil {
