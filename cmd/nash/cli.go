@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/NeowayLabs/nash"
@@ -52,17 +51,39 @@ func execFn(shell *nash.Shell, fnDef sh.FnDef, args []sh.Obj) {
 	}
 }
 
-func setupCli(shell *nash.Shell) error {
-	shell.SetInteractive(true)
-	initFile := filepath.Join(shell.DotDir(), "init")
-
-	if d, err := os.Stat(initFile); err == nil && !noInit {
+func importInitFile(shell *nash.Shell, initFile string) (imported bool, err error) {
+	if d, err := os.Stat(initFile); err == nil {
 		if m := d.Mode(); !m.IsDir() {
 			err = shell.ExecuteString("init",
 				fmt.Sprintf("import %q", initFile))
 			if err != nil {
-				return fmt.Errorf("Failed to evaluate '%s': %s\n", initFile, err.Error())
+				return false, fmt.Errorf("Failed to evaluate '%s': %s\n", initFile, err.Error())
 			}
+			imported = true
+		}
+	}
+	return
+}
+
+func setupCli(shell *nash.Shell) error {
+	shell.SetInteractive(true)
+
+	if noInit {
+		return nil
+	}
+
+	initFiles := []string{
+		shell.DotDir() + "/init",
+		shell.DotDir() + "/init.sh",
+	}
+
+	for _, init := range initFiles {
+		imported, err := importInitFile(shell, init)
+		if err != nil {
+			return err
+		}
+		if imported {
+			break
 		}
 	}
 
