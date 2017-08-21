@@ -3,6 +3,7 @@ package sh
 import (
 	"io"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/NeowayLabs/nash/ast"
 	"github.com/NeowayLabs/nash/errors"
@@ -45,7 +46,7 @@ func NewCmd(name string) (*Cmd, error) {
 
 	cmd := Cmd{}
 
-	if name[0] != '/' {
+	if !filepath.IsAbs(name) {
 		cmdPath, err = exec.LookPath(name)
 
 		if err != nil {

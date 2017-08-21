@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -412,14 +412,9 @@ func (shell *Shell) setupBuiltin() {
 func (shell *Shell) setupDefaultBindings() error {
 	// only one builtin fn... no need for advanced machinery yet
 	err := shell.Exec(shell.name, `fn nash_builtin_cd(path) {
-            if $path == "" {
-                    path = $HOME
-            }
-
-            chdir($path)
-        }
-
-        bindfn nash_builtin_cd cd`)
+		chdir($path)
+	}
+	bindfn nash_builtin_cd cd`)
 
 	return err
 }
@@ -834,14 +829,8 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		hasExt bool
 	)
 
-	if len(fname) > 3 && fname[len(fname)-3:] == ".sh" {
-		hasExt = true
-	}
-
-	if (len(fname) > 0 && fname[0] == '/') ||
-		(len(fname) > 1 && fname[0] == '.' && fname[1] == '/') ||
-		(len(fname) > 2 && fname[0] == '.' && fname[1] == '.' &&
-			fname[2] == '/') {
+	hasExt = filepath.Ext(fname) != ""
+	if filepath.IsAbs(fname) {
 		tries = append(tries, fname)
 
 		if !hasExt {
@@ -850,10 +839,11 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	}
 
 	if shell.filename != "" {
-		tries = append(tries, path.Dir(shell.filename)+"/"+fname)
+		localFile := filepath.Join(filepath.Dir(shell.filename), fname)
+		tries = append(tries, localFile)
 
 		if !hasExt {
-			tries = append(tries, path.Dir(shell.filename)+"/"+fname+".sh")
+			tries = append(tries, localFile+".sh")
 		}
 	}
 
