@@ -69,21 +69,30 @@ is created each time the add function is called.
 
 In this document we brainstorm about possible solutions to this.
 
-## Proposal I - "var"
+## Proposal I - Create new variables explicitly
 
-This proposal adds a new keyword `var` that will be used to declare and
-initialize variables in the local scope. Is an error to use `var` with
-an existent local variable (redeclare is forbiden).
+On this proposal new variable creation requires an explicit
+syntax construction.
+
+We could add a new keyword `var` that will be used to declare and
+initialize variables in the local scope, like this:
 
 ```js
 var i = "0"
 ```
 
-Normal assignments will only update existent variables. The assignment
-must first look for the target variable in the local scope and then in
-the parent, recursively, until it's found and then updated, otherwise
-(in case the variable is not found) the interpreter must abort with
-error.
+While the current syntax:
+
+```js
+i = "0"
+```
+
+Will be assigning a new value to an already existent variable **i**.
+
+The assignment must first look for the target variable in the local
+scope and then in the parent, recursively, until it's found and then updated,
+otherwise (in case the variable is not found) the interpreter must abort
+with error.
 
 ```sh
 var count = "0" # declare local variable
@@ -97,7 +106,8 @@ inc()
 print($count) 	# outputs: 1
 ```
 
-Below is how this proposal solves the scope management problem example:
+Below is how this proposal solves the
+scope management problem example:
 
 ```sh
 fn list() {
@@ -131,7 +141,7 @@ fn list() {
 }
 ```
 
-Sintactically, the `var` statement is an extension of the assignment
+Syntactically, the `var` statement is an extension of the assignment
 and exec-assignment statements, and then it should support multiple
 declarations in a single statement also. Eg.:
 
