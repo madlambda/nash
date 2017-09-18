@@ -292,8 +292,8 @@ fn list() {
 The `outer` keyword has the same meaning that Python's `global`
 keyword.
 
-After an **outer** declaration all assignments will reference the
-outer variable ? (like Python)
+Different from Python global, outer must appear on all assignments,
+like this:
 
 ```sh
 fn list() {
@@ -301,7 +301,22 @@ fn list() {
 	l = ()
 
 	fn doubleadd(val) {
-		# use the "l" variable from the parent
+		outer l <= append($l, $val)
+		outer l <= append($l, $val)
+	}
+
+	return $doubleadd
+}
+```
+
+This would be buggy and only add once:
+
+```sh
+fn list() {
+	# initialize an "l" variable in this scope
+	l = ()
+
+	fn doubleadd(val) {
 		outer l <= append($l, $val)
 		l <= append($l, $val)
 	}
@@ -310,22 +325,44 @@ fn list() {
 }
 ```
 
-Or it has to be repeated every time ?
+Trying to elaborate more on possible combinations
+when using the **outer** keyword we get at some hard
+questions, like what does outer means on this case:
 
-```sh
+```
 fn list() {
-	# initialize an "l" variable in this scope
-	l = ()
-
-	fn doubleadd(val) {
-		# use the "l" variable from the parent
-		outer l <= append($l, $val)
-		outer l <= append($l, $val)
-	}
-
-	return $doubleadd
+    # initialize an "l" variable in this scope
+    l = ()
+    fn doubleadd(val) {
+        l <= append($l, $val)
+        outer l <= append($l, $val)
+    }
+    return $doubleadd
 }
 ```
+
+Will outer just handle the reference on its own scope or
+will it jump its own scope and manipulate the outer variable ?
+
+The name outer implies that it will manipulate the outer scope,
+bypassing its own current scope, but how do you read the outer
+variable ? We would need to support something like:
+
+```
+fn list() {
+    # initialize an "l" variable in this scope
+    l = ()
+    fn add(val) {
+        l <= "whatever"
+        outer l <= append(outer $l, $val)
+    }
+    return $doubleadd
+}
+```
+
+It is like with outer we are bypassing the lexical semantics
+of the code, the order of declarations is not relevant anymore
+since you have a form of "goto" to jump the current scope.
 
 ## Comparing both approaches
 
