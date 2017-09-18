@@ -392,7 +392,13 @@ created if you forget the **var**, but lexically reachable variables
 will be manipulated (this is ameliorated by the fact that we don't have
 global variables).
 
-But, any statements made about cognition are really hard to be
-considered as a global truth, since all human beings are biased and
-identifying common patterns of cognition is really hard. But if software
+If we go for **outer** it seems that we are going to write less,
+but some code, involving closures, will be harder to read (and write).
+Since code is usually read more than it is written it seems like a sensible
+choice to optimize for readability and understandability than just
+save a few keystrokes.
+
+But any statements made about cognition are really hard to be
+considered as a global truth, since all human beings are biased which makes
+identification of common patterns of cognition really hard. But if software
 design has any kind of goal, must be this =).
