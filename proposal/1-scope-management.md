@@ -413,7 +413,8 @@ fn list() {
 ```
 
 The **var** option requires more writing for the common
-case of declaring new variables, but makes closures pretty
+case of declaring new variables (specially on the interactive shell
+this is pretty annoying), but makes closures pretty
 natural to write, you just manipulate the variables
 that exists lexically on your scope, like you would do
 inside a **if** or **for** block.
