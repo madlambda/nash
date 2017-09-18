@@ -63,11 +63,13 @@ fn add(val) {
 When we reference the **l** variable it uses the reference on the
 outer scope (the empty list), but there is no way to express syntactically
 that we want to change the list on the outer scope instead of creating
-a new variable **l**. That is why the **get** and **print** functions
+a new variable **l** (shadowing the outer **l**).
+
+That is why the **get** and **print** functions
 are always referencing an outer list **l** that is empty, a new one
 is created each time the add function is called.
 
-In this document we brainstorm about possible solutions to this.
+In this document we navigate the solution space for this problem.
 
 ## Proposal I - Create new variables explicitly
 
@@ -88,11 +90,10 @@ i = "0"
 ```
 
 Will be assigning a new value to an already existent variable **i**.
-
-The assignment must first look for the target variable in the local
-scope and then in the parent, recursively, until it's found and then updated,
-otherwise (in case the variable is not found) the interpreter must abort
-with error.
+The assignment will first look for the target variable in the local
+scope and then in the parent, traversing the entire stack, until it's
+found and then updated, otherwise (in case the variable is not found)
+the interpreter must abort with error.
 
 ```sh
 var count = "0" # declare local variable
@@ -106,8 +107,7 @@ inc()
 print($count) 	# outputs: 1
 ```
 
-Below is how this proposal solves the
-scope management problem example:
+Below is how this proposal solves the list example:
 
 ```sh
 fn list() {
@@ -153,61 +153,98 @@ var body, err <= curl -f $url
 var name, surname, err <= getAuthor()
 ```
 
-One of the downsides of `var` is the requirement that none of the
-targeted variable exists, because it makes awkward when existent
-variables must be used in conjunction with new ones. An example is the
-variables `$status` and `$err` that are often used to get process exit
-status and errors from functions, respectively.
+Using var always creates new variables, shadowing previous ones,
+for example:
 
-The [PR #227](https://github.com/NeowayLabs/nash/pull/227) implements
-this proposal but deviates in multiple assignments to handle the
-downside above. The `var` statement was implemented with the rules
-below:
-
-1. At least one of the targeted variables must do not exists;
-2. The existent variables are just updated in the scope it resides;
-
-Below are some valid examples with [#227](https://github.com/NeowayLabs/nash/pull/227):
 
 ```sh
 var a, b = "0", "1" # works fine, variables didn't existed before
 
-var a, b = "2", "3" # error by rule 1
-
-# works! c is declared but 'a' and 'b' are updated (by rule 2)
-var a, b, c = "4", "5", "6"
-
-# works, variables first declared
-var users, err <= cat /etc/passwd | awk -F ":" "{print $1}"
-
-# also works, but $err just updated
-var pass, err <= cat /etc/shadow | awk -F ":" "{print $2}"
+var a, b, c = "4", "5", "6" # works! too, creating new a, b, c
 ```
 
-The implementation above is handy but makes the meaning of `var`
-confuse because it declares new variables **and** update existent ones
-(in outer scopes also). Then making hard to know what variables are
-being declared local and what are being updated, by just looking at
-the statement, because the meaning will depend in the current
-environment of variables.
+On a dynamic typed language there is very little difference between
+creating a new var or just reassigning it since variables are just
+references that store no type information at all. For example,
+what is the difference between this:
 
-Another downside of `var` is their very incompatible nature. Every
-nash script ever created will be affected.
+```
+var a = "1"
+a = ()
+```
 
-Another behavior we need to discuss is whether all variables declared
-within a function (statement) will be created at the beginning 
-(as scope is created) or only at the time a 'var' keywork is found.
+And this ?
 
-```sh
+```
+var a = "1"
+var a = ()
+```
+
+The behavior will be exactly the same, there is no semantic error
+on reassigning the same variable to a value with a different type,
+so reassigning on redeclaring has no difference at all (although it
+makes sense for statically typed languages).
+
+Statements are evaluated in order, so this:
+
+```
+a = ()
+var a = "1"
+```
+
+Is **NOT** the same as this:
+
+```
+var a = "1"
+var a = ()
+```
+
+This is easier to understand when using closures, let's go
+back to our list implementation, we had something like this:
+
+```
 var l = ()
 
-fn test() {
-	l <= append($l, "1")
-	var l = ()
+fn add(val) {
+        # use the "l" variable from parent scope
+        # find first in the this scope if not found
+        # then find variable in the parent scope
+        l <= append($l, $val)
 }
-
-print($l) 	# outputs: "1"
 ```
+
+If we write this:
+
+```
+var l = ()
+
+fn add(val) {
+        # creates new var
+        var l = ()
+        # manipulates new l var
+        l <= append($l, $val)
+}
+```
+
+The **add** function will not manipulate the **l** variable from the
+outer scope, and our list implementation will not work properly.
+
+But writing this:
+
+```
+var l = ()
+
+fn add(val) {
+        # manipulates outer l var
+        l <= append($l, $val)
+        # creates new var that is useless
+        var l = ()
+}
+```
+
+Will work, since we assigned a new value to the outer **l**
+before creating a new **l** var.
+
 
 ## Proposal II - "outer"
 
