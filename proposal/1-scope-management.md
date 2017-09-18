@@ -245,6 +245,14 @@ fn add(val) {
 Will work, since we assigned a new value to the outer **l**
 before creating a new **l** var.
 
+The approach described here is very similar to how variables
+are handled in [Lua](https://www.lua.org/), with the exception
+that Lua uses the **local** keyword, instead of var.
+
+Also, Lua allows global variables to be created by default, on
+Nash we prefer to avoid global stuff and produce an error when
+assigning new values to variables that do not exist.
+
 
 ## Proposal II - "outer"
 
