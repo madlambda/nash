@@ -326,3 +326,73 @@ fn list() {
 	return $doubleadd
 }
 ```
+
+## Comparing both approaches
+
+As everything in life, the design space for how to handle
+scope management is full of tradeoffs.
+
+Making outer scope management explicit makes declaring
+new variables easier, since you have to type less to
+create new vars.
+
+But managing scope using closures gets more cumbersome,
+consider this nested closures with the **outer** keyword:
+
+```sh
+fn list() {
+	l = ()
+
+	fn add(val) {
+		# use the "l" variable from the parent
+		outer l <= append($l, $val)
+		fn addagain() {
+		        outer l <= append($l, $val)
+		}
+		return $addagain
+	}
+
+	return $add
+}
+```
+
+And this one with **var** :
+
+```sh
+fn list() {
+	var l = ()
+
+	fn add(val) {
+		# use the "l" variable from the parent
+		l <= append($l, $val)
+		fn addagain() {
+		        l <= append($l, $val)
+		}
+		return $addagain
+	}
+
+	return $add
+}
+```
+
+The **var** option requires more writing for the common
+case of declaring new variables, but makes closures pretty
+natural to write, you just manipulate the variables
+that exists lexically on your scope, like you would do
+inside a **if** or **for** block.
+
+Thinking about cognition, it seems easier to write buggy code
+by forgetting to add an **outer** on the code than forgetting
+to add a **var** and by mistake manipulate an variable outside
+the scope.
+
+The decision to break if the variable does not exist also enhances
+the **var** option as less buggy since no new variable will be
+created if you forget the **var**, but lexically reachable variables
+will be manipulated (this is ameliorated by the fact that we don't have
+global variables).
+
+But, any statements made about cognition are really hard to be
+considered as a global truth, since all human beings are biased and
+identifying common patterns of cognition is really hard. But if software
+design has any kind of goal, must be this =).
