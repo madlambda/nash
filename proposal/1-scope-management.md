@@ -253,12 +253,17 @@ Also, Lua allows global variables to be created by default, on
 Nash we prefer to avoid global stuff and produce an error when
 assigning new values to variables that do not exist.
 
+Summarizing, on this proposal creating new variables is explicit
+and referencing existent variables on outer scopes is implicit.
 
-## Proposal II - "outer"
+
+## Proposal II - Manipulate outer scope explicitly
 
 This proposal adds a new `outer` keyword that permits the update of
-variables in the outer scope. Outer assignments with non-existent
-variables is an error.
+variables in the outer scope. The default and implicit behavior of
+variable assignments is to always create a new variable.
+
+Considering our list example:
 
 ```sh
 fn list() {
@@ -280,15 +285,44 @@ fn list() {
 		print("list: [%s]\n", $l)
 	}
 
-	fn not_clear() {
-		# "l" is not cleared, but a new a new variable is created (shadowing)
-		# because "outer" isn't specified.
-		l = ()
-	}
-
 	return $add, $get, $string
 }
 ```
 
 The `outer` keyword has the same meaning that Python's `global`
 keyword.
+
+After an **outer** declaration all assignments will reference the
+outer variable ? (like Python)
+
+```sh
+fn list() {
+	# initialize an "l" variable in this scope
+	l = ()
+
+	fn doubleadd(val) {
+		# use the "l" variable from the parent
+		outer l <= append($l, $val)
+		l <= append($l, $val)
+	}
+
+	return $doubleadd
+}
+```
+
+Or it has to be repeated every time ?
+
+```sh
+fn list() {
+	# initialize an "l" variable in this scope
+	l = ()
+
+	fn doubleadd(val) {
+		# use the "l" variable from the parent
+		outer l <= append($l, $val)
+		outer l <= append($l, $val)
+	}
+
+	return $doubleadd
+}
+```
