@@ -31,7 +31,7 @@ func init() {
 		if usr.HomeDir == "" {
 			panic("Unable to discover GOPATH")	
 		}
-		gopath = usr.HomeDir		
+		gopath = path.Join(usr.HomeDir, "go")
 	}
 
 	testDir = filepath.FromSlash(path.Join(gopath, "/src/github.com/NeowayLabs/nash/", "testfiles"))

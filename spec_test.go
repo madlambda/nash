@@ -5,14 +5,27 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"os/user"
+	"path"
+	"path/filepath"
 
 	"golang.org/x/exp/ebnf"
 )
 
 func TestSpecificationIsSane(t *testing.T) {
-	filename := os.Getenv("GOPATH") + "/src/github.com/NeowayLabs/nash/spec.ebnf"
+	gopath := os.Getenv("GOPATH")
+	if gopath == "" {
+		usr, err := user.Current()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if usr.HomeDir == "" {
+			t.Fatal("Unable to discover GOPATH")	
+		}
+		gopath = path.Join(usr.HomeDir, "go")
+	}
+	filename := filepath.Join(gopath, filepath.FromSlash("/src/github.com/NeowayLabs/nash/spec.ebnf"))
 	content, err := ioutil.ReadFile(filename)
-
 	if err != nil {
 		t.Error(err)
 		return

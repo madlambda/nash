@@ -11,6 +11,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"os/user"
+	"path"
+	"path/filepath"
+	"runtime"
 
 	"github.com/NeowayLabs/nash/sh"
 )
@@ -30,16 +34,26 @@ type fixture struct {
 
 func setup(t *testing.T) (fixture, func()) {
 	gopath := os.Getenv("GOPATH")
-
 	if gopath == "" {
-		t.Fatal("Please, run tests from inside GOPATH")
+		usr, err := user.Current()
+		if err != nil {
+			panic(err)
+		}
+		if usr.HomeDir == "" {
+			panic("Unable to discover GOPATH")	
+		}
+		gopath = path.Join(usr.HomeDir, "go")
 	}
 
-	testDir := gopath + "/src/github.com/NeowayLabs/nash/" + "testfiles"
-	nashdPath := gopath + "/src/github.com/NeowayLabs/nash/cmd/nash/nash"
+	testDir := filepath.FromSlash(path.Join(gopath, "/src/github.com/NeowayLabs/nash/", "testfiles"))
+	nashdPath := filepath.FromSlash(path.Join(gopath, "/src/github.com/NeowayLabs/nash/cmd/nash/nash"))
+
+	if runtime.GOOS == "windows" {
+		nashdPath += ".exe"
+	}
 
 	if _, err := os.Stat(nashdPath); err != nil {
-		t.Fatal("Please, run make build before running tests")
+		panic(fmt.Errorf("Please, run make build before running tests: %s", err.Error()))
 	}
 
 	err := os.Setenv("NASHPATH", "/tmp/.nash")
