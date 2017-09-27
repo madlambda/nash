@@ -1,9 +1,14 @@
 package nash
 
 import (
+	"fmt"
 	"bytes"
 	"os"
 	"testing"
+	"os/user"
+	"path"
+	"path/filepath"
+	"runtime"
 
 	"github.com/NeowayLabs/nash/sh"
 )
@@ -19,14 +24,25 @@ func init() {
 	gopath = os.Getenv("GOPATH")
 
 	if gopath == "" {
-		panic("Please, run tests from inside GOPATH")
+		usr, err := user.Current()
+		if err != nil {
+			panic(err)
+		}
+		if usr.HomeDir == "" {
+			panic("Unable to discover GOPATH")	
+		}
+		gopath = usr.HomeDir		
 	}
 
-	testDir = gopath + "/src/github.com/NeowayLabs/nash/" + "testfiles"
-	nashdPath = gopath + "/src/github.com/NeowayLabs/nash/cmd/nash/nash"
+	testDir = filepath.FromSlash(path.Join(gopath, "/src/github.com/NeowayLabs/nash/", "testfiles"))
+	nashdPath = filepath.FromSlash(path.Join(gopath, "/src/github.com/NeowayLabs/nash/cmd/nash/nash"))
+
+	if runtime.GOOS == "windows" {
+		nashdPath += ".exe"
+	}
 
 	if _, err := os.Stat(nashdPath); err != nil {
-		panic("Please, run make build before running tests")
+		panic(fmt.Errorf("Please, run make build before running tests: %s", err.Error()))
 	}
 }
 

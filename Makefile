@@ -7,8 +7,8 @@ buildargs = -ldflags "-X main.VersionString=$(version)" -v
 all: build test install
 
 build:
-	go build $(buildargs) -o ./cmd/nash/nash ./cmd/nash
-	go build $(buildargs) -o ./cmd/nashfmt/nashfmt ./cmd/nashfmt
+	cd cmd/nash && go build $(buildargs) 
+	cd cmd/nashfmt && go build $(buildargs)
 
 NASHPATH=$(HOME)/nash
 NASHROOT=$(HOME)/nashroot
