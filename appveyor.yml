@@ -5,15 +5,15 @@ platform: x64
 clone_folder: c:\gopath\src\github.com\NeowayLabs\nash
 
 environment:
-  GOPATH: c:\gopath
+	- GOPATH: c:\gopath
 
 install:
-  - echo %PATH%
-  - echo %GOPATH%
-  - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
-  - go version
-  - go env
+	- echo %PATH%
+	- echo %GOPATH%
+	- set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
+	- go version
+	- go env
 
-  build_script:
-  - make build
-  - make test
+build_script:
+	- make build
+	- make test
