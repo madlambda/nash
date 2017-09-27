@@ -7,8 +7,9 @@ buildargs = -ldflags "-X main.VersionString=$(version)" -v
 all: build test install
 
 build:
-	go build $(buildargs) -o ./cmd/nash/nash ./cmd/nash
-	go build $(buildargs) -o ./cmd/nashfmt/nashfmt ./cmd/nashfmt
+	cd cmd/nash && go build $(buildargs) 
+	cd cmd/nashfmt && go build $(buildargs) 
+	cd stdbin/mkdir && go build $(buildargs)
 
 NASHPATH=$(HOME)/nash
 NASHROOT=$(HOME)/nashroot
@@ -23,6 +24,7 @@ install: build
 	cp -p ./cmd/nashfmt/nashfmt $(NASHROOT)/bin
 	rm -rf $(NASHROOT)/stdlib
 	cp -pr ./stdlib $(NASHROOT)/stdlib
+	cp -pr ./stdbin/mkdir/mkdir $(NASHROOT)/bin/mkdir
 
 deps:
 	go get -v -t golang.org/x/exp/ebnf
