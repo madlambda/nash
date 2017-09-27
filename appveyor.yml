@@ -11,11 +11,11 @@ install:
   - "go env"
   - copy c:\MinGW\bin\mingw32-make.exe c:\MinGW\bin\make.exe
   - choco install cygwin
-  - type C:\ProgramData\chocolatey\logs\chocolatey.log
-  - set PATH=c:\\tools\\cygwin\\bin;%PATH%
-  - dir c:\tools\cygwin\bin
+  - set PATH=C:\\cygwin64\\bin;%PATH%
+  - dir C:\cygwin64\bin
   - find
 
 build_script: 
   - make build
   - make test
+
