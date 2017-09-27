@@ -10,6 +10,7 @@ install:
   - "go version"
   - "go env"
   - copy c:\MinGW\bin\mingw32-make.exe c:\MinGW\bin\make.exe
+  - choco install cygwin
 
 build_script: 
   - make build
