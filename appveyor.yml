@@ -6,7 +6,7 @@ environment:
 install: 
   - "echo %PATH%"
   - "echo %GOPATH%"
-  - "set PATH=%GOPATH%\\bin;c:\\go\\bin;%PATH%"
+  - "set PATH=%GOPATH%\\bin;c:\\go\\bin;c:\\MinGW\\bin;%PATH%"
   - "go version"
   - "go env"
   - copy c:\MinGW\bin\mingw32-make.exe c:\MinGW\bin\make.exe
