@@ -11,6 +11,7 @@ install:
   - "go env"
   - copy c:\MinGW\bin\mingw32-make.exe c:\MinGW\bin\make.exe
   - choco install cygwin
+  - set PATH=C:\\tools\\cygwin\\bin;%PATH%
 
 build_script: 
   - make build
