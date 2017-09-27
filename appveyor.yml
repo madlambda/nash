@@ -5,7 +5,7 @@ platform: x64
 clone_folder: c:\gopath\src\github.com\NeowayLabs\nash
 
 environment:
-	- GOPATH: c:\gopath
+	GOPATH: c:\gopath
 
 install:
 	- echo %PATH%
