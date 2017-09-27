@@ -63,11 +63,13 @@ fn add(val) {
 When we reference the **l** variable it uses the reference on the
 outer scope (the empty list), but there is no way to express syntactically
 that we want to change the list on the outer scope instead of creating
-a new variable **l**. That is why the **get** and **print** functions
+a new variable **l** (shadowing the outer **l**).
+
+That is why the **get** and **print** functions
 are always referencing an outer list **l** that is empty, a new one
 is created each time the add function is called.
 
-In this document we brainstorm about possible solutions to this.
+In this document we navigate the solution space for this problem.
 
 ## Proposal I - Create new variables explicitly
 
@@ -88,11 +90,10 @@ i = "0"
 ```
 
 Will be assigning a new value to an already existent variable **i**.
-
-The assignment must first look for the target variable in the local
-scope and then in the parent, recursively, until it's found and then updated,
-otherwise (in case the variable is not found) the interpreter must abort
-with error.
+The assignment will first look for the target variable in the local
+scope and then in the parent, traversing the entire stack, until it's
+found and then updated, otherwise (in case the variable is not found)
+the interpreter must abort with error.
 
 ```sh
 var count = "0" # declare local variable
@@ -106,8 +107,7 @@ inc()
 print($count) 	# outputs: 1
 ```
 
-Below is how this proposal solves the
-scope management problem example:
+Below is how this proposal solves the list example:
 
 ```sh
 fn list() {
@@ -153,67 +153,117 @@ var body, err <= curl -f $url
 var name, surname, err <= getAuthor()
 ```
 
-One of the downsides of `var` is the requirement that none of the
-targeted variable exists, because it makes awkward when existent
-variables must be used in conjunction with new ones. An example is the
-variables `$status` and `$err` that are often used to get process exit
-status and errors from functions, respectively.
+Using var always creates new variables, shadowing previous ones,
+for example:
 
-The [PR #227](https://github.com/NeowayLabs/nash/pull/227) implements
-this proposal but deviates in multiple assignments to handle the
-downside above. The `var` statement was implemented with the rules
-below:
-
-1. At least one of the targeted variables must do not exists;
-2. The existent variables are just updated in the scope it resides;
-
-Below are some valid examples with [#227](https://github.com/NeowayLabs/nash/pull/227):
 
 ```sh
 var a, b = "0", "1" # works fine, variables didn't existed before
 
-var a, b = "2", "3" # error by rule 1
-
-# works! c is declared but 'a' and 'b' are updated (by rule 2)
-var a, b, c = "4", "5", "6"
-
-# works, variables first declared
-var users, err <= cat /etc/passwd | awk -F ":" "{print $1}"
-
-# also works, but $err just updated
-var pass, err <= cat /etc/shadow | awk -F ":" "{print $2}"
+var a, b, c = "4", "5", "6" # works! too, creating new a, b, c
 ```
 
-The implementation above is handy but makes the meaning of `var`
-confuse because it declares new variables **and** update existent ones
-(in outer scopes also). Then making hard to know what variables are
-being declared local and what are being updated, by just looking at
-the statement, because the meaning will depend in the current
-environment of variables.
+On a dynamic typed language there is very little difference between
+creating a new var or just reassigning it since variables are just
+references that store no type information at all. For example,
+what is the difference between this:
 
-Another downside of `var` is their very incompatible nature. Every
-nash script ever created will be affected.
+```
+var a = "1"
+a = ()
+```
 
-Another behavior we need to discuss is whether all variables declared
-within a function (statement) will be created at the beginning 
-(as scope is created) or only at the time a 'var' keywork is found.
+And this ?
 
-```sh
+```
+var a = "1"
+var a = ()
+```
+
+The behavior will be exactly the same, there is no semantic error
+on reassigning the same variable to a value with a different type,
+so reassigning on redeclaring has no difference at all (although it
+makes sense for statically typed languages).
+
+Statements are evaluated in order, so this:
+
+```
+a = ()
+var a = "1"
+```
+
+Is **NOT** the same as this:
+
+```
+var a = "1"
+var a = ()
+```
+
+This is easier to understand when using closures, let's go
+back to our list implementation, we had something like this:
+
+```
 var l = ()
 
-fn test() {
-	l <= append($l, "1")
-	var l = ()
+fn add(val) {
+        # use the "l" variable from parent scope
+        # find first in the this scope if not found
+        # then find variable in the parent scope
+        l <= append($l, $val)
 }
-
-print($l) 	# outputs: "1"
 ```
 
-## Proposal II - "outer"
+If we write this:
+
+```
+var l = ()
+
+fn add(val) {
+        # creates new var
+        var l = ()
+        # manipulates new l var
+        l <= append($l, $val)
+}
+```
+
+The **add** function will not manipulate the **l** variable from the
+outer scope, and our list implementation will not work properly.
+
+But writing this:
+
+```
+var l = ()
+
+fn add(val) {
+        # manipulates outer l var
+        l <= append($l, $val)
+        # creates new var that is useless
+        var l = ()
+}
+```
+
+Will work, since we assigned a new value to the outer **l**
+before creating a new **l** var.
+
+The approach described here is very similar to how variables
+are handled in [Lua](https://www.lua.org/), with the exception
+that Lua uses the **local** keyword, instead of var.
+
+Also, Lua allows global variables to be created by default, on
+Nash we prefer to avoid global stuff and produce an error when
+assigning new values to variables that do not exist.
+
+Summarizing, on this proposal creating new variables is explicit
+and referencing existent variables on outer scopes is implicit.
+
+
+## Proposal II - Manipulate outer scope explicitly
 
 This proposal adds a new `outer` keyword that permits the update of
-variables in the outer scope. Outer assignments with non-existent
-variables is an error.
+variables in the outer scope. The default and implicit behavior of
+variable assignments is to always create a new variable.
+
+Considering our list example:
 
 ```sh
 fn list() {
@@ -235,15 +285,158 @@ fn list() {
 		print("list: [%s]\n", $l)
 	}
 
-	fn not_clear() {
-		# "l" is not cleared, but a new a new variable is created (shadowing)
-		# because "outer" isn't specified.
-		l = ()
-	}
-
 	return $add, $get, $string
 }
 ```
 
 The `outer` keyword has the same meaning that Python's `global`
 keyword.
+
+Different from Python global, outer must appear on all assignments,
+like this:
+
+```sh
+fn list() {
+	# initialize an "l" variable in this scope
+	l = ()
+
+	fn doubleadd(val) {
+		outer l <= append($l, $val)
+		outer l <= append($l, $val)
+	}
+
+	return $doubleadd
+}
+```
+
+This would be buggy and only add once:
+
+```sh
+fn list() {
+	# initialize an "l" variable in this scope
+	l = ()
+
+	fn doubleadd(val) {
+		outer l <= append($l, $val)
+		l <= append($l, $val)
+	}
+
+	return $doubleadd
+}
+```
+
+Trying to elaborate more on possible combinations
+when using the **outer** keyword we get at some hard
+questions, like what does outer means on this case:
+
+```
+fn list() {
+    # initialize an "l" variable in this scope
+    l = ()
+    fn doubleadd(val) {
+        l <= append($l, $val)
+        outer l <= append($l, $val)
+    }
+    return $doubleadd
+}
+```
+
+Will outer just handle the reference on its own scope or
+will it jump its own scope and manipulate the outer variable ?
+
+The name outer implies that it will manipulate the outer scope,
+bypassing its own current scope, but how do you read the outer
+variable ? We would need to support something like:
+
+```
+fn list() {
+    # initialize an "l" variable in this scope
+    l = ()
+    fn add(val) {
+        l <= "whatever"
+        outer l <= append(outer $l, $val)
+    }
+    return $doubleadd
+}
+```
+
+It is like with outer we are bypassing the lexical semantics
+of the code, the order of declarations is not relevant anymore
+since you have a form of "goto" to jump the current scope.
+
+## Comparing both approaches
+
+As everything in life, the design space for how to handle
+scope management is full of tradeoffs.
+
+Making outer scope management explicit makes declaring
+new variables easier, since you have to type less to
+create new vars.
+
+But managing scope using closures gets more cumbersome,
+consider this nested closures with the **outer** keyword:
+
+```sh
+fn list() {
+	l = ()
+
+	fn add(val) {
+		# use the "l" variable from the parent
+		outer l <= append($l, $val)
+		fn addagain() {
+		        outer l <= append($l, $val)
+		}
+		return $addagain
+	}
+
+	return $add
+}
+```
+
+And this one with **var** :
+
+```sh
+fn list() {
+	var l = ()
+
+	fn add(val) {
+		# use the "l" variable from the parent
+		l <= append($l, $val)
+		fn addagain() {
+		        l <= append($l, $val)
+		}
+		return $addagain
+	}
+
+	return $add
+}
+```
+
+The **var** option requires more writing for the common
+case of declaring new variables (specially on the interactive shell
+this is pretty annoying), but makes closures pretty
+natural to write, you just manipulate the variables
+that exists lexically on your scope, like you would do
+inside a **if** or **for** block.
+
+Thinking about cognition, it seems easier to write buggy code
+by forgetting to add an **outer** on the code than forgetting
+to add a **var** and by mistake manipulate an variable outside
+the scope.
+
+The decision to break if the variable does not exist also enhances
+the **var** option as less buggy since no new variable will be
+created if you forget the **var**, but lexically reachable variables
+will be manipulated (this is ameliorated by the fact that we don't have
+global variables).
+
+If we go for **outer** it seems that we are going to write less,
+but some code, involving closures, will be harder to read (and write).
+Since code is usually read more than it is written it seems like a sensible
+choice to optimize for readability and understandability than just
+save a few keystrokes.
+
+But any statements made about cognition are really hard to be
+considered as a global truth, since all human beings are biased which makes
+identification of common patterns of cognition really hard. But if software
+design has any kind of goal, must be this =).
