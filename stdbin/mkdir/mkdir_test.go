@@ -29,8 +29,6 @@ func TestMkdir(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		fmt.Println(testdir)
-
 		if s, err := os.Stat(testdir); err != nil {
 			t.Fatal(err)
 		} else if s.Mode()&os.ModeDir != os.ModeDir {
