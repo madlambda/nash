@@ -5,27 +5,27 @@ import rglob
 fn setup() {
 	temp_dir <= mktemp -d
 
-	test_txt  = $temp_dir+"/test.txt"
-	test_sh   = $temp_dir+"/test.sh"
+	test_txt = $temp_dir+"/test.txt"
+	test_sh  = $temp_dir+"/test.sh"
 
-	_, _      <= touch $test_txt
-	_, _      <= touch $test_sh
+	touch $test_txt
+	touch $test_sh
 
 	hello_dir = $temp_dir+"/hello"
 	world_dir = $temp_dir+"/world"
 
-	_, _      <= mkdir $hello_dir
-	_, _      <= mkdir $world_dir
+	mkdir $hello_dir
+	mkdir $world_dir
 
 	honda_txt = $hello_dir+"/honda.txt"
 	honda_sh  = $hello_dir+"/honda.sh"
 	civic_txt = $world_dir+"/civic.txt"
 	civic_sh  = $world_dir+"/civic.sh"
 
-	_, _      <= touch $honda_txt
-	_, _      <= touch $honda_sh
-	_, _      <= touch $civic_txt
-	_, _      <= touch $civic_sh
+	touch $honda_txt
+	touch $honda_sh
+	touch $civic_txt
+	touch $civic_sh
 
 	return $temp_dir
 }
