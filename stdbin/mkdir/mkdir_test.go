@@ -6,33 +6,55 @@ import (
 	"path/filepath"
 	"io/ioutil"
 	"os"
-	"fmt"
 )
 
-func TestMkdir(t *testing.T) {
+type testcase struct {
+	dirs []string
+}
+
+func testMkdir(t *testing.T, tc testcase) {
 	tmpDir, err := ioutil.TempDir("", "nash-mkdir")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	testDirs := []string{
-		"1", "2", "3", "4", "5",
-		"some", "thing", "_random_",
-		"_",
+	defer os.RemoveAll(tmpDir)
+	var dirs []string
+	for _, p := range tc.dirs {
+		dirs = append(dirs, filepath.FromSlash(path.Join(tmpDir, p)))
 	}
 
-	defer os.RemoveAll(tmpDir)
-	for _, p := range testDirs {
-		testdir := filepath.FromSlash(path.Join(tmpDir, p))
-		err = mkdirs([]string{testdir})
-		if err != nil {
-			t.Fatal(err)
-		}
+	err = mkdirs(dirs)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		if s, err := os.Stat(testdir); err != nil {
+	for _, d := range dirs {
+		if s, err := os.Stat(d); err != nil {
 			t.Fatal(err)
 		} else if s.Mode()&os.ModeDir != os.ModeDir {
-			t.Errorf("Invalid directory mode: %v", s.Mode())
+			t.Fatalf("Invalid directory mode: %v", s.Mode())
 		}
+	}
+}
+
+func TestMkdir(t *testing.T) {
+	for _, tc := range []testcase{
+		{
+			dirs: []string{},
+		},
+		{
+			dirs: []string{
+				"1", "2", "3", "4", "5",
+				"some", "thing", "_random_",
+				"_",
+			},
+		},
+		{
+			dirs: []string{},
+		},
+	} {
+		tc := tc 
+		testMkdir(t, tc)
 	}
 }

@@ -22,7 +22,7 @@ func main() {
 	}
 	err := mkdirs(os.Args[1:])
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		os.Exit(1)
 	}
 }
