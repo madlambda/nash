@@ -51,7 +51,7 @@ func TestMkdir(t *testing.T) {
 			},
 		},
 		{
-			dirs: []string{},
+			dirs: []string{"a", "a"}, // directory already exists, silently works
 		},
 	} {
 		tc := tc 
