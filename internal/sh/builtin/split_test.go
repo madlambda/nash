@@ -45,14 +45,9 @@ func TestSplit(t *testing.T) {
 	for name, desc := range tests {
 		t.Run(name, func(t *testing.T) {
 			var output bytes.Buffer
-			shell, err := nash.New()
-
-			if err != nil {
-				t.Fatalf("unexpected err: %s", err)
-			}
-
+			shell := newShell(t)
 			shell.SetStdout(&output)
-			err = shell.ExecFile(desc.script, "mock cmd name", desc.word, desc.sep)
+			err := shell.ExecFile(desc.script, "mock cmd name", desc.word, desc.sep)
 
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
@@ -63,4 +58,47 @@ func TestSplit(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSplitingByFuncWrongWontPanic(t *testing.T) {
+	// Regression for: https://github.com/NeowayLabs/nash/issues/177
+
+	badscripts := map[string]string{
+		"noReturnValue": `
+			fn b() { echo "oops" }
+			split("lalala", $b)
+		`,
+		"returnValueIsList": `
+			fn b() { return () }
+			split("lalala", $b)
+		`,
+		"returnValueIsFunc": `
+			fn b() { 
+				fn x () {}
+				return $x
+			}
+			split("lalala", $b)
+		`,
+	}
+
+	for testname, badscript := range badscripts {
+
+		t.Run(testname, func(t *testing.T) {
+			shell := newShell(t)
+			_, err := shell.ExecOutput("whatever", badscript)
+			if err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func newShell(t *testing.T) *nash.Shell {
+	shell, err := nash.New()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return shell
 }
