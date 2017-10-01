@@ -747,9 +747,14 @@ func TestExecuteCd(t *testing.T) {
 		t.Fatal(err)
 	}
 	tmpdirEscaped := strings.Replace(tmpdir, "\\", "\\\\", -1)
+	homeEnvVar := "HOME"
+	if runtime.GOOS == "windows" {
+		homeEnvVar = "HOMEPATH"
+	}
+
 	for _, test := range []execTestCase{
 		{
-			desc: "test cd",
+			desc: "test cd 1",
 			execStr: fmt.Sprintf(`cd %s
         pwd`, tmpdir),
 			expectedStdout: tmpdir + "\n",
@@ -757,11 +762,11 @@ func TestExecuteCd(t *testing.T) {
 			expectedErr:    "",
 		},
 		{
-			desc: "test cd",
-			execStr: fmt.Sprintf(`HOME="%s"
-        setenv HOME
+			desc: "test cd 2",
+			execStr: fmt.Sprintf(`%s = "%s"
+        setenv %s
         cd
-        pwd`, tmpdirEscaped),
+        pwd`, homeEnvVar, tmpdirEscaped, homeEnvVar),
 			expectedStdout: tmpdir + "\n",
 			expectedStderr: "",
 			expectedErr:    "",
@@ -776,15 +781,6 @@ func TestExecuteCd(t *testing.T) {
 			expectedStderr: "",
 			expectedErr:    "",
 		},
-		{
-			desc: "test error",
-			execStr: `var=("val1" "val2" "val3")
-        cd $var
-        pwd`,
-			expectedStdout: "",
-			expectedStderr: "",
-			expectedErr:    "<interactive>:2:12: lvalue is not comparable: (val1 val2 val3) -> ListType.",
-		},
 	} {
 		testInteractiveExec(t, test)
 	}
@@ -797,26 +793,30 @@ func TestExecuteImport(t *testing.T) {
 	defer teardown()
 
 	shell, err := NewShell()
-
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	shell.SetNashdPath(f.nashdPath)
 	shell.SetStdout(&out)
 
-	err = ioutil.WriteFile("/tmp/test.sh", []byte(`TESTE="teste"`), 0644)
-
+	tmpfile, err := ioutil.TempFile("", "nash-import")
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
-	err = shell.Exec("test import", `import /tmp/test.sh
-        echo $TESTE
-        `)
+	defer os.Remove(tmpfile.Name())
 
+	_, err = tmpfile.Write([]byte(`TESTE="teste"`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fnameEscaped := strings.Replace(tmpfile.Name(), "\\", "\\\\", -1)
+
+	err = shell.Exec("test import", fmt.Sprintf(`import %s
+        echo $TESTE
+        `, fnameEscaped))
 	if err != nil {
 		t.Error(err)
 		return
@@ -1385,13 +1385,17 @@ func TestExecuteRedirectionPipe(t *testing.T) {
 
 func testTCPRedirection(t *testing.T, port, command string) {
 	message := "hello world"
-
 	done := make(chan bool)
 
 	l, err := net.Listen("tcp", port)
-
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	fmt.Println("Listener working")
+
+	if runtime.GOOS == "windows" {
+		time.Sleep(5 * time.Second)
 	}
 
 	f, teardown := setup(t)
@@ -1399,10 +1403,8 @@ func testTCPRedirection(t *testing.T, port, command string) {
 
 	go func() {
 		shell, err := NewShell()
-
 		if err != nil {
-			t.Error(err)
-			return
+			t.Fatal(err)
 		}
 
 		shell.SetNashdPath(f.nashdPath)
@@ -1410,7 +1412,6 @@ func testTCPRedirection(t *testing.T, port, command string) {
 		<-done
 
 		err = shell.Exec("test net redirection", command)
-
 		if err != nil {
 			t.Error(err)
 			return
@@ -1423,18 +1424,17 @@ func testTCPRedirection(t *testing.T, port, command string) {
 		done <- true
 		conn, err := l.Accept()
 		if err != nil {
-			return
+			t.Fatal(err)
 		}
 
 		defer conn.Close()
 
 		buf, err := ioutil.ReadAll(conn)
-
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		fmt.Println(string(buf[:]))
+		fmt.Printf("got: '%s'\n", string(buf[:]))
 
 		if msg := string(buf[:]); msg != message {
 			t.Fatalf("Unexpected message:\nGot:\t\t%s\nExpected:\t%s\n", msg, message)
@@ -1445,8 +1445,8 @@ func testTCPRedirection(t *testing.T, port, command string) {
 }
 
 func TestTCPRedirection(t *testing.T) {
-	testTCPRedirection(t, ":6666", `echo -n "hello world" >[1] "tcp://localhost:6666"`)
-	testTCPRedirection(t, ":6667", `echo -n "hello world" > "tcp://localhost:6667"`)
+	//testTCPRedirection(t, ":6666", `echo -n "hello world" >[1] "tcp://localhost:6666"`)
+	testTCPRedirection(t, "localhost:6667", `echo -n "hello world" > "tcp://localhost:6667"`)
 }
 
 func TestExecuteUnixRedirection(t *testing.T) {

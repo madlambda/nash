@@ -411,10 +411,18 @@ func (shell *Shell) setupBuiltin() {
 
 func (shell *Shell) setupDefaultBindings() error {
 	// only one builtin fn... no need for advanced machinery yet
-	err := shell.Exec(shell.name, `fn nash_builtin_cd(path) {
-		chdir($path)
+	homeEnvVar := "HOME"
+	if runtime.GOOS == "windows" {
+		homeEnvVar = "HOMEPATH"
 	}
-	bindfn nash_builtin_cd cd`)
+	err := shell.Exec(shell.name, fmt.Sprintf(`fn nash_builtin_cd(path) {
+		if $path == "" {
+			chdir($%s)
+		} else {
+			chdir($path)
+		}
+	}
+	bindfn nash_builtin_cd cd`, homeEnvVar))
 
 	return err
 }
