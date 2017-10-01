@@ -1413,34 +1413,29 @@ func testTCPRedirection(t *testing.T, port, command string) {
 
 		err = shell.Exec("test net redirection", command)
 		if err != nil {
-			t.Error(err)
-			return
+			t.Fatal(err)
 		}
 	}()
 
 	defer l.Close()
 
-	for {
-		done <- true
-		conn, err := l.Accept()
-		if err != nil {
-			t.Fatal(err)
-		}
+	done <- true
+	conn, err := l.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		defer conn.Close()
+	defer conn.Close()
 
-		buf, err := ioutil.ReadAll(conn)
-		if err != nil {
-			t.Fatal(err)
-		}
+	buf, err := ioutil.ReadAll(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-		fmt.Printf("got: '%s'\n", string(buf[:]))
+	fmt.Printf("got: '%s'\n", string(buf[:]))
 
-		if msg := string(buf[:]); msg != message {
-			t.Fatalf("Unexpected message:\nGot:\t\t%s\nExpected:\t%s\n", msg, message)
-		}
-
-		return // Done
+	if msg := string(buf[:]); msg != message {
+		t.Fatalf("Unexpected message:\nGot:\t\t%s\nExpected:\t%s\n", msg, message)
 	}
 }
 
