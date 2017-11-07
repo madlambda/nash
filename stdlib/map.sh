@@ -35,3 +35,16 @@ fn map_add(map, key, val) {
         map <= append($map, $tuple)
         return $map
 }
+
+fn map_del(map, key) {
+	newmap = ()
+
+        for entry in $map {
+                if $entry[0] != $key {
+			tuple = ($entry[0] $entry[1])
+			newmap <= append($newmap, $tuple)
+                }
+        }
+
+        return $newmap
+}
