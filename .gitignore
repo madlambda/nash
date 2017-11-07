@@ -4,3 +4,4 @@
 cmd/nashfmt/nashfmt
 dist
 *.exe
+stdbin/mkdir/mkdir
