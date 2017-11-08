@@ -81,7 +81,7 @@ func TestGlobMultipleResults(t *testing.T) {
 
 	res := strings.Split(out, " ")
 	if len(res) != 2 {
-		t.Fatalf("expected 2 results, got: %s", len(res))
+		t.Fatalf("expected 2 results, got: %d", len(res))
 	}
 
 	found1 := false
