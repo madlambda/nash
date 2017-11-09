@@ -1,4 +1,3 @@
-// Package assert has come common assert functions
 package assert
 
 import "testing"
