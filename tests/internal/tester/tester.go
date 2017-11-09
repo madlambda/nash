@@ -13,15 +13,23 @@ type TestCase struct {
 	Name           string
 	ScriptCode     string
 	ExpectedOutput string
+	Fails          bool
 }
 
 func Run(t *testing.T, cases ...TestCase) {
 
 	for _, tcase := range cases {
 		t.Run(tcase.Name, func(t *testing.T) {
-			t.Parallel()
-			output := sh.ExecSuccess(t, tcase.ScriptCode)
-			assert.EqualStrings(t, tcase.ExpectedOutput, output)
+			output, err := sh.Exec(t, tcase.ScriptCode)
+			if !tcase.Fails {
+				if err != nil {
+					t.Fatalf("error[%s] output[%s]", err, output)
+				}
+			}
+
+			if tcase.ExpectedOutput != "" {
+				assert.EqualStrings(t, tcase.ExpectedOutput, output)
+			}
 		})
 	}
 }

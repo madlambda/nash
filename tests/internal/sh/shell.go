@@ -14,13 +14,9 @@ import (
 
 const projectnash = "../cmd/nash/nash"
 
-// ExecSuccess fails the test case if the script exits with failure.
+// Exec runs the script code and returns the result of it.
 // It will coalesce the stdout and stderr together and return as a string.
-func ExecSuccess(
-	t *testing.T,
-	scriptcode string,
-	scriptargs ...string,
-) string {
+func Exec(t *testing.T, scriptcode string, scriptargs ...string) (string, error) {
 	scriptfile, err := ioutil.TempFile("", "testshell")
 	assert.NoError(t, err, "creating tmp file")
 
@@ -45,9 +41,5 @@ func ExecSuccess(
 
 	err = cmd.Run()
 	output := stdout.String() + stderr.String()
-	if err != nil {
-		t.Fatalf("error[%s] output[%s]", err, output)
-	}
-
-	return output
+	return output, err
 }
