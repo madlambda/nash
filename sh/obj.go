@@ -66,6 +66,10 @@ func NewListObj(val []Obj) *ListObj {
 	}
 }
 
+func (o *ListObj) Len() int {
+	return len(o.list)
+}
+
 func (o *ListObj) Set(index int, value Obj) error {
 	if index >= len(o.list) {
 		return fmt.Errorf(

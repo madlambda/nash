@@ -524,59 +524,6 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 	}
 }
 
-// IFS *DO NOT* exists anymore.
-// This tests only assure things works as expected (IFS has no power)
-func TestExecuteCmdAssignmentIFSDontWork(t *testing.T) {
-	for _, test := range []execTestCase{
-		{
-			"ifs",
-			`IFS = (" ")
-range <= echo 1 2 3 4 5 6 7 8 9 10
-
-for i in $range {
-    echo "i = " + $i
-}`,
-			"", "",
-			"<interactive>:4:9: Invalid variable type in for range: StringType",
-		},
-		{
-			"ifs",
-			`IFS = (";")
-range <= echo "1;2;3;4;5;6;7;8;9;10"
-
-for i in $range {
-    echo "i = " + $i
-}`,
-			"", "",
-			"<interactive>:4:9: Invalid variable type in for range: StringType",
-		},
-		{
-			"ifs",
-			`IFS = (" " ";")
-range <= echo "1;2;3;4;5;6 7;8;9;10"
-
-for i in $range {
-    echo "i = " + $i
-}`,
-			"", "",
-			"<interactive>:4:9: Invalid variable type in for range: StringType",
-		},
-		{
-			"ifs",
-			`IFS = (" " "-")
-range <= echo "1;2;3;4;5;6;7-8;9;10"
-
-for i in $range {
-    echo "i = " + $i
-}`,
-			"", "",
-			"<interactive>:4:9: Invalid variable type in for range: StringType",
-		},
-	} {
-		testExec(t, test)
-	}
-}
-
 func TestExecuteRedirection(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()

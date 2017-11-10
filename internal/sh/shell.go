@@ -90,6 +90,7 @@ type WriteIndexer interface {
 
 type ReadIndexer interface {
 	Get(index int) (sh.Obj, error)
+	Len() int
 }
 
 func newErrIgnore(format string, arg ...interface{}) error {
@@ -2226,14 +2227,18 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 		return nil, err
 	}
 
-	if obj.Type() != sh.ListType {
+	indexer, err := newReadIndexer(obj)
+	if err != nil {
 		return nil, errors.NewEvalError(shell.filename,
-			inExpr, "Invalid variable type in for range: %s", obj.Type())
+			inExpr, "error[%s] trying to iterate", err)
 	}
 
-	objlist := obj.(*sh.ListObj)
-
-	for _, val := range objlist.List() {
+	for i := 0; i < indexer.Len(); i++ {
+		val, err := indexer.Get(i)
+		if err != nil {
+			return nil, errors.NewEvalError(shell.filename,
+				inExpr, "unexpected error[%s] during iteration", err)
+		}
 		shell.Setvar(id, val)
 
 		objs, err := shell.executeTree(n.Tree(), false)
