@@ -80,7 +80,6 @@ func (o *StrObj) Str() string { return string(o.runes) }
 func (o *StrObj) String() string { return o.Str() }
 
 func (o *StrObj) Get(index int) (Obj, error) {
-	// FIXME: Use runes instead
 	if index >= o.Len() {
 		return nil, fmt.Errorf(
 			"IndexError: Index[%d] out of range, string size[%d]",
