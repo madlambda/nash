@@ -18,6 +18,16 @@ func TestListIndexing(t *testing.T) {
 			ExpectStdout: "1\n2\n",
 		},
 		tester.TestCase{
+			Name: "PositionalAssigment",
+			ScriptCode: `
+				a = ("1" "2")
+				a[0] = "9"
+				a[1] = "p"
+				echo $a[0] + $a[1]
+			`,
+			ExpectStdout: "9p\n",
+		},
+		tester.TestCase{
 			Name: "PositionalAccessWithVar",
 			ScriptCode: `
 				a = ("1" "2")
@@ -56,7 +66,7 @@ func TestListIndexing(t *testing.T) {
 				echo $a[3]
 			`,
 			Fails: true,
-			ExpectStderrToContain: "Index out of bounds",
+			ExpectStderrToContain: "IndexError",
 		},
 		tester.TestCase{
 			Name: "IndexEmptyFails",
@@ -65,7 +75,7 @@ func TestListIndexing(t *testing.T) {
 				echo $a[0]
 			`,
 			Fails: true,
-			ExpectStderrToContain: "Index out of bounds",
+			ExpectStderrToContain: "IndexError",
 		},
 	)
 }

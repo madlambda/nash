@@ -56,5 +56,15 @@ func TestStringIndexing(t *testing.T) {
 			Fails: true,
 			ExpectStderrToContain: "IndexError",
 		},
+		tester.TestCase{
+			Name: "IsImmutable",
+			ScriptCode: `
+				a = "12"
+				a[0] = "2"
+				echo $a
+			`,
+			Fails: true,
+			ExpectStderrToContain: "IndexError",
+		},
 	)
 }

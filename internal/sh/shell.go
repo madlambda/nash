@@ -541,7 +541,7 @@ func newReadIndexer(o sh.Obj) (ReadIndexer, error) {
 	indexer, ok := o.(ReadIndexer)
 	if !ok {
 		return nil, fmt.Errorf(
-			"Trying to use a non-read/indexable type %s to read from index",
+			"IndexError: trying to use a non read/indexable type %s to read from index",
 			o.Type(),
 		)
 	}
@@ -552,7 +552,7 @@ func newWriteIndexer(o sh.Obj) (WriteIndexer, error) {
 	indexer, ok := o.(WriteIndexer)
 	if !ok {
 		return nil, fmt.Errorf(
-			"Trying to use a non-write/indexable type %s to write on index: ",
+			"IndexError: trying to use a non write/indexable type %s to write on index: ",
 			o.Type(),
 		)
 	}
