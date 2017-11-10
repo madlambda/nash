@@ -84,8 +84,12 @@ const (
 	ENotStarted            = 255
 )
 
-type Indexer interface {
+type WriteIndexer interface {
 	Set(index int, val sh.Obj) error
+}
+
+type ReadIndexer interface {
+	Get(index int) (sh.Obj, error)
 }
 
 func newErrIgnore(format string, arg ...interface{}) error {
@@ -532,13 +536,24 @@ func (shell *Shell) ExecFile(path string) error {
 	return shell.Exec(path, string(content))
 }
 
-func (shell *Shell) newIndexer(o sh.Obj, name *ast.NameNode) (Indexer, error) {
-	indexer, ok := o.(Indexer)
+func (shell *Shell) newReadIndexer(o sh.Obj) (ReadIndexer, error) {
+	indexer, ok := o.(ReadIndexer)
 	if !ok {
-		return nil, errors.NewEvalError(shell.filename,
-			name, "Trying to use a non-indexable type as a indexer: Variable %s is %s",
-			name.Ident,
-			o.Type())
+		return nil, fmt.Errorf(
+			"Trying to use a non-read/indexable type %s to read from index",
+			o.Type(),
+		)
+	}
+	return indexer, nil
+}
+
+func (shell *Shell) newWriteIndexer(o sh.Obj) (WriteIndexer, error) {
+	indexer, ok := o.(WriteIndexer)
+	if !ok {
+		return nil, fmt.Errorf(
+			"Trying to use a non-write/indexable type %s to write on index: ",
+			o.Type(),
+		)
 	}
 	return indexer, nil
 }
@@ -561,9 +576,9 @@ func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
 		return err
 	}
 
-	indexer, err := shell.newIndexer(obj, name)
+	indexer, err := shell.newWriteIndexer(obj)
 	if err != nil {
-		return err
+		return errors.NewEvalError(shell.filename, name, err.Error())
 	}
 
 	err = indexer.Set(index, value)
@@ -1497,9 +1512,9 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, err
 	}
 
-	if v.Type() != sh.ListType {
-		return nil, errors.NewEvalError(shell.filename, indexVar.Var,
-			"Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
+	indexer, err := shell.newReadIndexer(v)
+	if err != nil {
+		return nil, err
 	}
 
 	indexNum, err := shell.evalIndex(indexVar.Index)
@@ -1507,17 +1522,11 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, err
 	}
 
-	vlist := v.(*sh.ListObj)
-	values := vlist.List()
-
-	if indexNum < 0 || indexNum >= len(values) {
-		return nil, errors.NewEvalError(shell.filename,
-			indexVar.Var,
-			"Index out of bounds. len(%s) == %d, but given %d", indexVar.Var.Name,
-			len(values), indexNum)
+	val, err := indexer.Get(indexNum)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
-
-	return values[indexNum], nil
+	return val, nil
 }
 
 func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error) {

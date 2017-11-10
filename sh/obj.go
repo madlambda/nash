@@ -69,13 +69,24 @@ func NewListObj(val []Obj) *ListObj {
 func (o *ListObj) Set(index int, value Obj) error {
 	if index >= len(o.list) {
 		return fmt.Errorf(
-			"trying to index[%d] on list with size[%d]",
+			"Index[%d] out of range, list size[%d]",
 			index,
 			len(o.list),
 		)
 	}
 	o.list[index] = value
 	return nil
+}
+
+func (o *ListObj) Get(index int) (Obj, error) {
+	if index >= len(o.list) {
+		return nil, fmt.Errorf(
+			"Index out of bounds, index[%d] but list size[%d]",
+			index,
+			len(o.list),
+		)
+	}
+	return o.list[index], nil
 }
 
 func (o *ListObj) List() []Obj { return o.list }
