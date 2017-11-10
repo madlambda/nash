@@ -10,7 +10,7 @@ import (
 
 type (
 	lenFn struct {
-		arg sh.Enumerable
+		arg sh.Collection
 	}
 )
 
@@ -38,11 +38,11 @@ func (l *lenFn) SetArgs(args []sh.Obj) error {
 	}
 
 	obj := args[0]
-	indexer, err := sh.NewEnumerable(obj)
+	col, err := sh.NewCollection(obj)
 	if err != nil {
 		return errors.NewError("len:error[%s]", err)
 	}
 
-	l.arg = indexer
+	l.arg = col
 	return nil
 }

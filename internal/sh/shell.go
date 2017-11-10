@@ -546,12 +546,12 @@ func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
 		return err
 	}
 
-	indexer, err := sh.NewWriteIndexer(obj)
+	col, err := sh.NewWriteableCollection(obj)
 	if err != nil {
 		return errors.NewEvalError(shell.filename, name, err.Error())
 	}
 
-	err = indexer.Set(index, value)
+	err = col.Set(index, value)
 	if err != nil {
 		return errors.NewEvalError(
 			shell.filename,
@@ -1482,7 +1482,7 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, err
 	}
 
-	indexer, err := sh.NewReadIndexer(v)
+	col, err := sh.NewCollection(v)
 	if err != nil {
 		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
@@ -1492,7 +1492,7 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, err
 	}
 
-	val, err := indexer.Get(indexNum)
+	val, err := col.Get(indexNum)
 	if err != nil {
 		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
@@ -1505,7 +1505,7 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		return nil, err
 	}
 
-	indexer, err := sh.NewReadIndexer(v)
+	col, err := sh.NewCollection(v)
 	if err != nil {
 		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
@@ -1515,7 +1515,7 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		return nil, err
 	}
 
-	retval, err := indexer.Get(indexNum)
+	retval, err := col.Get(indexNum)
 	if err != nil {
 		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
@@ -2196,14 +2196,14 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 		return nil, err
 	}
 
-	indexer, err := sh.NewReadIndexer(obj)
+	col, err := sh.NewCollection(obj)
 	if err != nil {
 		return nil, errors.NewEvalError(shell.filename,
 			inExpr, "error[%s] trying to iterate", err)
 	}
 
-	for i := 0; i < indexer.Len(); i++ {
-		val, err := indexer.Get(i)
+	for i := 0; i < col.Len(); i++ {
+		val, err := col.Get(i)
 		if err != nil {
 			return nil, errors.NewEvalError(shell.filename,
 				inExpr, "unexpected error[%s] during iteration", err)

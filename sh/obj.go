@@ -32,44 +32,29 @@ type (
 		runes []rune
 	}
 
-	Enumerable interface {
+	Collection interface {
 		Len() int
-	}
-
-	WriteIndexer interface {
-		Set(index int, val Obj) error
-	}
-
-	ReadIndexer interface {
-		Enumerable
 		Get(index int) (Obj, error)
+	}
+
+	WriteableCollection interface {
+		Set(index int, val Obj) error
 	}
 )
 
-func NewEnumerable(o Obj) (Enumerable, error) {
-	sizer, ok := o.(Enumerable)
+func NewCollection(o Obj) (Collection, error) {
+	sizer, ok := o.(Collection)
 	if !ok {
 		return nil, fmt.Errorf(
-			"SizeError: trying to get size from a non enumerable type %s",
+			"SizeError: trying to get size from type %s which is not a collection",
 			o.Type(),
 		)
 	}
 	return sizer, nil
 }
 
-func NewReadIndexer(o Obj) (ReadIndexer, error) {
-	indexer, ok := o.(ReadIndexer)
-	if !ok {
-		return nil, fmt.Errorf(
-			"IndexError: trying to use a non read/indexable type %s to read from index",
-			o.Type(),
-		)
-	}
-	return indexer, nil
-}
-
-func NewWriteIndexer(o Obj) (WriteIndexer, error) {
-	indexer, ok := o.(WriteIndexer)
+func NewWriteableCollection(o Obj) (WriteableCollection, error) {
+	indexer, ok := o.(WriteableCollection)
 	if !ok {
 		return nil, fmt.Errorf(
 			"IndexError: trying to use a non write/indexable type %s to write on index: ",
