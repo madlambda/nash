@@ -16,7 +16,7 @@ func TestStringIndexing(t *testing.T) {
 				echo $a[0]
 				echo $a[1]
 			`,
-			ExpectOutput: "1\n2\n",
+			ExpectStdout: "1\n2\n",
 		},
 		tester.TestCase{
 			Name: "Iteration",
@@ -26,7 +26,7 @@ func TestStringIndexing(t *testing.T) {
 					echo $x
 				}
 			`,
-			ExpectOutput: "1\n2\n3\n",
+			ExpectStdout: "1\n2\n3\n",
 		},
 		tester.TestCase{
 			Name: "IterateEmpty",
@@ -37,7 +37,7 @@ func TestStringIndexing(t *testing.T) {
 				}
 				echo "ok"
 			`,
-			ExpectOutput: "ok\n",
+			ExpectStdout: "ok\n",
 		},
 		tester.TestCase{
 			Name: "IndexOutOfRangeFails",
@@ -46,7 +46,7 @@ func TestStringIndexing(t *testing.T) {
 				echo $a[3]
 			`,
 			Fails: true,
-			ExpectOutputToContain: "Index out of bounds",
+			ExpectStderrToContain: "Index out of bounds",
 		},
 		tester.TestCase{
 			Name: "IndexEmptyFails",
@@ -55,7 +55,7 @@ func TestStringIndexing(t *testing.T) {
 				echo $a[0]
 			`,
 			Fails: true,
-			ExpectOutputToContain: "Index out of bounds",
+			ExpectStderrToContain: "Index out of bounds",
 		},
 	)
 }

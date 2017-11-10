@@ -13,13 +13,12 @@ import (
 )
 
 // Exec runs the script code and returns the result of it.
-// It will coalesce the stdout and stderr together and return as a string.
 func Exec(
 	t *testing.T,
 	nashpath string,
 	scriptcode string,
 	scriptargs ...string,
-) (string, error) {
+) (string, string, error) {
 	scriptfile, err := ioutil.TempFile("", "testshell")
 	assert.NoError(t, err, "creating tmp file")
 
@@ -43,6 +42,5 @@ func Exec(
 	cmd.Stderr = &stderr
 
 	err = cmd.Run()
-	output := stdout.String() + stderr.String()
-	return output, err
+	return stdout.String(), stderr.String(), err
 }

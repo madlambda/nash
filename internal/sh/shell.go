@@ -1514,7 +1514,7 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 
 	indexer, err := shell.newReadIndexer(v)
 	if err != nil {
-		return nil, err
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
 
 	indexNum, err := shell.evalIndex(indexVar.Index)

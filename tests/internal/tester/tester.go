@@ -12,8 +12,8 @@ import (
 type TestCase struct {
 	Name                  string
 	ScriptCode            string
-	ExpectOutput          string
-	ExpectOutputToContain string
+	ExpectStdout          string
+	ExpectStderrToContain string
 	Fails                 bool
 }
 
@@ -21,19 +21,31 @@ func Run(t *testing.T, nashcmd string, cases ...TestCase) {
 
 	for _, tcase := range cases {
 		t.Run(tcase.Name, func(t *testing.T) {
-			output, err := sh.Exec(t, nashcmd, tcase.ScriptCode)
+			stdout, stderr, err := sh.Exec(t, nashcmd, tcase.ScriptCode)
 			if !tcase.Fails {
 				if err != nil {
-					t.Fatalf("error[%s] output[%s]", err, output)
+					t.Fatalf(
+						"error[%s] stdout[%s] stderr[%s]",
+						err,
+						stdout,
+						stderr,
+					)
+				}
+
+				if stderr != "" {
+					t.Fatalf(
+						"unexpected stderr[%s], on success no stderr is expected",
+						stderr,
+					)
 				}
 			}
 
-			if tcase.ExpectOutput != "" {
-				assert.EqualStrings(t, tcase.ExpectOutput, output)
+			if tcase.ExpectStdout != "" {
+				assert.EqualStrings(t, tcase.ExpectStdout, stdout)
 			}
 
-			if tcase.ExpectOutputToContain != "" {
-				assert.ContainsString(t, output, tcase.ExpectOutputToContain)
+			if tcase.ExpectStderrToContain != "" {
+				assert.ContainsString(t, stderr, tcase.ExpectStderrToContain)
 			}
 		})
 	}
