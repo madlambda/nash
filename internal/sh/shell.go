@@ -84,15 +84,6 @@ const (
 	ENotStarted            = 255
 )
 
-type WriteIndexer interface {
-	Set(index int, val sh.Obj) error
-}
-
-type ReadIndexer interface {
-	Get(index int) (sh.Obj, error)
-	Len() int
-}
-
 func newErrIgnore(format string, arg ...interface{}) error {
 	e := &errIgnore{
 		NashError: errors.NewError(format, arg...),
@@ -537,28 +528,6 @@ func (shell *Shell) ExecFile(path string) error {
 	return shell.Exec(path, string(content))
 }
 
-func newReadIndexer(o sh.Obj) (ReadIndexer, error) {
-	indexer, ok := o.(ReadIndexer)
-	if !ok {
-		return nil, fmt.Errorf(
-			"IndexError: trying to use a non read/indexable type %s to read from index",
-			o.Type(),
-		)
-	}
-	return indexer, nil
-}
-
-func newWriteIndexer(o sh.Obj) (WriteIndexer, error) {
-	indexer, ok := o.(WriteIndexer)
-	if !ok {
-		return nil, fmt.Errorf(
-			"IndexError: trying to use a non write/indexable type %s to write on index: ",
-			o.Type(),
-		)
-	}
-	return indexer, nil
-}
-
 func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
 
 	if name.Index == nil {
@@ -577,7 +546,7 @@ func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
 		return err
 	}
 
-	indexer, err := newWriteIndexer(obj)
+	indexer, err := sh.NewWriteIndexer(obj)
 	if err != nil {
 		return errors.NewEvalError(shell.filename, name, err.Error())
 	}
@@ -1513,7 +1482,7 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, err
 	}
 
-	indexer, err := newReadIndexer(v)
+	indexer, err := sh.NewReadIndexer(v)
 	if err != nil {
 		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
@@ -1536,7 +1505,7 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		return nil, err
 	}
 
-	indexer, err := newReadIndexer(v)
+	indexer, err := sh.NewReadIndexer(v)
 	if err != nil {
 		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
@@ -2227,7 +2196,7 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 		return nil, err
 	}
 
-	indexer, err := newReadIndexer(obj)
+	indexer, err := sh.NewReadIndexer(obj)
 	if err != nil {
 		return nil, errors.NewEvalError(shell.filename,
 			inExpr, "error[%s] trying to iterate", err)

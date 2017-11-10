@@ -29,9 +29,55 @@ type (
 
 	StrObj struct {
 		objType
-		str string
+		runes []rune
+	}
+
+	Enumerable interface {
+		Len() int
+	}
+
+	WriteIndexer interface {
+		Set(index int, val Obj) error
+	}
+
+	ReadIndexer interface {
+		Enumerable
+		Get(index int) (Obj, error)
 	}
 )
+
+func NewEnumerable(o Obj) (Enumerable, error) {
+	sizer, ok := o.(Enumerable)
+	if !ok {
+		return nil, fmt.Errorf(
+			"SizeError: trying to get size from a non enumerable type %s",
+			o.Type(),
+		)
+	}
+	return sizer, nil
+}
+
+func NewReadIndexer(o Obj) (ReadIndexer, error) {
+	indexer, ok := o.(ReadIndexer)
+	if !ok {
+		return nil, fmt.Errorf(
+			"IndexError: trying to use a non read/indexable type %s to read from index",
+			o.Type(),
+		)
+	}
+	return indexer, nil
+}
+
+func NewWriteIndexer(o Obj) (WriteIndexer, error) {
+	indexer, ok := o.(WriteIndexer)
+	if !ok {
+		return nil, fmt.Errorf(
+			"IndexError: trying to use a non write/indexable type %s to write on index: ",
+			o.Type(),
+		)
+	}
+	return indexer, nil
+}
 
 func (o objType) Type() objType {
 	return o
@@ -39,12 +85,12 @@ func (o objType) Type() objType {
 
 func NewStrObj(val string) *StrObj {
 	return &StrObj{
-		str:     val,
+		runes:   []rune(val),
 		objType: StringType,
 	}
 }
 
-func (o *StrObj) Str() string { return o.str }
+func (o *StrObj) Str() string { return string(o.runes) }
 
 func (o *StrObj) String() string { return o.Str() }
 
@@ -58,12 +104,11 @@ func (o *StrObj) Get(index int) (Obj, error) {
 		)
 	}
 
-	return NewStrObj(string(o.str[index])), nil
+	return NewStrObj(string(o.runes[index])), nil
 }
 
 func (o *StrObj) Len() int {
-	// FIXME: Use runes instead
-	return len(o.str)
+	return len(o.runes)
 }
 
 func NewFnObj(val FnDef) *FnObj {
