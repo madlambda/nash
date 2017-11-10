@@ -12,11 +12,14 @@ import (
 	"github.com/NeowayLabs/nash/tests/internal/assert"
 )
 
-const projectnash = "../cmd/nash/nash"
-
 // Exec runs the script code and returns the result of it.
 // It will coalesce the stdout and stderr together and return as a string.
-func Exec(t *testing.T, scriptcode string, scriptargs ...string) (string, error) {
+func Exec(
+	t *testing.T,
+	nashpath string,
+	scriptcode string,
+	scriptargs ...string,
+) (string, error) {
 	scriptfile, err := ioutil.TempFile("", "testshell")
 	assert.NoError(t, err, "creating tmp file")
 
@@ -31,7 +34,7 @@ func Exec(t *testing.T, scriptcode string, scriptargs ...string) (string, error)
 	assert.NoError(t, err, "writing script code to tmp file")
 
 	scriptargs = append([]string{scriptfile.Name()}, scriptargs...)
-	cmd := exec.Command(projectnash, scriptargs...)
+	cmd := exec.Command(nashpath, scriptargs...)
 
 	stdout := bytes.Buffer{}
 	stderr := bytes.Buffer{}
