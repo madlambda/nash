@@ -10,10 +10,11 @@ import (
 )
 
 type TestCase struct {
-	Name           string
-	ScriptCode     string
-	ExpectedOutput string
-	Fails          bool
+	Name                  string
+	ScriptCode            string
+	ExpectOutput          string
+	ExpectOutputToContain string
+	Fails                 bool
 }
 
 func Run(t *testing.T, cases ...TestCase) {
@@ -27,8 +28,12 @@ func Run(t *testing.T, cases ...TestCase) {
 				}
 			}
 
-			if tcase.ExpectedOutput != "" {
-				assert.EqualStrings(t, tcase.ExpectedOutput, output)
+			if tcase.ExpectOutput != "" {
+				assert.EqualStrings(t, tcase.ExpectOutput, output)
+			}
+
+			if tcase.ExpectOutputToContain != "" {
+				assert.ContainsString(t, output, tcase.ExpectOutputToContain)
 			}
 		})
 	}
