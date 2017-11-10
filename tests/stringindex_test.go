@@ -7,7 +7,6 @@ import (
 )
 
 func TestStringIndexing(t *testing.T) {
-	t.Skip("TODO")
 	tester.Run(t, nashcmd,
 		tester.TestCase{
 			Name: "PositionalAccess",
@@ -21,7 +20,7 @@ func TestStringIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "Iteration",
 			ScriptCode: `
-				a = "123")
+				a = "123"
 				for x in $a {
 					echo $x
 				}
@@ -46,7 +45,7 @@ func TestStringIndexing(t *testing.T) {
 				echo $a[3]
 			`,
 			Fails: true,
-			ExpectStderrToContain: "Index out of bounds",
+			ExpectStderrToContain: "IndexError",
 		},
 		tester.TestCase{
 			Name: "IndexEmptyFails",
@@ -55,7 +54,7 @@ func TestStringIndexing(t *testing.T) {
 				echo $a[0]
 			`,
 			Fails: true,
-			ExpectStderrToContain: "Index out of bounds",
+			ExpectStderrToContain: "IndexError",
 		},
 	)
 }

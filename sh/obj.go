@@ -48,6 +48,24 @@ func (o *StrObj) Str() string { return o.str }
 
 func (o *StrObj) String() string { return o.Str() }
 
+func (o *StrObj) Get(index int) (Obj, error) {
+	// FIXME: Use runes instead
+	if index >= o.Len() {
+		return nil, fmt.Errorf(
+			"IndexError: Index[%d] out of range, string size[%d]",
+			index,
+			o.Len(),
+		)
+	}
+
+	return NewStrObj(string(o.str[index])), nil
+}
+
+func (o *StrObj) Len() int {
+	// FIXME: Use runes instead
+	return len(o.str)
+}
+
 func NewFnObj(val FnDef) *FnObj {
 	return &FnObj{
 		fn:      val,
@@ -73,7 +91,7 @@ func (o *ListObj) Len() int {
 func (o *ListObj) Set(index int, value Obj) error {
 	if index >= len(o.list) {
 		return fmt.Errorf(
-			"Index[%d] out of range, list size[%d]",
+			"IndexError: Index[%d] out of range, list size[%d]",
 			index,
 			len(o.list),
 		)
@@ -85,7 +103,7 @@ func (o *ListObj) Set(index int, value Obj) error {
 func (o *ListObj) Get(index int) (Obj, error) {
 	if index >= len(o.list) {
 		return nil, fmt.Errorf(
-			"Index out of bounds, index[%d] but list size[%d]",
+			"IndexError: Index out of bounds, index[%d] but list size[%d]",
 			index,
 			len(o.list),
 		)
