@@ -6,12 +6,13 @@ import (
 	"github.com/NeowayLabs/nash/tests/internal/tester"
 )
 
-func TestListIndexing(t *testing.T) {
+func TestStringIndexing(t *testing.T) {
+	t.Skip("TODO")
 	tester.Run(t, nashcmd,
 		tester.TestCase{
 			Name: "PositionalAccess",
 			ScriptCode: `
-				a = ("1" "2")
+				a = "12"
 				echo $a[0]
 				echo $a[1]
 			`,
@@ -20,7 +21,7 @@ func TestListIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "Iteration",
 			ScriptCode: `
-				a = ("1" "2" "3")
+				a = "123")
 				for x in $a {
 					echo $x
 				}
@@ -30,7 +31,7 @@ func TestListIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "IterateEmpty",
 			ScriptCode: `
-				a = ()
+				a = ""
 				for x in $a {
 					exit("1")
 				}
@@ -41,7 +42,7 @@ func TestListIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "IndexOutOfRangeFails",
 			ScriptCode: `
-				a = ("1" "2" "3")
+				a = "123"
 				echo $a[3]
 			`,
 			Fails: true,
@@ -50,7 +51,7 @@ func TestListIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "IndexEmptyFails",
 			ScriptCode: `
-				a = ()
+				a = ""
 				echo $a[0]
 			`,
 			Fails: true,

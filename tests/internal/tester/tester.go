@@ -17,11 +17,11 @@ type TestCase struct {
 	Fails                 bool
 }
 
-func Run(t *testing.T, cases ...TestCase) {
+func Run(t *testing.T, nashcmd string, cases ...TestCase) {
 
 	for _, tcase := range cases {
 		t.Run(tcase.Name, func(t *testing.T) {
-			output, err := sh.Exec(t, tcase.ScriptCode)
+			output, err := sh.Exec(t, nashcmd, tcase.ScriptCode)
 			if !tcase.Fails {
 				if err != nil {
 					t.Fatalf("error[%s] output[%s]", err, output)

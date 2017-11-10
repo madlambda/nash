@@ -66,6 +66,18 @@ func NewListObj(val []Obj) *ListObj {
 	}
 }
 
+func (o *ListObj) Set(index int, value Obj) error {
+	if index >= len(o.list) {
+		return fmt.Errorf(
+			"trying to index[%d] on list with size[%d]",
+			index,
+			len(o.list),
+		)
+	}
+	o.list[index] = value
+	return nil
+}
+
 func (o *ListObj) List() []Obj { return o.list }
 
 func (o *ListObj) String() string {

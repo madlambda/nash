@@ -84,6 +84,10 @@ const (
 	ENotStarted            = 255
 )
 
+type Indexer interface {
+	Set(index int, val sh.Obj) error
+}
+
 func newErrIgnore(format string, arg ...interface{}) error {
 	e := &errIgnore{
 		NashError: errors.NewError(format, arg...),
@@ -528,42 +532,49 @@ func (shell *Shell) ExecFile(path string) error {
 	return shell.Exec(path, string(content))
 }
 
+func (shell *Shell) newIndexer(o sh.Obj, name *ast.NameNode) (Indexer, error) {
+	indexer, ok := o.(Indexer)
+	if !ok {
+		return nil, errors.NewEvalError(shell.filename,
+			name, "Trying to use a non-indexable type as a indexer: Variable %s is %s",
+			name.Ident,
+			o.Type())
+	}
+	return indexer, nil
+}
+
 func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
-	finalObj := value
 
-	if name.Index != nil {
-		if list, ok := shell.Getvar(name.Ident); ok {
-			index, err := shell.evalIndex(name.Index)
-
-			if err != nil {
-				return err
-			}
-
-			if list.Type() != sh.ListType {
-				return errors.NewEvalError(shell.filename,
-					name, "Indexed assigment on non-list type: Variable %s is %s",
-					name.Ident,
-					list.Type())
-			}
-
-			lobj := list.(*sh.ListObj)
-			lvalues := lobj.List()
-
-			if index >= len(lvalues) {
-				return errors.NewEvalError(shell.filename,
-					name, "List out of bounds error. List has %d elements, but trying to access index %d",
-					len(lvalues), index)
-			}
-
-			lvalues[index] = value
-			finalObj = sh.NewListObj(lvalues)
-		} else {
-			return errors.NewEvalError(shell.filename,
-				name, "Variable %s not found", name.Ident)
-		}
+	if name.Index == nil {
+		shell.Setvar(name.Ident, value)
+		return nil
 	}
 
-	shell.Setvar(name.Ident, finalObj)
+	obj, ok := shell.Getvar(name.Ident)
+	if !ok {
+		return errors.NewEvalError(shell.filename,
+			name, "Variable %s not found", name.Ident)
+	}
+
+	index, err := shell.evalIndex(name.Index)
+	if err != nil {
+		return err
+	}
+
+	indexer, err := shell.newIndexer(obj, name)
+	if err != nil {
+		return err
+	}
+
+	err = indexer.Set(index, value)
+	if err != nil {
+		return errors.NewEvalError(
+			shell.filename,
+			name,
+			"error[%s] setting var",
+			err,
+		)
+	}
 	return nil
 }
 
