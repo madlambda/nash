@@ -529,41 +529,37 @@ func (shell *Shell) ExecFile(path string) error {
 }
 
 func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
-	finalObj := value
 
-	if name.Index != nil {
-		if list, ok := shell.Getvar(name.Ident); ok {
-			index, err := shell.evalIndex(name.Index)
-
-			if err != nil {
-				return err
-			}
-
-			if list.Type() != sh.ListType {
-				return errors.NewEvalError(shell.filename,
-					name, "Indexed assigment on non-list type: Variable %s is %s",
-					name.Ident,
-					list.Type())
-			}
-
-			lobj := list.(*sh.ListObj)
-			lvalues := lobj.List()
-
-			if index >= len(lvalues) {
-				return errors.NewEvalError(shell.filename,
-					name, "List out of bounds error. List has %d elements, but trying to access index %d",
-					len(lvalues), index)
-			}
-
-			lvalues[index] = value
-			finalObj = sh.NewListObj(lvalues)
-		} else {
-			return errors.NewEvalError(shell.filename,
-				name, "Variable %s not found", name.Ident)
-		}
+	if name.Index == nil {
+		shell.Setvar(name.Ident, value)
+		return nil
 	}
 
-	shell.Setvar(name.Ident, finalObj)
+	obj, ok := shell.Getvar(name.Ident)
+	if !ok {
+		return errors.NewEvalError(shell.filename,
+			name, "Variable %s not found", name.Ident)
+	}
+
+	index, err := shell.evalIndex(name.Index)
+	if err != nil {
+		return err
+	}
+
+	col, err := sh.NewWriteableCollection(obj)
+	if err != nil {
+		return errors.NewEvalError(shell.filename, name, err.Error())
+	}
+
+	err = col.Set(index, value)
+	if err != nil {
+		return errors.NewEvalError(
+			shell.filename,
+			name,
+			"error[%s] setting var",
+			err,
+		)
+	}
 	return nil
 }
 
@@ -1486,9 +1482,9 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, err
 	}
 
-	if v.Type() != sh.ListType {
-		return nil, errors.NewEvalError(shell.filename, indexVar.Var,
-			"Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
+	col, err := sh.NewCollection(v)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
 
 	indexNum, err := shell.evalIndex(indexVar.Index)
@@ -1496,17 +1492,11 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, err
 	}
 
-	vlist := v.(*sh.ListObj)
-	values := vlist.List()
-
-	if indexNum < 0 || indexNum >= len(values) {
-		return nil, errors.NewEvalError(shell.filename,
-			indexVar.Var,
-			"Index out of bounds. len(%s) == %d, but given %d", indexVar.Var.Name,
-			len(values), indexNum)
+	val, err := col.Get(indexNum)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
-
-	return values[indexNum], nil
+	return val, nil
 }
 
 func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error) {
@@ -1515,9 +1505,9 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		return nil, err
 	}
 
-	if v.Type() != sh.ListType {
-		return nil, errors.NewEvalError(shell.filename, indexVar.Var,
-			"Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
+	col, err := sh.NewCollection(v)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
 
 	indexNum, err := shell.evalIndex(indexVar.Index)
@@ -1525,17 +1515,10 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		return nil, err
 	}
 
-	vlist := v.(*sh.ListObj)
-	values := vlist.List()
-
-	if indexNum < 0 || indexNum >= len(values) {
-		return nil, errors.NewEvalError(shell.filename,
-			indexVar.Var,
-			"Index out of bounds. len(%s) == %d, but given %d", indexVar.Var.Name,
-			len(values), indexNum)
+	retval, err := col.Get(indexNum)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
-
-	retval := values[indexNum]
 
 	if indexVar.IsVariadic {
 		if retval.Type() != sh.ListType {
@@ -1545,7 +1528,7 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		retlist := retval.(*sh.ListObj)
 		return retlist.List(), nil
 	}
-	return []sh.Obj{values[indexNum]}, nil
+	return []sh.Obj{retval}, nil
 }
 
 func (shell *Shell) evalVariable(a ast.Expr) (sh.Obj, error) {
@@ -2213,14 +2196,18 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 		return nil, err
 	}
 
-	if obj.Type() != sh.ListType {
+	col, err := sh.NewCollection(obj)
+	if err != nil {
 		return nil, errors.NewEvalError(shell.filename,
-			inExpr, "Invalid variable type in for range: %s", obj.Type())
+			inExpr, "error[%s] trying to iterate", err)
 	}
 
-	objlist := obj.(*sh.ListObj)
-
-	for _, val := range objlist.List() {
+	for i := 0; i < col.Len(); i++ {
+		val, err := col.Get(i)
+		if err != nil {
+			return nil, errors.NewEvalError(shell.filename,
+				inExpr, "unexpected error[%s] during iteration", err)
+		}
 		shell.Setvar(id, val)
 
 		objs, err := shell.executeTree(n.Tree(), false)
