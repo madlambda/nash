@@ -118,11 +118,9 @@ func (c *Cmd) Wait() error {
 
 func (c *Cmd) Start() error {
 	err := c.Cmd.Start()
-
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 

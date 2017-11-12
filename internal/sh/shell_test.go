@@ -1385,18 +1385,15 @@ func TestExecuteRedirectionPipe(t *testing.T) {
 
 func testTCPRedirection(t *testing.T, port, command string) {
 	message := "hello world"
-	done := make(chan bool)
+	done := make(chan error)
 
 	l, err := net.Listen("tcp", port)
+	defer l.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	fmt.Println("Listener working")
-
-	if runtime.GOOS == "windows" {
-		time.Sleep(5 * time.Second)
-	}
 
 	f, teardown := setup(t)
 	defer teardown()
@@ -1409,26 +1406,36 @@ func testTCPRedirection(t *testing.T, port, command string) {
 
 		shell.SetNashdPath(f.nashdPath)
 
-		<-done
-
-		err = shell.Exec("test net redirection", command)
+		err = <-done
 		if err != nil {
-			t.Fatal(err)
+			return
 		}
+
+		fmt.Println(runtime.GOOS)
+		if runtime.GOOS == "windows" {
+			time.Sleep(5 * time.Second)
+		}
+
+		done <- shell.Exec("test net redirection", command)
 	}()
 
-	defer l.Close()
-
-	done <- true
+	done <- nil
 	conn, err := l.Accept()
 	if err != nil {
+		done <- err
 		t.Fatal(err)
 	}
 
 	defer conn.Close()
 
+	err = <-done
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	buf, err := ioutil.ReadAll(conn)
 	if err != nil {
+		done <- err
 		t.Fatal(err)
 	}
 
@@ -1441,14 +1448,13 @@ func testTCPRedirection(t *testing.T, port, command string) {
 
 func TestTCPRedirection(t *testing.T) {
 	//testTCPRedirection(t, ":6666", `echo -n "hello world" >[1] "tcp://localhost:6666"`)
-	testTCPRedirection(t, "localhost:6667", `echo -n "hello world" > "tcp://localhost:6667"`)
+	testTCPRedirection(t, "localhost:8089", `echo "hello world" > "tcp://localhost:8089"`)
 }
 
 func TestExecuteUnixRedirection(t *testing.T) {
 	message := "hello world"
 
 	sockDir, err := ioutil.TempDir("/tmp", "nash-tests")
-
 	if err != nil {
 		t.Error(err)
 		return

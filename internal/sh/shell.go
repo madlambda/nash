@@ -1091,9 +1091,7 @@ pipeError:
 }
 
 func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, error) {
-	var (
-		protocol string
-	)
+	var protocol string
 
 	locationObj, err := shell.evalExpr(location)
 	if err != nil {
@@ -1197,7 +1195,6 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			file, err := shell.openRedirectLocation(redirDecl.Location())
-
 			if err != nil {
 				return closeAfterWait, err
 			}
@@ -1224,7 +1221,6 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			file, err := shell.openRedirectLocation(redirDecl.Location())
-
 			if err != nil {
 				return closeAfterWait, err
 			}
@@ -1241,7 +1237,6 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 		}
 
 		file, err := shell.openRedirectLocation(redirDecl.Location())
-
 		if err != nil {
 			return closeAfterWait, err
 		}
@@ -1370,7 +1365,6 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 	}
 
 	closeAfterWait, err = shell.setRedirects(cmd, c.Redirects())
-
 	if err != nil {
 		goto cmdError
 	}
