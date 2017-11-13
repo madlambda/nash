@@ -8,6 +8,11 @@ if [ -z "$NASHROOT" ]; then
 fi
 
 VERSION="v0.6"
+
+if [ $# -eq 1 ]; then
+        VERSION=$1
+fi
+
 echo "installing nash: "$VERSION" at NASHROOT: "$NASHROOT
 
 mkdir -p $NASHROOT
