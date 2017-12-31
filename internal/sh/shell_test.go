@@ -718,13 +718,21 @@ func TestExecuteCd(t *testing.T) {
 			expectedStdout: "/\n",
 		},
 		{
+			// FIXME: perhaps fail ? not sure
+			desc: "test cd ignores extra args",
+			code: `
+				cd / /etc /lala /ignored
+				pwd
+			`,
+			expectedStdout: "/\n",
+		},
+		{
 			desc: "test error",
 			code: `
 				var=("val1" "val2" "val3")
 				cd $var
-				pwd
 			`,
-			expectedErr: "<interactive>:2:12: lvalue is not comparable: (val1 val2 val3) -> ListType.",
+			expectedErr: "<interactive>:11:12: chdir expects a string, but a ListType was provided",
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {

@@ -411,10 +411,22 @@ func (shell *Shell) setupBuiltin() {
 
 func (shell *Shell) setupDefaultBindings() error {
 	// only one builtin fn... no need for advanced machinery yet
-	err := shell.Exec(shell.name, `fn nash_builtin_cd(path) {
-            if $path == "" {
+	// FIXME: does it make sense to have default bindfn ?
+	// seems a little intrusive and a very odd way to add a default
+	// bindfn (it was not trivial to found).
+	//
+	// TODO: Not sure if ignoring exceeding parameters is the way
+	// to go, but I'm not even sure if having this default bind is
+	// a good idea anyway (I have my own cd that does other things for example).
+	err := shell.Exec(shell.name, `fn nash_builtin_cd(args...) {
+	    path = ""
+	    l <= len($args)
+
+            if $l == "0" {
                     path = $HOME
-            }
+            } else {
+                    path = $args[0]
+	    }
 
             chdir($path)
         }
@@ -1282,11 +1294,6 @@ func (shell *Shell) runBindfn(
 			fnDef.Name())
 		return nil, err
 	}
-
-	//for i := len(c.Args()); i < len(fnDef.ArgNames()); i++ {
-	//// fill missing args with empty string safe?
-	//c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
-	//}
 
 	return fnDef.Build(), nil
 }
