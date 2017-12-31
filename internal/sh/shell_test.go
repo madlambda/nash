@@ -88,6 +88,8 @@ func testExecuteFile(t *testing.T, path, expected string) {
 }
 
 func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
+	t.Helper()
+
 	var bout bytes.Buffer
 	var berr bytes.Buffer
 	shell.SetStderr(&berr)
@@ -139,6 +141,8 @@ func testExec(t *testing.T, testcase execTestCase) {
 }
 
 func testInteractiveExec(t *testing.T, testcase execTestCase) {
+	t.Helper()
+
 	f, teardown := setup(t)
 	defer teardown()
 
@@ -687,40 +691,45 @@ func TestExecuteSetenv(t *testing.T) {
 func TestExecuteCd(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
-			"test cd",
-			`cd /
-        pwd`,
-			"/\n", "", "",
+			desc: "test cd root",
+			code: `
+				cd /
+				pwd
+			`,
+			expectedStdout: "/\n",
 		},
 		{
-			"test cd",
-			`HOME="/"
-        setenv HOME
-        cd
-        pwd`,
-			"/\n",
-			"", "",
+			desc: "test cd home",
+			code: `
+				HOME="/"
+				setenv HOME
+				cd
+				pwd
+			`,
+			expectedStdout: "/\n",
 		},
 		{
-			"test cd into $var",
-			`
-        var="/"
-        cd $var
-        pwd`,
-			"/\n",
-			"",
-			"",
+			desc: "test cd into $var",
+			code: `
+				var="/"
+				cd $var
+				pwd
+			`,
+			expectedStdout: "/\n",
 		},
 		{
-			"test error",
-			`var=("val1" "val2" "val3")
-        cd $var
-        pwd`,
-			"", "",
-			"<interactive>:2:12: lvalue is not comparable: (val1 val2 val3) -> ListType.",
+			desc: "test error",
+			code: `
+				var=("val1" "val2" "val3")
+				cd $var
+				pwd
+			`,
+			expectedErr: "<interactive>:2:12: lvalue is not comparable: (val1 val2 val3) -> ListType.",
 		},
 	} {
-		testInteractiveExec(t, test)
+		t.Run(test.desc, func(t *testing.T) {
+			testInteractiveExec(t, test)
+		})
 	}
 }
 
@@ -1200,7 +1209,7 @@ func TestExecuteBindFn(t *testing.T) {
 		{
 			desc: "test bindfn",
 			code: `
-				fn cd(path) {
+				fn cd() {
 					echo "override builtin cd"
 				}
 
@@ -1226,6 +1235,19 @@ func TestExecuteBindFn(t *testing.T) {
 			expectedStdout: "a\nb\nc\n",
 		},
 		{
+			desc: "test empty bindfn vargs len",
+			code: `
+				fn echoargs(args...) {
+					l <= len($args)
+					echo $l
+				}
+
+				bindfn echoargs echoargs
+				echoargs
+			`,
+			expectedStdout: "0\n",
+		},
+		{
 			desc: "test bindfn args",
 			code: `
 				fn foo(line) {
@@ -1235,10 +1257,12 @@ func TestExecuteBindFn(t *testing.T) {
 				bindfn foo bar
 				bar test test
 			`,
-			expectedErr: "<interactive>:7:4: Too much arguments for function 'foo'. It expects 1 args, but given 2. Arguments: [\"test\" \"test\"]",
+			expectedErr: "Wrong number of arguments for function foo. Expected 1 but found 2",
 		},
 	} {
-		testInteractiveExec(t, test)
+		t.Run(test.desc, func(t *testing.T) {
+			testInteractiveExec(t, test)
+		})
 	}
 }
 

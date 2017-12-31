@@ -1266,6 +1266,31 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 	return closeAfterWait, err
 }
 
+func (shell *Shell) runBindfn(
+	c *ast.CommandNode,
+	cmdName string,
+	fnDef sh.FnDef,
+) (sh.Runner, error) {
+	shell.logf("Executing bind %s", cmdName)
+	shell.logf("%s bind to %s", cmdName, fnDef.Name())
+
+	if !shell.Interactive() {
+		err := errors.NewEvalError(shell.filename,
+			c, "'%s' is a bind to '%s'. "+
+				"No binds allowed in non-interactive mode.",
+			cmdName,
+			fnDef.Name())
+		return nil, err
+	}
+
+	//for i := len(c.Args()); i < len(fnDef.ArgNames()); i++ {
+	//// fill missing args with empty string safe?
+	//c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
+	//}
+
+	return fnDef.Build(), nil
+}
+
 func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 	var (
 		ignoreError bool
@@ -1290,35 +1315,8 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 	}
 
 	if fnDef, ok := shell.Getbindfn(cmdName); ok {
-		shell.logf("Executing bind %s", cmdName)
-		shell.logf("%s bind to %s", cmdName, fnDef.Name())
-
-		if !shell.Interactive() {
-			err = errors.NewEvalError(shell.filename,
-				c, "'%s' is a bind to '%s'. "+
-					"No binds allowed in non-interactive mode.",
-				cmdName,
-				fnDef.Name())
-			return nil, ignoreError, err
-		}
-
-		if len(c.Args()) > len(fnDef.ArgNames()) {
-			err = errors.NewEvalError(shell.filename,
-				c, "Too much arguments for"+
-					" function '%s'. It expects %d args, but given %d. Arguments: %q",
-				fnDef.Name(),
-				len(fnDef.ArgNames()),
-				len(c.Args()), c.Args())
-			return nil, ignoreError, err
-		}
-
-		for i := len(c.Args()); i < len(fnDef.ArgNames()); i++ {
-			// fill missing args with empty string
-			// safe?
-			c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
-		}
-
-		return fnDef.Build(), ignoreError, nil
+		runner, err := shell.runBindfn(c, cmdName, fnDef)
+		return runner, ignoreError, err
 	}
 
 	cmd, err = NewCmd(cmdName)
