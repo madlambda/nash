@@ -411,13 +411,7 @@ func (shell *Shell) setupBuiltin() {
 
 func (shell *Shell) setupDefaultBindings() error {
 	// only one builtin fn... no need for advanced machinery yet
-	// FIXME: does it make sense to have default bindfn ?
-	// seems a little intrusive and a very odd way to add a default
-	// bindfn (it was not trivial to found).
-	//
-	// TODO: Not sure if ignoring exceeding parameters is the way
-	// to go, but I'm not even sure if having this default bind is
-	// a good idea anyway (I have my own cd that does other things for example).
+	// FIXME: seems better to have a std init than embedding here on code
 	err := shell.Exec(shell.name, `fn nash_builtin_cd(args...) {
 	    path = ""
 	    l <= len($args)
