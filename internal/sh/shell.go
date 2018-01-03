@@ -1278,7 +1278,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 	return closeAfterWait, err
 }
 
-func (shell *Shell) runBindfn(
+func (shell *Shell) newBindfnRunner(
 	c *ast.CommandNode,
 	cmdName string,
 	fnDef sh.FnDef,
@@ -1322,7 +1322,7 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 	}
 
 	if fnDef, ok := shell.Getbindfn(cmdName); ok {
-		runner, err := shell.runBindfn(c, cmdName, fnDef)
+		runner, err := shell.newBindfnRunner(c, cmdName, fnDef)
 		return runner, ignoreError, err
 	}
 
