@@ -6,7 +6,7 @@ func TestFunctionsClosures(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
 			desc: "simpleClosure",
-			execStr: `
+			code: `
 				fn func(a) {
 					fn closure() {
 						print($a)
@@ -23,7 +23,7 @@ func TestFunctionsClosures(t *testing.T) {
 		},
 		{
 			desc: "eachCallCreatesNewVar",
-			execStr: `
+			code: `
 				fn func() {
 					a = ()
 					fn add(elem) {
@@ -42,7 +42,7 @@ func TestFunctionsClosures(t *testing.T) {
 		},
 		{
 			desc: "adder example",
-			execStr: `
+			code: `
 fn makeAdder(x) {
     fn add(y) {
         ret <= expr $x "+" $y
@@ -74,7 +74,7 @@ print("%s\n", add1("10"))
 		},
 		{
 			desc: "logger",
-			execStr: `fn getlogger(prefix) {
+			code: `fn getlogger(prefix) {
     fn log(fmt, args...) {
         print($prefix+$fmt+"\n", $args...)
     }
@@ -106,7 +106,7 @@ func TestFunctionsVariables(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
 			desc: "fn stored only as vars",
-			execStr: `
+			code: `
 				fn func(a) {
 					echo -n "hello"
 				}
@@ -129,7 +129,7 @@ func TestFunctionsStateless(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
 			desc: "functions have no shared state",
-			execStr: `fn iter(first, last, func) {
+			code: `fn iter(first, last, func) {
    sequence <= seq $first $last
    range <= split($sequence, "\n")
    for i in $range {

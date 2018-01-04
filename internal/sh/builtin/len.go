@@ -10,7 +10,7 @@ import (
 
 type (
 	lenFn struct {
-		arg sh.Obj
+		arg sh.Collection
 	}
 )
 
@@ -29,12 +29,7 @@ func lenresult(res int) []sh.Obj {
 }
 
 func (l *lenFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
-	if l.arg.Type() == sh.ListType {
-		arglist := l.arg.(*sh.ListObj)
-		return lenresult(len(arglist.List())), nil
-	}
-	argstr := l.arg.(*sh.StrObj)
-	return lenresult(len(argstr.Str())), nil
+	return lenresult(l.arg.Len()), nil
 }
 
 func (l *lenFn) SetArgs(args []sh.Obj) error {
@@ -43,11 +38,11 @@ func (l *lenFn) SetArgs(args []sh.Obj) error {
 	}
 
 	obj := args[0]
-
-	if obj.Type() != sh.ListType && obj.Type() != sh.StringType {
-		return errors.NewError("lenfn expects a list or a string, but a %s was provided", obj.Type())
+	col, err := sh.NewCollection(obj)
+	if err != nil {
+		return errors.NewError("len:error[%s]", err)
 	}
 
-	l.arg = obj
+	l.arg = col
 	return nil
 }
