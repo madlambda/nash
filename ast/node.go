@@ -289,15 +289,6 @@ type (
 		cmdname string
 	}
 
-	// A DumpNode represents the "dump" keyword.
-	DumpNode struct {
-		NodeType
-		token.FileInfo
-		egalitarian
-
-		filename Expr
-	}
-
 	// A ForNode represents the "for" keyword.
 	ForNode struct {
 		NodeType
@@ -394,9 +385,6 @@ const (
 
 	// NodeBindFn is the type for bindfn statements
 	NodeBindFn
-
-	// NodeDump is the type for dump statements
-	NodeDump
 
 	// NodeFor is the type for "for" statements
 	NodeFor
@@ -1289,47 +1277,6 @@ func (n *BindFnNode) IsEqual(other Node) bool {
 	}
 
 	return n.name == o.name && n.cmdname == o.cmdname
-}
-
-// NewDumpNode creates a new dump statement
-func NewDumpNode(info token.FileInfo) *DumpNode {
-	return &DumpNode{
-		NodeType: NodeDump,
-		FileInfo: info,
-	}
-}
-
-// Filename return the dump filename argument
-func (n *DumpNode) Filename() Expr {
-	return n.filename
-}
-
-// SetFilename set the dump filename
-func (n *DumpNode) SetFilename(a Expr) {
-	n.filename = a
-}
-
-func (n *DumpNode) IsEqual(other Node) bool {
-	if !n.equal(n, other) {
-		return false
-	}
-
-	o, ok := other.(*DumpNode)
-
-	if !ok {
-		debug("Failed to convert to DumpNode")
-		return ok
-	}
-
-	if n.filename == o.filename {
-		return true
-	}
-
-	if n.filename != nil {
-		return n.filename.IsEqual(o.filename)
-	}
-
-	return false
 }
 
 // NewReturnNode create a return statement
