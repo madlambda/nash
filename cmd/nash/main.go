@@ -113,9 +113,6 @@ func getnashpath() (string, error) {
 		return "", fmt.Errorf("User %s doesn't have a home directory. "+
 			"Set NASHPATH environment variable to desired location.", usr.Name)
 	}
-	if usr.HomeDir == "" {
-		return "", fmt.Errorf("Unable to automatically infer NASHPATH, requires setting it explicity.")
-	}
 
 	return fmt.Sprintf("%s%c%s", usr.HomeDir, os.PathSeparator, ".nash"), nil
 }
