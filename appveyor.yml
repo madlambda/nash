@@ -15,7 +15,7 @@ install:
 
 build_script: 
   - make build
-  - set PATH=%PATH%;C:\\cygwin64\\bin && make test
+  - set PATH=C:\\cygwin64\\bin;%PATH% && make test
 
 notifications:
   - provider: GitHubPullRequest
