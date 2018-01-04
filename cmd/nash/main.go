@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/user"
 
 	"github.com/NeowayLabs/nash"
 )
@@ -30,7 +31,7 @@ var (
 func init() {
 	flag.BoolVar(&version, "version", false, "Show version")
 	flag.BoolVar(&debug, "debug", false, "enable debug")
-	flag.BoolVar(&noInit, "noinit", false, "do not load init file")
+	flag.BoolVar(&noInit, "noinit", false, "do not load init/init.sh file")
 	flag.StringVar(&command, "c", "", "command to execute")
 	flag.BoolVar(&interactive, "i", false, "Interactive mode (default if no args)")
 
@@ -49,7 +50,7 @@ func main() {
 
 	if version {
 		fmt.Printf("build tag: %s\n", VersionString)
-		os.Exit(0)
+		return
 	}
 
 	if len(flag.Args()) > 0 {
@@ -102,18 +103,21 @@ func getnashpath() (string, error) {
 		return nashpath, nil
 	}
 
-	home := os.Getenv("HOME")
-	if home == "" {
-		user := os.Getenv("USER")
-
-		if user != "" {
-			home = "/home/" + user
-		} else {
-			return "", fmt.Errorf("Environment variable NASHPATH or $USER must be set")
-		}
+	usr, err := user.Current()
+	if err != nil {
+		return "", fmt.Errorf("unable to infer nash directory. "+
+			"You must set NASHPATH environment variable explicity: %s",
+			err.Error())
+	}
+	if usr.HomeDir == "" {
+		return "", fmt.Errorf("User %s doesn't have a home directory. "+
+			"Set NASHPATH environment variable to desired location.", usr.Name)
+	}
+	if usr.HomeDir == "" {
+		return "", fmt.Errorf("Unable to automatically infer NASHPATH, requires setting it explicity.")
 	}
 
-	return home + "/.nash", nil
+	return fmt.Sprintf("%s%c%s", usr.HomeDir, os.PathSeparator, ".nash"), nil
 }
 
 func initShell() (*nash.Shell, error) {

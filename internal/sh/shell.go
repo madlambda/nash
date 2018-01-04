@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"path"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -51,6 +51,7 @@ type (
 		isFn        bool
 		filename    string // current file being executed or imported
 
+		sigs        chan os.Signal
 		interrupted bool
 		looping     bool
 
@@ -130,6 +131,7 @@ func NewShell() (*Shell, error) {
 		vars:        make(Var),
 		binds:       make(Fns),
 		Mutex:       &sync.Mutex{},
+		sigs:        make(chan os.Signal, 1),
 		filename:    "<interactive>",
 	}
 
@@ -405,18 +407,6 @@ func (shell *Shell) SetRepr(a string) {
 	shell.repr = a
 }
 
-func (shell *Shell) String() string {
-	if shell.repr != "" {
-		return shell.repr
-	}
-
-	var out bytes.Buffer
-
-	shell.dump(&out)
-
-	return string(out.Bytes())
-}
-
 func (shell *Shell) setupBuiltin() {
 	for name, constructor := range builtin.Constructors() {
 		fnDef := newBuiltinFnDef(name, shell, constructor)
@@ -426,15 +416,23 @@ func (shell *Shell) setupBuiltin() {
 
 func (shell *Shell) setupDefaultBindings() error {
 	// only one builtin fn... no need for advanced machinery yet
-	err := shell.Exec(shell.name, `fn nash_builtin_cd(path) {
-            if $path == "" {
-                    path = $HOME
-            }
+	homeEnvVar := "HOME"
+	if runtime.GOOS == "windows" {
+		homeEnvVar = "HOMEPATH"
+	}
+	err := shell.Exec(shell.name, fmt.Sprintf(`fn nash_builtin_cd(args...) {
+	    var path = ""
+	    var l <= len($args)
+            if $l == "0" {
+                    path = $%s
+            } else {
+                    path = $args[0]
+	    }
 
             chdir($path)
         }
 
-        bindfn nash_builtin_cd cd`)
+        bindfn nash_builtin_cd cd`, homeEnvVar))
 
 	return err
 }
@@ -461,12 +459,11 @@ func (shell *Shell) setup() error {
 }
 
 func (shell *Shell) setupSignals() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT)
+	signal.Notify(shell.sigs, syscall.SIGINT)
 
 	go func() {
 		for {
-			sig := <-sigs
+			sig := <-shell.sigs
 
 			switch sig {
 			case syscall.SIGINT:
@@ -487,13 +484,8 @@ func (shell *Shell) setupSignals() {
 }
 
 func (shell *Shell) TriggerCTRLC() error {
-	p, err := os.FindProcess(os.Getpid())
-
-	if err != nil {
-		return err
-	}
-
-	return p.Signal(syscall.SIGINT)
+	shell.sigs <- syscall.SIGINT
+	return nil
 }
 
 // setIntr *do not lock*. You must do it yourself!
@@ -548,44 +540,43 @@ func (shell *Shell) ExecFile(path string) error {
 	return shell.Exec(path, string(content))
 }
 
-// setVar tries to set value into variable name. It looks for the variable
-// first in the current scope and then in the parents if not found.
 func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj, where bool) error {
-	finalObj := value
-
-	if name.Index != nil {
-		if list, ok := shell.Getvar(name.Ident, Global); ok {
-			index, err := shell.evalIndex(name.Index)
-
-			if err != nil {
-				return err
-			}
-
-			if list.Type() != sh.ListType {
-				return errors.NewEvalError(shell.filename,
-					name, "Indexed assigment on non-list type: Variable %s is %s",
-					name.Ident,
-					list.Type())
-			}
-
-			lobj := list.(*sh.ListObj)
-			lvalues := lobj.List()
-
-			if index >= len(lvalues) {
-				return errors.NewEvalError(shell.filename,
-					name, "List out of bounds error. List has %d elements, but trying to access index %d",
-					len(lvalues), index)
-			}
-
-			lvalues[index] = value
-			finalObj = sh.NewListObj(lvalues)
-		} else {
+	if name.Index == nil {
+		if !shell.Setvar(name.Ident, value, where) {
 			return errors.NewEvalError(shell.filename,
-				name, "Variable %s not found", name.Ident)
+				name, "Variable '%s' is not initialized. Use 'var %s = <value>'",
+				name, name)
 		}
+		return nil
 	}
 
-	if !shell.Setvar(name.Ident, finalObj, where) {
+	obj, ok := shell.Getvar(name.Ident, Global)
+	if !ok {
+		return errors.NewEvalError(shell.filename,
+			name, "Variable %s not found", name.Ident)
+	}
+
+	index, err := shell.evalIndex(name.Index)
+	if err != nil {
+		return err
+	}
+
+	col, err := sh.NewWriteableCollection(obj)
+	if err != nil {
+		return errors.NewEvalError(shell.filename, name, err.Error())
+	}
+
+	err = col.Set(index, value)
+	if err != nil {
+		return errors.NewEvalError(
+			shell.filename,
+			name,
+			"error[%s] setting var",
+			err,
+		)
+	}
+
+	if !shell.Setvar(name.Ident, obj, where) {
 		return errors.NewEvalError(shell.filename,
 			name, "Variable '%s' is not initialized. Use 'var %s = <value>'",
 			name, name)
@@ -709,8 +700,6 @@ func (shell *Shell) executeNode(node ast.Node) ([]sh.Obj, error) {
 		objs, err = shell.executeFor(node.(*ast.ForNode))
 	case ast.NodeBindFn:
 		err = shell.executeBindFn(node.(*ast.BindFnNode))
-	case ast.NodeDump:
-		err = shell.executeDump(node.(*ast.DumpNode))
 	case ast.NodeReturn:
 		if shell.IsFn() {
 			objs, err = shell.executeReturn(node.(*ast.ReturnNode))
@@ -796,6 +785,63 @@ func (shell *Shell) executeReturn(n *ast.ReturnNode) ([]sh.Obj, error) {
 	return returns, newErrStopWalking()
 }
 
+func (shell *Shell) getNashRootFromGOPATH(preverr error) (string, error) {
+	g, hasgopath := shell.Getenv("GOPATH")
+	if !hasgopath {
+		return "", errors.NewError("%s\nno GOPATH env var setted", preverr)
+	}
+	gopath := g.String()
+	return filepath.Join(gopath, filepath.FromSlash("/src/github.com/NeowayLabs/nash")), nil
+}
+
+func isValidNashRoot(nashroot string) bool {
+	_, err := os.Stat(filepath.Join(nashroot, "stdlib"))
+	return err == nil
+}
+
+func (shell *Shell) getNashRoot() (string, error) {
+	// TODO(katcipis): It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
+
+	nashroot, ok := shell.Getenv("NASHROOT")
+	if !ok {
+		h, hashome := shell.Getenv("HOME")
+		if !hashome {
+			return shell.getNashRootFromGOPATH(errors.NewError("no HOME env var setted"))
+		}
+		home := h.String()
+		nashroot := filepath.Join(home, "nashroot")
+
+		if !isValidNashRoot(nashroot) {
+			return shell.getNashRootFromGOPATH(errors.NewError("$HOME/nashroot is not valid NASHROOT\n%s"))
+		}
+
+		return nashroot, nil
+	}
+
+	return nashroot.String(), nil
+}
+
+func (shell *Shell) getNashPath() (string, error) {
+	// TODO(katcipis): It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
+
+	nashPath, ok := shell.Getenv("NASHPATH")
+
+	if !ok {
+		h, hashome := shell.Getenv("HOME")
+		if !hashome {
+			return "", errors.NewError("No NASHPATH and no HOME env vars set")
+		}
+		home := h.String()
+		return filepath.Join(home, "nash"), nil
+	}
+
+	if nashPath.Type() != sh.StringType {
+		return "", errors.NewError("NASHPATH must be a string")
+	}
+
+	return nashPath.String(), nil
+}
+
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	obj, err := shell.evalExpr(node.Path)
 	if err != nil {
@@ -819,14 +865,8 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		hasExt bool
 	)
 
-	if len(fname) > 3 && fname[len(fname)-3:] == ".sh" {
-		hasExt = true
-	}
-
-	if (len(fname) > 0 && fname[0] == '/') ||
-		(len(fname) > 1 && fname[0] == '.' && fname[1] == '/') ||
-		(len(fname) > 2 && fname[0] == '.' && fname[1] == '.' &&
-			fname[2] == '/') {
+	hasExt = filepath.Ext(fname) != ""
+	if filepath.IsAbs(fname) {
 		tries = append(tries, fname)
 
 		if !hasExt {
@@ -835,27 +875,25 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	}
 
 	if shell.filename != "" {
-		tries = append(tries, path.Dir(shell.filename)+"/"+fname)
+		localFile := filepath.Join(filepath.Dir(shell.filename), fname)
+		tries = append(tries, localFile)
 
 		if !hasExt {
-			tries = append(tries, path.Dir(shell.filename)+"/"+fname+".sh")
+			tries = append(tries, localFile+".sh")
 		}
 	}
 
-	nashPath, ok := shell.Getenv("NASHPATH")
-
-	if !ok {
-		return errors.NewError("NASHPATH environment variable not set on shell %s", shell.name)
-	} else if nashPath.Type() != sh.StringType {
-		return errors.NewError("NASHPATH must be n string")
+	dotDir, nashpatherr := shell.getNashPath()
+	if nashpatherr == nil {
+		tries = append(tries, filepath.Join(dotDir, "lib", fname))
+		if !hasExt {
+			tries = append(tries, filepath.Join(dotDir, "lib", fname+".sh"))
+		}
 	}
 
-	dotDir := nashPath.String()
-
-	tries = append(tries, dotDir+"/lib/"+fname)
-
-	if !hasExt {
-		tries = append(tries, dotDir+"/lib/"+fname+".sh")
+	nashroot, nashrooterr := shell.getNashRoot()
+	if nashrooterr == nil {
+		tries = append(tries, filepath.Join(nashroot, "stdlib", fname+".sh"))
 	}
 
 	shell.logf("Trying %q\n", tries)
@@ -872,10 +910,21 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		}
 	}
 
-	return errors.NewEvalError(shell.filename, node,
+	errmsg := fmt.Sprintf(
 		"Failed to import path '%s'. The locations below have been tried:\n \"%s\"",
 		fname,
-		strings.Join(tries, `", "`))
+		strings.Join(tries, `", "`),
+	)
+
+	if nashpatherr != nil {
+		errmsg += "\nnashpath error: " + nashpatherr.Error()
+	}
+
+	if nashrooterr != nil {
+		errmsg += "\nnashroot error: " + nashrooterr.Error()
+	}
+
+	return errors.NewEvalError(shell.filename, node, errmsg)
 }
 
 // executePipe executes a pipe of ast.Command's. Each command can be
@@ -1072,9 +1121,7 @@ pipeError:
 }
 
 func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, error) {
-	var (
-		protocol string
-	)
+	var protocol string
 
 	locationObj, err := shell.evalExpr(location)
 	if err != nil {
@@ -1178,7 +1225,6 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			file, err := shell.openRedirectLocation(redirDecl.Location())
-
 			if err != nil {
 				return closeAfterWait, err
 			}
@@ -1186,14 +1232,8 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			cmd.SetStdout(file)
 			closeAfterWait = append(closeAfterWait, file)
 		case ast.RedirMapSupress:
-			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
-
-			if err != nil {
-				return closeAfterWait, err
-			}
-
+			file := ioutil.Discard
 			cmd.SetStdout(file)
-			closeAfterWait = append(closeAfterWait, file)
 		}
 	case 2:
 		switch redirDecl.RightFD() {
@@ -1211,7 +1251,6 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			file, err := shell.openRedirectLocation(redirDecl.Location())
-
 			if err != nil {
 				return closeAfterWait, err
 			}
@@ -1219,14 +1258,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			cmd.SetStderr(file)
 			closeAfterWait = append(closeAfterWait, file)
 		case ast.RedirMapSupress:
-			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
-
-			if err != nil {
-				return closeAfterWait, err
-			}
-
-			cmd.SetStderr(file)
-			closeAfterWait = append(closeAfterWait, file)
+			cmd.SetStderr(ioutil.Discard)
 		}
 	case ast.RedirMapNoValue:
 		if redirDecl.Location() == nil {
@@ -1235,7 +1267,6 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 		}
 
 		file, err := shell.openRedirectLocation(redirDecl.Location())
-
 		if err != nil {
 			return closeAfterWait, err
 		}
@@ -1245,6 +1276,26 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 	}
 
 	return closeAfterWait, err
+}
+
+func (shell *Shell) newBindfnRunner(
+	c *ast.CommandNode,
+	cmdName string,
+	fnDef sh.FnDef,
+) (sh.Runner, error) {
+	shell.logf("Executing bind %s", cmdName)
+	shell.logf("%s bind to %s", cmdName, fnDef.Name())
+
+	if !shell.Interactive() {
+		err := errors.NewEvalError(shell.filename,
+			c, "'%s' is a bind to '%s'. "+
+				"No binds allowed in non-interactive mode.",
+			cmdName,
+			fnDef.Name())
+		return nil, err
+	}
+
+	return fnDef.Build(), nil
 }
 
 func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
@@ -1271,35 +1322,8 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 	}
 
 	if fnDef, ok := shell.Getbindfn(cmdName); ok {
-		shell.logf("Executing bind %s", cmdName)
-		shell.logf("%s bind to %s", cmdName, fnDef.Name())
-
-		if !shell.Interactive() {
-			err = errors.NewEvalError(shell.filename,
-				c, "'%s' is a bind to '%s'. "+
-					"No binds allowed in non-interactive mode.",
-				cmdName,
-				fnDef.Name())
-			return nil, ignoreError, err
-		}
-
-		if len(c.Args()) > len(fnDef.ArgNames()) {
-			err = errors.NewEvalError(shell.filename,
-				c, "Too much arguments for"+
-					" function '%s'. It expects %d args, but given %d. Arguments: %q",
-				fnDef.Name(),
-				len(fnDef.ArgNames()),
-				len(c.Args()), c.Args())
-			return nil, ignoreError, err
-		}
-
-		for i := len(c.Args()); i < len(fnDef.ArgNames()); i++ {
-			// fill missing args with empty string
-			// safe?
-			c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
-		}
-
-		return fnDef.Build(), ignoreError, nil
+		runner, err := shell.newBindfnRunner(c, cmdName, fnDef)
+		return runner, ignoreError, err
 	}
 
 	cmd, err = NewCmd(cmdName)
@@ -1364,7 +1388,6 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 	}
 
 	closeAfterWait, err = shell.setRedirects(cmd, c.Redirects())
-
 	if err != nil {
 		goto cmdError
 	}
@@ -1462,9 +1485,9 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, err
 	}
 
-	if v.Type() != sh.ListType {
-		return nil, errors.NewEvalError(shell.filename, indexVar.Var,
-			"Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
+	col, err := sh.NewCollection(v)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
 
 	indexNum, err := shell.evalIndex(indexVar.Index)
@@ -1472,17 +1495,11 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, err
 	}
 
-	vlist := v.(*sh.ListObj)
-	values := vlist.List()
-
-	if indexNum < 0 || indexNum >= len(values) {
-		return nil, errors.NewEvalError(shell.filename,
-			indexVar.Var,
-			"Index out of bounds. len(%s) == %d, but given %d", indexVar.Var.Name,
-			len(values), indexNum)
+	val, err := col.Get(indexNum)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
-
-	return values[indexNum], nil
+	return val, nil
 }
 
 func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error) {
@@ -1491,9 +1508,9 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		return nil, err
 	}
 
-	if v.Type() != sh.ListType {
-		return nil, errors.NewEvalError(shell.filename, indexVar.Var,
-			"Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
+	col, err := sh.NewCollection(v)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
 
 	indexNum, err := shell.evalIndex(indexVar.Index)
@@ -1501,17 +1518,10 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		return nil, err
 	}
 
-	vlist := v.(*sh.ListObj)
-	values := vlist.List()
-
-	if indexNum < 0 || indexNum >= len(values) {
-		return nil, errors.NewEvalError(shell.filename,
-			indexVar.Var,
-			"Index out of bounds. len(%s) == %d, but given %d", indexVar.Var.Name,
-			len(values), indexNum)
+	retval, err := col.Get(indexNum)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
-
-	retval := values[indexNum]
 
 	if indexVar.IsVariadic {
 		if retval.Type() != sh.ListType {
@@ -1521,7 +1531,7 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		retlist := retval.(*sh.ListObj)
 		return retlist.List(), nil
 	}
-	return []sh.Obj{values[indexNum]}, nil
+	return []sh.Obj{retval}, nil
 }
 
 func (shell *Shell) evalVariable(a ast.Expr) (sh.Obj, error) {
@@ -2333,14 +2343,18 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 		return nil, err
 	}
 
-	if obj.Type() != sh.ListType {
+	col, err := sh.NewCollection(obj)
+	if err != nil {
 		return nil, errors.NewEvalError(shell.filename,
-			inExpr, "Invalid variable type in for range: %s", obj.Type())
+			inExpr, "error[%s] trying to iterate", err)
 	}
 
-	objlist := obj.(*sh.ListObj)
-
-	for _, val := range objlist.List() {
+	for i := 0; i < col.Len(); i++ {
+		val, err := col.Get(i)
+		if err != nil {
+			return nil, errors.NewEvalError(shell.filename,
+				inExpr, "unexpected error[%s] during iteration", err)
+		}
 		shell.Setvar(id, val, Local)
 
 		objs, err := shell.executeTree(n.Tree(), false)
@@ -2394,67 +2408,6 @@ func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 
 	shell.Setvar(n.Name(), sh.NewFnObj(fnDef), Local)
 	shell.logf("Function %s declared on '%s'", n.Name(), shell.name)
-	return nil
-}
-
-func (shell *Shell) dumpVar(file io.Writer) {
-	for n, v := range shell.vars {
-		if n == "status" {
-			continue
-		}
-
-		printVar(file, n, v)
-	}
-}
-
-func (shell *Shell) dumpEnv(file io.Writer) {
-	for n := range shell.env {
-		printEnv(file, n)
-	}
-}
-
-func (shell *Shell) dump(out io.Writer) {
-	shell.dumpVar(out)
-	shell.dumpEnv(out)
-}
-
-func (shell *Shell) executeDump(n *ast.DumpNode) error {
-	var (
-		err    error
-		file   io.Writer
-		obj    sh.Obj
-		objstr *sh.StrObj
-	)
-
-	fnameArg := n.Filename()
-
-	if fnameArg == nil {
-		file = shell.stdout
-		goto execDump
-	}
-
-	obj, err = shell.evalExpr(fnameArg)
-
-	if err != nil {
-		return err
-	}
-
-	if obj.Type() != sh.StringType {
-		return errors.NewEvalError(shell.filename,
-			fnameArg,
-			"dump does not support argument of type %s", obj.Type())
-	}
-
-	objstr = obj.(*sh.StrObj)
-	file, err = os.OpenFile(objstr.Str(), os.O_CREATE|os.O_RDWR, 0644)
-
-	if err != nil {
-		return err
-	}
-
-execDump:
-	shell.dump(file)
-
 	return nil
 }
 

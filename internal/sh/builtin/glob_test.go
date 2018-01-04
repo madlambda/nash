@@ -35,11 +35,13 @@ func TestGlobNoResult(t *testing.T) {
 	pattern := dir + "/*.la"
 
 	out := execSuccess(t, fmt.Sprintf(`
-		var res <= glob("%s")
+		var res, err <= glob("%s")
 		print($res)
+		print($err)
+		print(len($res))
 	`, pattern))
 
-	if out != "" {
+	if out != "0" {
 		t.Fatalf("expected no results, got: %q", out)
 	}
 }
@@ -53,8 +55,9 @@ func TestGlobOneResult(t *testing.T) {
 	pattern := dir + "/*.go"
 
 	out := execSuccess(t, fmt.Sprintf(`
-		var res <= glob("%s")
+		var res, err <= glob("%s")
 		print($res)
+		print($err)
 	`, pattern))
 
 	if out != filename {
@@ -75,13 +78,14 @@ func TestGlobMultipleResults(t *testing.T) {
 	pattern := dir + "/*.h"
 
 	out := execSuccess(t, fmt.Sprintf(`
-		var res <= glob("%s")
+		var res, err <= glob("%s")
 		print($res)
+		print($err)
 	`, pattern))
 
 	res := strings.Split(out, " ")
 	if len(res) != 2 {
-		t.Fatalf("expected 2 results, got: %s", len(res))
+		t.Fatalf("expected 2 results, got: %d", len(res))
 	}
 
 	found1 := false
@@ -101,24 +105,53 @@ func TestGlobMultipleResults(t *testing.T) {
 	}
 }
 
-func TestGlobNoParamError(t *testing.T) {
-	execFailure(t, `
-		var res <= glob()
-		print($res)
-	`)
-}
-
-func TestGlobWrongType(t *testing.T) {
-	execFailure(t, `
-		param = ("hi")
-		var res <= glob($param)
-		print($res)
-	`)
-}
-
 func TestGlobInvalidPatternError(t *testing.T) {
-	execFailure(t, `
-		var res <= glob("*[.go")
+	out := execSuccess(t, `
+		var res, err <= glob("*[.go")
 		print($res)
+		if $err != "" {
+			print("got error")
+		}
 	`)
+
+	if out != "got error" {
+		t.Fatalf("expected error message on glob, got nothing, output[%s]", out)
+	}
+}
+
+func TestFatalFailure(t *testing.T) {
+	type tcase struct {
+		name string
+		code string
+	}
+	cases := []tcase{
+		tcase{
+			name: "noParam",
+			code: `
+				var res <= glob()
+				print($res)
+			`,
+		},
+		tcase{
+			name: "multipleParams",
+			code: `
+				var res <= glob("/a/*", "/b/*")
+				print($res)
+			`,
+		},
+		tcase{
+			name: "wrongType",
+			code: `
+				var param = ("hi")
+				var res <= glob($param)
+				print($res)
+			`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			execFailure(t, c.code)
+		})
+	}
 }

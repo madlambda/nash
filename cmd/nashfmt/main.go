@@ -12,10 +12,14 @@ import (
 
 var (
 	overwrite bool
+	version   bool
+	// version is set at build time
+	VersionString = "No version provided"
 )
 
 func init() {
 	flag.BoolVar(&overwrite, "w", false, "overwrite file")
+	flag.BoolVar(&version, "version", false, "Show version")
 }
 
 func main() {
@@ -25,6 +29,11 @@ func main() {
 	)
 
 	flag.Parse()
+
+	if version {
+		fmt.Printf("build tag: %s\n", VersionString)
+		return
+	}
 
 	if len(flag.Args()) <= 0 {
 		flag.PrintDefaults()

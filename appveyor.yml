@@ -1,0 +1,24 @@
+version: "1.0.0.{build}"
+platform: x64
+clone_folder: "c:\\gopath\\src\\github.com\\NeowayLabs\\nash"
+environment: 
+  GOPATH: "c:\\gopath"
+install: 
+  - "echo %PATH%"
+  - "echo %GOPATH%"
+  - "set PATH=%GOPATH%\\bin;c:\\go\\bin;c:\\MinGW\\bin;%PATH%"
+  - "go version"
+  - "go env"
+  - copy c:\MinGW\bin\mingw32-make.exe c:\MinGW\bin\make.exe
+  - choco install cygwin
+  - set PATH=C:\\cygwin64\\bin;%PATH%
+
+build_script: 
+  - make build
+  - make test
+
+notifications:
+  - provider: GitHubPullRequest
+    auth_token:
+      secure: QuTLyXQp/4bQNeeEe5DLt9NIt/TzmZkn87s6wfOWpELX1L5UJyRCKV8AJitZWgwv
+    template: "{{#passed}}:white_check_mark:{{/passed}}{{#failed}}:x:{{/failed}} [Build {{&projectName}} {{buildVersion}} {{status}}]({{buildUrl}}) (commit {{commitUrl}} by @{{&commitAuthorUsername}})"

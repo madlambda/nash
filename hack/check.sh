@@ -16,7 +16,7 @@ GO="go"
 echo "mode: count" > coverage.txt
 
 # Standard $GO tooling behavior is to ignore dirs with leading underscors
-for dir in $(find . -maxdepth 10 -not -path './.git*' -not -path './Godeps*' -not -path './contrib*' -not -path './cmd/nash/vendor*' -not -path './research*' -type d);
+for dir in $(find . -maxdepth 10 -not -path './.git*' -not -path './cmd/nash/vendor*' -type d);
 do
     if ls $dir | grep '.*\.go$' &> /dev/null; then
 	$GO test -v -race -covermode=atomic -coverprofile="$dir/profile.tmp" "$dir"
@@ -33,6 +33,14 @@ done
 
 $GO tool cover -func coverage.txt
 
-# To submit the test coverage result to coveralls.io,
-# use goveralls (https://github.com/mattn/goveralls)
-# goveralls -coverprofile=profile.cov -service=travis-ci
+echo "running stdlib tests"
+export NASHPATH=`pwd`
+tests=$(find ./stdlib -name "*_test.sh")
+
+for t in ${tests[*]}
+do
+    echo
+    echo "running test: "$t
+    ./cmd/nash/nash $t
+    echo "success"
+done

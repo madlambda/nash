@@ -54,7 +54,6 @@ func NewParser(name, content string) *Parser {
 		token.SetEnv:  p.parseSetenv,
 		token.Rfork:   p.parseRfork,
 		token.BindFn:  p.parseBindFn,
-		token.Dump:    p.parseDump,
 		token.Comment: p.parseComment,
 		token.Illegal: p.parseError,
 	}
@@ -1321,38 +1320,6 @@ func (p *Parser) parseBindFn(bindIt scanner.Token) (ast.Node, error) {
 
 	n := ast.NewBindFnNode(bindIt.FileInfo, nameIt.Value(), cmdIt.Value())
 	return n, nil
-}
-
-func (p *Parser) parseDump(dumpIt scanner.Token) (ast.Node, error) {
-	dump := ast.NewDumpNode(dumpIt.FileInfo)
-
-	fnameIt := p.peek()
-
-	var arg ast.Expr
-
-	switch fnameIt.Type() {
-	case token.Semicolon:
-		p.ignore()
-		return dump, nil
-	case token.String:
-		arg = ast.NewStringExpr(fnameIt.FileInfo, fnameIt.Value(), true)
-	case token.Arg:
-		arg = ast.NewStringExpr(fnameIt.FileInfo, fnameIt.Value(), false)
-	case token.Variable:
-		arg = ast.NewVarExpr(fnameIt.FileInfo, fnameIt.Value())
-	default:
-		return dump, nil
-	}
-
-	p.ignore()
-
-	if p.peek().Type() == token.Semicolon {
-		p.ignore()
-	}
-
-	dump.SetFilename(arg)
-
-	return dump, nil
 }
 
 func (p *Parser) parseReturn(retTok scanner.Token) (ast.Node, error) {

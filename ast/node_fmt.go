@@ -635,15 +635,6 @@ func (n *BindFnNode) String() string {
 	return "bindfn " + n.name + " " + n.cmdname
 }
 
-// String returns the string representation of dump node
-func (n *DumpNode) String() string {
-	if n.filename != nil {
-		return "dump " + n.filename.String()
-	}
-
-	return "dump"
-}
-
 // String returns the string representation of return statement
 func (n *ReturnNode) String() string {
 	var returns []string
