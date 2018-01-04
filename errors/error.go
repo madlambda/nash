@@ -43,11 +43,7 @@ func NewEvalError(path string, node ast.Node, format string, arg ...interface{})
 }
 
 func (e *NashError) SetReason(format string, arg ...interface{}) {
-	if len(arg) > 0 {
-		e.reason = fmt.Sprintf(format, arg...)
-	} else {
-		e.reason = format
-	}
+	e.reason = fmt.Sprintf(format, arg...)
 }
 
 func (e *NashError) Error() string { return e.reason }
