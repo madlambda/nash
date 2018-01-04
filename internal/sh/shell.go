@@ -390,18 +390,6 @@ func (shell *Shell) SetRepr(a string) {
 	shell.repr = a
 }
 
-func (shell *Shell) String() string {
-	if shell.repr != "" {
-		return shell.repr
-	}
-
-	var out bytes.Buffer
-
-	shell.dump(&out)
-
-	return string(out.Bytes())
-}
-
 func (shell *Shell) setupBuiltin() {
 	for name, constructor := range builtin.Constructors() {
 		fnDef := newBuiltinFnDef(name, shell, constructor)
@@ -665,8 +653,6 @@ func (shell *Shell) executeNode(node ast.Node) ([]sh.Obj, error) {
 		objs, err = shell.executeFor(node.(*ast.ForNode))
 	case ast.NodeBindFn:
 		err = shell.executeBindFn(node.(*ast.BindFnNode))
-	case ast.NodeDump:
-		err = shell.executeDump(node.(*ast.DumpNode))
 	case ast.NodeReturn:
 		if shell.IsFn() {
 			objs, err = shell.executeReturn(node.(*ast.ReturnNode))
@@ -2236,67 +2222,6 @@ func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 
 	shell.Setvar(n.Name(), sh.NewFnObj(fnDef))
 	shell.logf("Function %s declared on '%s'", n.Name(), shell.name)
-	return nil
-}
-
-func (shell *Shell) dumpVar(file io.Writer) {
-	for n, v := range shell.vars {
-		if n == "status" {
-			continue
-		}
-
-		printVar(file, n, v)
-	}
-}
-
-func (shell *Shell) dumpEnv(file io.Writer) {
-	for n := range shell.env {
-		printEnv(file, n)
-	}
-}
-
-func (shell *Shell) dump(out io.Writer) {
-	shell.dumpVar(out)
-	shell.dumpEnv(out)
-}
-
-func (shell *Shell) executeDump(n *ast.DumpNode) error {
-	var (
-		err    error
-		file   io.Writer
-		obj    sh.Obj
-		objstr *sh.StrObj
-	)
-
-	fnameArg := n.Filename()
-
-	if fnameArg == nil {
-		file = shell.stdout
-		goto execDump
-	}
-
-	obj, err = shell.evalExpr(fnameArg)
-
-	if err != nil {
-		return err
-	}
-
-	if obj.Type() != sh.StringType {
-		return errors.NewEvalError(shell.filename,
-			fnameArg,
-			"dump does not support argument of type %s", obj.Type())
-	}
-
-	objstr = obj.(*sh.StrObj)
-	file, err = os.OpenFile(objstr.Str(), os.O_CREATE|os.O_RDWR, 0644)
-
-	if err != nil {
-		return err
-	}
-
-execDump:
-	shell.dump(file)
-
 	return nil
 }
 
