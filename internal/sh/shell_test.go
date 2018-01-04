@@ -306,7 +306,7 @@ func TestExecuteAssignment(t *testing.T) {
 			code:           `var name=i4k`,
 			expectedStdout: "",
 			expectedStderr: "",
-			expectedErr:    "wrong assignment:1:5: Unexpected token IDENT. Expecting VARIABLE, STRING or (",
+			expectedErr:    "wrong assignment:1:9: Unexpected token IDENT. Expecting VARIABLE, STRING or (",
 		},
 		{
 			desc: "assignment",
