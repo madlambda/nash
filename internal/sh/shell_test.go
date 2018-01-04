@@ -1445,12 +1445,10 @@ func testTCPRedirection(t *testing.T, port, command string) {
 	done := make(chan error)
 
 	l, err := net.Listen("tcp", port)
-	defer l.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	fmt.Println("Listener working")
+	defer l.Close()
 
 	f, teardown := setup(t)
 	defer teardown()
@@ -1468,15 +1466,10 @@ func testTCPRedirection(t *testing.T, port, command string) {
 			return
 		}
 
-		fmt.Println(runtime.GOOS)
-		if runtime.GOOS == "windows" {
-			time.Sleep(5 * time.Second)
-		}
-
 		done <- shell.Exec("test net redirection", command)
 	}()
 
-	done <- nil
+	done <- nil // synchronize peers
 	conn, err := l.Accept()
 	if err != nil {
 		done <- err
@@ -1484,7 +1477,6 @@ func testTCPRedirection(t *testing.T, port, command string) {
 	}
 
 	defer conn.Close()
-
 	err = <-done
 	if err != nil {
 		t.Fatal(err)
@@ -1492,11 +1484,8 @@ func testTCPRedirection(t *testing.T, port, command string) {
 
 	buf, err := ioutil.ReadAll(conn)
 	if err != nil {
-		done <- err
 		t.Fatal(err)
 	}
-
-	fmt.Printf("got: '%s'\n", string(buf[:]))
 
 	if msg := string(buf[:]); msg != message {
 		t.Fatalf("Unexpected message:\nGot:\t\t%s\nExpected:\t%s\n", msg, message)
@@ -1504,8 +1493,8 @@ func testTCPRedirection(t *testing.T, port, command string) {
 }
 
 func TestTCPRedirection(t *testing.T) {
-	//testTCPRedirection(t, ":6666", `echo -n "hello world" >[1] "tcp://localhost:6666"`)
-	testTCPRedirection(t, "localhost:8089", `echo "hello world" > "tcp://localhost:8089"`)
+	testTCPRedirection(t, ":4666", `echo -n "hello world" >[1] "tcp://localhost:4666"`)
+	testTCPRedirection(t, ":4667", `echo -n "hello world" > "tcp://localhost:4667"`)
 }
 
 func TestExecuteUnixRedirection(t *testing.T) {
@@ -1904,13 +1893,17 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 		fmt.Printf("Waiting 2 second to abort infinite loop")
 		time.Sleep(2 * time.Second)
 
-		shell.TriggerCTRLC()
+		err := shell.TriggerCTRLC()
+		if err != nil {
+			t.Fatal(err)
+		}
 		doneCtrlc <- true
 	}()
 
 	go func() {
 		err = shell.Exec("simple loop", `for {
-        echo "infinite loop" >[1=]
+		echo "infinite loop" >[1=]
+		sleep 1
 }`)
 		doneLoop <- true
 

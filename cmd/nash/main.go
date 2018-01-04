@@ -106,7 +106,7 @@ func getnashpath() (string, error) {
 	usr, err := user.Current()
 	if err != nil {
 		return "", fmt.Errorf("unable to infer nash directory. "+
-			"You must set NASHPATH environment variable explicity: ",
+			"You must set NASHPATH environment variable explicity: %s",
 			err.Error())
 	}
 	if usr.HomeDir == "" {

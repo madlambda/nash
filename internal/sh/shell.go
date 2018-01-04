@@ -46,6 +46,7 @@ type (
 		isFn        bool
 		filename    string // current file being executed or imported
 
+		sigs        chan os.Signal
 		interrupted bool
 		looping     bool
 
@@ -125,6 +126,7 @@ func NewShell() (*Shell, error) {
 		vars:        make(Var),
 		binds:       make(Fns),
 		Mutex:       &sync.Mutex{},
+		sigs:        make(chan os.Signal, 1),
 		filename:    "<interactive>",
 	}
 
@@ -437,12 +439,11 @@ func (shell *Shell) setup() error {
 }
 
 func (shell *Shell) setupSignals() {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT)
+	signal.Notify(shell.sigs, syscall.SIGINT)
 
 	go func() {
 		for {
-			sig := <-sigs
+			sig := <-shell.sigs
 
 			switch sig {
 			case syscall.SIGINT:
@@ -463,13 +464,8 @@ func (shell *Shell) setupSignals() {
 }
 
 func (shell *Shell) TriggerCTRLC() error {
-	p, err := os.FindProcess(os.Getpid())
-
-	if err != nil {
-		return err
-	}
-
-	return p.Signal(syscall.SIGINT)
+	shell.sigs <- syscall.SIGINT
+	return nil
 }
 
 // setIntr *do not lock*. You must do it yourself!
