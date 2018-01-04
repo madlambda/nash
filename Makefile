@@ -26,9 +26,6 @@ install: build
 	cp -pr ./stdlib $(NASHROOT)/stdlib
 	cp -pr ./stdbin/mkdir/mkdir $(NASHROOT)/bin/mkdir
 
-deps:
-	go get -v -t golang.org/x/exp/ebnf
-
 docsdeps:
 	go get github.com/katcipis/mdtoc
 
@@ -38,7 +35,7 @@ docs: docsdeps
 	mdtoc -w ./docs/reference.md
 	mdtoc -w ./docs/stdlib/fmt.md
 
-test: deps build
+test: build
 	./hack/check.sh
 
 update-vendor:
