@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -401,11 +402,13 @@ func (shell *Shell) setupBuiltin() {
 
 func (shell *Shell) setupDefaultBindings() error {
 	// only one builtin fn... no need for advanced machinery yet
-	homeEnvVar := "HOME"
-	if runtime.GOOS == "windows" {
-		homeEnvVar = "HOMEPATH"
+
+	usr, err := user.Current()
+	if err != nil {
+		return fmt.Errorf("error getting current user: %s", err)
 	}
-	err := shell.Exec(shell.name, fmt.Sprintf(`fn nash_builtin_cd(args...) {
+
+	return shell.Exec(shell.name, fmt.Sprintf(`fn nash_builtin_cd(args...) {
 	    path = ""
 	    l <= len($args)
             if $l == "0" {
@@ -417,9 +420,7 @@ func (shell *Shell) setupDefaultBindings() error {
             chdir($path)
         }
 
-        bindfn nash_builtin_cd cd`, homeEnvVar))
-
-	return err
+        bindfn nash_builtin_cd cd`, usr.HomeDir))
 }
 
 func (shell *Shell) setup() error {
