@@ -1335,18 +1335,6 @@ func TestParseRedirectionVariable(t *testing.T) {
 	parserTest("redir var", `cmd > $outFname`, expected, t, true)
 }
 
-func TestParseDump(t *testing.T) {
-	expected := ast.NewTree("dump")
-	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
-
-	dump := ast.NewDumpNode(token.NewFileInfo(1, 0))
-	dump.SetFilename(ast.NewStringExpr(token.NewFileInfo(1, 5), "./init", false))
-	ln.Push(dump)
-	expected.Root = ln
-
-	parserTest("dump", `dump ./init`, expected, t, true)
-}
-
 func TestParseReturn(t *testing.T) {
 	expected := ast.NewTree("return")
 	ln := ast.NewBlockNode(token.NewFileInfo(1, 0))
