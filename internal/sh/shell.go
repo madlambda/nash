@@ -731,7 +731,6 @@ func (shell *Shell) executeTree(tr *ast.Tree, stopable bool) ([]sh.Obj, error) {
 
 	for _, node := range root.Nodes {
 		objs, err := shell.executeNode(node)
-
 		if err != nil {
 			type (
 				IgnoreError interface {

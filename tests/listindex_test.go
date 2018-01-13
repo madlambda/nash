@@ -11,7 +11,7 @@ func TestListIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "PositionalAccess",
 			ScriptCode: `
-				a = ("1" "2")
+				var a = ("1" "2")
 				echo $a[0]
 				echo $a[1]
 			`,
@@ -20,7 +20,7 @@ func TestListIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "PositionalAssigment",
 			ScriptCode: `
-				a = ("1" "2")
+				var a = ("1" "2")
 				a[0] = "9"
 				a[1] = "p"
 				echo $a[0] + $a[1]
@@ -30,8 +30,8 @@ func TestListIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "PositionalAccessWithVar",
 			ScriptCode: `
-				a = ("1" "2")
-				i = "0"
+				var a = ("1" "2")
+				var i = "0"
 				echo $a[$i]
 				i = "1"
 				echo $a[$i]
@@ -41,7 +41,7 @@ func TestListIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "Iteration",
 			ScriptCode: `
-				a = ("1" "2" "3")
+				var a = ("1" "2" "3")
 				for x in $a {
 					echo $x
 				}
@@ -51,7 +51,7 @@ func TestListIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "IterateEmpty",
 			ScriptCode: `
-				a = ()
+				var a = ()
 				for x in $a {
 					exit("1")
 				}
@@ -62,7 +62,7 @@ func TestListIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "IndexOutOfRangeFails",
 			ScriptCode: `
-				a = ("1" "2" "3")
+				var a = ("1" "2" "3")
 				echo $a[3]
 			`,
 			Fails: true,
@@ -71,7 +71,7 @@ func TestListIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "IndexEmptyFails",
 			ScriptCode: `
-				a = ()
+				var a = ()
 				echo $a[0]
 			`,
 			Fails: true,

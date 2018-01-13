@@ -39,7 +39,12 @@ func init() {
 }
 
 func setup(t *testing.T) (fixture, func()) {
-	err := os.Setenv("NASHPATH", "/tmp/.nash")
+	tmpNashPath, err := ioutil.TempDir("", "nash-tests")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.Setenv("NASHPATH", tmpNashPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -754,10 +759,11 @@ func TestExecuteCd(t *testing.T) {
 		homeEnvVar = "HOMEPATH"
 
 		// hack to use nash's pwd instead of gnu on windows
-		projectDir := getGopath() + "/src/github.com/NeowayLabs/nash"
-		pwdDir := projectDir + "/stdbin/pwd"
+		projectDir := filepath.Join(tests.Gopath, filepath.FromSlash(
+			"src/github.com/NeowayLabs/nash"))
+		pwdDir := filepath.Join(projectDir, "stdbin", "pwd")
 		path := os.Getenv("Path")
-		defer os.Setenv("Path", path)
+		defer os.Setenv("Path", path) // TODO(i4k): very unsafe
 		os.Setenv("Path", pwdDir+";"+path)
 	}
 
@@ -2108,13 +2114,12 @@ for i in $seq {}`)
 
 func TestExecuteErrorSuppressionAll(t *testing.T) {
 	shell, err := NewShell()
-
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	err = shell.Exec("-input-", `-command-not-exists`)
+	err = shell.Exec("-input-", `_, status <= command-not-exists`)
 	if err != nil {
 		t.Errorf("Expected to not fail...: %s", err.Error())
 		return
@@ -2126,7 +2131,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 		return
 	}
 
-	err = shell.Exec("-input-", `echo works >[1=]`)
+	err = shell.Exec("-input-", `_, status <= echo works`)
 	if err != nil {
 		t.Error(err)
 		return
@@ -2148,13 +2153,6 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 
 	if !strings.HasPrefix(err.Error(), expectedError) {
 		t.Errorf("Unexpected error: %s", err.Error())
-		return
-	}
-
-	scode, ok = shell.Getvar("status", Local)
-
-	if !ok || scode.Type() != sh.StringType || scode.String() != "255|127" {
-		t.Errorf("Invalid status code %v", scode)
 		return
 	}
 }

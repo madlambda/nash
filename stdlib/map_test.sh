@@ -1,8 +1,7 @@
 import map
 
 fn expect(map, key, want) {
-        got <= map_get($map, $key)
-
+        var got <= map_get($map, $key)
         if $got != $want {
                 echo "error: got["+$got+"] want["+$want+"]"
                 exit("1")
@@ -10,7 +9,7 @@ fn expect(map, key, want) {
 }
 
 fn test_adding_keys() {
-        map <= map_new()
+        var map <= map_new()
 
         map <= map_add($map, "key", "value")
         expect($map, "key", "value")
@@ -23,14 +22,14 @@ fn test_adding_keys() {
 }
 
 fn test_absent_key_will_have_empty_string_value() {
-        map <= map_new()
+        var map <= map_new()
         expect($map, "absent", "")
 }
 
 fn test_absent_key_with_custom_default_value() {
-        map <= map_new()
-        want = "hi"
-        got <= map_get_default($map, "absent", $want)
+        var map <= map_new()
+        var want = "hi"
+        var got <= map_get_default($map, "absent", $want)
         if $got != $want {
                 echo "error: got["+$got+"] want["+$want+"]"
                 exit("1")
@@ -38,11 +37,11 @@ fn test_absent_key_with_custom_default_value() {
 }
 
 fn test_iterates_map() {
-        map <= map_new()
+        var map <= map_new()
         map <= map_add($map, "key", "value")
         map <= map_add($map, "key2", "value2")
 
-        got <= map_new()
+        var got <= map_new()
 
 	fn iter(key, val) {
 		got <= map_add($got, $key, $val)
@@ -55,7 +54,7 @@ fn test_iterates_map() {
 }
 
 fn test_removing_key() {
-        map <= map_new()
+        var map <= map_new()
 
         map <= map_add($map, "key", "value")
         map <= map_add($map, "key2", "value2")
@@ -69,7 +68,7 @@ fn test_removing_key() {
 }
 
 fn test_removing_absent_key() {
-        map <= map_new()
+        var map <= map_new()
 
         expect($map, "key", "")
         map <= map_del($map, "key")
