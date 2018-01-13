@@ -37,7 +37,7 @@ func init() {
 	val, permerr := ioutil.ReadFile(usernsCfg)
 
 	// Travis build doesn't support /proc/config.gz but kernel has userns
-	if os.Getenv("TRAVIS_BUILD") == usernsOk {
+	if os.Getenv("TRAVIS_BUILD") == "1" {
 		enableUserNS = permerr == nil && string(val) == usernsOk
 		logUsernsDetection(permerr)
 		return
