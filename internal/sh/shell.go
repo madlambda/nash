@@ -8,8 +8,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"os/user"
-	"path/filepath"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -47,7 +46,6 @@ type (
 		isFn        bool
 		filename    string // current file being executed or imported
 
-		sigs        chan os.Signal
 		interrupted bool
 		looping     bool
 
@@ -127,7 +125,6 @@ func NewShell() (*Shell, error) {
 		vars:        make(Var),
 		binds:       make(Fns),
 		Mutex:       &sync.Mutex{},
-		sigs:        make(chan os.Signal, 1),
 		filename:    "<interactive>",
 	}
 
@@ -402,25 +399,22 @@ func (shell *Shell) setupBuiltin() {
 
 func (shell *Shell) setupDefaultBindings() error {
 	// only one builtin fn... no need for advanced machinery yet
-
-	usr, err := user.Current()
-	if err != nil {
-		return fmt.Errorf("error getting current user: %s", err)
-	}
-
-	return shell.Exec(shell.name, fmt.Sprintf(`fn nash_builtin_cd(args...) {
+	// FIXME: seems better to have a std init than embedding here on code
+	err := shell.Exec(shell.name, `fn nash_builtin_cd(args...) {
 	    path = ""
 	    l <= len($args)
-            if $l == "0" {
-                    path = $%s
-            } else {
-                    path = $args[0]
+        if $l == "0" {
+            path = $HOME
+        } else {
+            path = $args[0]
 	    }
 
-            chdir($path)
-        }
+        chdir($path)
+    }
 
-        bindfn nash_builtin_cd cd`, usr.HomeDir))
+    bindfn nash_builtin_cd cd`)
+
+	return err
 }
 
 func (shell *Shell) setup() error {
@@ -440,11 +434,12 @@ func (shell *Shell) setup() error {
 }
 
 func (shell *Shell) setupSignals() {
-	signal.Notify(shell.sigs, syscall.SIGINT)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT)
 
 	go func() {
 		for {
-			sig := <-shell.sigs
+			sig := <-sigs
 
 			switch sig {
 			case syscall.SIGINT:
@@ -465,8 +460,13 @@ func (shell *Shell) setupSignals() {
 }
 
 func (shell *Shell) TriggerCTRLC() error {
-	shell.sigs <- syscall.SIGINT
-	return nil
+	p, err := os.FindProcess(os.Getpid())
+
+	if err != nil {
+		return err
+	}
+
+	return p.Signal(syscall.SIGINT)
 }
 
 // setIntr *do not lock*. You must do it yourself!
@@ -745,11 +745,11 @@ func (shell *Shell) getNashRootFromGOPATH(preverr error) (string, error) {
 		return "", errors.NewError("%s\nno GOPATH env var setted", preverr)
 	}
 	gopath := g.String()
-	return filepath.Join(gopath, filepath.FromSlash("/src/github.com/NeowayLabs/nash")), nil
+	return gopath + "/src/github.com/NeowayLabs/nash", nil
 }
 
 func isValidNashRoot(nashroot string) bool {
-	_, err := os.Stat(filepath.Join(nashroot, "stdlib"))
+	_, err := os.Stat(nashroot + "/stdlib")
 	return err == nil
 }
 
@@ -757,13 +757,14 @@ func (shell *Shell) getNashRoot() (string, error) {
 	// TODO(katcipis): It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
 
 	nashroot, ok := shell.Getenv("NASHROOT")
+
 	if !ok {
 		h, hashome := shell.Getenv("HOME")
 		if !hashome {
 			return shell.getNashRootFromGOPATH(errors.NewError("no HOME env var setted"))
 		}
 		home := h.String()
-		nashroot := filepath.Join(home, "nashroot")
+		nashroot := home + "/nashroot"
 
 		if !isValidNashRoot(nashroot) {
 			return shell.getNashRootFromGOPATH(errors.NewError("$HOME/nashroot is not valid NASHROOT\n%s"))
@@ -786,7 +787,7 @@ func (shell *Shell) getNashPath() (string, error) {
 			return "", errors.NewError("No NASHPATH and no HOME env vars set")
 		}
 		home := h.String()
-		return filepath.Join(home, "nash"), nil
+		return home + "/nash", nil
 	}
 
 	if nashPath.Type() != sh.StringType {
@@ -794,6 +795,7 @@ func (shell *Shell) getNashPath() (string, error) {
 	}
 
 	return nashPath.String(), nil
+
 }
 
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
@@ -819,8 +821,14 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		hasExt bool
 	)
 
-	hasExt = filepath.Ext(fname) != ""
-	if filepath.IsAbs(fname) {
+	if len(fname) > 3 && fname[len(fname)-3:] == ".sh" {
+		hasExt = true
+	}
+
+	if (len(fname) > 0 && fname[0] == '/') ||
+		(len(fname) > 1 && fname[0] == '.' && fname[1] == '/') ||
+		(len(fname) > 2 && fname[0] == '.' && fname[1] == '.' &&
+			fname[2] == '/') {
 		tries = append(tries, fname)
 
 		if !hasExt {
@@ -829,25 +837,24 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	}
 
 	if shell.filename != "" {
-		localFile := filepath.Join(filepath.Dir(shell.filename), fname)
-		tries = append(tries, localFile)
+		tries = append(tries, path.Dir(shell.filename)+"/"+fname)
 
 		if !hasExt {
-			tries = append(tries, localFile+".sh")
+			tries = append(tries, path.Dir(shell.filename)+"/"+fname+".sh")
 		}
 	}
 
 	dotDir, nashpatherr := shell.getNashPath()
 	if nashpatherr == nil {
-		tries = append(tries, filepath.Join(dotDir, "lib", fname))
+		tries = append(tries, dotDir+"/lib/"+fname)
 		if !hasExt {
-			tries = append(tries, filepath.Join(dotDir, "lib", fname+".sh"))
+			tries = append(tries, dotDir+"/lib/"+fname+".sh")
 		}
 	}
 
 	nashroot, nashrooterr := shell.getNashRoot()
 	if nashrooterr == nil {
-		tries = append(tries, filepath.Join(nashroot, "stdlib", fname+".sh"))
+		tries = append(tries, nashroot+"/stdlib/"+fname+".sh")
 	}
 
 	shell.logf("Trying %q\n", tries)
@@ -1075,7 +1082,9 @@ pipeError:
 }
 
 func (shell *Shell) openRedirectLocation(location ast.Expr) (io.WriteCloser, error) {
-	var protocol string
+	var (
+		protocol string
+	)
 
 	locationObj, err := shell.evalExpr(location)
 	if err != nil {
@@ -1179,6 +1188,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			file, err := shell.openRedirectLocation(redirDecl.Location())
+
 			if err != nil {
 				return closeAfterWait, err
 			}
@@ -1186,8 +1196,14 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			cmd.SetStdout(file)
 			closeAfterWait = append(closeAfterWait, file)
 		case ast.RedirMapSupress:
-			file := ioutil.Discard
+			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
+
+			if err != nil {
+				return closeAfterWait, err
+			}
+
 			cmd.SetStdout(file)
+			closeAfterWait = append(closeAfterWait, file)
 		}
 	case 2:
 		switch redirDecl.RightFD() {
@@ -1205,6 +1221,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			}
 
 			file, err := shell.openRedirectLocation(redirDecl.Location())
+
 			if err != nil {
 				return closeAfterWait, err
 			}
@@ -1212,7 +1229,14 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 			cmd.SetStderr(file)
 			closeAfterWait = append(closeAfterWait, file)
 		case ast.RedirMapSupress:
-			cmd.SetStderr(ioutil.Discard)
+			file, err := os.OpenFile("/dev/null", os.O_RDWR, 0644)
+
+			if err != nil {
+				return closeAfterWait, err
+			}
+
+			cmd.SetStderr(file)
+			closeAfterWait = append(closeAfterWait, file)
 		}
 	case ast.RedirMapNoValue:
 		if redirDecl.Location() == nil {
@@ -1221,6 +1245,7 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 		}
 
 		file, err := shell.openRedirectLocation(redirDecl.Location())
+
 		if err != nil {
 			return closeAfterWait, err
 		}
@@ -1342,6 +1367,7 @@ func (shell *Shell) executeCommand(c *ast.CommandNode) (sh.Obj, error) {
 	}
 
 	closeAfterWait, err = shell.setRedirects(cmd, c.Redirects())
+
 	if err != nil {
 		goto cmdError
 	}

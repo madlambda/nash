@@ -7,7 +7,7 @@ import (
 )
 
 func TestListIndexing(t *testing.T) {
-	tester.Run(t, nashcmd,
+	tester.Run(t, Nashcmd,
 		tester.TestCase{
 			Name: "PositionalAccess",
 			ScriptCode: `

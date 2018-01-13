@@ -7,8 +7,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"os/user"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -17,6 +15,7 @@ import (
 	"time"
 
 	"github.com/NeowayLabs/nash/sh"
+	"github.com/NeowayLabs/nash/tests"
 )
 
 type (
@@ -39,35 +38,8 @@ func init() {
 
 }
 
-func getGopath() string {
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		usr, err := user.Current()
-		if err != nil {
-			panic(err)
-		}
-		if usr.HomeDir == "" {
-			panic("Unable to discover GOPATH")
-		}
-		gopath = path.Join(usr.HomeDir, "go")
-	}
-	return gopath
-}
-
 func setup(t *testing.T) (fixture, func()) {
-	gopath := getGopath()
-	testDir := filepath.FromSlash(path.Join(gopath, "/src/github.com/NeowayLabs/nash/", "testfiles"))
-	nashdPath := filepath.FromSlash(path.Join(gopath, "/src/github.com/NeowayLabs/nash/cmd/nash/nash"))
-
-	if runtime.GOOS == "windows" {
-		nashdPath += ".exe"
-	}
-
-	if _, err := os.Stat(nashdPath); err != nil {
-		panic(fmt.Errorf("Please, run make build before running tests: %s", err.Error()))
-	}
-
-	tmpNashPath, err := ioutil.TempDir("", "nashpath")
+	tmpNashPath, err := ioutil.TempDir("", "nash-tests")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,8 +50,8 @@ func setup(t *testing.T) (fixture, func()) {
 	}
 
 	return fixture{
-			dir:       testDir,
-			nashdPath: nashdPath,
+			dir:       tests.Testdir,
+			nashdPath: tests.Nashcmd,
 		}, func() {
 			os.RemoveAll(tmpNashPath)
 			err := os.Unsetenv("NASHPATH")
@@ -184,7 +156,6 @@ func testInteractiveExec(t *testing.T, testcase execTestCase) {
 	defer teardown()
 
 	shell, err := NewShell()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -770,10 +741,11 @@ func TestExecuteCd(t *testing.T) {
 		homeEnvVar = "HOMEPATH"
 
 		// hack to use nash's pwd instead of gnu on windows
-		projectDir := getGopath() + "/src/github.com/NeowayLabs/nash"
-		pwdDir := projectDir + "/stdbin/pwd"
+		projectDir := filepath.Join(tests.Gopath, filepath.FromSlash(
+			"src/github.com/NeowayLabs/nash"))
+		pwdDir := filepath.Join(projectDir, "stdbin", "pwd")
 		path := os.Getenv("Path")
-		defer os.Setenv("Path", path)
+		defer os.Setenv("Path", path) // TODO(i4k): very unsafe
 		os.Setenv("Path", pwdDir+";"+path)
 	}
 

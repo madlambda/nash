@@ -1,70 +1,33 @@
 package nash
 
 import (
-	"fmt"
 	"bytes"
 	"os"
 	"testing"
-	"os/user"
-	"path"
-	"path/filepath"
-	"runtime"
 
 	"github.com/NeowayLabs/nash/sh"
+	"github.com/NeowayLabs/nash/tests"
 )
 
 // only testing the public API
 // bypass to internal sh.Shell
 
-var (
-	gopath, testDir, nashdPath string
-)
-
-func init() {
-	gopath = os.Getenv("GOPATH")
-
-	if gopath == "" {
-		usr, err := user.Current()
-		if err != nil {
-			panic(err)
-		}
-		if usr.HomeDir == "" {
-			panic("Unable to discover GOPATH")	
-		}
-		gopath = path.Join(usr.HomeDir, "go")
-	}
-
-	testDir = filepath.FromSlash(path.Join(gopath, "/src/github.com/NeowayLabs/nash/", "testfiles"))
-	nashdPath = filepath.FromSlash(path.Join(gopath, "/src/github.com/NeowayLabs/nash/cmd/nash/nash"))
-
-	if runtime.GOOS == "windows" {
-		nashdPath += ".exe"
-	}
-
-	if _, err := os.Stat(nashdPath); err != nil {
-		panic(fmt.Errorf("Please, run make build before running tests: %s", err.Error()))
-	}
-}
-
 func TestExecuteFile(t *testing.T) {
-	testfile := testDir + "/ex1.sh"
+	testfile := tests.Testdir + "/ex1.sh"
 
 	var out bytes.Buffer
-
 	shell, err := New()
-
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(tests.Nashcmd)
 	shell.SetStdout(&out)
 	shell.SetStderr(os.Stderr)
 	shell.SetStdin(os.Stdin)
 
 	err = shell.ExecuteFile(testfile)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -78,7 +41,6 @@ func TestExecuteFile(t *testing.T) {
 
 func TestExecuteString(t *testing.T) {
 	shell, err := New()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -89,7 +51,6 @@ func TestExecuteString(t *testing.T) {
 	shell.SetStdout(&out)
 
 	err = shell.ExecuteString("-ínput-", "echo -n AAA")
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -106,14 +67,12 @@ func TestExecuteString(t *testing.T) {
         PROMPT="humpback> "
         setenv PROMPT
         `)
-
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	prompt := shell.Prompt()
-
 	if prompt != "humpback> " {
 		t.Errorf("Invalid prompt = %s", prompt)
 		return
