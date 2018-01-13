@@ -49,7 +49,7 @@ func init() {
 		return
 	}
 
-	// old kernels dont has sysctl configurations
+	// old kernels dont have sysctl configurations
 	// than just checking the /proc/config suffices
 	usernsCmd := exec.Command("zgrep", kernelcfg, "/proc/config.gz")
 
