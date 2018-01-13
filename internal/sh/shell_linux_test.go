@@ -23,11 +23,13 @@ func init() {
 	logUsernsDetection := func(err error) {
 		if enableUserNS {
 			fmt.Printf("Linux user namespaces enabled!")
-		} else {
-			fmt.Printf("ERROR: %s\n", err.Error())
-			fmt.Printf("Warning: Impossible to know if kernel support USER namespace.\n")
-			fmt.Printf("Warning: USER namespace tests will not run.\n")
 			return
+		}
+
+		fmt.Printf("Warning: Impossible to know if kernel support USER namespace.\n")
+		fmt.Printf("Warning: USER namespace tests will not run.\n")
+		if err != nil {
+			fmt.Printf("ERROR: %s\n", err)
 		}
 	}
 
