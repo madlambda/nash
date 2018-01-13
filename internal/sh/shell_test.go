@@ -7,8 +7,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"os/user"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -17,6 +15,7 @@ import (
 	"time"
 
 	"github.com/NeowayLabs/nash/sh"
+	"github.com/NeowayLabs/nash/tests"
 )
 
 type (
@@ -39,47 +38,15 @@ func init() {
 
 }
 
-func getGopath() string {
-	gopath := os.Getenv("GOPATH")
-	if gopath == "" {
-		usr, err := user.Current()
-		if err != nil {
-			panic(err)
-		}
-		if usr.HomeDir == "" {
-			panic("Unable to discover GOPATH")
-		}
-		gopath = path.Join(usr.HomeDir, "go")
-	}
-	return gopath
-}
-
 func setup(t *testing.T) (fixture, func()) {
-	gopath := getGopath()
-	testDir := filepath.FromSlash(path.Join(gopath, "/src/github.com/NeowayLabs/nash/", "testfiles"))
-	nashdPath := filepath.FromSlash(path.Join(gopath, "/src/github.com/NeowayLabs/nash/cmd/nash/nash"))
-
-	if runtime.GOOS == "windows" {
-		nashdPath += ".exe"
-	}
-
-	if _, err := os.Stat(nashdPath); err != nil {
-		panic(fmt.Errorf("Please, run make build before running tests: %s", err.Error()))
-	}
-
-	tmpNashPath, err := ioutil.TempDir("", "nashpath")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = os.Setenv("NASHPATH", tmpNashPath)
+	err := os.Setenv("NASHPATH", "/tmp/.nash")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	return fixture{
-			dir:       testDir,
-			nashdPath: nashdPath,
+			dir:       tests.Testdir,
+			nashdPath: tests.Nashcmd,
 		}, func() {
 			os.RemoveAll(tmpNashPath)
 			err := os.Unsetenv("NASHPATH")

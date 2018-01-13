@@ -18,7 +18,6 @@ type TestCase struct {
 }
 
 func Run(t *testing.T, nashcmd string, cases ...TestCase) {
-
 	for _, tcase := range cases {
 		t.Run(tcase.Name, func(t *testing.T) {
 			stdout, stderr, err := sh.Exec(t, nashcmd, tcase.ScriptCode)
