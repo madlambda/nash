@@ -7,7 +7,7 @@ import (
 )
 
 func TestStringIndexing(t *testing.T) {
-	tester.Run(t, nashcmd,
+	tester.Run(t, Nashcmd,
 		tester.TestCase{
 			Name: "IterateEmpty",
 			ScriptCode: `
@@ -41,7 +41,7 @@ func TestStringIndexing(t *testing.T) {
 	)
 }
 func TestStringIndexingASCII(t *testing.T) {
-	tester.Run(t, nashcmd,
+	tester.Run(t, Nashcmd,
 		tester.TestCase{Name: "PositionalAccess",
 			ScriptCode: `
 				a = "12"
@@ -91,7 +91,7 @@ func TestStringIndexingASCII(t *testing.T) {
 }
 
 func TestStringIndexingNonASCII(t *testing.T) {
-	tester.Run(t, nashcmd,
+	tester.Run(t, Nashcmd,
 		tester.TestCase{Name: "PositionalAccess",
 			ScriptCode: `
 				a = "⌘⌘"

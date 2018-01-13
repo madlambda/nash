@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/NeowayLabs/nash/sh"
+	"github.com/NeowayLabs/nash/tests"
 )
 
 type execTestCase struct {
@@ -29,27 +30,14 @@ type fixture struct {
 }
 
 func setup(t *testing.T) (fixture, func()) {
-	gopath := os.Getenv("GOPATH")
-
-	if gopath == "" {
-		t.Fatal("Please, run tests from inside GOPATH")
-	}
-
-	testDir := gopath + "/src/github.com/NeowayLabs/nash/" + "testfiles"
-	nashdPath := gopath + "/src/github.com/NeowayLabs/nash/cmd/nash/nash"
-
-	if _, err := os.Stat(nashdPath); err != nil {
-		t.Fatal("Please, run make build before running tests")
-	}
-
 	err := os.Setenv("NASHPATH", "/tmp/.nash")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	return fixture{
-			dir:       testDir,
-			nashdPath: nashdPath,
+			dir:       tests.Testdir,
+			nashdPath: tests.Nashcmd,
 		}, func() {
 			err := os.Unsetenv("NASHPATH")
 			if err != nil {
