@@ -403,17 +403,16 @@ func (shell *Shell) setupDefaultBindings() error {
 	err := shell.Exec(shell.name, `fn nash_builtin_cd(args...) {
 	    path = ""
 	    l <= len($args)
-
-            if $l == "0" {
-                    path = $HOME
-            } else {
-                    path = $args[0]
+        if $l == "0" {
+            path = $HOME
+        } else {
+            path = $args[0]
 	    }
 
-            chdir($path)
-        }
+        chdir($path)
+    }
 
-        bindfn nash_builtin_cd cd`)
+    bindfn nash_builtin_cd cd`)
 
 	return err
 }

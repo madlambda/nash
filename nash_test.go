@@ -6,49 +6,28 @@ import (
 	"testing"
 
 	"github.com/NeowayLabs/nash/sh"
+	"github.com/NeowayLabs/nash/tests"
 )
 
 // only testing the public API
 // bypass to internal sh.Shell
 
-var (
-	gopath, testDir, nashdPath string
-)
-
-func init() {
-	gopath = os.Getenv("GOPATH")
-
-	if gopath == "" {
-		panic("Please, run tests from inside GOPATH")
-	}
-
-	testDir = gopath + "/src/github.com/NeowayLabs/nash/" + "testfiles"
-	nashdPath = gopath + "/src/github.com/NeowayLabs/nash/cmd/nash/nash"
-
-	if _, err := os.Stat(nashdPath); err != nil {
-		panic("Please, run make build before running tests")
-	}
-}
-
 func TestExecuteFile(t *testing.T) {
-	testfile := testDir + "/ex1.sh"
+	testfile := tests.Testdir + "/ex1.sh"
 
 	var out bytes.Buffer
-
 	shell, err := New()
-
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	shell.SetNashdPath(nashdPath)
+	shell.SetNashdPath(tests.Nashcmd)
 	shell.SetStdout(&out)
 	shell.SetStderr(os.Stderr)
 	shell.SetStdin(os.Stdin)
 
 	err = shell.ExecuteFile(testfile)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -62,7 +41,6 @@ func TestExecuteFile(t *testing.T) {
 
 func TestExecuteString(t *testing.T) {
 	shell, err := New()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -73,7 +51,6 @@ func TestExecuteString(t *testing.T) {
 	shell.SetStdout(&out)
 
 	err = shell.ExecuteString("-ínput-", "echo -n AAA")
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -90,14 +67,12 @@ func TestExecuteString(t *testing.T) {
         PROMPT="humpback> "
         setenv PROMPT
         `)
-
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	prompt := shell.Prompt()
-
 	if prompt != "humpback> " {
 		t.Errorf("Invalid prompt = %s", prompt)
 		return

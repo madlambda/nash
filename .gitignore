@@ -5,3 +5,4 @@ cmd/nashfmt/nashfmt
 dist
 *.exe
 stdbin/mkdir/mkdir
+stdbin/pwd/pwd

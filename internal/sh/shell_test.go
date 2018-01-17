@@ -7,50 +7,53 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/NeowayLabs/nash/sh"
+	"github.com/NeowayLabs/nash/tests"
 )
 
-type execTestCase struct {
-	desc           string
-	code           string
-	expectedStdout string
-	expectedStderr string
-	expectedErr    string
-}
+type (
+	execTestCase struct {
+		desc              string
+		code              string
+		expectedStdout    string
+		expectedStderr    string
+		expectedErr       string
+		expectedPrefixErr string
+	}
 
-type fixture struct {
-	dir       string
-	nashdPath string
+	fixture struct {
+		dir       string
+		nashdPath string
+	}
+)
+
+func init() {
+
 }
 
 func setup(t *testing.T) (fixture, func()) {
-	gopath := os.Getenv("GOPATH")
-
-	if gopath == "" {
-		t.Fatal("Please, run tests from inside GOPATH")
+	tmpNashPath, err := ioutil.TempDir("", "nash-tests")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	testDir := gopath + "/src/github.com/NeowayLabs/nash/" + "testfiles"
-	nashdPath := gopath + "/src/github.com/NeowayLabs/nash/cmd/nash/nash"
-
-	if _, err := os.Stat(nashdPath); err != nil {
-		t.Fatal("Please, run make build before running tests")
-	}
-
-	err := os.Setenv("NASHPATH", "/tmp/.nash")
+	err = os.Setenv("NASHPATH", tmpNashPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	return fixture{
-			dir:       testDir,
-			nashdPath: nashdPath,
+			dir:       tests.Testdir,
+			nashdPath: tests.Nashcmd,
 		}, func() {
+			os.RemoveAll(tmpNashPath)
 			err := os.Unsetenv("NASHPATH")
 			if err != nil {
 				t.Fatal(err)
@@ -97,7 +100,14 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 
 	err := shell.Exec(testcase.desc, testcase.code)
 	if err != nil {
-		if err.Error() != testcase.expectedErr {
+		if testcase.expectedPrefixErr != "" {
+			if !strings.HasPrefix(err.Error(), testcase.expectedPrefixErr) {
+				t.Errorf("[%s] Prefix of error differs: Expected prefix '%s' in '%s'",
+					testcase.desc,
+					testcase.expectedPrefixErr,
+					err.Error())
+			}
+		} else if err.Error() != testcase.expectedErr {
 			t.Errorf("[%s] Error differs: Expected '%s' but got '%s'",
 				testcase.desc,
 				testcase.expectedErr,
@@ -136,7 +146,6 @@ func testExec(t *testing.T, testcase execTestCase) {
 	}
 
 	shell.SetNashdPath(f.nashdPath)
-
 	testShellExec(t, shell, testcase)
 }
 
@@ -147,7 +156,6 @@ func testInteractiveExec(t *testing.T, testcase execTestCase) {
 	defer teardown()
 
 	shell, err := NewShell()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -163,18 +171,18 @@ func TestInitEnv(t *testing.T) {
 	os.Setenv("TEST", "abc=123=")
 
 	shell, err := NewShell()
-
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
-	testEnv, _ := shell.Getenv("TEST")
+	testEnv, ok := shell.Getenv("TEST")
+	if !ok {
+		t.Fatal("environment TEST not found")
+	}
 	expectedTestEnv := "abc=123="
 
 	if testEnv.String() != expectedTestEnv {
-		t.Errorf("Expected TEST Env differs: '%s' != '%s'", testEnv, expectedTestEnv)
-		return
+		t.Fatalf("Expected TEST Env differs: '%s' != '%s'", testEnv, expectedTestEnv)
 	}
 }
 
@@ -194,13 +202,20 @@ func TestExecuteFile(t *testing.T) {
 }
 
 func TestExecuteCommand(t *testing.T) {
+	echopath, err := exec.LookPath("echo")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	echodir := filepath.Dir(echopath)
+
 	for _, test := range []execTestCase{
 		{
-			desc:           "command failed",
-			code:           `non-existing-program`,
-			expectedStdout: "",
-			expectedStderr: "",
-			expectedErr:    `exec: "non-existing-program": executable file not found in $PATH`,
+			desc:              "command failed",
+			code:              `non-existing-program`,
+			expectedStdout:    "",
+			expectedStderr:    "",
+			expectedPrefixErr: `exec: "non-existing-program": executable file not found in `,
 		},
 		{
 			desc:           "err ignored",
@@ -225,10 +240,10 @@ func TestExecuteCommand(t *testing.T) {
 		},
 		{
 			desc: "local command",
-			code: `echopath <= which echo
-path <= dirname $echopath
-chdir($path)
-./echo -n hello`,
+			code: fmt.Sprintf(`echodir = "%s"
+chdir($echodir)
+./echo -n hello
+`, strings.Replace(echodir, "\\", "\\\\", -1)),
 			expectedStdout: "hello",
 			expectedStderr: "",
 			expectedErr:    "",
@@ -241,28 +256,31 @@ chdir($path)
 func TestExecuteAssignment(t *testing.T) {
 	for _, test := range []execTestCase{
 		{ // wrong assignment
-			"wrong assignment",
-			`name=i4k`,
-			"", "",
-			"wrong assignment:1:5: Unexpected token IDENT. Expecting VARIABLE, STRING or (",
+			desc:           "wrong assignment",
+			code:           `name=i4k`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "wrong assignment:1:5: Unexpected token IDENT. Expecting VARIABLE, STRING or (",
 		},
 		{
-			"assignment",
-			`name="i4k"
+			desc: "assignment",
+			code: `name="i4k"
                          echo $name`,
-			"i4k\n", "",
-			"",
+			expectedStdout: "i4k\n",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"list assignment",
-			`name=(honda civic)
+			desc: "list assignment",
+			code: `name=(honda civic)
                          echo -n $name`,
-			"honda civic", "",
-			"",
+			expectedStdout: "honda civic",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"list of lists",
-			`l = (
+			desc: "list of lists",
+			code: `l = (
 		(name Archlinux)
 		(arch amd64)
 		(kernel 4.7.1)
@@ -271,30 +289,30 @@ func TestExecuteAssignment(t *testing.T) {
 	echo $l[0]
 	echo $l[1]
 	echo -n $l[2]`,
-			`name Archlinux
+			expectedStdout: `name Archlinux
 arch amd64
 kernel 4.7.1`,
-			"",
-			"",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"list assignment",
-			`l = (0 1 2 3)
+			desc: "list assignment",
+			code: `l = (0 1 2 3)
                          l[0] = "666"
                          echo -n $l`,
-			`666 1 2 3`,
-			"",
-			"",
+			expectedStdout: `666 1 2 3`,
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"list assignment",
-			`l = (0 1 2 3)
+			desc: "list assignment",
+			code: `l = (0 1 2 3)
                          a = "2"
                          l[$a] = "666"
                          echo -n $l`,
-			`0 1 666 3`,
-			"",
-			"",
+			expectedStdout: `0 1 666 3`,
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 	} {
 		testExec(t, test)
@@ -369,49 +387,54 @@ func TestExecuteMultipleAssignment(t *testing.T) {
 func TestExecuteCmdAssignment(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
-			"cmd assignment",
-			`name <= echo -n i4k
+			desc: "cmd assignment",
+			code: `name <= echo -n i4k
                          echo -n $name`,
-			"i4k", "",
-			"",
+			expectedStdout: "i4k",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"list cmd assignment",
-			`name <= echo "honda civic"
+			desc: "list cmd assignment",
+			code: `name <= echo "honda civic"
                          echo -n $name`,
-			"honda civic", "", "",
+			expectedStdout: "honda civic",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"wrong cmd assignment",
-			`name <= ""`,
-			"", "", "wrong cmd assignment:1:9: Invalid token STRING. Expected command or function invocation",
+			desc:           "wrong cmd assignment",
+			code:           `name <= ""`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "wrong cmd assignment:1:9: Invalid token STRING. Expected command or function invocation",
 		},
 		{
-			"fn must return value",
-			`fn e() {}
+			desc: "fn must return value",
+			code: `fn e() {}
                          v <= e()`,
-			"",
-			"",
-			"<interactive>:2:25: Functions returns 0 objects, but statement expects 1",
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "<interactive>:2:25: Functions returns 0 objects, but statement expects 1",
 		},
 		{
-			"list assignment",
-			`l = (0 1 2 3)
+			desc: "list assignment",
+			code: `l = (0 1 2 3)
                          l[0] <= echo -n 666
                          echo -n $l`,
-			`666 1 2 3`,
-			"",
-			"",
+			expectedStdout: `666 1 2 3`,
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"list assignment",
-			`l = (0 1 2 3)
+			desc: "list assignment",
+			code: `l = (0 1 2 3)
                          a = "2"
                          l[$a] <= echo -n "666"
                          echo -n $l`,
-			`0 1 666 3`,
-			"",
-			"",
+			expectedStdout: `0 1 666 3`,
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 	} {
 		testExec(t, test)
@@ -421,45 +444,50 @@ func TestExecuteCmdAssignment(t *testing.T) {
 func TestExecuteCmdMultipleAssignment(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
-			"cmd assignment",
-			`name, err <= echo -n i4k
+			desc: "cmd assignment",
+			code: `name, err <= echo -n i4k
                          if $err == "0" {
                              echo -n $name
                          }`,
-			"i4k", "",
-			"",
+			expectedStdout: "i4k",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"list cmd assignment",
-			`name, err2 <= echo "honda civic"
+			desc: "list cmd assignment",
+			code: `name, err2 <= echo "honda civic"
                          if $err2 == "0" {
                              echo -n $name
                          }`,
-			"honda civic", "", "",
+			expectedStdout: "honda civic",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"wrong cmd assignment",
-			`name, err <= ""`,
-			"", "", "wrong cmd assignment:1:14: Invalid token STRING. Expected command or function invocation",
+			desc:           "wrong cmd assignment",
+			code:           `name, err <= ""`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "wrong cmd assignment:1:14: Invalid token STRING. Expected command or function invocation",
 		},
 		{
-			"fn must return value",
-			`fn e() {}
+			desc: "fn must return value",
+			code: `fn e() {}
                          v, err <= e()`,
-			"",
-			"",
-			"<interactive>:2:25: Functions returns 0 objects, but statement expects 2",
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "<interactive>:2:25: Functions returns 0 objects, but statement expects 2",
 		},
 		{
-			"list assignment",
-			`l = (0 1 2 3)
+			desc: "list assignment",
+			code: `l = (0 1 2 3)
                          l[0], err <= echo -n 666
                          if $err == "0" {
                              echo -n $l
                          }`,
-			`666 1 2 3`,
-			"",
-			"",
+			expectedStdout: `666 1 2 3`,
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
 			desc: "list assignment",
@@ -540,7 +568,12 @@ func TestExecuteRedirection(t *testing.T) {
 	}
 
 	shell.SetNashdPath(f.nashdPath)
-	path := "/tmp/nashell.test.txt"
+
+	pathobj, err := ioutil.TempFile("", "nash-redir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := strings.Replace(pathobj.Name(), "\\", "\\\\", -1)
 	defer os.Remove(path)
 
 	err = shell.Exec("redirect", fmt.Sprintf(`
@@ -622,7 +655,6 @@ func TestExecuteRedirectionMap(t *testing.T) {
 	defer teardown()
 
 	shell, err := NewShell()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -630,58 +662,68 @@ func TestExecuteRedirectionMap(t *testing.T) {
 
 	shell.SetNashdPath(f.nashdPath)
 
-	err = shell.Exec("redirect map", `
-        echo -n "hello world" > /tmp/test1.txt
-        `)
+	tmpfile, err := ioutil.TempFile("", "nash-redir-map")
+	if err != nil {
+		t.Fatal(err)
+	}
 
+	//path := strings.Replace(tmpfile.Name(), "\\", "\\\\", -1)
+	defer os.Remove(tmpfile.Name())
+
+	err = shell.Exec("redirect map", fmt.Sprintf(`
+        echo -n "hello world" > %s
+        `, tmpfile.Name()))
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	content, err := ioutil.ReadFile("/tmp/test1.txt")
-
+	content, err := ioutil.ReadFile(tmpfile.Name())
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	if string(content) != "hello world" {
-		t.Errorf("File differ: '%s' != '%s'", string(content), "hello world")
-		return
+		t.Fatalf("File differ: '%s' != '%s'", string(content), "hello world")
 	}
 }
 
 func TestExecuteSetenv(t *testing.T) {
-
 	f, teardown := setup(t)
 	defer teardown()
 
 	for _, test := range []execTestCase{
 		{
-			"test setenv basic",
-			`test = "hello"
-                         setenv test
-                         ` + f.nashdPath + ` -c "echo $test"`,
-			"hello\n", "", "",
+			desc: "test setenv basic",
+			code: `setenvtest = "hello"
+						 setenv setenvtest
+                         ` + f.nashdPath + ` -c "echo $setenvtest"`,
+			expectedStdout: "hello\n",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"test setenv assignment",
-			`setenv test = "hello"
-                         ` + f.nashdPath + ` -c "echo $test"`,
-			"hello\n", "", "",
+			desc: "test setenv assignment",
+			code: `setenv setenvtest = "hello"
+                         ` + f.nashdPath + ` -c "echo $setenvtest"`,
+			expectedStdout: "hello\n",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"test setenv exec cmd",
-			`setenv test <= echo -n "hello"
-                         ` + f.nashdPath + ` -c "echo $test"`,
-			"hello\n", "", "",
+			desc: "test setenv exec cmd",
+			code: `setenv setenvtest <= echo -n "hello"
+                         ` + f.nashdPath + ` -c "echo $setenvtest"`,
+			expectedStdout: "hello\n",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"test setenv semicolon",
-			`setenv a setenv b`,
-			"", "",
-			"test setenv semicolon:1:9: Unexpected token setenv, expected semicolon (;) or EOL",
+			desc:           "test setenv semicolon",
+			code:           `setenv a setenv b`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "test setenv semicolon:1:9: Unexpected token setenv, expected semicolon (;) or EOL",
 		},
 	} {
 		testExec(t, test)
@@ -689,50 +731,52 @@ func TestExecuteSetenv(t *testing.T) {
 }
 
 func TestExecuteCd(t *testing.T) {
+	tmpdir, err := ioutil.TempDir("", "nash-cd")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpdirEscaped := strings.Replace(tmpdir, "\\", "\\\\", -1)
+	homeEnvVar := "HOME"
+	if runtime.GOOS == "windows" {
+		homeEnvVar = "HOMEPATH"
+
+		// hack to use nash's pwd instead of gnu on windows
+		projectDir := filepath.Join(tests.Gopath, filepath.FromSlash(
+			"src/github.com/NeowayLabs/nash"))
+		pwdDir := filepath.Join(projectDir, "stdbin", "pwd")
+		path := os.Getenv("Path")
+		defer os.Setenv("Path", path) // TODO(i4k): very unsafe
+		os.Setenv("Path", pwdDir+";"+path)
+	}
+
 	for _, test := range []execTestCase{
 		{
-			desc: "test cd root",
-			code: `
-				cd /
-				pwd
-			`,
-			expectedStdout: "/\n",
+			desc: "test cd 1",
+			code: fmt.Sprintf(`cd %s
+        pwd`, tmpdir),
+			expectedStdout: tmpdir + "\n",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			desc: "test cd home",
-			code: `
-				HOME="/"
-				setenv HOME
-				cd
-				pwd
-			`,
-			expectedStdout: "/\n",
+			desc: "test cd 2",
+			code: fmt.Sprintf(`%s = "%s"
+        setenv %s
+        cd
+        pwd`, homeEnvVar, tmpdirEscaped, homeEnvVar),
+			expectedStdout: tmpdir + "\n",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
 			desc: "test cd into $var",
-			code: `
-				var="/"
-				cd $var
-				pwd
-			`,
-			expectedStdout: "/\n",
-		},
-		{
-			// FIXME: perhaps fail ? not sure
-			desc: "test cd ignores extra args",
-			code: `
-				cd / /etc /lala /ignored
-				pwd
-			`,
-			expectedStdout: "/\n",
-		},
-		{
-			desc: "test error",
-			code: `
-				var=("val1" "val2" "val3")
-				cd $var
-			`,
-			expectedErr: "<interactive>:11:12: chdir expects a string, but a ListType was provided",
+			code: fmt.Sprintf(`
+        var="%s"
+        cd $var
+        pwd`, tmpdirEscaped),
+			expectedStdout: tmpdir + "\n",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
@@ -748,26 +792,30 @@ func TestExecuteImport(t *testing.T) {
 	defer teardown()
 
 	shell, err := NewShell()
-
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	shell.SetNashdPath(f.nashdPath)
 	shell.SetStdout(&out)
 
-	err = ioutil.WriteFile("/tmp/test.sh", []byte(`TESTE="teste"`), 0644)
-
+	tmpfile, err := ioutil.TempFile("", "nash-import")
 	if err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
-	err = shell.Exec("test import", `import /tmp/test.sh
-        echo $TESTE
-        `)
+	defer os.Remove(tmpfile.Name())
 
+	_, err = tmpfile.Write([]byte(`TESTE="teste"`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fnameEscaped := strings.Replace(tmpfile.Name(), "\\", "\\\\", -1)
+
+	err = shell.Exec("test import", fmt.Sprintf(`import %s
+        echo $TESTE
+        `, fnameEscaped))
 	if err != nil {
 		t.Error(err)
 		return
@@ -1088,23 +1136,27 @@ path="AAA"
 func TestFnComposition(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
-			"composition",
-			`
+			desc: "composition",
+			code: `
                 fn a(b) { echo -n $b }
                 fn b()  { return "hello" }
                 a(b())
         `,
-			"hello", "", "",
+			expectedStdout: "hello",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"composition",
-			`
+			desc: "composition",
+			code: `
                 fn a(b, c) { echo -n $b $c  }
                 fn b()     { return "hello" }
                 fn c()     { return "world" }
                 a(b(), c())
         `,
-			"hello world", "", "",
+			expectedStdout: "hello world",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 	} {
 		testExec(t, test)
@@ -1171,14 +1223,13 @@ func TestNonInteractive(t *testing.T) {
 	shell.SetInteractive(true)
 
 	testShellExec(t, shell, execTestCase{
-		"test bindfn interactive",
-		`
+		desc: "test bindfn interactive",
+		code: `
         fn greeting() {
                 echo "Hello"
         }
 
         bindfn greeting hello`,
-		"", "", "",
 	})
 
 	shell.SetInteractive(false)
@@ -1189,8 +1240,11 @@ func TestNonInteractive(t *testing.T) {
 		" No binds allowed in non-interactive mode."
 
 	testShellExec(t, shell, execTestCase{
-		"test 'binded' function non-interactive",
-		`hello`, "", "", expectedErr,
+		desc:           "test 'binded' function non-interactive",
+		code:           `hello`,
+		expectedStdout: "",
+		expectedStderr: "",
+		expectedErr:    expectedErr,
 	})
 
 	expectedErr = "<non-interactive>:6:8: 'bindfn' is not allowed in" +
@@ -1198,16 +1252,16 @@ func TestNonInteractive(t *testing.T) {
 
 	testShellExec(t, shell,
 		execTestCase{
-			"test bindfn non-interactive",
-			`
+			desc: "test bindfn non-interactive",
+			code: `
         fn goodbye() {
                 echo "Ciao"
         }
 
         bindfn goodbye ciao`,
-			"",
-			"",
-			expectedErr,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    expectedErr,
 		})
 }
 
@@ -1360,75 +1414,69 @@ func TestExecuteRedirectionPipe(t *testing.T) {
 
 func testTCPRedirection(t *testing.T, port, command string) {
 	message := "hello world"
-
-	done := make(chan bool)
+	done := make(chan error)
 
 	l, err := net.Listen("tcp", port)
-
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer l.Close()
 
 	f, teardown := setup(t)
 	defer teardown()
 
 	go func() {
 		shell, err := NewShell()
-
-		if err != nil {
-			t.Error(err)
-			return
-		}
-
-		shell.SetNashdPath(f.nashdPath)
-
-		<-done
-
-		err = shell.Exec("test net redirection", command)
-
-		if err != nil {
-			t.Error(err)
-			return
-		}
-	}()
-
-	defer l.Close()
-
-	for {
-		done <- true
-		conn, err := l.Accept()
-		if err != nil {
-			return
-		}
-
-		defer conn.Close()
-
-		buf, err := ioutil.ReadAll(conn)
-
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		fmt.Println(string(buf[:]))
+		shell.SetNashdPath(f.nashdPath)
 
-		if msg := string(buf[:]); msg != message {
-			t.Fatalf("Unexpected message:\nGot:\t\t%s\nExpected:\t%s\n", msg, message)
+		err = <-done
+		if err != nil {
+			return
 		}
 
-		return // Done
+		done <- shell.Exec("test net redirection", command)
+	}()
+
+	done <- nil // synchronize peers
+	conn, err := l.Accept()
+	if err != nil {
+		done <- err
+		t.Fatal(err)
+	}
+
+	defer conn.Close()
+	err = <-done
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf, err := ioutil.ReadAll(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if msg := string(buf[:]); msg != message {
+		t.Fatalf("Unexpected message:\nGot:\t\t%s\nExpected:\t%s\n", msg, message)
 	}
 }
 
 func TestTCPRedirection(t *testing.T) {
-	testTCPRedirection(t, ":6666", `echo -n "hello world" >[1] "tcp://localhost:6666"`)
-	testTCPRedirection(t, ":6667", `echo -n "hello world" > "tcp://localhost:6667"`)
+	testTCPRedirection(t, ":4666", `echo -n "hello world" >[1] "tcp://localhost:4666"`)
+	testTCPRedirection(t, ":4667", `echo -n "hello world" > "tcp://localhost:4667"`)
 }
 
 func TestExecuteUnixRedirection(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("windows does not support unix socket")
+		return
+	}
 	message := "hello world"
 
-	sockDir, err := ioutil.TempDir("/tmp", "nash-tests")
-
+	sockDir, err := ioutil.TempDir("", "nash-tests")
 	if err != nil {
 		t.Error(err)
 		return
@@ -1581,20 +1629,23 @@ func TestExecuteUDPRedirection(t *testing.T) {
 func TestExecuteReturn(t *testing.T) {
 	for _, test := range []execTestCase{
 		{
-			"return invalid",
-			`return`,
-			"", "",
-			"<interactive>:1:0: Unexpected return outside of function declaration.",
+			desc:           "return invalid",
+			code:           `return`,
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "<interactive>:1:0: Unexpected return outside of function declaration.",
 		},
 		{
-			"test simple return",
-			`fn test() { return }
+			desc: "test simple return",
+			code: `fn test() { return }
 test()`,
-			"", "", "",
+			expectedStdout: "",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"return must finish func evaluation",
-			`fn test() {
+			desc: "return must finish func evaluation",
+			code: `fn test() {
 	if "1" == "1" {
 		return "1"
 	}
@@ -1604,11 +1655,13 @@ test()`,
 
 res <= test()
 echo -n $res`,
-			"1", "", "",
+			expectedStdout: "1",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"ret from for",
-			`fn test() {
+			desc: "ret from for",
+			code: `fn test() {
 	values = (0 1 2 3 4 5 6 7 8 9)
 
 	for i in $values {
@@ -1621,11 +1674,13 @@ echo -n $res`,
 }
 a <= test()
 echo -n $a`,
-			"5", "", "",
+			expectedStdout: "5",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"inf loop ret",
-			`fn test() {
+			desc: "inf loop ret",
+			code: `fn test() {
 	for {
 		if "1" == "1" {
 			return "1"
@@ -1637,15 +1692,19 @@ echo -n $a`,
 }
 a <= test()
 echo -n $a`,
-			"1", "", "",
+			expectedStdout: "1",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 		{
-			"test returning funcall",
-			`fn a() { return "1" }
+			desc: "test returning funcall",
+			code: `fn a() { return "1" }
                          fn b() { return a() }
                          c <= b()
                          echo -n $c`,
-			"1", "", "",
+			expectedStdout: "1",
+			expectedStderr: "",
+			expectedErr:    "",
 		},
 	} {
 		testExec(t, test)
@@ -1696,7 +1755,6 @@ func TestExecuteFnAsFirstClass(t *testing.T) {
 }
 
 func TestExecuteConcat(t *testing.T) {
-
 	f, teardown := setup(t)
 	defer teardown()
 
@@ -1748,7 +1806,6 @@ echo -n $c`)
 }
 
 func TestExecuteFor(t *testing.T) {
-
 	f, teardown := setup(t)
 	defer teardown()
 
@@ -1790,12 +1847,10 @@ loop`
 }
 
 func TestExecuteInfiniteLoop(t *testing.T) {
-
 	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -1810,13 +1865,17 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 		fmt.Printf("Waiting 2 second to abort infinite loop")
 		time.Sleep(2 * time.Second)
 
-		shell.TriggerCTRLC()
+		err := shell.TriggerCTRLC()
+		if err != nil {
+			t.Fatal(err)
+		}
 		doneCtrlc <- true
 	}()
 
 	go func() {
 		err = shell.Exec("simple loop", `for {
-        echo "infinite loop" >[1=]
+		echo "infinite loop" >[1=]
+		sleep 1
 }`)
 		doneLoop <- true
 
@@ -1849,12 +1908,10 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 }
 
 func TestExecuteVariableIndexing(t *testing.T) {
-
 	f, teardown := setup(t)
 	defer teardown()
 
 	shell, err := NewShell()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -1867,7 +1924,6 @@ func TestExecuteVariableIndexing(t *testing.T) {
 
 	err = shell.Exec("indexing", `list = ("1" "2" "3")
         echo -n $list[0]`)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -1907,7 +1963,6 @@ seq <= split($tmp, "\n")
 for i in $seq {
     echo -n $list[$i]
 }`)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -1924,7 +1979,6 @@ for i in $seq {
 	out.Reset()
 
 	err = shell.Exec("indexing", `echo -n $list[5]`)
-
 	if err == nil {
 		t.Error("Must fail. Out of bounds")
 		return
@@ -1934,7 +1988,6 @@ for i in $seq {
 
 	err = shell.Exec("indexing", `a = ("0")
 echo -n $list[$a[0]]`)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -2016,49 +2069,43 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 	}
 
 	err = shell.Exec("-input-", `-command-not-exists`)
-
 	if err != nil {
 		t.Errorf("Expected to not fail...: %s", err.Error())
 		return
 	}
 
 	scode, ok := shell.Getvar("status")
-
 	if !ok || scode.Type() != sh.StringType || scode.String() != strconv.Itoa(ENotFound) {
 		t.Errorf("Invalid status code %s", scode.String())
 		return
 	}
 
 	err = shell.Exec("-input-", `echo works >[1=]`)
-
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	scode, ok = shell.Getvar("status")
-
 	if !ok || scode.Type() != sh.StringType || scode.String() != "0" {
 		t.Errorf("Invalid status code %s", scode)
 		return
 	}
 
 	err = shell.Exec("-input-", `echo works | cmd-does-not-exists`)
-
 	if err == nil {
 		t.Errorf("Must fail")
 		return
 	}
 
-	expectedError := `<interactive>:1:11: not started|exec: "cmd-does-not-exists": executable file not found in $PATH`
+	expectedError := `<interactive>:1:11: not started|exec: "cmd-does-not-exists": executable file not found in`
 
-	if err.Error() != expectedError {
+	if !strings.HasPrefix(err.Error(), expectedError) {
 		t.Errorf("Unexpected error: %s", err.Error())
 		return
 	}
 
 	scode, ok = shell.Getvar("status")
-
 	if !ok || scode.Type() != sh.StringType || scode.String() != "255|127" {
 		t.Errorf("Invalid status code %s", scode)
 		return
