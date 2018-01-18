@@ -154,6 +154,9 @@ just go on until memory exhausts ?
 Not sure if passing parameters in spawn will not make things
 inconsistent with function calls
 
+What happens when something is written on the stdout of a spawned
+process ? redirect to parent shell ?
+
 
 ## Extend rfork
 
