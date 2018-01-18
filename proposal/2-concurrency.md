@@ -101,6 +101,47 @@ just dies and you are using UDP you will never be informed of it,
 the behavior will be to timeout the request and try again (possibly
 to another service instance through a load balancer).
 
+To implement this idea we can add a timeout to the receive an add
+a new parameter, a boolean, indicating if there is a message or if a
+timeout has occurred.
+
+Example:
+
+```
+msg, ok <= receive(timeout)
+if !ok {
+    echo "oops timeout"
+}
+```
+
+The timeout can be omitted if you wish to just wait forever.
+
+For send operations we need to add just one boolean return value indicating
+if the process pid exists and the message has been delivered:
+
+```
+if !send($pid, $msg) {
+    echo "oops message cant be sent"
+}
+```
+
+Since the processes are always local there is no need for a more
+detailed error message (the message would always be the same), the
+error will always involve a pid that has no owner (the process never
+existed or already exited).
+
+We could add a more specific error message if we decide that
+the process message queue can get too big and we start to
+drop messages. The error would help to differentiate
+from a dead process or a overloaded process.
+
+An error indicating a overloaded process could help
+to implement back pressure logic (try again later).
+But if we are sticking with local concurrency only this
+may be unnecessary complexity. You can avoid this by
+always sending N messages and waiting for N responses
+before sending more messages.
+
 
 ### TODO
 
@@ -112,9 +153,6 @@ just go on until memory exhausts ?
 
 Not sure if passing parameters in spawn will not make things
 inconsistent with function calls
-
-What happens when you send to a invalid pid ?
-(or a pid of a process that is not running anymore).
 
 
 ## Extend rfork
