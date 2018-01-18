@@ -62,11 +62,60 @@ pong <= receive()
 echo $pong
 ```
 
-TODO:
+Spawned functions can also receive parameters (always deep copies):
 
-* If send is never blocking, what if process queue gets too big ? just go on until memory exhausts ?
-* What happens when you send to a invalid pid ? (or a pid of a process that is not running anymore)
-* Example on how would fan-out/fan-in look with this idea
+```
+pid <= spawn fn (answerpid) {
+    send($answerpid, "pong")
+}(self())
+
+pong <= receive()
+echo $pong
+```
+
+A simple fan-out/fan-in implementation:
+
+```
+jobs = ("1" "2" "3" "4" "5")
+
+for job in $jobs {
+    spawn fn (job, answerpid) {
+        import io
+
+        io_println("job[%s] done", $job)
+        send($answerpid, format("result [%s]", $job))
+    }($job, self())
+}
+
+for job in $jobs {
+    result <= receive()
+    echo $result
+}
+```
+
+### Error Handling
+
+Error handling on this concurrency model is very similar to
+how we do it on a distributed system. If a remote service fails and
+just dies and you are using UDP you will never be informed of it,
+the behavior will be to timeout the request and try again (possibly
+to another service instance through a load balancer).
+
+
+### TODO
+
+Spawned functions should have access to imported modules ?
+(seems like no, but some usages of this may seem odd)
+
+If send is never blocking, what if process queue gets too big ?
+just go on until memory exhausts ?
+
+Not sure if passing parameters in spawn will not make things
+inconsistent with function calls
+
+What happens when you send to a invalid pid ?
+(or a pid of a process that is not running anymore).
+
 
 ## Extend rfork
 
