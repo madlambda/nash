@@ -62,8 +62,9 @@ for os in $supported_os {
 		execfiles = ( ($nash_src $nash_dst) ($nashfmt_src $nashfmt_dst) )
 		execfiles <= prepare_execs($execfiles, $os)
 
-		# TODO: Improve with glob, right now have only one package =)
-		distfiles <= append($execfiles, ("./stdlib/fmt.sh" $stdlibdir))
+		# TODO: Improve with glob, right now have only two packages =)
+		distfiles <= append($execfiles, ("./stdlib/io.sh" $stdlibdir))
+		distfiles <= append($distfiles, ("./stdlib/map.sh" $stdlibdir))
 
 		for distfile in $distfiles {
 			src = $distfile[0]

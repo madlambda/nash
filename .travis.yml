@@ -7,8 +7,7 @@ sudo: false
 
 go:
   - tip
-  - 1.8
-  - 1.7
+  - 1.9
 install:
   - go get -v golang.org/x/exp/ebnf
   - make build

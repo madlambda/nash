@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/user"
 
 	"github.com/NeowayLabs/nash"
 )
@@ -102,18 +103,18 @@ func getnashpath() (string, error) {
 		return nashpath, nil
 	}
 
-	home := os.Getenv("HOME")
-	if home == "" {
-		user := os.Getenv("USER")
-
-		if user != "" {
-			home = "/home/" + user
-		} else {
-			return "", fmt.Errorf("Environment variable NASHPATH or $USER must be set")
-		}
+	usr, err := user.Current()
+	if err != nil {
+		return "", fmt.Errorf("unable to infer nash directory. "+
+			"You must set NASHPATH environment variable explicity: %s",
+			err.Error())
+	}
+	if usr.HomeDir == "" {
+		return "", fmt.Errorf("User %s doesn't have a home directory. "+
+			"Set NASHPATH environment variable to desired location.", usr.Name)
 	}
 
-	return home + "/.nash", nil
+	return fmt.Sprintf("%s%c%s", usr.HomeDir, os.PathSeparator, ".nash"), nil
 }
 
 func initShell() (*nash.Shell, error) {

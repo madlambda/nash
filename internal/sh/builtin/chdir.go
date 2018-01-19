@@ -1,6 +1,7 @@
 package builtin
 
 import (
+	"fmt"
 	"io"
 	"os"
 
@@ -24,8 +25,12 @@ func (chdir *chdirFn) ArgNames() []sh.FnArg {
 	}
 }
 
-func (chdir *chdirFn) Run(in io.Reader, out io.Writer, err io.Writer) ([]sh.Obj, error) {
-	return nil, os.Chdir(chdir.arg)
+func (chdir *chdirFn) Run(in io.Reader, out io.Writer, ioerr io.Writer) ([]sh.Obj, error) {
+	err := os.Chdir(chdir.arg)
+	if err != nil {
+		err = fmt.Errorf("builtin: chdir: error[%s] path[%s]", err, chdir.arg)
+	}
+	return nil, err
 }
 
 func (chdir *chdirFn) SetArgs(args []sh.Obj) error {

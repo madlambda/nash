@@ -390,18 +390,6 @@ func (shell *Shell) SetRepr(a string) {
 	shell.repr = a
 }
 
-func (shell *Shell) String() string {
-	if shell.repr != "" {
-		return shell.repr
-	}
-
-	var out bytes.Buffer
-
-	shell.dump(&out)
-
-	return string(out.Bytes())
-}
-
 func (shell *Shell) setupBuiltin() {
 	for name, constructor := range builtin.Constructors() {
 		fnDef := newBuiltinFnDef(name, shell, constructor)
@@ -411,15 +399,20 @@ func (shell *Shell) setupBuiltin() {
 
 func (shell *Shell) setupDefaultBindings() error {
 	// only one builtin fn... no need for advanced machinery yet
-	err := shell.Exec(shell.name, `fn nash_builtin_cd(path) {
-            if $path == "" {
-                    path = $HOME
-            }
+	// FIXME: seems better to have a std init than embedding here on code
+	err := shell.Exec(shell.name, `fn nash_builtin_cd(args...) {
+	    path = ""
+	    l <= len($args)
+        if $l == "0" {
+            path = $HOME
+        } else {
+            path = $args[0]
+	    }
 
-            chdir($path)
-        }
+        chdir($path)
+    }
 
-        bindfn nash_builtin_cd cd`)
+    bindfn nash_builtin_cd cd`)
 
 	return err
 }
@@ -529,41 +522,37 @@ func (shell *Shell) ExecFile(path string) error {
 }
 
 func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
-	finalObj := value
 
-	if name.Index != nil {
-		if list, ok := shell.Getvar(name.Ident); ok {
-			index, err := shell.evalIndex(name.Index)
-
-			if err != nil {
-				return err
-			}
-
-			if list.Type() != sh.ListType {
-				return errors.NewEvalError(shell.filename,
-					name, "Indexed assigment on non-list type: Variable %s is %s",
-					name.Ident,
-					list.Type())
-			}
-
-			lobj := list.(*sh.ListObj)
-			lvalues := lobj.List()
-
-			if index >= len(lvalues) {
-				return errors.NewEvalError(shell.filename,
-					name, "List out of bounds error. List has %d elements, but trying to access index %d",
-					len(lvalues), index)
-			}
-
-			lvalues[index] = value
-			finalObj = sh.NewListObj(lvalues)
-		} else {
-			return errors.NewEvalError(shell.filename,
-				name, "Variable %s not found", name.Ident)
-		}
+	if name.Index == nil {
+		shell.Setvar(name.Ident, value)
+		return nil
 	}
 
-	shell.Setvar(name.Ident, finalObj)
+	obj, ok := shell.Getvar(name.Ident)
+	if !ok {
+		return errors.NewEvalError(shell.filename,
+			name, "Variable %s not found", name.Ident)
+	}
+
+	index, err := shell.evalIndex(name.Index)
+	if err != nil {
+		return err
+	}
+
+	col, err := sh.NewWriteableCollection(obj)
+	if err != nil {
+		return errors.NewEvalError(shell.filename, name, err.Error())
+	}
+
+	err = col.Set(index, value)
+	if err != nil {
+		return errors.NewEvalError(
+			shell.filename,
+			name,
+			"error[%s] setting var",
+			err,
+		)
+	}
 	return nil
 }
 
@@ -661,8 +650,6 @@ func (shell *Shell) executeNode(node ast.Node) ([]sh.Obj, error) {
 		objs, err = shell.executeFor(node.(*ast.ForNode))
 	case ast.NodeBindFn:
 		err = shell.executeBindFn(node.(*ast.BindFnNode))
-	case ast.NodeDump:
-		err = shell.executeDump(node.(*ast.DumpNode))
 	case ast.NodeReturn:
 		if shell.IsFn() {
 			objs, err = shell.executeReturn(node.(*ast.ReturnNode))
@@ -1270,6 +1257,26 @@ func (shell *Shell) buildRedirect(cmd sh.Runner, redirDecl *ast.RedirectNode) ([
 	return closeAfterWait, err
 }
 
+func (shell *Shell) newBindfnRunner(
+	c *ast.CommandNode,
+	cmdName string,
+	fnDef sh.FnDef,
+) (sh.Runner, error) {
+	shell.logf("Executing bind %s", cmdName)
+	shell.logf("%s bind to %s", cmdName, fnDef.Name())
+
+	if !shell.Interactive() {
+		err := errors.NewEvalError(shell.filename,
+			c, "'%s' is a bind to '%s'. "+
+				"No binds allowed in non-interactive mode.",
+			cmdName,
+			fnDef.Name())
+		return nil, err
+	}
+
+	return fnDef.Build(), nil
+}
+
 func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 	var (
 		ignoreError bool
@@ -1294,35 +1301,8 @@ func (shell *Shell) getCommand(c *ast.CommandNode) (sh.Runner, bool, error) {
 	}
 
 	if fnDef, ok := shell.Getbindfn(cmdName); ok {
-		shell.logf("Executing bind %s", cmdName)
-		shell.logf("%s bind to %s", cmdName, fnDef.Name())
-
-		if !shell.Interactive() {
-			err = errors.NewEvalError(shell.filename,
-				c, "'%s' is a bind to '%s'. "+
-					"No binds allowed in non-interactive mode.",
-				cmdName,
-				fnDef.Name())
-			return nil, ignoreError, err
-		}
-
-		if len(c.Args()) > len(fnDef.ArgNames()) {
-			err = errors.NewEvalError(shell.filename,
-				c, "Too much arguments for"+
-					" function '%s'. It expects %d args, but given %d. Arguments: %q",
-				fnDef.Name(),
-				len(fnDef.ArgNames()),
-				len(c.Args()), c.Args())
-			return nil, ignoreError, err
-		}
-
-		for i := len(c.Args()); i < len(fnDef.ArgNames()); i++ {
-			// fill missing args with empty string
-			// safe?
-			c.SetArgs(append(c.Args(), ast.NewStringExpr(token.NewFileInfo(0, 0), "", true)))
-		}
-
-		return fnDef.Build(), ignoreError, nil
+		runner, err := shell.newBindfnRunner(c, cmdName, fnDef)
+		return runner, ignoreError, err
 	}
 
 	cmd, err = NewCmd(cmdName)
@@ -1486,9 +1466,9 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, err
 	}
 
-	if v.Type() != sh.ListType {
-		return nil, errors.NewEvalError(shell.filename, indexVar.Var,
-			"Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
+	col, err := sh.NewCollection(v)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
 
 	indexNum, err := shell.evalIndex(indexVar.Index)
@@ -1496,17 +1476,11 @@ func (shell *Shell) evalIndexedVar(indexVar *ast.IndexExpr) (sh.Obj, error) {
 		return nil, err
 	}
 
-	vlist := v.(*sh.ListObj)
-	values := vlist.List()
-
-	if indexNum < 0 || indexNum >= len(values) {
-		return nil, errors.NewEvalError(shell.filename,
-			indexVar.Var,
-			"Index out of bounds. len(%s) == %d, but given %d", indexVar.Var.Name,
-			len(values), indexNum)
+	val, err := col.Get(indexNum)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
-
-	return values[indexNum], nil
+	return val, nil
 }
 
 func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error) {
@@ -1515,9 +1489,9 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		return nil, err
 	}
 
-	if v.Type() != sh.ListType {
-		return nil, errors.NewEvalError(shell.filename, indexVar.Var,
-			"Invalid indexing of non-list variable: %s (%+v)", v.Type(), v)
+	col, err := sh.NewCollection(v)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
 
 	indexNum, err := shell.evalIndex(indexVar.Index)
@@ -1525,17 +1499,10 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		return nil, err
 	}
 
-	vlist := v.(*sh.ListObj)
-	values := vlist.List()
-
-	if indexNum < 0 || indexNum >= len(values) {
-		return nil, errors.NewEvalError(shell.filename,
-			indexVar.Var,
-			"Index out of bounds. len(%s) == %d, but given %d", indexVar.Var.Name,
-			len(values), indexNum)
+	retval, err := col.Get(indexNum)
+	if err != nil {
+		return nil, errors.NewEvalError(shell.filename, indexVar.Var, err.Error())
 	}
-
-	retval := values[indexNum]
 
 	if indexVar.IsVariadic {
 		if retval.Type() != sh.ListType {
@@ -1545,7 +1512,7 @@ func (shell *Shell) evalArgIndexedVar(indexVar *ast.IndexExpr) ([]sh.Obj, error)
 		retlist := retval.(*sh.ListObj)
 		return retlist.List(), nil
 	}
-	return []sh.Obj{values[indexNum]}, nil
+	return []sh.Obj{retval}, nil
 }
 
 func (shell *Shell) evalVariable(a ast.Expr) (sh.Obj, error) {
@@ -2213,14 +2180,18 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 		return nil, err
 	}
 
-	if obj.Type() != sh.ListType {
+	col, err := sh.NewCollection(obj)
+	if err != nil {
 		return nil, errors.NewEvalError(shell.filename,
-			inExpr, "Invalid variable type in for range: %s", obj.Type())
+			inExpr, "error[%s] trying to iterate", err)
 	}
 
-	objlist := obj.(*sh.ListObj)
-
-	for _, val := range objlist.List() {
+	for i := 0; i < col.Len(); i++ {
+		val, err := col.Get(i)
+		if err != nil {
+			return nil, errors.NewEvalError(shell.filename,
+				inExpr, "unexpected error[%s] during iteration", err)
+		}
 		shell.Setvar(id, val)
 
 		objs, err := shell.executeTree(n.Tree(), false)
@@ -2274,67 +2245,6 @@ func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 
 	shell.Setvar(n.Name(), sh.NewFnObj(fnDef))
 	shell.logf("Function %s declared on '%s'", n.Name(), shell.name)
-	return nil
-}
-
-func (shell *Shell) dumpVar(file io.Writer) {
-	for n, v := range shell.vars {
-		if n == "status" {
-			continue
-		}
-
-		printVar(file, n, v)
-	}
-}
-
-func (shell *Shell) dumpEnv(file io.Writer) {
-	for n := range shell.env {
-		printEnv(file, n)
-	}
-}
-
-func (shell *Shell) dump(out io.Writer) {
-	shell.dumpVar(out)
-	shell.dumpEnv(out)
-}
-
-func (shell *Shell) executeDump(n *ast.DumpNode) error {
-	var (
-		err    error
-		file   io.Writer
-		obj    sh.Obj
-		objstr *sh.StrObj
-	)
-
-	fnameArg := n.Filename()
-
-	if fnameArg == nil {
-		file = shell.stdout
-		goto execDump
-	}
-
-	obj, err = shell.evalExpr(fnameArg)
-
-	if err != nil {
-		return err
-	}
-
-	if obj.Type() != sh.StringType {
-		return errors.NewEvalError(shell.filename,
-			fnameArg,
-			"dump does not support argument of type %s", obj.Type())
-	}
-
-	objstr = obj.(*sh.StrObj)
-	file, err = os.OpenFile(objstr.Str(), os.O_CREATE|os.O_RDWR, 0644)
-
-	if err != nil {
-		return err
-	}
-
-execDump:
-	shell.dump(file)
-
 	return nil
 }
 
