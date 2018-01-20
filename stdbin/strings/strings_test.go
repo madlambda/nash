@@ -13,9 +13,6 @@ import (
 //func TestMinTextSizeIsAdjustable(t *testing.T) {
 //}
 
-//func TestEachTextOccurenceIsANewLine(t *testing.T) {
-//}
-
 func TestStrings(t *testing.T) {
 
 	tcases := []testcase{
@@ -64,6 +61,21 @@ func TestStrings(t *testing.T) {
 				return newBinary(64)
 			},
 			output: []string{},
+		},
+		testcase{
+			name:        "TextSeparatedByBinary",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				text := []byte("text")
+				t := []byte{}
+				t = append(t, bin...)
+				t = append(t, text...)
+				t = append(t, bin...)
+				t = append(t, text...)
+				return t
+			},
+			output: []string{"text", "text"},
 		},
 	}
 
