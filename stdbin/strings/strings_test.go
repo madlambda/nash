@@ -7,8 +7,11 @@ import (
 	"github.com/NeowayLabs/nash/stdbin/strings"
 )
 
-// TODO:
+// TODO
+
 // Test fatal error on input io.Reader
+
+// Test word size is relative to rune not bytes (practice some chinese)
 
 //func TestMinTextSizeIsAdjustable(t *testing.T) {
 //}
@@ -16,6 +19,35 @@ import (
 func TestStrings(t *testing.T) {
 
 	tcases := []testcase{
+		testcase{
+			name:        "StartingWithOneChar",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte("k"), bin...)
+			},
+			output: []string{"k"},
+		},
+		testcase{
+			name:        "EndWithOneChar",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append(bin, []byte("k")...)
+			},
+			output: []string{"k"},
+		},
+		testcase{
+			name:        "OneCharInTheMiddle",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				t := append(bin, []byte("k")...)
+				t = append(t, bin...)
+				return t
+			},
+			output: []string{"k"},
+		},
 		testcase{
 			name:        "StartingWithText",
 			minWordSize: 1,
