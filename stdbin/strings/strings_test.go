@@ -2,38 +2,72 @@ package strings_test
 
 import (
 	"bytes"
+	stdstrings "strings"
 	"testing"
 
 	"github.com/NeowayLabs/nash/stdbin/strings"
 )
 
-func TestBinaryStartingWithText(t *testing.T) {
-	expected := "textOnBeggining"
-	bin := newBinary(512)
-	input := append([]byte(expected), bin...)
+// TODO:
+//func TestBinaryEndingWithText(t *testing.T) {
+//}
 
-	scanner := strings.Do(bytes.NewBuffer(input))
-	assertTrue(t, scanner.Scan(), "expected to have data on Scan, none found")
-	assertStrings(t, expected, scanner.Text())
-	assertFalse(t, scanner.Scan(), "expected to have no data on Scan, found some")
+//func TestBinaryWithTextOnMiddle(t *testing.T) {
+//}
+
+//func TestMinTextSizeIsAdjustable(t *testing.T) {
+//}
+
+//func TestEachTextOccurenceIsANewLine(t *testing.T) {
+//}
+
+//func TestJustText(t *testing.T) {
+//}
+
+//func TestJustBinary(t *testing.T) {
+//}
+
+func TestBinaryWithText(t *testing.T) {
+
+	tcases := []testcase{
+		testcase{
+			name:        "startingWithText",
+			minWordSize: 1,
+			input: func() []byte {
+				expected := "textOnBeggining"
+				bin := newBinary(512)
+				return append([]byte(expected), bin...)
+			},
+			output: "textOnBeggining",
+		},
+	}
+
+	for _, tcase := range tcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			input := tcase.input()
+			scanner := strings.Do(bytes.NewBuffer(input), tcase.minWordSize)
+
+			lines := []string{}
+			for scanner.Scan() {
+				lines = append(lines, scanner.Text())
+			}
+
+			assertStrings(t, tcase.output, stdstrings.Join(lines, "\n"))
+			if tcase.fail {
+				if scanner.Err() == nil {
+					t.Fatal("expected error, got nil")
+				}
+			}
+		})
+	}
 }
 
-func TestBinaryEndingWithText(t *testing.T) {
-}
-
-func TestBinaryWithTextOnMiddle(t *testing.T) {
-}
-
-func TestMinTextSizeIsAdjustable(t *testing.T) {
-}
-
-func TestEachTextOccurenceIsANewLine(t *testing.T) {
-}
-
-func TestJustText(t *testing.T) {
-}
-
-func TestJustBinary(t *testing.T) {
+type testcase struct {
+	name        string
+	input       func() []byte
+	output      string
+	fail        bool
+	minWordSize int
 }
 
 func newBinary(size uint) []byte {
