@@ -2,18 +2,13 @@ package strings_test
 
 import (
 	"bytes"
-	stdstrings "strings"
 	"testing"
 
 	"github.com/NeowayLabs/nash/stdbin/strings"
 )
 
 // TODO:
-//func TestBinaryEndingWithText(t *testing.T) {
-//}
-
-//func TestBinaryWithTextOnMiddle(t *testing.T) {
-//}
+// Test fatal error on input io.Reader
 
 //func TestMinTextSizeIsAdjustable(t *testing.T) {
 //}
@@ -21,24 +16,54 @@ import (
 //func TestEachTextOccurenceIsANewLine(t *testing.T) {
 //}
 
-//func TestJustText(t *testing.T) {
-//}
-
-//func TestJustBinary(t *testing.T) {
-//}
-
-func TestBinaryWithText(t *testing.T) {
+func TestStrings(t *testing.T) {
 
 	tcases := []testcase{
 		testcase{
-			name:        "startingWithText",
+			name:        "StartingWithText",
 			minWordSize: 1,
 			input: func() []byte {
 				expected := "textOnBeggining"
-				bin := newBinary(512)
+				bin := newBinary(64)
 				return append([]byte(expected), bin...)
 			},
-			output: "textOnBeggining",
+			output: []string{"textOnBeggining"},
+		},
+		testcase{
+			name:        "TextOnMiddle",
+			minWordSize: 1,
+			input: func() []byte {
+				expected := "textOnMiddle"
+				bin := newBinary(64)
+				return append(bin, append([]byte(expected), bin...)...)
+			},
+			output: []string{"textOnMiddle"},
+		},
+		testcase{
+			name:        "TextOnEnd",
+			minWordSize: 1,
+			input: func() []byte {
+				expected := "textOnEnd"
+				bin := newBinary(64)
+				return append(bin, append([]byte(expected), bin...)...)
+			},
+			output: []string{"textOnEnd"},
+		},
+		testcase{
+			name:        "JustText",
+			minWordSize: 1,
+			input: func() []byte {
+				return []byte("justtext")
+			},
+			output: []string{"justtext"},
+		},
+		testcase{
+			name:        "JustBinary",
+			minWordSize: 1,
+			input: func() []byte {
+				return newBinary(64)
+			},
+			output: []string{},
 		},
 	}
 
@@ -52,7 +77,19 @@ func TestBinaryWithText(t *testing.T) {
 				lines = append(lines, scanner.Text())
 			}
 
-			assertStrings(t, tcase.output, stdstrings.Join(lines, "\n"))
+			if len(lines) != len(tcase.output) {
+				t.Fatalf("wanted[%s] got[%s]", tcase.output, lines)
+			}
+
+			for i, want := range tcase.output {
+				got := lines[i]
+				if want != got {
+					t.Errorf("unexpected line at[%d]", i)
+					t.Errorf("wanted[%s] got[%s]", want, got)
+					t.Errorf("wantedLines[%s] gotLines[%s]", tcase.output, lines)
+				}
+			}
+
 			if tcase.fail {
 				if scanner.Err() == nil {
 					t.Fatal("expected error, got nil")
@@ -65,7 +102,7 @@ func TestBinaryWithText(t *testing.T) {
 type testcase struct {
 	name        string
 	input       func() []byte
-	output      string
+	output      []string
 	fail        bool
 	minWordSize int
 }
@@ -77,26 +114,4 @@ func newBinary(size uint) []byte {
 		bin[i] = 0xFF
 	}
 	return bin
-}
-
-// TODO: Start an assert package on nash or use our other project ?
-func assertTrue(t *testing.T, b bool, msg string) {
-	t.Helper()
-	if !b {
-		t.Fatalf("want true, got false: %s", msg)
-	}
-}
-
-func assertFalse(t *testing.T, b bool, msg string) {
-	t.Helper()
-	if b {
-		t.Fatalf("want false, got true: %s", msg)
-	}
-}
-
-func assertStrings(t *testing.T, want string, got string) {
-	t.Helper()
-	if want != got {
-		t.Fatalf("want[%s] != got[%s]", want, got)
-	}
 }
