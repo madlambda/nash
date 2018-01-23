@@ -220,6 +220,45 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{},
 		},
+		testcase{
+			name:        "ASCIIAfterPossibleFirstByteOfUTF",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte{
+					byte(0xC2),
+					'k',
+				}, bin...)
+			},
+			output: []string{"k"},
+		},
+		testcase{
+			name:        "ASCIIAfterPossibleSecondByteOfUTF",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte{
+					byte(0xE2),
+					byte(0x82),
+					'k',
+				}, bin...)
+			},
+			output: []string{"k"},
+		},
+		testcase{
+			name:        "ASCIIAfterPossibleThirdByteOfUTF",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte{
+					byte(0xF0),
+					byte(0x90),
+					byte(0x8D),
+					'k',
+				}, bin...)
+			},
+			output: []string{"k"},
+		},
 	}
 
 	for _, tcase := range tcases {

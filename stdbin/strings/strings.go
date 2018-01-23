@@ -82,11 +82,14 @@ func parseNonASCII(input io.Reader, first byte) (string, bool) {
 	// WHY: We already have the first byte, 3 missing
 	missingCharsForUTF := 3
 
-	// TODO: test if second/other bytes are not valid continuation of
-	// an UTF-8 bigger character but are valid single byte UTF-8
 	for i := 0; i < missingCharsForUTF; i++ {
 		// TODO: handle io errors during rune parsing
 		input.Read(data)
+		if word := string(data); utf8.ValidString(word) {
+			// WHY: Valid ASCII range after something that looked
+			// like a possible char outsize ASCII
+			return word, true
+		}
 		buffer = append(buffer, data[0])
 		possibleWord := string(buffer)
 		if utf8.ValidString(possibleWord) {
