@@ -20,6 +20,33 @@ func TestStrings(t *testing.T) {
 
 	tcases := []testcase{
 		testcase{
+			name:        "WordHasOneLessCharThanMin",
+			minWordSize: 2,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte("k"), bin...)
+			},
+			output: []string{},
+		},
+		testcase{
+			name:        "WordHasMinWordSize",
+			minWordSize: 2,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte("kz"), bin...)
+			},
+			output: []string{"kz"},
+		},
+		testcase{
+			name:        "WordHasOneMoreCharThanMinWordSize",
+			minWordSize: 2,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte("ktz"), bin...)
+			},
+			output: []string{"ktz"},
+		},
+		testcase{
 			name:        "StartingWithOneChar",
 			minWordSize: 1,
 			input: func() []byte {
@@ -108,6 +135,16 @@ func TestStrings(t *testing.T) {
 				return t
 			},
 			output: []string{"text", "text"},
+		},
+		testcase{
+			name:        "WordsAreNotAccumulativeBetweenBinData",
+			minWordSize: 2,
+			input: func() []byte {
+				bin := newBinary(64)
+				t := append([]byte("k"), bin...)
+				return append(t, byte('t'))
+			},
+			output: []string{},
 		},
 	}
 

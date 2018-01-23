@@ -16,7 +16,6 @@ func Do(input io.Reader, minTextSize int) *bufio.Scanner {
 func searchstrings(input io.Reader, minTextSize int, output *io.PipeWriter) {
 
 	// TODO: This still don't cover utf-8 corner cases (possibly a lot of them)
-	// Also not respecting minTextSize...yet =)
 
 	newline := []byte("\n")
 	buffer := []byte{}
@@ -27,6 +26,11 @@ func searchstrings(input io.Reader, minTextSize int, output *io.PipeWriter) {
 
 	flushBuffer := func() {
 		if len(buffer) == 0 {
+			return
+		}
+		// TODO test and utf-8 chars
+		if len(buffer) < minTextSize {
+			buffer = nil
 			return
 		}
 		buffer = append(buffer, newline...)
