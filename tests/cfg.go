@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -55,6 +56,10 @@ func init() {
 		"NeowayLabs", "nash", "testfiles")
 	Nashcmd = filepath.Join(Gopath, "src", "github.com",
 		"NeowayLabs", "nash", "cmd", "nash", "nash")
+
+	if runtime.GOOS == "windows" {
+		Nashcmd += ".exe"
+	}
 
 	if _, err := os.Stat(Nashcmd); err != nil {
 		panic("Please, run make build before running tests")

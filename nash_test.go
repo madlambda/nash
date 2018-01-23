@@ -16,9 +16,7 @@ func TestExecuteFile(t *testing.T) {
 	testfile := tests.Testdir + "/ex1.sh"
 
 	var out bytes.Buffer
-
 	shell, err := New()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -30,7 +28,6 @@ func TestExecuteFile(t *testing.T) {
 	shell.SetStdin(os.Stdin)
 
 	err = shell.ExecuteFile(testfile)
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -44,7 +41,6 @@ func TestExecuteFile(t *testing.T) {
 
 func TestExecuteString(t *testing.T) {
 	shell, err := New()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -55,7 +51,6 @@ func TestExecuteString(t *testing.T) {
 	shell.SetStdout(&out)
 
 	err = shell.ExecuteString("-ínput-", "echo -n AAA")
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -72,14 +67,12 @@ func TestExecuteString(t *testing.T) {
         PROMPT="humpback> "
         setenv PROMPT
         `)
-
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	prompt := shell.Prompt()
-
 	if prompt != "humpback> " {
 		t.Errorf("Invalid prompt = %s", prompt)
 		return

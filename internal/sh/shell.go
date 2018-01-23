@@ -483,9 +483,14 @@ func (shell *Shell) setupSignals() {
 	}()
 }
 
+// TriggerCTRLC mock the user pressing CTRL-C in the terminal
 func (shell *Shell) TriggerCTRLC() error {
-	shell.sigs <- syscall.SIGINT
-	return nil
+	p, err := os.FindProcess(os.Getpid())
+	if err != nil {
+		return err
+	}
+
+	return p.Signal(syscall.SIGINT)
 }
 
 // setIntr *do not lock*. You must do it yourself!

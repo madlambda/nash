@@ -51,18 +51,18 @@ func execFn(shell *nash.Shell, fnDef sh.FnDef, args []sh.Obj) {
 	}
 }
 
-func importInitFile(shell *nash.Shell, initFile string) (imported bool, err error) {
+func importInitFile(shell *nash.Shell, initFile string) (bool, error) {
 	if d, err := os.Stat(initFile); err == nil {
 		if m := d.Mode(); !m.IsDir() {
-			err = shell.ExecuteString("init",
+			err := shell.ExecuteString("init",
 				fmt.Sprintf("import %q", initFile))
 			if err != nil {
-				return false, fmt.Errorf("Failed to evaluate '%s': %s\n", initFile, err.Error())
+				return false, fmt.Errorf("Failed to evaluate '%s': %s", initFile, err.Error())
 			}
-			imported = true
+			return true, nil
 		}
 	}
-	return
+	return false, nil
 }
 
 func setupCli(shell *nash.Shell) error {
