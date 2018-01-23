@@ -8,17 +8,38 @@ import (
 )
 
 // TODO
-
 // Test fatal error on input io.Reader
-
-// Test word size is relative to rune not bytes (practice some chinese)
-
-//func TestMinTextSizeIsAdjustable(t *testing.T) {
-//}
 
 func TestStrings(t *testing.T) {
 
 	tcases := []testcase{
+		testcase{
+			name:        "UTF-8With2Bytes",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte("λ"), bin...)
+			},
+			output: []string{"λ"},
+		},
+		testcase{
+			name:        "UTF-8With3Bytes",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte("€"), bin...)
+			},
+			output: []string{"€"},
+		},
+		testcase{
+			name:        "UTF-8With4Bytes",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte("𐍈"), bin...)
+			},
+			output: []string{"𐍈"},
+		},
 		testcase{
 			name:        "NonASCIIWordHasOneLessCharThanMin",
 			minWordSize: 2,
@@ -244,7 +265,8 @@ type testcase struct {
 func newBinary(size uint) []byte {
 	// WHY: Starting with the most significant bit as 1 helps to test
 	// UTF-8 corner cases. Don't change this without providing
-	// testing for this
+	// testing for this. Not the best way to do this (not explicit)
+	// but it is what we have for today =).
 	bin := make([]byte, size)
 	for i := 0; i < int(size); i++ {
 		bin[i] = 0xFF

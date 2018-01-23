@@ -77,11 +77,20 @@ func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {
 }
 
 func parseNonASCII(input io.Reader, first byte) (string, bool) {
-	// TODO: how to test when seems like a rune but it is not
 	data := make([]byte, 1)
-	// TODO: handle io errors during rune parsing
-	input.Read(data)
-	// TODO: not handling invalid and other sizes
-	possibleWord := string([]byte{first, data[0]})
-	return possibleWord, utf8.ValidString(possibleWord)
+	buffer := []byte{first}
+
+	// TODO: test if second/other bytes are not valid continuation of
+	// an UTF-8 bigger character but are valid single byte UTF-8
+	for i := 0; i < 3; i++ {
+		// TODO: handle io errors during rune parsing
+		input.Read(data)
+		buffer = append(buffer, data[0])
+		possibleWord := string(buffer)
+		if utf8.ValidString(possibleWord) {
+			return possibleWord, true
+		}
+	}
+
+	return "", false
 }
