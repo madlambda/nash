@@ -20,6 +20,24 @@ func TestStrings(t *testing.T) {
 
 	tcases := []testcase{
 		testcase{
+			name:        "NonASCIIWordHasOneLessCharThanMin",
+			minWordSize: 2,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte("λ"), bin...)
+			},
+			output: []string{},
+		},
+		testcase{
+			name:        "NonASCIIWordHasMinWordSize",
+			minWordSize: 2,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte("λλ"), bin...)
+			},
+			output: []string{"λλ"},
+		},
+		testcase{
 			name:        "WordHasOneLessCharThanMin",
 			minWordSize: 2,
 			input: func() []byte {
@@ -96,6 +114,26 @@ func TestStrings(t *testing.T) {
 			output: []string{"textOnMiddle"},
 		},
 		testcase{
+			name:        "NonASCIITextOnMiddle",
+			minWordSize: 1,
+			input: func() []byte {
+				expected := "λλλ"
+				bin := newBinary(64)
+				return append(bin, append([]byte(expected), bin...)...)
+			},
+			output: []string{"λλλ"},
+		},
+		testcase{
+			name:        "ASCIIAndNonASCII",
+			minWordSize: 1,
+			input: func() []byte {
+				expected := "(define (λ (x) (+ x a)))"
+				bin := newBinary(64)
+				return append(bin, append([]byte(expected), bin...)...)
+			},
+			output: []string{"(define (λ (x) (+ x a)))"},
+		},
+		testcase{
 			name:        "TextOnEnd",
 			minWordSize: 1,
 			input: func() []byte {
@@ -135,6 +173,21 @@ func TestStrings(t *testing.T) {
 				return t
 			},
 			output: []string{"text", "text"},
+		},
+		testcase{
+			name:        "NonASCIITextSeparatedByBinary",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				text := []byte("awesomeλ=)")
+				t := []byte{}
+				t = append(t, bin...)
+				t = append(t, text...)
+				t = append(t, bin...)
+				t = append(t, text...)
+				return t
+			},
+			output: []string{"awesomeλ=)", "awesomeλ=)"},
 		},
 		testcase{
 			name:        "WordsAreNotAccumulativeBetweenBinData",
@@ -189,7 +242,9 @@ type testcase struct {
 }
 
 func newBinary(size uint) []byte {
-	// TODO: Not the most awesome random binary =/
+	// WHY: Starting with the most significant bit as 1 helps to test
+	// UTF-8 corner cases. Don't change this without providing
+	// testing for this
 	bin := make([]byte, size)
 	for i := 0; i < int(size); i++ {
 		bin[i] = 0xFF

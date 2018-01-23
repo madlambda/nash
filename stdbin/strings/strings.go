@@ -15,25 +15,26 @@ func Do(input io.Reader, minTextSize uint) *bufio.Scanner {
 
 func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {
 
-	// TODO: This still don't cover utf-8 corner cases (possibly a lot of them)
-
-	newline := []byte("\n")
+	newline := byte('\n')
 	buffer := []byte{}
 
-	writeOnBuffer := func(d []byte) {
-		buffer = append(buffer, d...)
+	writeOnBuffer := func(word string) {
+		buffer = append(buffer, []byte(word)...)
+	}
+
+	bufferLenInRunes := func() uint {
+		return uint(len([]rune(string(buffer))))
 	}
 
 	flushBuffer := func() {
 		if len(buffer) == 0 {
 			return
 		}
-		// TODO test and utf-8 chars
-		if uint(len(buffer)) < minTextSize {
+		if bufferLenInRunes() < minTextSize {
 			buffer = nil
 			return
 		}
-		buffer = append(buffer, newline...)
+		buffer = append(buffer, newline)
 		n, err := output.Write(buffer)
 		if n != len(buffer) {
 			output.CloseWithError(fmt.Errorf("strings:fatal wrote[%d] bytes wanted[%d]\n", n, len(buffer)))
@@ -62,9 +63,25 @@ func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {
 		}
 
 		if word := string(data); utf8.ValidString(word) {
-			writeOnBuffer(data)
+			writeOnBuffer(word)
+		} else if utf8.RuneStart(data[0]) {
+			if word, ok := parseNonASCII(input, data[0]); ok {
+				writeOnBuffer(word)
+			} else {
+				flushBuffer()
+			}
 		} else {
 			flushBuffer()
 		}
 	}
+}
+
+func parseNonASCII(input io.Reader, first byte) (string, bool) {
+	// TODO: how to test when seems like a rune but it is not
+	data := make([]byte, 1)
+	// TODO: handle io errors during rune parsing
+	input.Read(data)
+	// TODO: not handling invalid and other sizes
+	possibleWord := string([]byte{first, data[0]})
+	return possibleWord, utf8.ValidString(possibleWord)
 }
