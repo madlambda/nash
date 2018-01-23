@@ -7,13 +7,13 @@ import (
 	"unicode/utf8"
 )
 
-func Do(input io.Reader, minTextSize int) *bufio.Scanner {
+func Do(input io.Reader, minTextSize uint) *bufio.Scanner {
 	outputReader, outputWriter := io.Pipe()
 	go searchstrings(input, minTextSize, outputWriter)
 	return bufio.NewScanner(outputReader)
 }
 
-func searchstrings(input io.Reader, minTextSize int, output *io.PipeWriter) {
+func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {
 
 	// TODO: This still don't cover utf-8 corner cases (possibly a lot of them)
 
@@ -29,7 +29,7 @@ func searchstrings(input io.Reader, minTextSize int, output *io.PipeWriter) {
 			return
 		}
 		// TODO test and utf-8 chars
-		if len(buffer) < minTextSize {
+		if uint(len(buffer)) < minTextSize {
 			buffer = nil
 			return
 		}

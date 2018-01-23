@@ -185,7 +185,7 @@ type testcase struct {
 	input       func() []byte
 	output      []string
 	fail        bool
-	minWordSize int
+	minWordSize uint
 }
 
 func newBinary(size uint) []byte {
