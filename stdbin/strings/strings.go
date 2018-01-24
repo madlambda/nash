@@ -108,10 +108,7 @@ func searchNonASCII(input io.Reader, first byte) (string, bool, bool) {
 	missingCharsForUTF := 3
 
 	for i := 0; i < missingCharsForUTF; i++ {
-		// WHY: ignoring read errors here will cause us to
-		// go back to the main search loop and eventually
-		// will call Read again which will fail again.
-		// Perhaps not a very good idea.
+		// TODO: Test Read errors here
 		input.Read(data)
 		if word := string(data); utf8.ValidString(word) {
 			// WHY: Valid ASCII range after something that looked
