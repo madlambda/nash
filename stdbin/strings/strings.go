@@ -65,7 +65,7 @@ func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {
 		if word := string(data); utf8.ValidString(word) {
 			writeOnBuffer(word)
 		} else if utf8.RuneStart(data[0]) {
-			if word, ok := parseNonASCII(input, data[0]); ok {
+			if word, ok := searchNonASCII(input, data[0]); ok {
 				writeOnBuffer(word)
 			} else {
 				flushBuffer()
@@ -76,14 +76,17 @@ func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {
 	}
 }
 
-func parseNonASCII(input io.Reader, first byte) (string, bool) {
+func searchNonASCII(input io.Reader, first byte) (string, bool) {
 	data := make([]byte, 1)
 	buffer := []byte{first}
 	// WHY: We already have the first byte, 3 missing
 	missingCharsForUTF := 3
 
 	for i := 0; i < missingCharsForUTF; i++ {
-		// TODO: handle io errors during rune parsing
+		// WHY: ignoring read errors here will cause us to
+		// go back to the main search loop and eventually
+		// will call Read again which will fail again.
+		// Perhaps not a very good idea.
 		input.Read(data)
 		if word := string(data); utf8.ValidString(word) {
 			// WHY: Valid ASCII range after something that looked

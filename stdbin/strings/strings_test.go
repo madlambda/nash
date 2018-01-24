@@ -1,16 +1,27 @@
 package strings_test
 
 import (
+	"bufio"
 	"bytes"
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/NeowayLabs/nash/stdbin/strings"
 )
 
 // TODO
-// Test fatal error on input io.Reader
+// Handle io.Reader returning n=0 and error=nil (nothing happened)
+// Handle io.Reader returning n>0 and error!=nil (can be a last read)
 
 func TestStrings(t *testing.T) {
+
+	type testcase struct {
+		name        string
+		input       func() []byte
+		output      []string
+		minWordSize uint
+	}
 
 	tcases := []testcase{
 		testcase{
@@ -284,21 +295,76 @@ func TestStrings(t *testing.T) {
 				}
 			}
 
-			if tcase.fail {
-				if scanner.Err() == nil {
-					t.Fatal("expected error, got nil")
-				}
+			if scanner.Err() != nil {
+				t.Fatal("unexpected error[%s]", scanner.Err())
 			}
 		})
 	}
 }
 
-type testcase struct {
-	name        string
-	input       func() []byte
-	output      []string
-	fail        bool
-	minWordSize uint
+func TestStringsReadErrorOnFirstByte(t *testing.T) {
+	var minWordSize uint = 1
+	scanner := strings.Do(newFakeReader(func(d []byte) (int, error) {
+		return 0, errors.New("fake injected error")
+	}), minWordSize)
+	assertScannerFails(t, scanner, 0)
+}
+
+func TestStringsReadErrorOnSecondByte(t *testing.T) {
+	var minWordSize uint = 1
+	sentFirstByte := false
+	scanner := strings.Do(newFakeReader(func(d []byte) (int, error) {
+		if sentFirstByte {
+			return 0, errors.New("fake injected error")
+		}
+		sentFirstByte = true
+		return 1, nil
+	}), minWordSize)
+	assertScannerFails(t, scanner, 1)
+}
+
+func TestStringsReadErrorAfterValidUTF8StartingByte(t *testing.T) {
+	var minWordSize uint = 1
+	sentFirstByte := false
+	scanner := strings.Do(newFakeReader(func(d []byte) (int, error) {
+		if sentFirstByte {
+			return 0, errors.New("fake injected error")
+		}
+		sentFirstByte = true
+		d[0] = 0xC2
+		return 1, nil
+	}), minWordSize)
+	assertScannerFails(t, scanner, 1)
+}
+
+type FakeReader struct {
+	read func([]byte) (int, error)
+}
+
+func (f *FakeReader) Read(d []byte) (int, error) {
+	if f.read == nil {
+		return 0, fmt.Errorf("FakeReader has no Read implementation")
+	}
+	return f.read(d)
+}
+
+func newFakeReader(read func([]byte) (int, error)) *FakeReader {
+	return &FakeReader{read: read}
+}
+
+func assertScannerFails(t *testing.T, scanner *bufio.Scanner, expectedIter uint) {
+	var iterations uint
+	for scanner.Scan() {
+		iterations += 1
+	}
+
+	if iterations != expectedIter {
+		t.Fatalf("expected[%d] Scan calls, got [%d]", expectedIter, iterations)
+	}
+
+	if scanner.Err() == nil {
+		t.Fatal("expected failure on scanner, got none")
+	}
 }
 
 func newBinary(size uint) []byte {
