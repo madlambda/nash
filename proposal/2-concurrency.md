@@ -94,6 +94,10 @@ for job in $jobs {
 }
 ```
 
+All output (stdout and stderr) of processes go to their
+parent until the root (main) process, so printing inside
+a child process will print on the stdout of the main process.
+
 ### Advanced Fan-out Fan-in
 
 Here is an example of a more elaborated fan-out/fan-in.
