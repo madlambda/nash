@@ -116,6 +116,8 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 				testcase.expectedErr,
 				err.Error())
 		}
+	} else if testcase.expectedErr != "" {
+		t.Fatalf("Expected error[%s] but got nil", testcase.expectedErr)
 	}
 
 	if testcase.expectedStdout != string(bout.Bytes()) {
@@ -138,7 +140,6 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 }
 
 func testExec(t *testing.T, testcase execTestCase) {
-
 	f, teardown := setup(t)
 	defer teardown()
 

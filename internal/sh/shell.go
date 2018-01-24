@@ -1910,7 +1910,6 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, where bool) error {
 	if len(assign.Names) == 2 {
 		outbuf, _, status, _ := shell.execCmdOutput(cmd, false, false)
 		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), Local)
-
 		if err != nil {
 			return err
 		}
@@ -2009,63 +2008,11 @@ func (shell *Shell) executeVarAssign(v *ast.VarAssignDeclNode) error {
 		)
 	}
 
-	var (
-		initVarNames  []*ast.NameNode
-		initVarValues []ast.Expr
-
-		setVarNames  []*ast.NameNode
-		setVarValues []ast.Expr
-	)
-
 	for i := 0; i < len(assign.Names); i++ {
 		name := assign.Names[i]
 		value := assign.Values[i]
-		_, varLocalExists := shell.Getvar(name.Ident, Local)
-		if !varLocalExists {
-			initVarNames = append(initVarNames, name)
-			initVarValues = append(initVarValues, value)
-		} else {
-			setVarNames = append(setVarNames, name)
-			setVarValues = append(setVarValues, value)
-		}
-	}
-
-	// the 'var' keyword requires that at least one of the
-	// variables in the assignment do not exists.
-	if len(initVarNames) == 0 {
-		varNames := []string{}
-		for _, n := range setVarNames {
-			varNames = append(varNames, n.String())
-		}
-		return errors.NewEvalError(shell.filename,
-			assign, "Cannot redeclare variables (%s) in current block, at least one of them must be new",
-			strings.Join(varNames, ", "))
-	}
-
-	// initialize variables
-	// set their values in the current scope
-	for i := 0; i < len(initVarNames); i++ {
-		name := initVarNames[i]
-		value := initVarValues[i]
 
 		err := shell.initVar(name, value)
-		if err != nil {
-			return err
-		}
-	}
-
-	// set the rest of the variables
-	// but in the scope where they reside
-	for i := 0; i < len(setVarNames); i++ {
-		name := initVarNames[i]
-		value := initVarValues[i]
-
-		obj, err := shell.evalExpr(value)
-		if err == nil {
-			return err
-		}
-
-		err = shell.setvar(name, obj, false)
 		if err != nil {
 			return err
 		}
