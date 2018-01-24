@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"testing"
 
 	"github.com/NeowayLabs/nash/stdbin/strings"
@@ -232,6 +233,19 @@ func TestStrings(t *testing.T) {
 			output: []string{},
 		},
 		testcase{
+			name:        "ASCIISeparatedByByteThatLooksLikeUTF",
+			minWordSize: 1,
+			input: func() []byte {
+				bin := newBinary(64)
+				return append([]byte{
+					'n',
+					byte(0xC2),
+					'k',
+				}, bin...)
+			},
+			output: []string{"n", "k"},
+		},
+		testcase{
 			name:        "ASCIIAfterPossibleFirstByteOfUTF",
 			minWordSize: 1,
 			input: func() []byte {
@@ -323,7 +337,7 @@ func TestStringsReadErrorOnSecondByte(t *testing.T) {
 	assertScannerFails(t, scanner, 1)
 }
 
-func TestStringsReadErrorAfterValidUTF8StartingByte(t *testing.T) {
+func TestStringsReadErrorAfterValidUTF9StartingByte(t *testing.T) {
 	var minWordSize uint = 1
 	sentFirstByte := false
 	scanner := strings.Do(newFakeReader(func(d []byte) (int, error) {
@@ -335,6 +349,27 @@ func TestStringsReadErrorAfterValidUTF8StartingByte(t *testing.T) {
 		return 1, nil
 	}), minWordSize)
 	assertScannerFails(t, scanner, 1)
+}
+
+func TestStringsReadCanReturnEOFWithData(t *testing.T) {
+	var minWordSize uint = 1
+	want := byte('k')
+
+	scanner := strings.Do(newFakeReader(func(d []byte) (int, error) {
+		if len(d) == 0 {
+			t.Fatal("empty data on Read operation")
+		}
+		d[0] = want
+		return 1, io.EOF
+	}), minWordSize)
+
+	if !scanner.Scan() {
+		t.Fatal("unexpected Scan failure")
+	}
+	got := scanner.Text()
+	if string(want) != got {
+		t.Fatalf("want[%s] != got[%s]", string(want), got)
+	}
 }
 
 type FakeReader struct {
