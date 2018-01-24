@@ -16,7 +16,8 @@ This idea is inspired on Erlang concurrency model. Since Nash does
 not aspire to do everything that Erlang does (like distributed programming)
 so this is not a copy, we just take some things as inspiration.
 
-Why call this a process ? On the [Erlang docs](http://erlang.org/doc/getting_started/conc_prog.html)
+Why call this a process ?
+On the [Erlang docs](http://erlang.org/doc/getting_started/conc_prog.html)
 there is a interesting definition of process:
 
 ```
@@ -73,7 +74,7 @@ pong <= receive()
 echo $pong
 ```
 
-A simple fan-out/fan-in implementation:
+A simple fan-out/fan-in implementation (N jobs <-> N processes):
 
 ```
 jobs = ("1" "2" "3" "4" "5")
@@ -90,6 +91,68 @@ for job in $jobs {
 for job in $jobs {
     result <= receive()
     echo $result
+}
+```
+
+### Advanced Fan-out Fan-in
+
+Here is an example of a more elaborated fan-out/fan-in.
+On this case we have much more jobs to execute than
+workers, so it requires more coordination than the previous example.
+
+For brevity this example does not handle timeouts.
+
+Lets suppose an script that tries different passwords on a host:
+
+```
+var passwords_feed <= spawn fn() {
+
+    fn sendpassword(password) {
+        var worker <= receive()
+        if !send($worker, $password) {
+            sendpassword($password)
+        }
+    }
+
+    for password in generate_passwords() {
+        sendpassword($password)
+    }
+}
+
+fn login(output, passwords_feed, done) {
+
+    for send($passwords_feed, self()) {
+        var password = receive()
+        var result <= login "someuser" $password
+        send($output, $result)
+    }
+
+    send($done, "done")
+}
+
+fn outputhandler() {
+    for {
+        var result = receive()
+        if $result == "0" {
+            echo "success"
+        }
+    }
+}
+
+var workers = 10
+
+var feed <= spawn passwords_feed()
+var outputhandler <= spawn outputhandler()
+
+for i in range(0, $workers) {
+    spawn login($outputhandler, $feed, self())
+}
+
+for i in range(0, $workers) {
+    msg <= receive()
+    if $msg != "done" {
+        echo "dafuck ?"
+    }
 }
 ```
 
@@ -116,8 +179,9 @@ if !ok {
 
 The timeout can be omitted if you wish to just wait forever.
 
-For send operations we need to add just one boolean return value indicating
-if the process pid exists and the message has been delivered:
+For send operations we need to add just one boolean return
+value indicating if the process pid exists and the message
+has been delivered:
 
 ```
 if !send($pid, $msg) {
@@ -142,7 +206,6 @@ may be unnecessary complexity. You can avoid this by
 always sending N messages and waiting for N responses
 before sending more messages.
 
-
 ### TODO
 
 Spawned functions should have access to imported modules ?
@@ -151,12 +214,9 @@ Spawned functions should have access to imported modules ?
 If send is never blocking, what if process queue gets too big ?
 just go on until memory exhausts ?
 
-Not sure if passing parameters in spawn will not make things
-inconsistent with function calls
-
-What happens when something is written on the stdout of a spawned
-process ? redirect to parent shell ?
-
+Should send be synchronous how we are going to differentiate
+between a timeout or a invalid pid error ? On the other hand
+synchronous send solves the queueing problem.
 
 ## Extend rfork
 
