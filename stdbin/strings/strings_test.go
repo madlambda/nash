@@ -11,9 +11,7 @@ import (
 	"github.com/NeowayLabs/nash/stdbin/strings"
 )
 
-// TODO
-// Handle io.Reader returning n=0 and error=nil (nothing happened)
-// Handle io.Reader returning n>0 and error!=nil (can be a last read)
+// TODO: Test first byte is rune start but also a EOF, should not search for rest of the rune
 
 func TestStrings(t *testing.T) {
 
@@ -25,7 +23,7 @@ func TestStrings(t *testing.T) {
 	}
 
 	tcases := []testcase{
-		testcase{
+		{
 			name:        "UTF-8With2Bytes",
 			minWordSize: 1,
 			input: func() []byte {
@@ -34,7 +32,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"λ"},
 		},
-		testcase{
+		{
 			name:        "UTF-8With3Bytes",
 			minWordSize: 1,
 			input: func() []byte {
@@ -43,7 +41,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"€"},
 		},
-		testcase{
+		{
 			name:        "UTF-8With4Bytes",
 			minWordSize: 1,
 			input: func() []byte {
@@ -52,7 +50,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"𐍈"},
 		},
-		testcase{
+		{
 			name:        "NonASCIIWordHasOneLessCharThanMin",
 			minWordSize: 2,
 			input: func() []byte {
@@ -61,7 +59,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{},
 		},
-		testcase{
+		{
 			name:        "NonASCIIWordHasMinWordSize",
 			minWordSize: 2,
 			input: func() []byte {
@@ -70,7 +68,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"λλ"},
 		},
-		testcase{
+		{
 			name:        "WordHasOneLessCharThanMin",
 			minWordSize: 2,
 			input: func() []byte {
@@ -79,7 +77,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{},
 		},
-		testcase{
+		{
 			name:        "WordHasMinWordSize",
 			minWordSize: 2,
 			input: func() []byte {
@@ -88,7 +86,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"kz"},
 		},
-		testcase{
+		{
 			name:        "WordHasOneMoreCharThanMinWordSize",
 			minWordSize: 2,
 			input: func() []byte {
@@ -97,7 +95,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"ktz"},
 		},
-		testcase{
+		{
 			name:        "StartingWithOneChar",
 			minWordSize: 1,
 			input: func() []byte {
@@ -106,7 +104,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"k"},
 		},
-		testcase{
+		{
 			name:        "EndWithOneChar",
 			minWordSize: 1,
 			input: func() []byte {
@@ -115,7 +113,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"k"},
 		},
-		testcase{
+		{
 			name:        "OneCharInTheMiddle",
 			minWordSize: 1,
 			input: func() []byte {
@@ -126,7 +124,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"k"},
 		},
-		testcase{
+		{
 			name:        "StartingWithText",
 			minWordSize: 1,
 			input: func() []byte {
@@ -136,7 +134,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"textOnBeggining"},
 		},
-		testcase{
+		{
 			name:        "TextOnMiddle",
 			minWordSize: 1,
 			input: func() []byte {
@@ -146,7 +144,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"textOnMiddle"},
 		},
-		testcase{
+		{
 			name:        "NonASCIITextOnMiddle",
 			minWordSize: 1,
 			input: func() []byte {
@@ -156,7 +154,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"λλλ"},
 		},
-		testcase{
+		{
 			name:        "ASCIIAndNonASCII",
 			minWordSize: 1,
 			input: func() []byte {
@@ -166,7 +164,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"(define (λ (x) (+ x a)))"},
 		},
-		testcase{
+		{
 			name:        "TextOnEnd",
 			minWordSize: 1,
 			input: func() []byte {
@@ -176,7 +174,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"textOnEnd"},
 		},
-		testcase{
+		{
 			name:        "JustText",
 			minWordSize: 1,
 			input: func() []byte {
@@ -184,7 +182,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"justtext"},
 		},
-		testcase{
+		{
 			name:        "JustBinary",
 			minWordSize: 1,
 			input: func() []byte {
@@ -192,7 +190,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{},
 		},
-		testcase{
+		{
 			name:        "TextSeparatedByBinary",
 			minWordSize: 1,
 			input: func() []byte {
@@ -207,7 +205,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"text", "text"},
 		},
-		testcase{
+		{
 			name:        "NonASCIITextSeparatedByBinary",
 			minWordSize: 1,
 			input: func() []byte {
@@ -222,7 +220,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"awesomeλ=)", "awesomeλ=)"},
 		},
-		testcase{
+		{
 			name:        "WordsAreNotAccumulativeBetweenBinData",
 			minWordSize: 2,
 			input: func() []byte {
@@ -232,32 +230,32 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{},
 		},
-		testcase{
+		{
 			name:        "ASCIISeparatedByByteThatLooksLikeUTF",
 			minWordSize: 1,
 			input: func() []byte {
 				bin := newBinary(64)
 				return append([]byte{
 					'n',
-					byte(0xC2),
+					runestart,
 					'k',
 				}, bin...)
 			},
 			output: []string{"n", "k"},
 		},
-		testcase{
+		{
 			name:        "ASCIIAfterPossibleFirstByteOfUTF",
 			minWordSize: 1,
 			input: func() []byte {
 				bin := newBinary(64)
 				return append([]byte{
-					byte(0xC2),
+					runestart,
 					'k',
 				}, bin...)
 			},
 			output: []string{"k"},
 		},
-		testcase{
+		{
 			name:        "ASCIIAfterPossibleSecondByteOfUTF",
 			minWordSize: 1,
 			input: func() []byte {
@@ -270,7 +268,7 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"k"},
 		},
-		testcase{
+		{
 			name:        "ASCIIAfterPossibleThirdByteOfUTF",
 			minWordSize: 1,
 			input: func() []byte {
@@ -345,7 +343,7 @@ func TestStringsReadErrorAfterValidUTF9StartingByte(t *testing.T) {
 			return 0, errors.New("fake injected error")
 		}
 		sentFirstByte = true
-		d[0] = 0xC2
+		d[0] = runestart
 		return 1, nil
 	}), minWordSize)
 	assertScannerFails(t, scanner, 1)
@@ -371,6 +369,89 @@ func TestStringsReadCanReturnEOFWithData(t *testing.T) {
 		t.Fatalf("want[%s] != got[%s]", string(want), got)
 	}
 }
+
+func TestStringReadErrors(t *testing.T) {
+
+	type readresult struct {
+		data byte
+		err  error
+	}
+
+	type errorcase struct {
+		name    string
+		results []readresult
+	}
+
+	errorcases := []errorcase{
+		{
+			name: "NoReadAfterError",
+			results: []readresult{
+				{
+					err: errors.New("injected error"),
+				},
+			},
+		},
+		{
+			name: "NoReadAfterEOF",
+			results: []readresult{
+				{
+					err: io.EOF,
+				},
+			},
+		},
+		{
+			name: "NoReadAfterErrorSearchingForUTF",
+			results: []readresult{
+				{data: runestart},
+				{err: errors.New("surprise moderfocker")},
+			},
+		},
+	}
+
+	for _, tcase := range errorcases {
+		t.Run(tcase.name, func(t *testing.T) {
+			var minWordSize uint = 1
+			var fatalerr error
+
+			calls := 0
+
+			scanner := strings.Do(newFakeReader(func(d []byte) (int, error) {
+				if fatalerr != nil {
+					return 0, fatalerr
+				}
+				calls += 1
+
+				if calls > len(tcase.results) {
+					fatalerr = fmt.Errorf(
+						"expected [%d] reads but got[%d]",
+						len(tcase.results),
+						calls,
+					)
+					return 0, fatalerr
+				}
+				written := 0
+				result := tcase.results[calls-1]
+				if result.data != 0 && len(d) > 0 {
+					d[0] = result.data
+					written = 1
+				}
+				return written, result.err
+			}), minWordSize)
+
+			for scanner.Scan() {
+			}
+
+			if fatalerr != nil {
+				t.Fatal(fatalerr.Error())
+			}
+			if calls != len(tcase.results) {
+				t.Fatalf("expected [%d] Read calls, got[%d]", len(tcase.results), calls)
+			}
+		})
+	}
+}
+
+const runestart byte = 0xC2
 
 type FakeReader struct {
 	read func([]byte) (int, error)

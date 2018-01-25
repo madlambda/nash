@@ -91,13 +91,17 @@ func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {
 			}
 		case runeStartType:
 			{
-				if word, flush, ok := searchNonASCII(input, data[0]); ok {
+				word, flush, ok, err := searchNonASCII(input, data[0])
+				if ok {
 					if flush {
 						flushBuffer()
 					}
 					writeOnBuffer(word)
 				} else {
 					flushBuffer()
+				}
+				if handleIOError(err) {
+					return
 				}
 			}
 		}
@@ -126,7 +130,7 @@ func bytetype(b byte) byteType {
 	return binaryType
 }
 
-func searchNonASCII(input io.Reader, first byte) (string, bool, bool) {
+func searchNonASCII(input io.Reader, first byte) (string, bool, bool, error) {
 	data := make([]byte, 1)
 	buffer := []byte{first}
 	// WHY: We already have the first byte, 3 missing
@@ -134,18 +138,18 @@ func searchNonASCII(input io.Reader, first byte) (string, bool, bool) {
 
 	for i := 0; i < missingCharsForUTF; i++ {
 		// TODO: Test Read errors here
-		input.Read(data)
+		_, err := input.Read(data)
 		if word := string(data); utf8.ValidString(word) {
 			// WHY: Valid ASCII range after something that looked
 			// like a possible char outsize ASCII
-			return word, true, true
+			return word, true, true, err
 		}
 		buffer = append(buffer, data[0])
 		possibleWord := string(buffer)
 		if utf8.ValidString(possibleWord) {
-			return possibleWord, false, true
+			return possibleWord, false, true, nil
 		}
 	}
 
-	return "", false, false
+	return "", false, false, nil
 }
