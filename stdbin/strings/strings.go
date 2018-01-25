@@ -80,25 +80,50 @@ func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {
 			continue
 		}
 
-		if word := string(data); utf8.ValidString(word) {
-			writeOnBuffer(word)
-		} else if utf8.RuneStart(data[0]) {
-			if word, flush, ok := searchNonASCII(input, data[0]); ok {
-				if flush {
-					flushBuffer()
-				}
-				writeOnBuffer(word)
-			} else {
+		switch bytetype(data[0]) {
+		case binaryType:
+			{
 				flushBuffer()
 			}
-		} else {
-			flushBuffer()
+		case asciiType:
+			{
+				writeOnBuffer(string(data[0]))
+			}
+		case runeStartType:
+			{
+				if word, flush, ok := searchNonASCII(input, data[0]); ok {
+					if flush {
+						flushBuffer()
+					}
+					writeOnBuffer(word)
+				} else {
+					flushBuffer()
+				}
+			}
 		}
 
 		if handleIOError(err) {
 			return
 		}
 	}
+}
+
+type byteType int
+
+const (
+	binaryType byteType = iota
+	asciiType
+	runeStartType
+)
+
+func bytetype(b byte) byteType {
+	if word := string([]byte{b}); utf8.ValidString(word) {
+		return asciiType
+	}
+	if utf8.RuneStart(b) {
+		return runeStartType
+	}
+	return binaryType
 }
 
 func searchNonASCII(input io.Reader, first byte) (string, bool, bool) {
