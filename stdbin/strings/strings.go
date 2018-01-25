@@ -16,46 +16,40 @@ func Do(input io.Reader, minTextSize uint) *bufio.Scanner {
 func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {
 
 	newline := byte('\n')
-	buffer := []byte{}
+	searcher := wordSearcher{minTextSize: minTextSize}
 
-	writeOnBuffer := func(word string) {
-		buffer = append(buffer, []byte(word)...)
-	}
-
-	bufferLenInRunes := func() uint {
-		return uint(len([]rune(string(buffer))))
-	}
-
-	flushBuffer := func() {
-		if len(buffer) == 0 {
-			return
+	write := func(data []byte) error {
+		data = append(data, newline)
+		n, err := output.Write(data)
+		if n != len(data) {
+			return fmt.Errorf(
+				"expected to write[%d] wrote[%d]",
+				len(data),
+				n,
+			)
 		}
-		if bufferLenInRunes() < minTextSize {
-			buffer = nil
-			return
-		}
-		buffer = append(buffer, newline)
-		n, err := output.Write(buffer)
-		if n != len(buffer) {
-			output.CloseWithError(fmt.Errorf("strings:fatal wrote[%d] bytes wanted[%d]\n", n, len(buffer)))
-			return
-		}
-		if err != nil {
-			output.CloseWithError(fmt.Errorf("strings:fatal error[%s] writing data\n", err))
-			return
-		}
-		buffer = nil
+		return err
 	}
 
 	handleIOError := func(err error) bool {
-		if err == io.EOF {
-			flushBuffer()
-			output.Close()
-			return true
-		}
 		if err != nil {
-			flushBuffer()
-			output.CloseWithError(err)
+			var finalwriteerr error
+
+			if text, ok := searcher.flushBuffer(); ok {
+				finalwriteerr = write(text)
+			}
+			if err == io.EOF {
+				if finalwriteerr == nil {
+					output.Close()
+				} else {
+					output.CloseWithError(fmt.Errorf(
+						"error[%s] writing last data",
+						finalwriteerr,
+					))
+				}
+			} else {
+				output.CloseWithError(err)
+			}
 			return true
 		}
 		return false
@@ -80,30 +74,8 @@ func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {
 			continue
 		}
 
-		switch bytetype(data[0]) {
-		case binaryType:
-			{
-				flushBuffer()
-			}
-		case asciiType:
-			{
-				writeOnBuffer(string(data[0]))
-			}
-		case runeStartType:
-			{
-				word, flush, ok, err := searchNonASCII(input, data[0])
-				if ok {
-					if flush {
-						flushBuffer()
-					}
-					writeOnBuffer(word)
-				} else {
-					flushBuffer()
-				}
-				if handleIOError(err) {
-					return
-				}
-			}
+		if text, ok := searcher.next(data[0]); ok {
+			err = write(text)
 		}
 
 		if handleIOError(err) {
@@ -114,11 +86,100 @@ func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {
 
 type byteType int
 
+type wordSearcher struct {
+	buffer         []byte
+	possibleRune   []byte
+	waitingForRune bool
+	minTextSize    uint
+}
+
 const (
 	binaryType byteType = iota
 	asciiType
 	runeStartType
 )
+
+func (w *wordSearcher) next(b byte) ([]byte, bool) {
+	if w.waitingForRune {
+		return w.nextRune(b)
+	}
+	return w.nextASCII(b)
+}
+
+func (w *wordSearcher) nextRune(b byte) ([]byte, bool) {
+
+	const maxUTFSize = 4
+
+	if word := string([]byte{b}); utf8.ValidString(word) {
+		w.resetRuneSearch()
+		text, ok := w.flushBuffer()
+		w.writeOnBuffer(b)
+		return text, ok
+	}
+
+	if len(w.possibleRune) >= maxUTFSize {
+		w.resetRuneSearch()
+		return w.flushBuffer()
+	}
+
+	w.writeOnPossibleRune(b)
+	if utf8.ValidString(string(w.possibleRune)) {
+		w.writeOnBuffer(w.possibleRune...)
+		w.resetRuneSearch()
+		return nil, false
+	}
+
+	return nil, false
+}
+
+func (w *wordSearcher) resetRuneSearch() {
+	w.waitingForRune = false
+	w.possibleRune = nil
+}
+
+func (w *wordSearcher) nextASCII(b byte) ([]byte, bool) {
+	switch bytetype(b) {
+	case binaryType:
+		{
+			return w.flushBuffer()
+		}
+	case asciiType:
+		{
+			w.writeOnBuffer(b)
+		}
+	case runeStartType:
+		{
+			w.waitingForRune = true
+			w.writeOnPossibleRune(b)
+		}
+	}
+	return nil, false
+}
+
+func (w *wordSearcher) writeOnBuffer(b ...byte) {
+	w.buffer = append(w.buffer, b...)
+}
+
+func (w *wordSearcher) writeOnPossibleRune(b byte) {
+	w.possibleRune = append(w.possibleRune, b)
+}
+
+func (w *wordSearcher) bufferLenInRunes() uint {
+	return uint(len([]rune(string(w.buffer))))
+}
+
+func (w *wordSearcher) flushBuffer() ([]byte, bool) {
+	if len(w.buffer) == 0 {
+		return nil, false
+	}
+	if w.bufferLenInRunes() < w.minTextSize {
+		w.buffer = nil
+		return nil, false
+	}
+	b := w.buffer
+	w.buffer = nil
+	return b, true
+}
 
 func bytetype(b byte) byteType {
 	if word := string([]byte{b}); utf8.ValidString(word) {
@@ -128,28 +189,4 @@ func bytetype(b byte) byteType {
 		return runeStartType
 	}
 	return binaryType
-}
-
-func searchNonASCII(input io.Reader, first byte) (string, bool, bool, error) {
-	data := make([]byte, 1)
-	buffer := []byte{first}
-	// WHY: We already have the first byte, 3 missing
-	missingCharsForUTF := 3
-
-	for i := 0; i < missingCharsForUTF; i++ {
-		// TODO: Test Read errors here
-		_, err := input.Read(data)
-		if word := string(data); utf8.ValidString(word) {
-			// WHY: Valid ASCII range after something that looked
-			// like a possible char outsize ASCII
-			return word, true, true, err
-		}
-		buffer = append(buffer, data[0])
-		possibleWord := string(buffer)
-		if utf8.ValidString(possibleWord) {
-			return possibleWord, false, true, nil
-		}
-	}
-
-	return "", false, false, nil
 }
