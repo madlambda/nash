@@ -1,4 +1,4 @@
-package strings_test
+package main_test
 
 import (
 	"bufio"
@@ -8,7 +8,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/NeowayLabs/nash/stdbin/strings"
+	strings "github.com/NeowayLabs/nash/stdbin/strings"
 )
 
 func TestStrings(t *testing.T) {

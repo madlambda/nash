@@ -11,6 +11,7 @@ build:
 	cd cmd/nashfmt && go build $(buildargs) 
 	cd stdbin/mkdir && go build $(buildargs)
 	cd stdbin/pwd && go build $(buildargs)
+	cd stdbin/strings && go build $(buildargs)
 
 NASHPATH=$(HOME)/nash
 NASHROOT=$(HOME)/nashroot
