@@ -17,7 +17,7 @@ func TestStrings(t *testing.T) {
 
 	type testcase struct {
 		name        string
-		input       func() []byte
+		input       func([]byte) []byte
 		output      []string
 		minWordSize uint
 	}
@@ -26,8 +26,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "UTF-8With2Bytes",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte("λ"), bin...)
 			},
 			output: []string{"λ"},
@@ -35,8 +34,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "UTF-8With3Bytes",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte("€"), bin...)
 			},
 			output: []string{"€"},
@@ -44,8 +42,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "UTF-8With4Bytes",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte("𐍈"), bin...)
 			},
 			output: []string{"𐍈"},
@@ -53,8 +50,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "NonASCIIWordHasOneLessCharThanMin",
 			minWordSize: 2,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte("λ"), bin...)
 			},
 			output: []string{},
@@ -62,8 +58,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "NonASCIIWordHasMinWordSize",
 			minWordSize: 2,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte("λλ"), bin...)
 			},
 			output: []string{"λλ"},
@@ -71,8 +66,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "WordHasOneLessCharThanMin",
 			minWordSize: 2,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte("k"), bin...)
 			},
 			output: []string{},
@@ -80,8 +74,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "WordHasMinWordSize",
 			minWordSize: 2,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte("kz"), bin...)
 			},
 			output: []string{"kz"},
@@ -89,8 +82,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "WordHasOneMoreCharThanMinWordSize",
 			minWordSize: 2,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte("ktz"), bin...)
 			},
 			output: []string{"ktz"},
@@ -98,8 +90,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "StartingWithOneChar",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte("k"), bin...)
 			},
 			output: []string{"k"},
@@ -107,8 +98,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "EndWithOneChar",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append(bin, []byte("k")...)
 			},
 			output: []string{"k"},
@@ -116,8 +106,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "OneCharInTheMiddle",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				t := append(bin, []byte("k")...)
 				t = append(t, bin...)
 				return t
@@ -127,9 +116,8 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "StartingWithText",
 			minWordSize: 1,
-			input: func() []byte {
+			input: func(bin []byte) []byte {
 				expected := "textOnBeggining"
-				bin := newBinary()
 				return append([]byte(expected), bin...)
 			},
 			output: []string{"textOnBeggining"},
@@ -137,9 +125,8 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "TextOnMiddle",
 			minWordSize: 1,
-			input: func() []byte {
+			input: func(bin []byte) []byte {
 				expected := "textOnMiddle"
-				bin := newBinary()
 				return append(bin, append([]byte(expected), bin...)...)
 			},
 			output: []string{"textOnMiddle"},
@@ -147,9 +134,8 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "NonASCIITextOnMiddle",
 			minWordSize: 1,
-			input: func() []byte {
+			input: func(bin []byte) []byte {
 				expected := "λλλ"
-				bin := newBinary()
 				return append(bin, append([]byte(expected), bin...)...)
 			},
 			output: []string{"λλλ"},
@@ -157,9 +143,8 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "ASCIIAndNonASCII",
 			minWordSize: 1,
-			input: func() []byte {
+			input: func(bin []byte) []byte {
 				expected := "(define (λ (x) (+ x a)))"
-				bin := newBinary()
 				return append(bin, append([]byte(expected), bin...)...)
 			},
 			output: []string{"(define (λ (x) (+ x a)))"},
@@ -167,9 +152,8 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "TextOnEnd",
 			minWordSize: 1,
-			input: func() []byte {
+			input: func(bin []byte) []byte {
 				expected := "textOnEnd"
-				bin := newBinary()
 				return append(bin, append([]byte(expected), bin...)...)
 			},
 			output: []string{"textOnEnd"},
@@ -177,7 +161,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "JustText",
 			minWordSize: 1,
-			input: func() []byte {
+			input: func(bin []byte) []byte {
 				return []byte("justtext")
 			},
 			output: []string{"justtext"},
@@ -185,16 +169,15 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "JustBinary",
 			minWordSize: 1,
-			input: func() []byte {
-				return newBinary()
+			input: func(bin []byte) []byte {
+				return bin
 			},
 			output: []string{},
 		},
 		{
 			name:        "TextSeparatedByBinary",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				text := []byte("text")
 				t := []byte{}
 				t = append(t, bin...)
@@ -208,8 +191,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "NonASCIITextSeparatedByBinary",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				text := []byte("awesomeλ=)")
 				t := []byte{}
 				t = append(t, bin...)
@@ -223,8 +205,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "WordsAreNotAccumulativeBetweenBinData",
 			minWordSize: 2,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				t := append([]byte("k"), bin...)
 				return append(t, byte('t'))
 			},
@@ -233,8 +214,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "ASCIISeparatedByByteThatLooksLikeUTF",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte{
 					'n',
 					runestart,
@@ -246,8 +226,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "ASCIIAfterPossibleFirstByteOfUTF",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte{
 					runestart,
 					'k',
@@ -258,8 +237,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "ASCIIAfterPossibleSecondByteOfUTF",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte{
 					byte(0xE2),
 					byte(0x82),
@@ -271,8 +249,7 @@ func TestStrings(t *testing.T) {
 		{
 			name:        "ASCIIAfterPossibleThirdByteOfUTF",
 			minWordSize: 1,
-			input: func() []byte {
-				bin := newBinary()
+			input: func(bin []byte) []byte {
 				return append([]byte{
 					byte(0xF0),
 					byte(0x90),
@@ -286,7 +263,8 @@ func TestStrings(t *testing.T) {
 
 	for _, tcase := range tcases {
 		t.Run(tcase.name, func(t *testing.T) {
-			input := tcase.input()
+			bin := newBinary(10)
+			input := tcase.input(bin)
 			scanner := strings.Do(bytes.NewBuffer(input), tcase.minWordSize)
 
 			lines := []string{}
@@ -402,12 +380,11 @@ func assertScannerFails(t *testing.T, scanner *bufio.Scanner, expectedIter uint)
 	}
 }
 
-func newBinary() []byte {
+func newBinary(size uint) []byte {
 	// WHY: Starting with the most significant bit as 1 helps to test
 	// UTF-8 corner cases. Don't change this without providing
 	// testing for this. Not the best way to do this (not explicit)
 	// but it is what we have for today =).
-	size := 10
 	bin := make([]byte, size)
 	for i := 0; i < int(size); i++ {
 		bin[i] = 0xFF
