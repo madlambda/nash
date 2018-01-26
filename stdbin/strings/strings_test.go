@@ -261,34 +261,41 @@ func TestStrings(t *testing.T) {
 		},
 	}
 
+	minBinChunkSize := 1
+	maxBinChunkSize := 1024
+
 	for _, tcase := range tcases {
-		t.Run(tcase.name, func(t *testing.T) {
-			bin := newBinary(10)
-			input := tcase.input(bin)
-			scanner := strings.Do(bytes.NewBuffer(input), tcase.minWordSize)
+		for i := minBinChunkSize; i <= maxBinChunkSize; i++ {
+			binsize := i
+			testname := fmt.Sprintf("%s/binSize%d", tcase.name, binsize)
+			t.Run(testname, func(t *testing.T) {
+				bin := newBinary(uint(binsize))
+				input := tcase.input(bin)
+				scanner := strings.Do(bytes.NewBuffer(input), tcase.minWordSize)
 
-			lines := []string{}
-			for scanner.Scan() {
-				lines = append(lines, scanner.Text())
-			}
-
-			if len(lines) != len(tcase.output) {
-				t.Fatalf("wanted[%s] got[%s]", tcase.output, lines)
-			}
-
-			for i, want := range tcase.output {
-				got := lines[i]
-				if want != got {
-					t.Errorf("unexpected line at[%d]", i)
-					t.Errorf("wanted[%s] got[%s]", want, got)
-					t.Errorf("wantedLines[%s] gotLines[%s]", tcase.output, lines)
+				lines := []string{}
+				for scanner.Scan() {
+					lines = append(lines, scanner.Text())
 				}
-			}
 
-			if scanner.Err() != nil {
-				t.Fatal("unexpected error[%s]", scanner.Err())
-			}
-		})
+				if len(lines) != len(tcase.output) {
+					t.Fatalf("wanted[%s] got[%s]", tcase.output, lines)
+				}
+
+				for i, want := range tcase.output {
+					got := lines[i]
+					if want != got {
+						t.Errorf("unexpected line at[%d]", i)
+						t.Errorf("wanted[%s] got[%s]", want, got)
+						t.Errorf("wantedLines[%s] gotLines[%s]", tcase.output, lines)
+					}
+				}
+
+				if scanner.Err() != nil {
+					t.Fatal("unexpected error[%s]", scanner.Err())
+				}
+			})
+		}
 	}
 }
 
