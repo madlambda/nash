@@ -112,17 +112,16 @@ func (w *wordSearcher) nextRune(b byte) ([]byte, bool) {
 
 	if word := string([]byte{b}); utf8.ValidString(word) {
 		w.resetRuneSearch()
-		text, ok := w.flushBuffer()
+		data, ok := w.flushBuffer()
 		w.writeOnBuffer(b)
-		return text, ok
+		return data, ok
 	}
 
 	if utf8.RuneStart(b) {
-		// TODO: write test to exercise flush of previous text on this
-		// case since what looked like a rune was actually binary data.
 		w.resetRuneSearch()
+		data, ok := w.flushBuffer()
 		w.startRuneSearch(b)
-		return nil, false
+		return data, ok
 	}
 
 	w.writeOnPossibleRune(b)
