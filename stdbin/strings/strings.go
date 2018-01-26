@@ -10,7 +10,12 @@ import (
 func Do(input io.Reader, minTextSize uint) *bufio.Scanner {
 	outputReader, outputWriter := io.Pipe()
 	go searchstrings(input, minTextSize, outputWriter)
-	return bufio.NewScanner(outputReader)
+	scanner := bufio.NewScanner(outputReader)
+
+	const maxBufferSize = 1024 * 1024
+	b := make([]byte, maxBufferSize)
+	scanner.Buffer(b, maxBufferSize)
+	return scanner
 }
 
 func searchstrings(input io.Reader, minTextSize uint, output *io.PipeWriter) {

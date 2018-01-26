@@ -298,6 +298,37 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"v", "λ"},
 		},
+		{
+			name:        "ASCIISplittedByZero",
+			minWordSize: 1,
+			input: func([]byte) []byte {
+				return []byte{'k', 0, 'n', 0, 'v'}
+			},
+			output: []string{"k", "n", "v"},
+		},
+		{
+			name:        "RunesSplittedByZero",
+			minWordSize: 1,
+			input: func([]byte) []byte {
+				i := []byte("λ")
+				i = append(i, 0)
+				i = append(i, []byte("λ")...)
+				return i
+			},
+			output: []string{"λ", "λ"},
+		},
+		{
+			name:        "ASCIIAndRunesSplittedByZero",
+			minWordSize: 1,
+			input: func([]byte) []byte {
+				i := []byte("λ")
+				i = append(i, 0)
+				i = append(i, 's')
+				i = append(i, []byte("λ")...)
+				return i
+			},
+			output: []string{"λ", "s", "λ"},
+		},
 	}
 
 	minBinChunkSize := 1
@@ -318,6 +349,7 @@ func TestStrings(t *testing.T) {
 				}
 
 				if len(lines) != len(tcase.output) {
+					t.Errorf("wanted size[%d] got size[%d]", len(tcase.output), len(lines))
 					t.Fatalf("wanted[%s] got[%s]", tcase.output, lines)
 				}
 
