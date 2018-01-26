@@ -117,9 +117,12 @@ func (w *wordSearcher) nextRune(b byte) ([]byte, bool) {
 		return text, ok
 	}
 
-	if len(w.possibleRune) >= maxUTFSize {
+	if utf8.RuneStart(b) {
+		// TODO: write test to exercise flush of previous text on this
+		// case since what looked like a rune was actually binary data.
 		w.resetRuneSearch()
-		return w.flushBuffer()
+		w.startRuneSearch(b)
+		return nil, false
 	}
 
 	w.writeOnPossibleRune(b)
@@ -127,6 +130,11 @@ func (w *wordSearcher) nextRune(b byte) ([]byte, bool) {
 		w.writeOnBuffer(w.possibleRune...)
 		w.resetRuneSearch()
 		return nil, false
+	}
+
+	if len(w.possibleRune) == maxUTFSize {
+		w.resetRuneSearch()
+		return w.flushBuffer()
 	}
 
 	return nil, false
@@ -149,11 +157,15 @@ func (w *wordSearcher) nextASCII(b byte) ([]byte, bool) {
 		}
 	case runeStartType:
 		{
-			w.waitingForRune = true
-			w.writeOnPossibleRune(b)
+			w.startRuneSearch(b)
 		}
 	}
 	return nil, false
+}
+
+func (w *wordSearcher) startRuneSearch(b byte) {
+	w.waitingForRune = true
+	w.writeOnPossibleRune(b)
 }
 
 func (w *wordSearcher) writeOnBuffer(b ...byte) {

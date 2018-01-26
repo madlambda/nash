@@ -11,8 +11,6 @@ import (
 	"github.com/NeowayLabs/nash/stdbin/strings"
 )
 
-// TODO: Test first byte is rune start but also a EOF, should not search for rest of the rune
-
 func TestStrings(t *testing.T) {
 
 	type testcase struct {
@@ -259,10 +257,40 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"k"},
 		},
+		{
+			name:        "AfterFalseRuneStartRuneStartOnSecondByte",
+			minWordSize: 1,
+			input: func(bin []byte) []byte {
+				i := []byte{byte(0xF0)}
+				i = append(i, []byte("λ")...)
+				return append(i, bin...)
+			},
+			output: []string{"λ"},
+		},
+		{
+			name:        "AfterFalseRuneStartRuneStartOnThirdByte",
+			minWordSize: 1,
+			input: func(bin []byte) []byte {
+				i := []byte{byte(0xF0), byte(0x90)}
+				i = append(i, []byte("λ")...)
+				return append(i, bin...)
+			},
+			output: []string{"λ"},
+		},
+		{
+			name:        "AfterFalseRuneStartRuneStartOnFourthByte",
+			minWordSize: 1,
+			input: func(bin []byte) []byte {
+				i := []byte{byte(0xF0), byte(0x90), byte(0x8D)}
+				i = append(i, []byte("λ")...)
+				return append(i, bin...)
+			},
+			output: []string{"λ"},
+		},
 	}
 
 	minBinChunkSize := 1
-	maxBinChunkSize := 1024
+	maxBinChunkSize := 128
 
 	for _, tcase := range tcases {
 		for i := minBinChunkSize; i <= maxBinChunkSize; i++ {
