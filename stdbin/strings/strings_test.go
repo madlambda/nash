@@ -324,6 +324,7 @@ func TestStrings(t *testing.T) {
 				i := []byte("λ")
 				i = append(i, 0)
 				i = append(i, 's')
+				i = append(i, 0)
 				i = append(i, []byte("λ")...)
 				return i
 			},
@@ -385,6 +386,7 @@ func TestStringsReadErrorOnSecondByte(t *testing.T) {
 		if sentFirstByte {
 			return 0, errors.New("fake injected error")
 		}
+		d[0] = 'k'
 		sentFirstByte = true
 		return 1, nil
 	}), minWordSize)

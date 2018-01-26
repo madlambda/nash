@@ -115,6 +115,11 @@ func (w *wordSearcher) nextRune(b byte) ([]byte, bool) {
 
 	const maxUTFSize = 4
 
+	if b == 0 {
+		w.resetRuneSearch()
+		return w.flushBuffer()
+	}
+
 	if word := string([]byte{b}); utf8.ValidString(word) {
 		w.resetRuneSearch()
 		data, ok := w.flushBuffer()
@@ -198,6 +203,9 @@ func (w *wordSearcher) flushBuffer() ([]byte, bool) {
 }
 
 func bytetype(b byte) byteType {
+	if b == 0 {
+		return binaryType
+	}
 	if word := string([]byte{b}); utf8.ValidString(word) {
 		return asciiType
 	}
