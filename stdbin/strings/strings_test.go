@@ -287,6 +287,17 @@ func TestStrings(t *testing.T) {
 			},
 			output: []string{"λ"},
 		},
+		{
+			name:        "ASCIIFakeRuneAndThemRune",
+			minWordSize: 1,
+			input: func(bin []byte) []byte {
+				i := []byte{'v'}
+				i = append(i, byte(0xF0))
+				i = append(i, []byte("λ")...)
+				return append(i, bin...)
+			},
+			output: []string{"v", "λ"},
+		},
 	}
 
 	minBinChunkSize := 1
