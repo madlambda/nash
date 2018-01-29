@@ -8,7 +8,7 @@ import (
 
 func main() {
 
-	const defaultMinTextSize = 6
+	const defaultMinTextSize = 4
 	var minTextSize uint
 
 	flag.UintVar(
@@ -23,7 +23,7 @@ func main() {
 		fmt.Println(scanner.Text())
 	}
 	if scanner.Err() != nil {
-		fmt.Printf("error: %s", scanner.Err())
+		fmt.Fprintf(os.Stderr, "error: %s", scanner.Err())
 		os.Exit(1)
 	}
 }
