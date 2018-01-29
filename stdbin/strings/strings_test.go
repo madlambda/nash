@@ -364,7 +364,7 @@ func TestStrings(t *testing.T) {
 				}
 
 				if scanner.Err() != nil {
-					t.Fatal("unexpected error[%s]", scanner.Err())
+					t.Fatalf("unexpected error[%s]", scanner.Err())
 				}
 			})
 		}
