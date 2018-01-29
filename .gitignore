@@ -6,3 +6,5 @@ dist
 *.exe
 stdbin/mkdir/mkdir
 stdbin/pwd/pwd
+stdbin/strings/strings
+
