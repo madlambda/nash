@@ -687,7 +687,7 @@ func (shell *Shell) executeNode(node ast.Node) ([]sh.Obj, error) {
 	case ast.NodeAssign:
 		err = shell.executeAssignment(node.(*ast.AssignNode))
 	case ast.NodeExecAssign:
-		err = shell.executeExecAssign(node.(*ast.ExecAssignNode), false)
+		err = shell.executeExecAssign(node.(*ast.ExecAssignNode), Global)
 	case ast.NodeCommand:
 		_, err = shell.executeCommand(node.(*ast.CommandNode))
 	case ast.NodePipe:
@@ -1893,7 +1893,7 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, where bool) error {
 	// In this case the script must abort in case of errors
 	if len(assign.Names) == 1 {
 		outbuf, _, _, cmdErr := shell.execCmdOutput(cmd, false, false)
-		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), Local)
+		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), where)
 
 		if cmdErr != nil {
 			return cmdErr
@@ -1909,12 +1909,12 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, where bool) error {
 	// Only getting stdout and exit status
 	if len(assign.Names) == 2 {
 		outbuf, _, status, _ := shell.execCmdOutput(cmd, false, false)
-		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), Local)
+		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), where)
 		if err != nil {
 			return err
 		}
 
-		err = shell.setvar(assign.Names[1], status, Local)
+		err = shell.setvar(assign.Names[1], status, where)
 		if err != nil {
 			return err
 		}
@@ -1924,9 +1924,9 @@ func (shell *Shell) executeExecAssignCmd(v ast.Node, where bool) error {
 
 	if len(assign.Names) == 3 {
 		outbuf, errbuf, status, _ := shell.execCmdOutput(cmd, true, false)
-		err1 := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), Local)
-		err2 := shell.setvar(assign.Names[1], sh.NewStrObj(string(errbuf)), Local)
-		err3 := shell.setvar(assign.Names[2], status, Local)
+		err1 := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), where)
+		err2 := shell.setvar(assign.Names[1], sh.NewStrObj(string(errbuf)), where)
+		err3 := shell.setvar(assign.Names[2], status, where)
 		errs := []error{err1, err2, err3}
 
 		for _, e := range errs {
@@ -1996,7 +1996,7 @@ func (shell *Shell) initVar(name *ast.NameNode, value ast.Expr) error {
 	if err != nil {
 		return err
 	}
-	return shell.setvar(name, obj, true)
+	return shell.setvar(name, obj, Local)
 }
 
 func (shell *Shell) executeVarAssign(v *ast.VarAssignDeclNode) error {
@@ -2022,7 +2022,7 @@ func (shell *Shell) executeVarAssign(v *ast.VarAssignDeclNode) error {
 }
 
 func (shell *Shell) executeVarExecAssign(v *ast.VarExecAssignDeclNode) error {
-	return shell.executeExecAssign(v.ExecAssign, true)
+	return shell.executeExecAssign(v.ExecAssign, Local)
 }
 
 func (shell *Shell) executeAssignment(v *ast.AssignNode) error {
@@ -2042,7 +2042,7 @@ func (shell *Shell) executeAssignment(v *ast.AssignNode) error {
 			return err
 		}
 
-		err = shell.setvar(name, obj, false)
+		err = shell.setvar(name, obj, Global)
 		if err != nil {
 			return err
 		}

@@ -50,7 +50,7 @@ func TestVarExecAssign(t *testing.T) {
 		{
 			desc:        "var do not exists",
 			code:        `__a <= echo -n "fury"`,
-			expectedErr: "variable do not exists",
+			expectedErr: "<interactive>:1:0: Variable '__a' is not initialized. Use 'var __a = <value>'",
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {

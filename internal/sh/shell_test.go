@@ -140,6 +140,7 @@ func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
 }
 
 func testExec(t *testing.T, testcase execTestCase) {
+	t.Helper()
 	f, teardown := setup(t)
 	defer teardown()
 
@@ -512,7 +513,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 			desc: "list assignment",
 			code: `var l = (0 1 2 3)
                          var a = "2"
-                         l[$a], err <= echo -n "666"
+                         var l[$a], err <= echo -n "666"
                          if $err == "0" {
                              echo -n $l
                          }`,
@@ -2120,7 +2121,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 		return
 	}
 
-	err = shell.Exec("-input-", `_, status <= command-not-exists`)
+	err = shell.Exec("-input-", `var _, status <= command-not-exists`)
 	if err != nil {
 		t.Errorf("Expected to not fail...: %s", err.Error())
 		return
@@ -2132,7 +2133,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 		return
 	}
 
-	err = shell.Exec("-input-", `_, status <= echo works`)
+	err = shell.Exec("-input-", `var _, status <= echo works`)
 	if err != nil {
 		t.Error(err)
 		return
