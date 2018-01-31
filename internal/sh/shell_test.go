@@ -501,7 +501,7 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 		{
 			desc: "list assignment",
 			code: `var l = (0 1 2 3)
-                         l[0], err <= echo -n 666
+                         var l[0], err <= echo -n 666
                          if $err == "0" {
                              echo -n $l
                          }`,
@@ -523,10 +523,10 @@ func TestExecuteCmdMultipleAssignment(t *testing.T) {
 		},
 		{
 			desc:           "cmd assignment works with 1 or 2 variables",
-			code:           "var out, err1, err2 <= echo something",
+			code:           "var out, err, status <= echo something",
 			expectedStdout: "",
 			expectedStderr: "",
-			expectedErr:    "<interactive>:1:4: multiple assignment of commands requires two variable names, but got 3",
+			expectedErr:    "",
 		},
 		{
 			desc: "ignore error",
