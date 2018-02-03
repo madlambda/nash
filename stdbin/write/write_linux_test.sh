@@ -1,6 +1,6 @@
 # linux tests of write command
 
-import "./test.sh"
+import "./common_test.sh"
 
 # this test uses only the write binary
 setenv PATH = "./stdbin/write"

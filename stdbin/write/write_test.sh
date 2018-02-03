@@ -1,4 +1,4 @@
-import "./test.sh"
+import "./common_test.sh"
 
 setenv PATH = "./stdbin/write:/bin"
 
@@ -19,5 +19,15 @@ assert("0", $status, "status is not success")
 var content, status <= cat $nonExistentFile
 assert("0", $status, "status is not success")
 assert("hello", $content, "file content is wrong")
+
+# test append
+out, err, status <= write $nonExistentFile "1"
+assert("", $out, "standard out isnt empty")
+assert("", $err, "standard err isnt empty")
+assert("0", $status, "status is not success")
+
+content, status <= cat $nonExistentFile
+assert("0", $status, "status is not success")
+assert("hello1", $content, "file content is wrong")
 
 clean()
