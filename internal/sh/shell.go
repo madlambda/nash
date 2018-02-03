@@ -28,11 +28,6 @@ const (
 	defPrompt = "\033[31mλ>\033[0m "
 )
 
-const (
-	Local  = true
-	Global = false
-)
-
 type (
 	// Env is the environment map of lists
 	Env map[string]sh.Obj
@@ -177,7 +172,7 @@ func (shell *Shell) initEnv(processEnv []string) error {
 	argv := sh.NewListObj(largs)
 
 	shell.Setenv("argv", argv)
-	shell.Setvar("argv", argv, Local)
+	shell.Newvar("argv", argv)
 
 	for _, penv := range processEnv {
 		var value sh.Obj
@@ -193,19 +188,19 @@ func (shell *Shell) initEnv(processEnv []string) error {
 			value = sh.NewStrObj(strings.Join(p[1:], "="))
 
 			shell.Setenv(p[0], value)
-			shell.Setvar(p[0], value, Local)
+			shell.Newvar(p[0], value)
 		}
 	}
 
 	pidVal := sh.NewStrObj(strconv.Itoa(os.Getpid()))
 
 	shell.Setenv("PID", pidVal)
-	shell.Setvar("PID", pidVal, Local)
+	shell.Newvar("PID", pidVal)
 
 	if _, ok := shell.Getenv("SHELL"); !ok {
 		shellVal := sh.NewStrObj(nashdAutoDiscover())
 		shell.Setenv("SHELL", shellVal)
-		shell.Setvar("SHELL", shellVal, Local)
+		shell.Newvar("SHELL", shellVal)
 	}
 
 	cwd, err := os.Getwd()
@@ -216,7 +211,7 @@ func (shell *Shell) initEnv(processEnv []string) error {
 
 	cwdObj := sh.NewStrObj(cwd)
 	shell.Setenv("PWD", cwdObj)
-	shell.Setvar("PWD", cwdObj, Local)
+	shell.Newvar("PWD", cwdObj)
 
 	return nil
 }
@@ -284,7 +279,7 @@ func (shell *Shell) Setenv(name string, value sh.Obj) {
 		return
 	}
 
-	shell.Setvar(name, value, Local)
+	shell.Newvar(name, value)
 
 	shell.env[name] = value
 	os.Setenv(name, value.String())
@@ -300,24 +295,33 @@ func (shell *Shell) SetEnviron(processEnv []string) {
 		if len(p) == 2 {
 			value = sh.NewStrObj(p[1])
 
-			shell.Setvar(p[0], value, Local)
 			shell.Setenv(p[0], value)
+			shell.Newvar(p[0], value)
 		}
 	}
 }
 
-func (shell *Shell) Getvar(name string, where bool) (sh.Obj, bool) {
+// GetLocalvar returns a local scoped variable.
+func (shell *Shell) GetLocalvar(name string) (sh.Obj, bool) {
+	v, ok := shell.vars[name]
+	return v, ok
+}
+
+// Getvar returns the value of the variable name. It could look in their
+// parent scopes if not found locally.
+func (shell *Shell) Getvar(name string) (sh.Obj, bool) {
 	if value, ok := shell.vars[name]; ok {
 		return value, ok
 	}
 
-	if where == Global && shell.parent != nil {
-		return shell.parent.Getvar(name, Global)
+	if shell.parent != nil {
+		return shell.parent.Getvar(name)
 	}
 
 	return nil, false
 }
 
+// GetFn returns the function name or error if not found.
 func (shell *Shell) GetFn(name string) (*sh.FnObj, error) {
 	shell.logf("Looking for function '%s' on shell '%s'\n", name, shell.name)
 	if obj, ok := shell.vars[name]; ok {
@@ -351,22 +355,29 @@ func (shell *Shell) Getbindfn(cmdName string) (sh.FnDef, bool) {
 	return nil, false
 }
 
-func (shell *Shell) Setvar(name string, value sh.Obj, where bool) bool {
+// Newvar creates a new variable in the scope.
+func (shell *Shell) Newvar(name string, value sh.Obj) {
+	shell.vars[name] = value
+}
+
+// Setvar updates the value of an existing variable. If the variable
+// doesn't exist in current scope it looks up in their parent scopes.
+// It returns true if the variable was found and updated.
+func (shell *Shell) Setvar(name string, value sh.Obj) bool {
 	_, ok := shell.vars[name]
-	if ok || where == Local {
+	if ok {
 		shell.vars[name] = value
 		return true
 	}
 
 	if shell.parent != nil {
-		return shell.parent.Setvar(name, value, Global)
+		return shell.parent.Setvar(name, value)
 	}
 
 	return false
 }
 
-func (shell *Shell) IsFn() bool { return shell.isFn }
-
+func (shell *Shell) IsFn() bool     { return shell.isFn }
 func (shell *Shell) SetIsFn(b bool) { shell.isFn = b }
 
 // SetNashdPath sets an alternativa path to nashd
@@ -410,7 +421,7 @@ func (shell *Shell) SetRepr(a string) {
 func (shell *Shell) setupBuiltin() {
 	for name, constructor := range builtin.Constructors() {
 		fnDef := newBuiltinFnDef(name, shell, constructor)
-		_ = shell.Setvar(name, sh.NewFnObj(fnDef), Local)
+		shell.Newvar(name, sh.NewFnObj(fnDef))
 	}
 }
 
@@ -446,12 +457,12 @@ func (shell *Shell) setup() error {
 	if shell.env["PROMPT"] == nil {
 		pobj := sh.NewStrObj(defPrompt)
 		shell.Setenv("PROMPT", pobj)
-		shell.Setvar("PROMPT", pobj, Local)
+		shell.Newvar("PROMPT", pobj)
 	}
 
-	_, ok := shell.Getvar("_", Global)
+	_, ok := shell.Getvar("_")
 	if !ok {
-		shell.Setvar("_", sh.NewStrObj(""), Local)
+		shell.Newvar("_", sh.NewStrObj(""))
 	}
 
 	shell.setupBuiltin()
@@ -545,17 +556,15 @@ func (shell *Shell) ExecFile(path string) error {
 	return shell.Exec(path, string(content))
 }
 
-func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj, where bool) error {
+func (shell *Shell) newvar(name *ast.NameNode, value sh.Obj) error {
 	if name.Index == nil {
-		if !shell.Setvar(name.Ident, value, where) {
-			return errors.NewEvalError(shell.filename,
-				name, "Variable '%s' is not initialized. Use 'var %s = <value>'",
-				name, name)
-		}
+		shell.Newvar(name.Ident, value)
 		return nil
 	}
 
-	obj, ok := shell.Getvar(name.Ident, Global)
+	// handles ident[x] = v
+
+	obj, ok := shell.Getvar(name.Ident)
 	if !ok {
 		return errors.NewEvalError(shell.filename,
 			name, "Variable %s not found", name.Ident)
@@ -581,12 +590,113 @@ func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj, where bool) error {
 		)
 	}
 
-	if !shell.Setvar(name.Ident, obj, where) {
+	shell.Newvar(name.Ident, obj)
+	return nil
+}
+
+func (shell *Shell) setvar(name *ast.NameNode, value sh.Obj) error {
+	if name.Index == nil {
+		if !shell.Setvar(name.Ident, value) {
+			return errors.NewEvalError(shell.filename,
+				name, "Variable '%s' is not initialized. Use 'var %s = <value>'",
+				name, name)
+		}
+		return nil
+	}
+
+	obj, ok := shell.Getvar(name.Ident)
+	if !ok {
+		return errors.NewEvalError(shell.filename,
+			name, "Variable %s not found", name.Ident)
+	}
+
+	index, err := shell.evalIndex(name.Index)
+	if err != nil {
+		return err
+	}
+
+	col, err := sh.NewWriteableCollection(obj)
+	if err != nil {
+		return errors.NewEvalError(shell.filename, name, err.Error())
+	}
+
+	err = col.Set(index, value)
+	if err != nil {
+		return errors.NewEvalError(
+			shell.filename,
+			name,
+			"error[%s] setting var",
+			err,
+		)
+	}
+
+	if !shell.Setvar(name.Ident, obj) {
 		return errors.NewEvalError(shell.filename,
 			name, "Variable '%s' is not initialized. Use 'var %s = <value>'",
 			name, name)
 	}
 	return nil
+}
+
+func (shell *Shell) setvars(names []*ast.NameNode, values []sh.Obj) error {
+	for i := 0; i < len(names); i++ {
+		err := shell.setvar(names[i], values[i])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (shell *Shell) newvars(names []*ast.NameNode, values []sh.Obj) {
+	for i := 0; i < len(names); i++ {
+		shell.newvar(names[i], values[i])
+	}
+}
+
+func (shell *Shell) setcmdvars(names []*ast.NameNode, stdout, stderr, status sh.Obj) error {
+	if len(names) == 3 {
+		err := shell.setvar(names[0], stdout)
+		if err != nil {
+			return err
+		}
+		err = shell.setvar(names[1], stderr)
+		if err != nil {
+			return err
+		}
+		return shell.setvar(names[2], status)
+	} else if len(names) == 2 {
+		err := shell.setvar(names[0], stdout)
+		if err != nil {
+			return err
+		}
+		return shell.setvar(names[1], status)
+	} else if len(names) == 1 {
+		return shell.setvar(names[0], stdout)
+	}
+
+	panic(fmt.Sprintf("internal error: expects 1 <= len(names) <= 3,"+
+		" but got %d",
+		len(names)))
+
+	return nil
+}
+
+func (shell *Shell) newcmdvars(names []*ast.NameNode, stdout, stderr, status sh.Obj) {
+	if len(names) == 3 {
+		shell.newvar(names[0], stdout)
+		shell.newvar(names[1], stderr)
+		shell.newvar(names[2], status)
+	} else if len(names) == 2 {
+		shell.newvar(names[0], stdout)
+		shell.newvar(names[1], status)
+	} else if len(names) == 1 {
+		shell.newvar(names[0], stdout)
+	} else {
+		panic(fmt.Sprintf("internal error: expects 1 <= len(names) <= 3,"+
+			" but got %d",
+			len(names)))
+	}
 }
 
 // evalConcat reveives the AST representation of a concatenation of objects and
@@ -687,7 +797,7 @@ func (shell *Shell) executeNode(node ast.Node) ([]sh.Obj, error) {
 	case ast.NodeAssign:
 		err = shell.executeAssignment(node.(*ast.AssignNode))
 	case ast.NodeExecAssign:
-		err = shell.executeExecAssign(node.(*ast.ExecAssignNode), Global)
+		err = shell.executeExecAssign(node.(*ast.ExecAssignNode))
 	case ast.NodeCommand:
 		_, err = shell.executeCommand(node.(*ast.CommandNode))
 	case ast.NodePipe:
@@ -1556,7 +1666,7 @@ func (shell *Shell) evalVariable(a ast.Expr) (sh.Obj, error) {
 	vexpr := a.(*ast.VarExpr)
 	varName := vexpr.Name
 
-	if value, ok = shell.Getvar(varName[1:], Global); !ok {
+	if value, ok = shell.Getvar(varName[1:]); !ok {
 		return nil, errors.NewEvalError(shell.filename,
 			a, "Variable %s not set on shell %s", varName, shell.name)
 	}
@@ -1579,7 +1689,7 @@ func (shell *Shell) evalArgVariable(a ast.Expr) ([]sh.Obj, error) {
 	}
 
 	vexpr := a.(*ast.VarExpr)
-	if value, ok = shell.Getvar(vexpr.Name[1:], Global); !ok {
+	if value, ok = shell.Getvar(vexpr.Name[1:]); !ok {
 		return nil, errors.NewEvalError(shell.filename,
 			a, "Variable %s not set on shell %s", vexpr.Name,
 			shell.name)
@@ -1748,7 +1858,7 @@ func (shell *Shell) executeSetenvAssign(assign *ast.AssignNode) error {
 		if err != nil {
 			return err
 		}
-		obj, ok := shell.Getvar(name.Ident, Local)
+		obj, ok := shell.GetLocalvar(name.Ident)
 		if !ok {
 			return errors.NewEvalError(shell.filename,
 				assign,
@@ -1762,13 +1872,13 @@ func (shell *Shell) executeSetenvAssign(assign *ast.AssignNode) error {
 }
 
 func (shell *Shell) executeSetenvExec(assign *ast.ExecAssignNode) error {
-	err := shell.executeExecAssign(assign, true)
+	err := shell.executeExecAssign(assign)
 	if err != nil {
 		return err
 	}
 	for i := 0; i < len(assign.Names); i++ {
 		name := assign.Names[i]
-		obj, ok := shell.Getvar(name.Ident, Local)
+		obj, ok := shell.GetLocalvar(name.Ident)
 		if !ok {
 			return errors.NewEvalError(shell.filename,
 				assign,
@@ -1800,7 +1910,7 @@ func (shell *Shell) executeSetenv(v *ast.SetenvNode) error {
 			assign)
 	}
 
-	varValue, ok = shell.Getvar(v.Name, Global)
+	varValue, ok = shell.Getvar(v.Name)
 	if !ok {
 		return errors.NewEvalError(shell.filename,
 			v, "Variable '%s' not set on shell %s", v.Name,
@@ -1836,7 +1946,8 @@ func (shell *Shell) concatElements(expr *ast.ConcatExpr) (string, error) {
 	return value, nil
 }
 
-func (shell *Shell) execCmdOutput(cmd ast.Node, getstderr, ignoreError bool) ([]byte, []byte, sh.Obj, error) {
+func (shell *Shell) execCmdOutput(cmd ast.Node,
+	getstderr, ignoreError bool) ([]byte, []byte, sh.Obj, error) {
 	var (
 		outBuf, errBuf bytes.Buffer
 		err            error
@@ -1885,64 +1996,22 @@ func (shell *Shell) execCmdOutput(cmd ast.Node, getstderr, ignoreError bool) ([]
 	return trimnl(outb), trimnl(errb), status, err
 }
 
-func (shell *Shell) executeExecAssignCmd(v ast.Node, where bool) error {
+func (shell *Shell) executeExecAssignCmd(v ast.Node) (stdout, stderr, status sh.Obj, err error) {
 	assign := v.(*ast.ExecAssignNode)
 	cmd := assign.Command()
 
-	// Only getting command output
-	// In this case the script must abort in case of errors
-	if len(assign.Names) == 1 {
-		outbuf, _, _, cmdErr := shell.execCmdOutput(cmd, false, false)
-		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), where)
+	mustIgnoreErr := len(assign.Names) > 1
+	collectStderr := len(assign.Names) == 3
 
-		if cmdErr != nil {
-			return cmdErr
-		}
-
-		if err != nil {
-			return err
-		}
-
-		return nil
+	outb, errb, status, err := shell.execCmdOutput(cmd, collectStderr, mustIgnoreErr)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 
-	// Only getting stdout and exit status
-	if len(assign.Names) == 2 {
-		outbuf, _, status, _ := shell.execCmdOutput(cmd, false, false)
-		err := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), where)
-		if err != nil {
-			return err
-		}
-
-		err = shell.setvar(assign.Names[1], status, where)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	if len(assign.Names) == 3 {
-		outbuf, errbuf, status, _ := shell.execCmdOutput(cmd, true, false)
-		err1 := shell.setvar(assign.Names[0], sh.NewStrObj(string(outbuf)), where)
-		err2 := shell.setvar(assign.Names[1], sh.NewStrObj(string(errbuf)), where)
-		err3 := shell.setvar(assign.Names[2], status, where)
-		errs := []error{err1, err2, err3}
-
-		for _, e := range errs {
-			if e != nil {
-				return e
-			}
-		}
-		return nil
-	}
-
-	return errors.NewEvalError(shell.filename,
-		v, "multiple assignment of commands requires between one and three variable names, but got %d",
-		len(assign.Names))
+	return sh.NewStrObj(string(outb)), sh.NewStrObj(string(errb)), status, nil
 }
 
-func (shell *Shell) executeExecAssignFn(assign *ast.ExecAssignNode, where bool) error {
+func (shell *Shell) executeExecAssignFn(assign *ast.ExecAssignNode) ([]sh.Obj, error) {
 	var (
 		err      error
 		fnValues []sh.Obj
@@ -1950,45 +2019,50 @@ func (shell *Shell) executeExecAssignFn(assign *ast.ExecAssignNode, where bool) 
 
 	cmd := assign.Command()
 	if cmd.Type() != ast.NodeFnInv {
-		return errors.NewEvalError(shell.filename,
+		return nil, errors.NewEvalError(shell.filename,
 			cmd, "Invalid node type (%v). Expected function call",
 			cmd)
 	}
 
 	fnValues, err = shell.executeFnInv(cmd.(*ast.FnInvNode))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if len(fnValues) != len(assign.Names) {
-		return errors.NewEvalError(shell.filename,
+		return nil, errors.NewEvalError(shell.filename,
 			assign, "Functions returns %d objects, but statement expects %d",
 			len(fnValues), len(assign.Names))
 	}
 
-	for i := 0; i < len(assign.Names); i++ {
-		err := shell.setvar(assign.Names[i], fnValues[i], where)
+	return fnValues, nil
+}
+
+func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode) (err error) {
+	exec := v.Command()
+	switch exec.Type() {
+	case ast.NodeFnInv:
+		var values []sh.Obj
+		values, err = shell.executeExecAssignFn(v)
 		if err != nil {
 			return err
 		}
+		err = shell.setvars(v.Names, values)
+	case ast.NodeCommand, ast.NodePipe:
+		var stdout, stderr, status sh.Obj
+		stdout, stderr, status, err = shell.executeExecAssignCmd(v)
+		if err != nil {
+			return err
+		}
+
+		err = shell.setcmdvars(v.Names, stdout, stderr, status)
+	default:
+		err = errors.NewEvalError(shell.filename,
+			exec, "Invalid node type (%v). Expected function call, command or pipe",
+			exec)
 	}
 
-	return nil
-}
-
-func (shell *Shell) executeExecAssign(v *ast.ExecAssignNode, where bool) error {
-	assign := v.Command()
-
-	if assign.Type() == ast.NodeFnInv {
-		return shell.executeExecAssignFn(v, where)
-	} else if assign.Type() == ast.NodeCommand ||
-		assign.Type() == ast.NodePipe {
-		return shell.executeExecAssignCmd(v, where)
-	}
-
-	return errors.NewEvalError(shell.filename,
-		assign, "Invalid node type (%v). Expected function call, command or pipe",
-		assign)
+	return err
 }
 
 func (shell *Shell) initVar(name *ast.NameNode, value ast.Expr) error {
@@ -1996,7 +2070,7 @@ func (shell *Shell) initVar(name *ast.NameNode, value ast.Expr) error {
 	if err != nil {
 		return err
 	}
-	return shell.setvar(name, obj, Local)
+	return shell.newvar(name, obj)
 }
 
 func (shell *Shell) executeVarAssign(v *ast.VarAssignDeclNode) error {
@@ -2021,8 +2095,32 @@ func (shell *Shell) executeVarAssign(v *ast.VarAssignDeclNode) error {
 	return nil
 }
 
-func (shell *Shell) executeVarExecAssign(v *ast.VarExecAssignDeclNode) error {
-	return shell.executeExecAssign(v.ExecAssign, Local)
+func (shell *Shell) executeVarExecAssign(v *ast.VarExecAssignDeclNode) (err error) {
+	assign := v.ExecAssign
+	exec := assign.Command()
+	switch exec.Type() {
+	case ast.NodeFnInv:
+		var values []sh.Obj
+		values, err = shell.executeExecAssignFn(assign)
+		if err != nil {
+			return err
+		}
+		shell.newvars(assign.Names, values)
+	case ast.NodeCommand, ast.NodePipe:
+		var stdout, stderr, status sh.Obj
+		stdout, stderr, status, err = shell.executeExecAssignCmd(assign)
+		if err != nil {
+			return err
+		}
+
+		shell.newcmdvars(assign.Names, stdout, stderr, status)
+	default:
+		err = errors.NewEvalError(shell.filename,
+			exec, "Invalid node type (%v). Expected function call, command or pipe",
+			exec)
+	}
+
+	return err
 }
 
 func (shell *Shell) executeAssignment(v *ast.AssignNode) error {
@@ -2042,7 +2140,7 @@ func (shell *Shell) executeAssignment(v *ast.AssignNode) error {
 			return err
 		}
 
-		err = shell.setvar(name, obj, Global)
+		err = shell.setvar(name, obj)
 		if err != nil {
 			return err
 		}
@@ -2306,8 +2404,7 @@ func (shell *Shell) executeFor(n *ast.ForNode) ([]sh.Obj, error) {
 			return nil, errors.NewEvalError(shell.filename,
 				inExpr, "unexpected error[%s] during iteration", err)
 		}
-		shell.Setvar(id, val, Local)
-
+		shell.Newvar(id, val)
 		objs, err := shell.executeTree(n.Tree(), false)
 
 		type (
@@ -2357,7 +2454,7 @@ func (shell *Shell) executeFnDecl(n *ast.FnDeclNode) error {
 		return err
 	}
 
-	shell.Setvar(n.Name(), sh.NewFnObj(fnDef), Local)
+	shell.Newvar(n.Name(), sh.NewFnObj(fnDef))
 	shell.logf("Function %s declared on '%s'", n.Name(), shell.name)
 	return nil
 }
@@ -2387,5 +2484,5 @@ func (shell *Shell) executeIf(n *ast.IfNode) ([]sh.Obj, error) {
 		return shell.executeIfNotEqual(n)
 	}
 
-	return nil, fmt.Errorf("Invalid operation '%s'.", op)
+	return nil, fmt.Errorf("invalid operation '%s'", op)
 }

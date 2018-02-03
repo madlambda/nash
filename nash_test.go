@@ -118,7 +118,7 @@ func TestSetvar(t *testing.T) {
 		return
 	}
 
-	shell.Setvar("__TEST__", sh.NewStrObj("something"))
+	shell.Newvar("__TEST__", sh.NewStrObj("something"))
 
 	var out bytes.Buffer
 	shell.SetStdout(&out)

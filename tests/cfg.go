@@ -15,7 +15,12 @@ var (
 	Nashcmd string
 	// Testdir is the test assets directory
 	Testdir string
-	Gopath  string
+
+	// Stdbindir is the stdbin directory
+	Stdbindir string
+
+	// Gopath of golang
+	Gopath string
 )
 
 func getGopath() (string, error) {
@@ -52,10 +57,11 @@ func init() {
 	}
 
 	Gopath = gopath
-	Testdir = filepath.Join(Gopath, "src", "github.com",
-		"NeowayLabs", "nash", "testfiles")
-	Nashcmd = filepath.Join(Gopath, "src", "github.com",
-		"NeowayLabs", "nash", "cmd", "nash", "nash")
+	projectpath := filepath.Join(Gopath, "src", "github.com",
+		"NeowayLabs", "nash")
+	Testdir = filepath.Join(projectpath, "testfiles")
+	Nashcmd = filepath.Join(projectpath, "cmd", "nash", "nash")
+	Stdbindir = filepath.Join(projectpath, "stdbin")
 
 	if runtime.GOOS == "windows" {
 		Nashcmd += ".exe"
