@@ -51,22 +51,22 @@ Nash is a system shell, inspired by plan9 `rc`, that makes it easy to create rel
 4. **no eval**;
 5. Strings are pure strings (no evaluation of variables);
 6. No wildcards (globbing) of files; ('rm \*' removes a file called '\*');
+    - On windows, the terminal does the globbing when in interactive mode.
+    - On unix there's libs/completions to achieve something similar.
 7. No [obscure](http://explainshell.com/) syntax;
 8. Support tooling for indent/format and statically analyze the scripts;
 
 ## Installation
 
-Before proceeding to any of the install procedures it is important that you
-set in your environment the **NASHPATH** and **NASHROOT** variables.
+Nash uses two environment variables: **NASHROOT** to find the standard nash library and **NASHPATH** to find libraries in general (like user's code).
 
-The **NASHROOT** variable is used to find the stdlib, while **NASHPATH**
-is used to find libraries in general. It is important to have two different
-paths since this will allow you to delete all libraries
-(cleaning up your installation) by removing your $NASHPATH directory
-without affecting your base nash installation and standard library.
+It is important to have two different paths since this will allow you
+to upgrade nash (overwrite nash stdlib) without risking lost your code.
 
-If no **NASHPATH** set a default of $HOME/nash will be assumed.
-If no **NASHROOT** set a default of $HOME/nashroot will be assumed.
+If **NASHPATH** is not set, a default of $HOME/nash will be assumed 
+($HOMEPATH/nash on windows).
+If **NASHROOT** is not set, a default of $HOME/nashroot will be assumed 
+($HOMEPATH/nashroot on windows).
 
 The libraries lookup dir will be $NASHPATH/lib.
 The standard library lookup dir will be $NASHROOT/stdlib.
@@ -111,7 +111,8 @@ Pipes works like borne shell and derivations:
 108
 ```
 Output redirection works like Plan9 rc, but not only for filenames. It
-supports output redirection to tcp, udp and unix network protocols.
+supports output redirection to tcp, udp and unix network protocols 
+(unix sockets are not supported on windows).
 
 ```sh
 # stdout to log.out, stderr to log.err
@@ -384,67 +385,6 @@ commands from the parent shell via unix socket. It allows the parent namespace
 (the script that creates the namespace) to issue commands inside the child
 namespace. In the current implementation the unix socket communication is not
 secure yet.
-
-# Concept
-
-Nowadays everyone agrees that a good deploy requires containers, but
-why this kind of tools (docker, rkt, etc) and libraries (lxc,
-libcontainer, etc) are so bloated and magical?
-
-In the past, the UNIX sysadmin had the complete understanding of the
-operating system and the software being deployed. All of the operating
-system packages/libraries going to production and the required network
-configurations in every machine was maintained by several (sometimes
-un-mantainable) scripts. Today we know that this approach have lots of
-problems and the container approach is a better alternative. But in the
-other end, we're paying a high cost for the lose of control. The
-container-technologies in the market are very unsafe and few people are
-worrying about. No one knows for hundred percent sure, how the things
-really works because after every release it's done differently. On my
-view it's getting worse and worse...
-
-Before Linux namespace, BSD Jails, Solaris Zones, and so on, the
-sysadmin had to fight the global view of the operating
-system. There was only one root mount table, only one view of devices
-and processes, and so on. It was a mess. This approach then proved to
-be much harder to scale because of the services conflicts (port numbers,
-files on disk, resource exhaustion, etc) in the global OS interface.
-The container/namespace idea creates an abstraction to the process in
-a way that it thinks it's the only process running (not counting init),
-it is the root (or no) and then, the filesystem of the container only
-has the files required for it (nothing more).
-
-What's missing is a safe and robust shell for natural usage of
-namespace/container ideas for everyone (programmers, sysadmins, etc).
-
-Nash is a way for you, that understand the game rules, to make
-reliable deploy scripts using the good parts of the container
-technologies. If you are a programmer, you can use a good language to
-automate the devops instead of relying on lots of different
-technologies (docker, rkt, k8s, mesos, terraform, and so on). And you
-can create libraries for code-reuse.
-
-It's only a simple shell plus a keyword called `rfork`. Rfork try
-to mimic what Plan9 `rfork` does for namespaces, but with linux
-limitations in mind.
-
-
-# Motivation
-
-I needed to create test scripts to be running on different mount
-namespaces for testing a file server and various use cases. Using bash
-in addition to docker or rkt was not so good for various
-reasons. First, docker prior to version 1.10 doesn't support user
-namespaces, and then my `make test` would requires root privileges,
-but for docker 1.10 user namespace works still requires to it being
-enabled in the daemon flags (--userns-remap=?) making more hard to
-work on standard CIs (travis, circle, etc)...  Another problem was
-that it was hard to maintain a script, that spawn docker containers
-inheriting environment variables from parent namespace (or
-host). Docker treats the container as a different machine or VM, even
-calling the parent namespace as "host". This breaks the namespace
-sharing/unsharing idea of processes. What I wanted was a copy of the
-missing plan9 'environment namespace' to child namespaces.
 
 # Releasing
 
