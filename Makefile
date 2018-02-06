@@ -12,10 +12,12 @@ build:
 	cd stdbin/mkdir && go build $(buildargs)
 	cd stdbin/pwd && go build $(buildargs)
 	cd stdbin/write && go build $(buildargs)
+	cd stdbin/strings && go build $(buildargs)
 
 NASHPATH=$(HOME)/nash
 NASHROOT=$(HOME)/nashroot
 
+# FIXME: binaries install do not work on windows this way (the .exe)
 install: build
 	@echo
 	@echo "Installing nash at: "$(NASHROOT)
@@ -29,6 +31,7 @@ install: build
 	cp -pr ./stdbin/mkdir/mkdir $(NASHROOT)/bin/mkdir
 	cp -pr ./stdbin/pwd/pwd $(NASHROOT)/bin/pwd
 	cp -pr ./stdbin/write/write $(NASHROOT)/bin/write
+	cp -pr ./stdbin/strings/strings $(NASHROOT)/bin/strings
 
 docsdeps:
 	go get github.com/katcipis/mdtoc
