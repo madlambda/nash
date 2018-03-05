@@ -9,7 +9,6 @@ import (
 
 func TestLen(t *testing.T) {
 	sh, err := sh.NewShell()
-
 	if err != nil {
 		t.Error(err)
 		return
@@ -21,8 +20,8 @@ func TestLen(t *testing.T) {
 
 	err = sh.Exec(
 		"test len",
-		`a = (1 2 3 4 5 6 7 8 9 0)
-		 len_a <= len($a)
+		`var a = (1 2 3 4 5 6 7 8 9 0)
+		 var len_a <= len($a)
 		 echo -n $len_a`,
 	)
 
@@ -43,13 +42,13 @@ func TestLen(t *testing.T) {
 	err = sh.Exec(
 		"test len fail",
 		`a = "test"
-		 l <= len($a)
+		 var l <= len($a)
 		 echo -n $l
 		`,
 	)
 
 	if err != nil {
-		t.Errorf("Must fail... Len only should work= with lists")
+		t.Error(err)
 		return
 	}
 

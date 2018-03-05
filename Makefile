@@ -11,6 +11,7 @@ build:
 	cd cmd/nashfmt && go build $(buildargs) 
 	cd stdbin/mkdir && go build $(buildargs)
 	cd stdbin/pwd && go build $(buildargs)
+	cd stdbin/write && go build $(buildargs)
 	cd stdbin/strings && go build $(buildargs)
 
 NASHPATH=$(HOME)/nash
@@ -29,6 +30,7 @@ install: build
 	cp -pr ./stdlib $(NASHROOT)/stdlib
 	cp -pr ./stdbin/mkdir/mkdir $(NASHROOT)/bin/mkdir
 	cp -pr ./stdbin/pwd/pwd $(NASHROOT)/bin/pwd
+	cp -pr ./stdbin/write/write $(NASHROOT)/bin/write
 	cp -pr ./stdbin/strings/strings $(NASHROOT)/bin/strings
 
 docsdeps:

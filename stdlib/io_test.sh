@@ -1,6 +1,6 @@
 
 fn run_example(args...) {
-        got, status <= ./cmd/nash/nash ./stdlib/io_example.sh $args
+        var got, status <= ./cmd/nash/nash ./stdlib/io_example.sh $args
         return $got, $status
 }
 
@@ -16,14 +16,14 @@ fn assert_success(expected, got, status) {
 }
 
 fn test_println_format() {
-        got, status <= run_example("hello %s", "world")
+        var got, status <= run_example("hello %s", "world")
 
         assert_success("hello world", $got, $status)
 }
 
 fn test_println() {
-        expected = "pazu"
-        got, status <= run_example($expected)
+        var expected = "pazu"
+        var got, status <= run_example($expected)
 
         assert_success($expected, $got, $status)
 }

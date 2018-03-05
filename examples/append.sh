@@ -1,6 +1,6 @@
 #!/usr/bin/env nash
 
-example_list = ()
+var example_list = ()
 echo "appending string 1"
 example_list <= append($example_list, "1")
 echo $example_list

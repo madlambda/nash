@@ -1,47 +1,49 @@
 #!/usr/bin/env nash
+
 # Simple init script for you base your own
 # For a more complete and organized .nash see:
 # https://github.com/tiago4orion/dotnash
 
 # PROMPT is a special variable used by nash command line to
 # setup your prompt.
-RED   = "\033[31m"
-GREEN = "\033[32m"
-RESET = "\033[0m"
+var RED = "[31m"
+var GREEN = "[32m"
+var RESET = "[0m"
+var PROMPTSYM = "λ> "
+var DEFPROMPT = $RED+$PROMPTSYM+$RESET
 
-PROMPTSYM =  "λ> "
-DEFPROMPT = $RED + $PROMPTSYM + $RESET
-
-PROMPT = $DEFPROMPT
-
-setenv PROMPT
+setenv PROMPT = $DEFPROMPT
 
 # cd overrides built-in cd
 # Add the current branch before prompt (if current directory is a git repo)
 fn cd(path) {
+	var branch = ""
+	var prompt = ""
+
 	if $path == "" {
 		path = $HOME
 	}
 
 	chdir($path)
 
-	-test -d ./.git
+	var _, status <= test -d ./.git
 
 	if $status != "0" {
-		PROMPT = $DEFPROMPT
+		prompt = $DEFPROMPT
 	} else {
 		branch <= git rev-parse --abbrev-ref HEAD | xargs echo -n
-		PROMPT = "(" + $GREEN + $branch + $RESET + ")" + $DEFPROMPT
+
+		prompt = "("+$GREEN+$branch+$RESET+")"+$DEFPROMPT
 	}
 
-	setenv PROMPT
+	setenv PROMPT = $prompt
 }
 
 bindfn cd cd
 
 # syntax sugar to cd into go project
 fn gocd(path) {
-	cd $GOPATH + "/src/" + $path
+	cd $GOPATH+"/src/"+$path
 }
 
 bindfn gocd gocd

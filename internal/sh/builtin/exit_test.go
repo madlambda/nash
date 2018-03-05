@@ -1,6 +1,7 @@
 package builtin_test
 
 import (
+	"os"
 	"os/exec"
 	"testing"
 )
@@ -41,6 +42,8 @@ func TestExit(t *testing.T) {
 	for name, desc := range tests {
 		t.Run(name, func(t *testing.T) {
 			cmd := exec.Command(projectnash, desc.script, desc.status)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr // to know why scripts were failing
 			err := cmd.Run()
 			if err == nil {
 				if desc.status == "0" {

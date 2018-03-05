@@ -11,7 +11,7 @@ func TestFormat(t *testing.T) {
 	tests := map[string]formatDesc{
 		"textonly": {
 			script: `
-				r <= format("helloworld")
+				var r <= format("helloworld")
 				echo $r
 			`,
 			output: "helloworld\n",
@@ -19,7 +19,7 @@ func TestFormat(t *testing.T) {
 		"ncallsRegressionTest": {
 			script: `
 				fn formatstuff() {
-					r <= format("hello%s", "world")
+					var r <= format("hello%s", "world")
 					echo $r
 				}
 				formatstuff()
@@ -30,9 +30,9 @@ func TestFormat(t *testing.T) {
 		"ncallsWithVarsRegressionTest": {
 			script: `
 				fn formatstuff() {
-					b = "world"
-					r <= format("hello%s", $b)
-					s <= format("hackthe%s", $b)
+					var b = "world"
+					var r <= format("hello%s", $b)
+					var s <= format("hackthe%s", $b)
 					echo $r
 					echo $s
 				}
@@ -43,15 +43,15 @@ func TestFormat(t *testing.T) {
 		},
 		"fmtstring": {
 			script: `
-				r <= format("%s:%s", "hello", "world")
+				var r <= format("%s:%s", "hello", "world")
 				echo $r
 			`,
 			output: "hello:world\n",
 		},
 		"fmtlist": {
 			script: `
-				list = ("1" "2" "3")
-				r <= format("%s:%s", "list", $list)
+				var list = ("1" "2" "3")
+				var r <= format("%s:%s", "list", $list)
 				echo $r
 			`,
 			output: "list:1 2 3\n",
@@ -59,7 +59,7 @@ func TestFormat(t *testing.T) {
 		"funconly": {
 			script: `
 				fn func() {}
-				r <= format($func)
+				var r <= format($func)
 				echo $r
 			`,
 			output: "<fn func>\n",
@@ -67,38 +67,38 @@ func TestFormat(t *testing.T) {
 		"funcfmt": {
 			script: `
 				fn func() {}
-				r <= format("calling:%s", $func)
+				var r <= format("calling:%s", $func)
 				echo $r
 			`,
 			output: "calling:<fn func>\n",
 		},
 		"listonly": {
 			script: `
-				list = ("1" "2" "3")
-				r <= format($list)
+				var list = ("1" "2" "3")
+				var r <= format($list)
 				echo $r
 			`,
 			output: "1 2 3\n",
 		},
 		"listoflists": {
 			script: `
-				list = (("1" "2" "3") ("4" "5" "6"))
-				r <= format("%s:%s", "listoflists", $list)
+				var list = (("1" "2" "3") ("4" "5" "6"))
+				var r <= format("%s:%s", "listoflists", $list)
 				echo $r
 			`,
 			output: "listoflists:1 2 3 4 5 6\n",
 		},
 		"listasfmt": {
 			script: `
-				list = ("%s" "%s")
-				r <= format($list, "1", "2")
+				var list = ("%s" "%s")
+				var r <= format($list, "1", "2")
 				echo $r
 			`,
 			output: "1 2\n",
 		},
 		"invalidFmt": {
 			script: `
-				r <= format("%d%s", "invalid")
+				var r <= format("%d%s", "invalid")
 				echo $r
 			`,
 			output: "%!d(string=invalid)%!s(MISSING)\n",

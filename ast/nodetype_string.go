@@ -4,9 +4,9 @@ package ast
 
 import "fmt"
 
-const _NodeType_name = "NodeSetenvNodeBlockNodeNameNodeAssignNodeExecAssignNodeImportexecBeginNodeCommandNodePipeNodeRedirectNodeFnInvexecEndexpressionBeginNodeStringExprNodeIntExprNodeVarExprNodeListExprNodeIndexExprNodeConcatExprexpressionEndNodeStringNodeRforkNodeRforkFlagsNodeIfNodeCommentNodeFnArgNodeFnDeclNodeReturnNodeBindFnNodeDumpNodeFor"
+const _NodeType_name = "NodeSetenvNodeBlockNodeNameNodeAssignNodeExecAssignNodeImportexecBeginNodeCommandNodePipeNodeRedirectNodeFnInvexecEndexpressionBeginNodeStringExprNodeIntExprNodeVarExprNodeListExprNodeIndexExprNodeConcatExprexpressionEndNodeStringNodeRforkNodeRforkFlagsNodeIfNodeCommentNodeFnArgNodeVarAssignDeclNodeVarExecAssignDeclNodeFnDeclNodeReturnNodeBindFnNodeDumpNodeFor"
 
-var _NodeType_index = [...]uint16{0, 10, 19, 27, 37, 51, 61, 70, 81, 89, 101, 110, 117, 132, 146, 157, 168, 180, 193, 207, 220, 230, 239, 253, 259, 270, 279, 289, 299, 309, 317, 324}
+var _NodeType_index = [...]uint16{0, 10, 19, 27, 37, 51, 61, 70, 81, 89, 101, 110, 117, 132, 146, 157, 168, 180, 193, 207, 220, 230, 239, 253, 259, 270, 279, 296, 317, 327, 337, 347, 355, 362}
 
 func (i NodeType) String() string {
 	i -= 1

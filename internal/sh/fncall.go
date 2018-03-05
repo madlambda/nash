@@ -100,7 +100,7 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 			// and user supplied no argument...
 			// then only initialize the variadic variable to
 			// empty list
-			fn.subshell.Setvar(fn.argNames[0].Name, sh.NewListObj([]sh.Obj{}))
+			fn.subshell.Newvar(fn.argNames[0].Name, sh.NewListObj([]sh.Obj{}))
 			return nil
 		}
 	}
@@ -118,9 +118,9 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 				valist = append(valist, arg)
 			}
 			valistarg := sh.NewListObj(valist)
-			fn.subshell.Setvar(argName, valistarg)
+			fn.subshell.Newvar(argName, valistarg)
 		} else {
-			fn.subshell.Setvar(argName, arg)
+			fn.subshell.Newvar(argName, arg)
 		}
 	}
 
@@ -130,7 +130,8 @@ func (fn *UserFn) SetArgs(args []sh.Obj) error {
 		if !last.IsVariadic {
 			return errors.NewError("internal error: optional arguments only for variadic parameter")
 		}
-		fn.subshell.Setvar(last.Name, sh.NewListObj([]sh.Obj{}))
+
+		fn.subshell.Newvar(last.Name, sh.NewListObj([]sh.Obj{}))
 	}
 
 	return nil

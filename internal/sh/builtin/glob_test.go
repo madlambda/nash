@@ -35,7 +35,7 @@ func TestGlobNoResult(t *testing.T) {
 	pattern := dir + "/*.la"
 
 	out := execSuccess(t, fmt.Sprintf(`
-		res, err <= glob("%s")
+		var res, err <= glob("%s")
 		print($res)
 		print($err)
 		print(len($res))
@@ -55,7 +55,7 @@ func TestGlobOneResult(t *testing.T) {
 	pattern := dir + "/*.go"
 
 	out := execSuccess(t, fmt.Sprintf(`
-		res, err <= glob("%s")
+		var res, err <= glob("%s")
 		print($res)
 		print($err)
 	`, pattern))
@@ -78,7 +78,7 @@ func TestGlobMultipleResults(t *testing.T) {
 	pattern := dir + "/*.h"
 
 	out := execSuccess(t, fmt.Sprintf(`
-		res, err <= glob("%s")
+		var res, err <= glob("%s")
 		print($res)
 		print($err)
 	`, pattern))
@@ -107,7 +107,7 @@ func TestGlobMultipleResults(t *testing.T) {
 
 func TestGlobInvalidPatternError(t *testing.T) {
 	out := execSuccess(t, `
-		res, err <= glob("*[.go")
+		var res, err <= glob("*[.go")
 		print($res)
 		if $err != "" {
 			print("got error")
@@ -128,22 +128,22 @@ func TestFatalFailure(t *testing.T) {
 		tcase{
 			name: "noParam",
 			code: `
-				res <= glob()
+				var res <= glob()
 				print($res)
 			`,
 		},
 		tcase{
 			name: "multipleParams",
 			code: `
-				res <= glob("/a/*", "/b/*")
+				var res <= glob("/a/*", "/b/*")
 				print($res)
 			`,
 		},
 		tcase{
 			name: "wrongType",
 			code: `
-				param = ("hi")
-				res <= glob($param)
+				var param = ("hi")
+				var res <= glob($param)
 				print($res)
 			`,
 		},

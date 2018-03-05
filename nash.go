@@ -50,7 +50,7 @@ func (nash *Shell) SetInteractive(b bool) {
 func (nash *Shell) SetDotDir(path string) {
 	obj := sh.NewStrObj(path)
 	nash.interp.Setenv("NASHPATH", obj)
-	nash.interp.Setvar("NASHPATH", obj)
+	nash.interp.Newvar("NASHPATH", obj)
 }
 
 // DotDir returns the value of the NASHPATH environment variable
@@ -136,7 +136,7 @@ func (nash *Shell) ExecuteString(path, content string) error {
 // and passes as arguments to the script the given args slice.
 func (nash *Shell) ExecFile(path string, args ...string) error {
 	if len(args) > 0 {
-		err := nash.ExecuteString("setting args", `ARGS = `+args2Nash(args))
+		err := nash.ExecuteString("setting args", `var ARGS = `+args2Nash(args))
 		if err != nil {
 			return fmt.Errorf("Failed to set nash arguments: %s", err.Error())
 		}
@@ -177,13 +177,24 @@ func (nash *Shell) SetStdin(in io.Reader) {
 	nash.interp.SetStdin(in)
 }
 
-func (nash *Shell) Stdin() io.Reader  { return nash.interp.Stdin() }
+// Stdin is the interpreter standard input
+func (nash *Shell) Stdin() io.Reader { return nash.interp.Stdin() }
+
+// Stdout is the interpreter standard output
 func (nash *Shell) Stdout() io.Writer { return nash.interp.Stdout() }
+
+// Stderr is the interpreter standard error
 func (nash *Shell) Stderr() io.Writer { return nash.interp.Stderr() }
 
-// Setvar sets or updates the variable in the nash session
-func (nash *Shell) Setvar(name string, value sh.Obj) {
-	nash.interp.Setvar(name, value)
+// Setvar sets or updates the variable in the nash session. It
+// returns true if variable was found and properly updated.
+func (nash *Shell) Setvar(name string, value sh.Obj) bool {
+	return nash.interp.Setvar(name, value)
+}
+
+// Newvar creates a new variable in the interpreter scope
+func (nash *Shell) Newvar(name string, value sh.Obj) {
+	nash.interp.Newvar(name, value)
 }
 
 // Getvar retrieves a variable from nash session

@@ -11,7 +11,7 @@ func TestStringIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "IterateEmpty",
 			ScriptCode: `
-				a = ""
+				var a = ""
 				for x in $a {
 					exit("1")
 				}
@@ -22,7 +22,7 @@ func TestStringIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "IndexEmptyFails",
 			ScriptCode: `
-				a = ""
+				var a = ""
 				echo $a[0]
 			`,
 			Fails: true,
@@ -31,7 +31,7 @@ func TestStringIndexing(t *testing.T) {
 		tester.TestCase{
 			Name: "IsImmutable",
 			ScriptCode: `
-				a = "12"
+				var a = "12"
 				a[0] = "2"
 				echo $a
 			`,
@@ -44,7 +44,7 @@ func TestStringIndexingASCII(t *testing.T) {
 	tester.Run(t, Nashcmd,
 		tester.TestCase{Name: "PositionalAccess",
 			ScriptCode: `
-				a = "12"
+				var a = "12"
 				echo $a[0]
 				echo $a[1]
 			`,
@@ -53,8 +53,8 @@ func TestStringIndexingASCII(t *testing.T) {
 		tester.TestCase{
 			Name: "PositionalAccessReturnsString",
 			ScriptCode: `
-				a = "12"
-				x = $a[0] + $a[1]
+				var a = "12"
+				var x = $a[0] + $a[1]
 				echo $x
 			`,
 			ExpectStdout: "12\n",
@@ -62,8 +62,8 @@ func TestStringIndexingASCII(t *testing.T) {
 		tester.TestCase{
 			Name: "Len",
 			ScriptCode: `
-				a = "12"
-				l <= len($a)
+				var a = "12"
+				var l <= len($a)
 				echo $l
 			`,
 			ExpectStdout: "2\n",
@@ -71,7 +71,7 @@ func TestStringIndexingASCII(t *testing.T) {
 		tester.TestCase{
 			Name: "Iterate",
 			ScriptCode: `
-				a = "123"
+				var a = "123"
 				for x in $a {
 					echo $x
 				}
@@ -81,7 +81,7 @@ func TestStringIndexingASCII(t *testing.T) {
 		tester.TestCase{
 			Name: "IndexOutOfRangeFails",
 			ScriptCode: `
-				a = "123"
+				var a = "123"
 				echo $a[3]
 			`,
 			Fails: true,
@@ -94,7 +94,7 @@ func TestStringIndexingNonASCII(t *testing.T) {
 	tester.Run(t, Nashcmd,
 		tester.TestCase{Name: "PositionalAccess",
 			ScriptCode: `
-				a = "⌘⌘"
+				var a = "⌘⌘"
 				echo $a[0]
 				echo $a[1]
 			`,
@@ -103,7 +103,7 @@ func TestStringIndexingNonASCII(t *testing.T) {
 		tester.TestCase{
 			Name: "Iterate",
 			ScriptCode: `
-				a = "⌘⌘"
+				var a = "⌘⌘"
 				for x in $a {
 					echo $x
 				}
@@ -113,8 +113,8 @@ func TestStringIndexingNonASCII(t *testing.T) {
 		tester.TestCase{
 			Name: "PositionalAccessReturnsString",
 			ScriptCode: `
-				a = "⌘⌘"
-				x = $a[0] + $a[1]
+				var a = "⌘⌘"
+				var x = $a[0] + $a[1]
 				echo $x
 			`,
 			ExpectStdout: "⌘⌘\n",
@@ -122,8 +122,8 @@ func TestStringIndexingNonASCII(t *testing.T) {
 		tester.TestCase{
 			Name: "Len",
 			ScriptCode: `
-				a = "⌘⌘"
-				l <= len($a)
+				var a = "⌘⌘"
+				var l <= len($a)
 				echo $l
 			`,
 			ExpectStdout: "2\n",
@@ -131,7 +131,7 @@ func TestStringIndexingNonASCII(t *testing.T) {
 		tester.TestCase{
 			Name: "IndexOutOfRangeFails",
 			ScriptCode: `
-				a = "⌘⌘"
+				var a = "⌘⌘"
 				echo $a[2]
 			`,
 			Fails: true,

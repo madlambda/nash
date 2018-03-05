@@ -1,6 +1,5 @@
 fn map_new() {
-        map = ()
-        return $map
+        return ()
 }
 
 fn map_get(map, key) {
@@ -31,17 +30,17 @@ fn map_add(map, key, val) {
                 }
         }
 
-        tuple = ($key $val)
+        var tuple = ($key $val)
         map <= append($map, $tuple)
         return $map
 }
 
 fn map_del(map, key) {
-	newmap = ()
+	var newmap = ()
 
         for entry in $map {
                 if $entry[0] != $key {
-			tuple = ($entry[0] $entry[1])
+			var tuple = ($entry[0] $entry[1])
 			newmap <= append($newmap, $tuple)
                 }
         }

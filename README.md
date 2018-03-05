@@ -132,7 +132,7 @@ supports output redirection to tcp, udp and unix network protocols
 To assign command output to a variable exists the '<=' operator. See the example
 below:
 ```sh
-fullpath <= realpath $path | xargs -n echo
+var fullpath <= realpath $path | xargs -n echo
 echo $fullpath
 ```
 The symbol '<=' redirects the stdout of the command or function invocation in the
@@ -142,8 +142,8 @@ If you want the command output splited into an array, then you'll need
 to store it in a temporary variable and then use the builtin `split` function.
 
 ```sh
-out <= find .
-files <= split($out, "\n")
+var out <= find .
+var files <= split($out, "\n")
 
 for f in $files {
         echo "File: " + $f
@@ -157,7 +157,7 @@ enclosing every variable with quotes before executing the command.
 Then the following example do the right thing:
 
 ```sh
-fullname = "John Nash"
+var fullname = "John Nash"
 ./ci-register --name $fullname --option somevalue
 ```
 On bash you need to enclose the `$fullname` variable in quotes to avoid problems.
@@ -211,7 +211,7 @@ Long commands can be split in multiple lines:
 λ> (aws ec2 attach-internet-gateway	--internet-gateway-id $igwid
 									--vpc-id $vpcid)
 
-λ> instanceId <= (
+λ> var instanceId <= (
 	aws ec2 run-instances
 			--image-id ami-xxxxxxxx
 			--count 1

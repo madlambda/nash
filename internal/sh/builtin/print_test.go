@@ -26,7 +26,7 @@ func TestPrint(t *testing.T) {
 		},
 		"fmtlist": {
 			script: `
-				list = ("1" "2" "3")
+				var list = ("1" "2" "3")
 				print("%s:%s", "list", $list)
 			`,
 			output: "list:1 2 3",
@@ -47,21 +47,21 @@ func TestPrint(t *testing.T) {
 		},
 		"listonly": {
 			script: `
-				list = ("1" "2" "3")
+				var list = ("1" "2" "3")
 				print($list)
 			`,
 			output: "1 2 3",
 		},
 		"listoflists": {
 			script: `
-				list = (("1" "2" "3") ("4" "5" "6"))
+				var list = (("1" "2" "3") ("4" "5" "6"))
 				print("%s:%s", "listoflists", $list)
 			`,
 			output: "listoflists:1 2 3 4 5 6",
 		},
 		"listasfmt": {
 			script: `
-				list = ("%s" "%s")
+				var list = ("%s" "%s")
 				print($list, "1", "2")
 			`,
 			output: "1 2",
