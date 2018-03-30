@@ -65,9 +65,8 @@ func importInitFile(shell *nash.Shell, initFile string) (bool, error) {
 	return false, nil
 }
 
-func setupCli(shell *nash.Shell) error {
-	shell.SetInteractive(true)
-
+func loadInit(shell *nash.Shell) error {
+	
 	if noInit {
 		return nil
 	}
@@ -91,8 +90,11 @@ func setupCli(shell *nash.Shell) error {
 }
 
 func cli(shell *nash.Shell) error {
-	if err := setupCli(shell); err != nil {
-		return err
+
+	shell.SetInteractive(true)
+
+	if err := loadInit(shell); err != nil {
+		fmt.Fprintf(os.Stderr, "error loading init file:\n%s\n", err)
 	}
 
 	historyFile := shell.DotDir() + "/history"
