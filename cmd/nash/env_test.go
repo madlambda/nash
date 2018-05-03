@@ -59,6 +59,10 @@ func TestLoadNASHROOT(t * testing.T) {
 			},
 			want: filepath.Join("go", "path", "src", "github.com", "NeowayLabs", "nash"),
 		},
+		{
+			name: "UsesUserHomeWhenNASHROOTAndGOPATHAreUnset",
+			want: filepath.Join(home(t), "nashroot"),
+		},
 	})
 }
 

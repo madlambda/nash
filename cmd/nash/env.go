@@ -12,15 +12,8 @@ func NashPath() (string, error) {
 	if nashpath != "" {
 		return nashpath, nil
 	}
-	
-	usr, err := user.Current()
-	if err != nil {
-		return "", fmt.Errorf("error[%s] getting current user (no NASHPATH env var set)", err)
-	}
-	if usr.HomeDir == "" {
-		return "", fmt.Errorf("user[%v] has an empty home dir (no NASHPATH env var set)", err)
-	}
-	return filepath.Join(usr.HomeDir, "nash"), nil
+	h, err := home()
+	return filepath.Join(h, "nash"), err
 }
 
 func NashRoot() (string, error) {
@@ -32,5 +25,18 @@ func NashRoot() (string, error) {
 	if ok {
 		return filepath.Join(gopath, "src", "github.com", "NeowayLabs", "nash"), nil
 	}
-	return "", nil
+	
+	h, err := home()
+	return filepath.Join(h, "nashroot"), err
+}
+
+func home() (string, error) {
+	usr, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+	if usr.HomeDir == "" {
+		return "", fmt.Errorf("user[%v] has empty home dir", usr)
+	}
+	return usr.HomeDir, nil
 }
