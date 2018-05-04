@@ -48,21 +48,12 @@ func (nash *Shell) SetInteractive(b bool) {
 // points to the location where nash will lookup for the init script and
 // libraries installed.
 func (nash *Shell) SetDotDir(path string) {
-	obj := sh.NewStrObj(path)
-	nash.interp.Setenv("NASHPATH", obj)
-	nash.interp.Newvar("NASHPATH", obj)
+	// TODO: Set nashpath on shell instead of using env vars
 }
 
 // DotDir returns the value of the NASHPATH environment variable
 func (nash *Shell) DotDir() string {
-	if obj, ok := nash.interp.Getenv("NASHPATH"); ok {
-		if obj.Type() != sh.StringType {
-			return ""
-		}
-
-		return obj.String()
-	}
-
+	// TODO: Get nashpath from shell instead of using env vars
 	return ""
 }
 

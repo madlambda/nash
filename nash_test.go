@@ -73,32 +73,6 @@ func TestExecuteString(t *testing.T) {
 
 }
 
-func TestSetDotDir(t *testing.T) {
-	shell := newShell(t)
-	
-	var out bytes.Buffer
-
-	shell.SetStdout(&out)
-	shell.SetDotDir("/tmp")
-
-	dotDir := shell.DotDir()
-	if dotDir != "/tmp" {
-		t.Errorf("Invalid .nash = %s", dotDir)
-		return
-	}
-
-	err := shell.ExecuteString("-ínput-", "echo -n $NASHPATH")
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if string(out.Bytes()) != "/tmp" {
-		t.Errorf("Unexpected '%s'", string(out.Bytes()))
-		return
-	}
-}
-
 func TestSetvar(t *testing.T) {
 	shell := newShell(t)
 	shell.Newvar("__TEST__", sh.NewStrObj("something"))
