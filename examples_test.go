@@ -1,9 +1,17 @@
 package nash_test
 
-import "github.com/NeowayLabs/nash"
+import (
+	"path/filepath"
+	
+	"github.com/NeowayLabs/nash"
+)
 
 func Example() {
-	nash, err := nash.New()
+
+	nashpath := filepath.Join("tmp", "nashpath")
+	nashroot := filepath.Join("tmp", "nashroot")
+
+	nash, err := nash.New(nashpath, nashroot)
 
 	if err != nil {
 		panic(err)

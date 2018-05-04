@@ -10,11 +10,7 @@ import (
 )
 
 func TestExecuteIssue68(t *testing.T) {
-	sh, err := NewShell()
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	sh := newShell(t)
 
 	tmpDir, err := ioutil.TempDir("", "nash-tests")
 	if err != nil {
@@ -44,13 +40,9 @@ func TestExecuteIssue68(t *testing.T) {
 }
 
 func TestExecuteErrorSuppression(t *testing.T) {
-	sh, err := NewShell()
+	sh := newShell(t)
 
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = sh.Exec("-input-", `-bllsdlfjlsd`)
+	err := sh.Exec("-input-", `-bllsdlfjlsd`)
 
 	if err != nil {
 		t.Errorf("Expected to not fail...: %s", err.Error())

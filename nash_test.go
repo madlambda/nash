@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"testing"
+	"path/filepath"
 
 	"github.com/NeowayLabs/nash/sh"
 	"github.com/NeowayLabs/nash/tests"
@@ -16,18 +17,14 @@ func TestExecuteFile(t *testing.T) {
 	testfile := tests.Testdir + "/ex1.sh"
 
 	var out bytes.Buffer
-	shell, err := New()
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	shell := newShell(t)
 
 	shell.SetNashdPath(tests.Nashcmd)
 	shell.SetStdout(&out)
 	shell.SetStderr(os.Stderr)
 	shell.SetStdin(os.Stdin)
 
-	err = shell.ExecuteFile(testfile)
+	err := shell.ExecuteFile(testfile)
 	if err != nil {
 		t.Error(err)
 		return
@@ -40,17 +37,13 @@ func TestExecuteFile(t *testing.T) {
 }
 
 func TestExecuteString(t *testing.T) {
-	shell, err := New()
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	shell := newShell(t)
 
 	var out bytes.Buffer
 
 	shell.SetStdout(&out)
 
-	err = shell.ExecuteString("-ínput-", "echo -n AAA")
+	err := shell.ExecuteString("-ínput-", "echo -n AAA")
 	if err != nil {
 		t.Error(err)
 		return
@@ -81,12 +74,8 @@ func TestExecuteString(t *testing.T) {
 }
 
 func TestSetDotDir(t *testing.T) {
-	shell, err := New()
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
+	shell := newShell(t)
+	
 	var out bytes.Buffer
 
 	shell.SetStdout(&out)
@@ -98,7 +87,7 @@ func TestSetDotDir(t *testing.T) {
 		return
 	}
 
-	err = shell.ExecuteString("-ínput-", "echo -n $NASHPATH")
+	err := shell.ExecuteString("-ínput-", "echo -n $NASHPATH")
 	if err != nil {
 		t.Error(err)
 		return
@@ -111,19 +100,13 @@ func TestSetDotDir(t *testing.T) {
 }
 
 func TestSetvar(t *testing.T) {
-	shell, err := New()
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
+	shell := newShell(t)
 	shell.Newvar("__TEST__", sh.NewStrObj("something"))
 
 	var out bytes.Buffer
 	shell.SetStdout(&out)
 
-	err = shell.Exec("TestSetvar", `echo -n $__TEST__`)
+	err := shell.Exec("TestSetvar", `echo -n $__TEST__`)
 
 	if err != nil {
 		t.Error(err)
@@ -141,4 +124,17 @@ func TestSetvar(t *testing.T) {
 		t.Errorf("Getvar doesn't work: '%s' != '%s'", val, "something")
 		return
 	}
+}
+
+func newShell(t *testing.T) *Shell {
+	t.Helper()
+	
+	nashpath := filepath.Join("tmp", "nashpath")
+	nashroot := filepath.Join("tmp", "nashroot")
+	
+	s, err := New(nashpath, nashroot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
 }

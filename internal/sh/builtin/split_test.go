@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/NeowayLabs/nash"
+	
 )
 
 func TestSplit(t *testing.T) {
@@ -93,12 +93,4 @@ func TestSplitingByFuncWrongWontPanic(t *testing.T) {
 	}
 }
 
-func newShell(t *testing.T) *nash.Shell {
-	shell, err := nash.New()
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return shell
-}

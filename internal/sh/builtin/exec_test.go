@@ -2,15 +2,10 @@ package builtin_test
 
 import (
 	"testing"
-
-	"github.com/NeowayLabs/nash"
 )
 
 func execSuccess(t *testing.T, scriptContents string) string {
-	shell, err := nash.New()
-	if err != nil {
-		t.Fatalf("unexpected err: %s", err)
-	}
+	shell := newShell(t)
 
 	out, err := shell.ExecOutput("", scriptContents)
 
@@ -21,11 +16,7 @@ func execSuccess(t *testing.T, scriptContents string) string {
 }
 
 func execFailure(t *testing.T, scriptContents string) {
-	shell, err := nash.New()
-	if err != nil {
-		t.Fatalf("unexpected err: %s", err)
-	}
-
+	shell := newShell(t)
 	out, err := shell.ExecOutput("", scriptContents)
 
 	if err == nil {

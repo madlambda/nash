@@ -62,6 +62,9 @@ type (
 		parent *Shell
 
 		repr string // string representation
+		
+		nashpath string
+		nashroot string
 
 		*sync.Mutex
 	}
@@ -112,7 +115,9 @@ func newErrStopWalking() *errStopWalking {
 func (e *errStopWalking) StopWalking() bool { return true }
 
 // NewShell creates a new shell object
-func NewShell() (*Shell, error) {
+// nashpath will be used to search libraries and nashroot will be used to
+// search for the standard library shipped with the language.
+func NewShell(nashpath string, nashroot string) (*Shell, error) {
 	shell := &Shell{
 		name:        "parent scope",
 		interactive: false,
@@ -128,6 +133,8 @@ func NewShell() (*Shell, error) {
 		Mutex:       &sync.Mutex{},
 		sigs:        make(chan os.Signal, 1),
 		filename:    "<interactive>",
+		nashpath: nashpath,
+		nashroot: nashroot,
 	}
 
 	err := shell.setup()
@@ -913,48 +920,6 @@ func isValidNashRoot(nashroot string) bool {
 	return err == nil
 }
 
-func (shell *Shell) getNashRoot() (string, error) {
-	// TODO(katcipis): It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
-
-	nashroot, ok := shell.Getenv("NASHROOT")
-	if !ok {
-		h, hashome := shell.Getenv("HOME")
-		if !hashome {
-			return shell.getNashRootFromGOPATH(errors.NewError("no HOME env var setted"))
-		}
-		home := h.String()
-		nashroot := filepath.Join(home, "nashroot")
-
-		if !isValidNashRoot(nashroot) {
-			return shell.getNashRootFromGOPATH(errors.NewError("$HOME/nashroot is not valid NASHROOT\n%s"))
-		}
-
-		return nashroot, nil
-	}
-
-	return nashroot.String(), nil
-}
-
-func (shell *Shell) getNashPath() (string, error) {
-	// TODO(katcipis): It is very annoying to load env vars, perhaps a shell.GetStringEnv ?
-
-	nashPath, ok := shell.Getenv("NASHPATH")
-
-	if !ok {
-		h, hashome := shell.Getenv("HOME")
-		if !hashome {
-			return "", errors.NewError("No NASHPATH and no HOME env vars set")
-		}
-		home := h.String()
-		return filepath.Join(home, "nash"), nil
-	}
-
-	if nashPath.Type() != sh.StringType {
-		return "", errors.NewError("NASHPATH must be a string")
-	}
-
-	return nashPath.String(), nil
-}
 
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	obj, err := shell.evalExpr(node.Path)
@@ -997,19 +962,13 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		}
 	}
 
-	dotDir, nashpatherr := shell.getNashPath()
-	if nashpatherr == nil {
-		tries = append(tries, filepath.Join(dotDir, "lib", fname))
-		if !hasExt {
-			tries = append(tries, filepath.Join(dotDir, "lib", fname+".sh"))
-		}
+	tries = append(tries, filepath.Join(shell.nashpath, "lib", fname))
+	if !hasExt {
+		tries = append(tries, filepath.Join(shell.nashpath, "lib", fname+".sh"))
 	}
-
-	nashroot, nashrooterr := shell.getNashRoot()
-	if nashrooterr == nil {
-		tries = append(tries, filepath.Join(nashroot, "stdlib", fname+".sh"))
-	}
-
+	
+	tries = append(tries, filepath.Join(shell.nashroot, "stdlib", fname+".sh"))
+	
 	shell.logf("Trying %q\n", tries)
 
 	for _, path := range tries {
@@ -1029,14 +988,6 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 		fname,
 		strings.Join(tries, `", "`),
 	)
-
-	if nashpatherr != nil {
-		errmsg += "\nnashpath error: " + nashpatherr.Error()
-	}
-
-	if nashrooterr != nil {
-		errmsg += "\nnashroot error: " + nashrooterr.Error()
-	}
 
 	return errors.NewEvalError(shell.filename, node, errmsg)
 }

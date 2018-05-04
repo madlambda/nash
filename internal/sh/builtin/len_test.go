@@ -8,7 +8,7 @@ import (
 )
 
 func TestLen(t *testing.T) {
-	sh, err := sh.NewShell()
+	sh, err := sh.NewShell("/tmp/nash/testlen", "/tmp/nashroot/testlen")
 	if err != nil {
 		t.Error(err)
 		return

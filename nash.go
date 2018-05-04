@@ -20,8 +20,8 @@ type (
 )
 
 // New creates a new `nash.Shell` instance.
-func New() (*Shell, error) {
-	interp, err := shell.NewShell()
+func New(nashpath string, nashroot string) (*Shell, error) {
+	interp, err := shell.NewShell(nashpath, nashroot)
 
 	if err != nil {
 		return nil, err
