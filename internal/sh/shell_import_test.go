@@ -14,6 +14,7 @@ func TestImportsLibFromNashPathLibDir(t *testing.T) {
 	defer rmdir()
 
 	nashpath := filepath.Join(testdir, "nashpath")
+	nashroot := filepath.Join(testdir, "nashroot")
 	nashlib := filepath.Join(nashpath, "lib")
 	
 	mkdirAll(t, nashlib)
@@ -24,10 +25,66 @@ func TestImportsLibFromNashPathLibDir(t *testing.T) {
 		}
 	`)
 
-	newTestShell(t, nashpath, "").ExecCheckingOutput(t, `
+	newTestShell(t, nashpath, nashroot).ExecCheckingOutput(t, `
 		import lib
 		test()
 	`, "hasnashpath\n")
+}
+
+func TestImportsLibFromNashPathLibDirBeforeNashRootStdlib(t *testing.T) {
+	
+	testdir, rmdir := tmpdir(t)
+	defer rmdir()
+
+	nashpath := filepath.Join(testdir, "nashpath")
+	nashroot := filepath.Join(testdir, "nashroot")
+	
+	nashlib := filepath.Join(nashpath, "lib")
+	nashstdlib := filepath.Join(nashroot, "stdlib")
+	
+	mkdirAll(t, nashlib)
+	mkdirAll(t, nashstdlib)
+
+	writeFile(t, filepath.Join(nashlib, "lib.sh"), `
+		fn test() {
+			echo "libcode"
+		}
+	`)
+	
+	writeFile(t, filepath.Join(nashstdlib, "lib.sh"), `
+		fn test() {
+			echo "stdlibcode"
+		}
+	`)
+
+	newTestShell(t, nashpath, nashroot).ExecCheckingOutput(t, `
+		import lib
+		test()
+	`, "libcode\n")
+}
+
+func TestImportsLibFromNashRootStdlib(t *testing.T) {
+	
+	testdir, rmdir := tmpdir(t)
+	defer rmdir()
+
+	nashpath := filepath.Join(testdir, "nashpath")
+	nashroot := filepath.Join(testdir, "nashroot")
+	
+	nashstdlib := filepath.Join(nashroot, "stdlib")
+	mkdirAll(t, nashstdlib)
+
+	
+	writeFile(t, filepath.Join(nashstdlib, "lib.sh"), `
+		fn test() {
+			echo "stdlibcode"
+		}
+	`)
+
+	newTestShell(t, nashpath, nashroot).ExecCheckingOutput(t, `
+		import lib
+		test()
+	`, "stdlibcode\n")
 }
 
 
