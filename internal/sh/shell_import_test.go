@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+// TODO: behavior when NASHPATH and NASHROOT are invalid ?
+
 func TestImportsLibFromNashPathLibDir(t *testing.T) {
 	
 	nashdirs := setupNashDirs(t)

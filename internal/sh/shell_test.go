@@ -1427,9 +1427,9 @@ func testTCPRedirection(t *testing.T, port, command string) {
 		shell := newShell(t)
 		shell.SetNashdPath(f.nashdPath)
 
-		err = <-done
+		err := <-done
 		if err != nil {
-			return
+			t.Fatal(err)
 		}
 
 		done <- shell.Exec("test net redirection", command)
@@ -1459,7 +1459,6 @@ func testTCPRedirection(t *testing.T, port, command string) {
 }
 
 func TestTCPRedirection(t *testing.T) {
-	t.Skip("TODO:katcipis: Fix failing because of data races =(")
 	testTCPRedirection(t, ":4666", `echo -n "hello world" >[1] "tcp://localhost:4666"`)
 	testTCPRedirection(t, ":4667", `echo -n "hello world" > "tcp://localhost:4667"`)
 }
