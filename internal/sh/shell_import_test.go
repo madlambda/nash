@@ -10,22 +10,16 @@ import (
 
 func TestImportsLibFromNashPathLibDir(t *testing.T) {
 	
-	testdir, rmdir := tmpdir(t)
-	defer rmdir()
-
-	nashpath := filepath.Join(testdir, "nashpath")
-	nashroot := filepath.Join(testdir, "nashroot")
-	nashlib := filepath.Join(nashpath, "lib")
+	nashdirs := setupNashDirs(t)
+	defer nashdirs.cleanup()
 	
-	mkdirAll(t, nashlib)
-
-	writeFile(t, filepath.Join(nashlib, "lib.sh"), `
+	writeFile(t, filepath.Join(nashdirs.lib, "lib.sh"), `
 		fn test() {
 			echo "hasnashpath"
 		}
 	`)
 
-	newTestShell(t, nashpath, nashroot).ExecCheckingOutput(t, `
+	newTestShell(t, nashdirs.path, nashdirs.root).ExecCheckingOutput(t, `
 		import lib
 		test()
 	`, "hasnashpath\n")
@@ -33,31 +27,22 @@ func TestImportsLibFromNashPathLibDir(t *testing.T) {
 
 func TestImportsLibFromNashPathLibDirBeforeNashRootStdlib(t *testing.T) {
 	
-	testdir, rmdir := tmpdir(t)
-	defer rmdir()
+	nashdirs := setupNashDirs(t)
+	defer nashdirs.cleanup()
 
-	nashpath := filepath.Join(testdir, "nashpath")
-	nashroot := filepath.Join(testdir, "nashroot")
-	
-	nashlib := filepath.Join(nashpath, "lib")
-	nashstdlib := filepath.Join(nashroot, "stdlib")
-	
-	mkdirAll(t, nashlib)
-	mkdirAll(t, nashstdlib)
-
-	writeFile(t, filepath.Join(nashlib, "lib.sh"), `
+	writeFile(t, filepath.Join(nashdirs.lib, "lib.sh"), `
 		fn test() {
 			echo "libcode"
 		}
 	`)
 	
-	writeFile(t, filepath.Join(nashstdlib, "lib.sh"), `
+	writeFile(t, filepath.Join(nashdirs.stdlib, "lib.sh"), `
 		fn test() {
 			echo "stdlibcode"
 		}
 	`)
 
-	newTestShell(t, nashpath, nashroot).ExecCheckingOutput(t, `
+	newTestShell(t, nashdirs.path, nashdirs.root).ExecCheckingOutput(t, `
 		import lib
 		test()
 	`, "libcode\n")
@@ -65,26 +50,55 @@ func TestImportsLibFromNashPathLibDirBeforeNashRootStdlib(t *testing.T) {
 
 func TestImportsLibFromNashRootStdlib(t *testing.T) {
 	
-	testdir, rmdir := tmpdir(t)
-	defer rmdir()
-
-	nashpath := filepath.Join(testdir, "nashpath")
-	nashroot := filepath.Join(testdir, "nashroot")
+	nashdirs := setupNashDirs(t)
+	defer nashdirs.cleanup()
 	
-	nashstdlib := filepath.Join(nashroot, "stdlib")
-	mkdirAll(t, nashstdlib)
-
-	
-	writeFile(t, filepath.Join(nashstdlib, "lib.sh"), `
+	writeFile(t, filepath.Join(nashdirs.stdlib, "lib.sh"), `
 		fn test() {
 			echo "stdlibcode"
 		}
 	`)
 
-	newTestShell(t, nashpath, nashroot).ExecCheckingOutput(t, `
+	newTestShell(t, nashdirs.path, nashdirs.root).ExecCheckingOutput(t, `
 		import lib
 		test()
 	`, "stdlibcode\n")
+}
+
+func TestImportsLibFromWorkingDirBeforeLibAndStdlib(t *testing.T) {
+	
+	workingdir, rmdir := tmpdir(t)
+	defer rmdir()
+	
+	curwd := getwd(t)
+	chdir(t, workingdir)
+	defer chdir(t, curwd)
+	
+	nashdirs := setupNashDirs(t)
+	defer nashdirs.cleanup()
+	
+	writeFile(t, filepath.Join(workingdir, "lib.sh"), `
+		fn test() {
+			echo "localcode"
+		}
+	`)
+	
+	writeFile(t, filepath.Join(nashdirs.lib, "lib.sh"), `
+		fn test() {
+			echo "libcode"
+		}
+	`)
+	
+	writeFile(t, filepath.Join(nashdirs.stdlib, "lib.sh"), `
+		fn test() {
+			echo "stdlibcode"
+		}
+	`)
+	
+	newTestShell(t, nashdirs.path, nashdirs.root).ExecCheckingOutput(t, `
+		import lib
+		test()
+	`, "localcode\n")
 }
 
 
@@ -123,6 +137,35 @@ func newTestShell(t *testing.T, nashpath string, nashroot string) *testshell {
 	return &testshell{shell: shell, stdout: &out}
 }
 
+type nashDirs struct {
+	path string
+	lib string
+	root string
+	stdlib string
+	cleanup func()
+}
+
+func setupNashDirs(t *testing.T) nashDirs {
+	testdir, rmdir := tmpdir(t)
+
+	nashpath := filepath.Join(testdir, "nashpath")
+	nashroot := filepath.Join(testdir, "nashroot")
+	
+	nashlib := filepath.Join(nashpath, "lib")
+	nashstdlib := filepath.Join(nashroot, "stdlib")
+	
+	mkdirAll(t, nashlib)
+	mkdirAll(t, nashstdlib)
+	
+	return nashDirs{
+		path: nashpath,
+		lib: nashlib,
+		root: nashroot,
+		stdlib: nashstdlib,
+		cleanup: rmdir,
+	}
+}
+
 func tmpdir(t *testing.T) (string, func()) {
 	t.Helper()
 	
@@ -151,4 +194,24 @@ func writeFile(t *testing.T, filename string, data string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+func chdir(t *testing.T, dir string) {
+	t.Helper()
+	
+	err := os.Chdir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func getwd(t *testing.T) string {
+	t.Helper()
+	
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	
+	return dir
 }
