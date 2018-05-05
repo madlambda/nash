@@ -29,143 +29,22 @@ type (
 	}
 
 	fixture struct {
+		shell     *Shell
+		shellOut *bytes.Buffer
 		dir       string
 		nashdPath string
 	}
 )
 
-func init() {
 
-}
-
-func setup(t *testing.T) (fixture, func()) {
-	tmpNashPath, err := ioutil.TempDir("", "nash-tests")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = os.Setenv("NASHPATH", tmpNashPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return fixture{
-			dir:       tests.Testdir,
-			nashdPath: tests.Nashcmd,
-		}, func() {
-			os.RemoveAll(tmpNashPath)
-			err := os.Unsetenv("NASHPATH")
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-}
-
-func testExecuteFile(t *testing.T, path, expected string, before string) {
-	var out bytes.Buffer
-	f, teardown := setup(t)
-	defer teardown()
-
-	shell := newShell(t)
-
-	shell.SetNashdPath(f.nashdPath)
-	shell.SetStdout(&out)
-
-	if before != "" {
-		shell.Exec("", before)
-	}
-
-	err := shell.ExecFile(path)
-
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	if string(out.Bytes()) != expected {
-		t.Errorf("Wrong command output: '%s' != '%s'",
-			string(out.Bytes()), expected)
-		return
-	}
-}
-
-func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
-	t.Helper()
-
-	var bout bytes.Buffer
-	var berr bytes.Buffer
-	shell.SetStderr(&berr)
-	shell.SetStdout(&bout)
-
-	err := shell.Exec(testcase.desc, testcase.code)
-	if err != nil {
-		if testcase.expectedPrefixErr != "" {
-			if !strings.HasPrefix(err.Error(), testcase.expectedPrefixErr) {
-				t.Errorf("[%s] Prefix of error differs: Expected prefix '%s' in '%s'",
-					testcase.desc,
-					testcase.expectedPrefixErr,
-					err.Error())
-			}
-		} else if err.Error() != testcase.expectedErr {
-			t.Errorf("[%s] Error differs: Expected '%s' but got '%s'",
-				testcase.desc,
-				testcase.expectedErr,
-				err.Error())
-		}
-	} else if testcase.expectedErr != "" {
-		t.Fatalf("Expected error[%s] but got nil", testcase.expectedErr)
-	}
-
-	if testcase.expectedStdout != string(bout.Bytes()) {
-		t.Errorf("[%s] Stdout differs: '%s' != '%s'",
-			testcase.desc,
-			testcase.expectedStdout,
-			string(bout.Bytes()))
-		return
-	}
-
-	if testcase.expectedStderr != string(berr.Bytes()) {
-		t.Errorf("[%s] Stderr differs: '%s' != '%s'",
-			testcase.desc,
-			testcase.expectedStderr,
-			string(berr.Bytes()))
-		return
-	}
-	bout.Reset()
-	berr.Reset()
-}
-
-func testExec(t *testing.T, testcase execTestCase) {
-	t.Helper()
-	f, teardown := setup(t)
-	defer teardown()
-
-	shell := newShell(t)
-
-	shell.SetNashdPath(f.nashdPath)
-	testShellExec(t, shell, testcase)
-}
-
-func testInteractiveExec(t *testing.T, testcase execTestCase) {
-	t.Helper()
-
-	f, teardown := setup(t)
-	defer teardown()
-
-	shell := newShell(t)
-
-	shell.SetNashdPath(f.nashdPath)
-	shell.SetInteractive(true)
-
-	testShellExec(t, shell, testcase)
-}
 
 func TestInitEnv(t *testing.T) {
 	os.Setenv("TEST", "abc=123=")
 
-	shell := newShell(t)
+	f, teardown := setup(t)
+	defer teardown()
 
-	testEnv, ok := shell.Getenv("TEST")
+	testEnv, ok := f.shell.Getenv("TEST")
 	if !ok {
 		t.Fatal("environment TEST not found")
 	}
@@ -564,9 +443,7 @@ func TestExecuteRedirection(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-
-	shell.SetNashdPath(f.nashdPath)
+	shell := f.shell
 
 	pathobj, err := ioutil.TempFile("", "nash-redir")
 	if err != nil {
@@ -653,9 +530,7 @@ func TestExecuteRedirectionMap(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-
-	shell.SetNashdPath(f.nashdPath)
+	shell := f.shell
 
 	tmpfile, err := ioutil.TempFile("", "nash-redir-map")
 	if err != nil {
@@ -782,15 +657,11 @@ func TestExecuteCd(t *testing.T) {
 }
 
 func TestExecuteImport(t *testing.T) {
-	var out bytes.Buffer
-
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-
-	shell.SetNashdPath(f.nashdPath)
-	shell.SetStdout(&out)
+	shell := f.shell
+	out := f.shellOut
 
 	tmpfile, err := ioutil.TempFile("", "nash-import")
 	if err != nil {
@@ -918,15 +789,11 @@ func TestExecuteIfEqual(t *testing.T) {
 }
 
 func TestExecuteIfElse(t *testing.T) {
-	var out bytes.Buffer
-
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-
-	shell.SetNashdPath(f.nashdPath)
-	shell.SetStdout(&out)
+	shell := f.shell
+	out := f.shellOut
 
 	err := shell.Exec("test if else", `
         if "" == "" {
@@ -965,16 +832,12 @@ func TestExecuteIfElse(t *testing.T) {
 }
 
 func TestExecuteIfElseIf(t *testing.T) {
-	var out bytes.Buffer
-
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-
-	shell.SetNashdPath(f.nashdPath)
-	shell.SetStdout(&out)
-
+	shell := f.shell
+	out := f.shellOut
+	
 	err := shell.Exec("test if else", `
         if "" == "" {
             echo "if still works"
@@ -1016,10 +879,7 @@ func TestExecuteFnDecl(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-	shell.SetNashdPath(f.nashdPath)
-
-	err := shell.Exec("test fnDecl", `
+	err := f.shell.Exec("test fnDecl", `
         fn build(image, debug) {
                 ls
         }`)
@@ -1033,13 +893,8 @@ func TestExecuteFnInv(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-
-	shell.SetNashdPath(f.nashdPath)
-
-	var out bytes.Buffer
-
-	shell.SetStdout(&out)
+	shell := f.shell
+	out := f.shellOut
 
 	err := shell.Exec("test fn inv", `
 fn getints() {
@@ -1180,12 +1035,8 @@ func TestExecuteFnInvOthers(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-	shell.SetNashdPath(f.nashdPath)
-
-	var out bytes.Buffer
-
-	shell.SetStdout(&out)
+	shell := f.shell
+	out := f.shellOut
 
 	err := shell.Exec("test fn inv", `
 fn _getints() {
@@ -1216,9 +1067,8 @@ func TestNonInteractive(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
+	shell := f.shell
 
-	shell.SetNashdPath(f.nashdPath)
 	shell.SetInteractive(true)
 
 	testShellExec(t, shell, execTestCase{
@@ -1420,19 +1270,16 @@ func testTCPRedirection(t *testing.T, port, command string) {
 	}
 	defer l.Close()
 
-	f, teardown := setup(t)
-	defer teardown()
-
 	go func() {
-		shell := newShell(t)
-		shell.SetNashdPath(f.nashdPath)
+		f, teardown := setup(t)
+		defer teardown()
 
 		err := <-done
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		done <- shell.Exec("test net redirection", command)
+		done <- f.shell.Exec("test net redirection", command)
 	}()
 
 	done <- nil // synchronize peers
@@ -1486,21 +1333,20 @@ func TestExecuteUnixRedirection(t *testing.T) {
 	done := make(chan bool)
 	writeDone := make(chan bool)
 
-	f, teardown := setup(t)
-	defer teardown()
+
 
 	go func() {
+	
+		f, teardown := setup(t)
+		defer teardown()
+		
 		defer func() {
 			writeDone <- true
 		}()
 
-		shell := newShell(t)
-
-		shell.SetNashdPath(f.nashdPath)
-
 		<-done
 
-		err = shell.Exec("test net redirection", `echo -n "`+message+`" >[1] "unix://`+sockFile+`"`)
+		err = f.shell.Exec("test net redirection", `echo -n "`+message+`" >[1] "unix://`+sockFile+`"`)
 
 		if err != nil {
 			t.Error(err)
@@ -1547,23 +1393,20 @@ func TestExecuteUnixRedirection(t *testing.T) {
 func TestExecuteUDPRedirection(t *testing.T) {
 	message := "hello world"
 
-	f, teardown := setup(t)
-	defer teardown()
-
 	done := make(chan bool)
 	writeDone := make(chan bool)
 
 	go func() {
+		f, teardown := setup(t)
+		defer teardown()
+		
 		defer func() {
 			writeDone <- true
 		}()
 
-		shell := newShell(t)
-		shell.SetNashdPath(f.nashdPath)
-
 		<-done
 
-		err := shell.Exec("test net redirection", `echo -n "`+message+`" >[1] "udp://localhost:6667"`)
+		err := f.shell.Exec("test net redirection", `echo -n "`+message+`" >[1] "udp://localhost:6667"`)
 
 		if err != nil {
 			t.Error(err)
@@ -1699,13 +1542,9 @@ func TestExecuteFnAsFirstClass(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-	shell.SetNashdPath(f.nashdPath)
-
-	var out bytes.Buffer
-
-	shell.SetStdout(&out)
-
+	shell := f.shell
+	out := f.shellOut
+	
 	err := shell.Exec("test fn by arg", `
         fn printer(val) {
                 echo -n $val
@@ -1735,14 +1574,8 @@ func TestExecuteConcat(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-
-	shell.SetNashdPath(f.nashdPath)
-	shell.Reset()
-
-	var out bytes.Buffer
-
-	shell.SetStdout(&out)
+	shell := f.shell
+	out := f.shellOut
 
 	err := shell.Exec("", `var a = "A"
 var b = "B"
@@ -1781,12 +1614,8 @@ func TestExecuteFor(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-	shell.SetNashdPath(f.nashdPath)
-
-	var out bytes.Buffer
-
-	shell.SetStdout(&out)
+	shell := f.shell
+	out := f.shellOut
 
 	err := shell.Exec("simple loop", `var files = (/etc/passwd /etc/shells)
 for f in $files {
@@ -1816,8 +1645,7 @@ func TestExecuteInfiniteLoop(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-	shell.SetNashdPath(f.nashdPath)
+	shell := f.shell
 
 	doneCtrlc := make(chan bool)
 	doneLoop := make(chan bool)
@@ -1872,12 +1700,8 @@ func TestExecuteVariableIndexing(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	shell := newShell(t)
-
-	var out bytes.Buffer
-
-	shell.SetNashdPath(f.nashdPath)
-	shell.SetStdout(&out)
+	shell := f.shell
+	out := f.shellOut
 
 	err := shell.Exec("indexing", `var list = ("1" "2" "3")
         echo -n $list[0]`)
@@ -1960,7 +1784,11 @@ echo -n $list[$a[0]]`)
 }
 
 func TestExecuteSubShellDoesNotOverwriteparentEnv(t *testing.T) {
-	shell := newShell(t)
+	f, teardown := setup(t)
+	defer teardown()
+	
+	shell := f.shell
+	out := f.shellOut
 
 	err := shell.Exec("set env", `setenv SHELL = "bleh"`)
 
@@ -1968,9 +1796,6 @@ func TestExecuteSubShellDoesNotOverwriteparentEnv(t *testing.T) {
 		t.Error(err)
 		return
 	}
-
-	var out bytes.Buffer
-	shell.SetStdout(&out)
 
 	err = shell.Exec("set env from fn", `fn test() {
         # test() should not call the setup func in Nash
@@ -1992,7 +1817,10 @@ echo -n $SHELL`)
 }
 
 func TestExecuteInterruptDoesNotCancelLoop(t *testing.T) {
-	shell := newShell(t)
+	f, teardown := setup(t)
+	defer teardown()
+	
+	shell := f.shell
 	shell.TriggerCTRLC()
 
 	time.Sleep(time.Second * 1)
@@ -2007,7 +1835,10 @@ for i in $seq {}`)
 }
 
 func TestExecuteErrorSuppressionAll(t *testing.T) {
-	shell := newShell(t)
+	f, teardown := setup(t)
+	defer teardown()
+	
+	shell := f.shell
 
 	err := shell.Exec("-input-", `var _, status <= command-not-exists`)
 	if err != nil {
@@ -2048,7 +1879,10 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 }
 
 func TestExecuteGracefullyError(t *testing.T) {
-	shell := newShell(t)
+	f, teardown := setup(t)
+	defer teardown()
+	
+	shell := f.shell
 
 	err := shell.Exec("someinput.sh", "(")
 	if err == nil {
@@ -2077,11 +1911,11 @@ func TestExecuteGracefullyError(t *testing.T) {
 }
 
 func TestExecuteMultilineCmd(t *testing.T) {
-	shell := newShell(t)
-
-	var out bytes.Buffer
-
-	shell.SetStdout(&out)
+	f, teardown := setup(t)
+	defer teardown()
+	
+	shell := f.shell
+	out := f.shellOut
 
 	err := shell.Exec("test", `(echo -n
 		hello
@@ -2120,12 +1954,12 @@ func TestExecuteMultilineCmd(t *testing.T) {
 }
 
 func TestExecuteMultilineCmdAssign(t *testing.T) {
-	shell := newShell(t)
-
-	var out bytes.Buffer
-
-	shell.SetStdout(&out)
-
+	f, teardown := setup(t)
+	defer teardown()
+	
+	shell := f.shell
+	out := f.shellOut
+	
 	err := shell.Exec("test", `var val <= (echo -n
 		hello
 		world)
@@ -2166,7 +2000,10 @@ func TestExecuteMultilineCmdAssign(t *testing.T) {
 }
 
 func TestExecuteMultiReturnUnfinished(t *testing.T) {
-	shell := newShell(t)
+	f, teardown := setup(t)
+	defer teardown()
+	
+	shell := f.shell
 
 	err := shell.Exec("test", "(")
 
@@ -2300,15 +2137,109 @@ a()`,
 	}
 }
 
-func newShell(t *testing.T) *Shell {
-	nashpath := filepath.Join("tmp", "nashpath")
-	nashroot := filepath.Join("tmp", "nashroot")
+func setup(t *testing.T) (fixture, func()) {
+
+	dirs := setupNashDirs(t)
 	
-	shell, err := NewShell(nashpath, nashroot)
+	shell, err := NewShell(dirs.path, dirs.root)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 	
-	return shell
+	var out bytes.Buffer
+	shell.SetStdout(&out)
+	
+	return fixture{
+		shell: shell,
+		shellOut: &out,
+		dir:       tests.Testdir,
+		nashdPath: tests.Nashcmd,
+	}, dirs.cleanup
+}
+
+func testExecuteFile(t *testing.T, path, expected string, before string) {
+	f, teardown := setup(t)
+	defer teardown()
+
+	if before != "" {
+		f.shell.Exec("", before)
+	}
+
+	err := f.shell.ExecFile(path)
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if string(f.shellOut.Bytes()) != expected {
+		t.Errorf("Wrong command output: '%s' != '%s'",
+			string(f.shellOut.Bytes()), expected)
+		return
+	}
+}
+
+func testShellExec(t *testing.T, shell *Shell, testcase execTestCase) {
+	t.Helper()
+
+	var bout bytes.Buffer
+	var berr bytes.Buffer
+	shell.SetStderr(&berr)
+	shell.SetStdout(&bout)
+
+	err := shell.Exec(testcase.desc, testcase.code)
+	if err != nil {
+		if testcase.expectedPrefixErr != "" {
+			if !strings.HasPrefix(err.Error(), testcase.expectedPrefixErr) {
+				t.Errorf("[%s] Prefix of error differs: Expected prefix '%s' in '%s'",
+					testcase.desc,
+					testcase.expectedPrefixErr,
+					err.Error())
+			}
+		} else if err.Error() != testcase.expectedErr {
+			t.Errorf("[%s] Error differs: Expected '%s' but got '%s'",
+				testcase.desc,
+				testcase.expectedErr,
+				err.Error())
+		}
+	} else if testcase.expectedErr != "" {
+		t.Fatalf("Expected error[%s] but got nil", testcase.expectedErr)
+	}
+
+	if testcase.expectedStdout != string(bout.Bytes()) {
+		t.Errorf("[%s] Stdout differs: '%s' != '%s'",
+			testcase.desc,
+			testcase.expectedStdout,
+			string(bout.Bytes()))
+		return
+	}
+
+	if testcase.expectedStderr != string(berr.Bytes()) {
+		t.Errorf("[%s] Stderr differs: '%s' != '%s'",
+			testcase.desc,
+			testcase.expectedStderr,
+			string(berr.Bytes()))
+		return
+	}
+	bout.Reset()
+	berr.Reset()
+}
+
+func testExec(t *testing.T, testcase execTestCase) {
+	t.Helper()
+	f, teardown := setup(t)
+	defer teardown()
+
+	testShellExec(t, f.shell, testcase)
+}
+
+func testInteractiveExec(t *testing.T, testcase execTestCase) {
+	t.Helper()
+
+	f, teardown := setup(t)
+	defer teardown()
+	
+	f.shell.SetInteractive(true)
+	testShellExec(t, f.shell, testcase)
 }

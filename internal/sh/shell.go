@@ -118,6 +118,12 @@ func (e *errStopWalking) StopWalking() bool { return true }
 // nashpath will be used to search libraries and nashroot will be used to
 // search for the standard library shipped with the language.
 func NewShell(nashpath string, nashroot string) (*Shell, error) {
+
+	err := validateDirs(nashpath, nashroot)
+	if err != nil {
+		return nil, err
+	}
+	
 	shell := &Shell{
 		name:        "parent scope",
 		interactive: false,
@@ -137,7 +143,7 @@ func NewShell(nashpath string, nashroot string) (*Shell, error) {
 		nashroot: nashroot,
 	}
 
-	err := shell.setup()
+	err = shell.setup()
 	if err != nil {
 		return nil, err
 	}
@@ -2440,4 +2446,21 @@ func (shell *Shell) executeIf(n *ast.IfNode) ([]sh.Obj, error) {
 	}
 
 	return nil, fmt.Errorf("invalid operation '%s'", op)
+}
+
+func validateDirs(nashpath string, nashroot string) error {
+	err := validateDir(nashpath)
+	if err != nil {
+		return fmt.Errorf("error[%s] validating nashpath", err)
+	}
+	err = validateDir(nashroot)
+	if err != nil {
+		return fmt.Errorf("error[%s] validating nashroot", err)
+	}
+	return nil
+}
+
+func validateDir(dir string) error {
+	 _, err := os.Stat(dir)
+	return err
 }

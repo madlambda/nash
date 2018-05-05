@@ -2,13 +2,10 @@ package sh
 
 import (
 	"bytes"
-	"io/ioutil"
 	"path/filepath"
-	"os"
 	"testing"
 )
 
-// TODO: behavior when NASHPATH and NASHROOT are invalid ?
 
 func TestImportsLibFromNashPathLibDir(t *testing.T) {
 	
@@ -103,6 +100,39 @@ func TestImportsLibFromWorkingDirBeforeLibAndStdlib(t *testing.T) {
 	`, "localcode\n")
 }
 
+func TestErrorOnInvalidImportPaths(t *testing.T) {
+	type testCase struct {
+		name string
+		nashpath string
+		nashroot string
+	}
+	
+	validpath, rmdir := tmpdir(t)
+	defer rmdir()
+	
+	cases := []testCase {
+		{
+			name: "EmptyNashPath",
+			nashpath: "",
+			nashroot: validpath,
+		},
+		{
+			name: "NashPathDontExists",
+			nashpath: filepath.Join(validpath, "dontexists"),
+			nashroot: validpath,
+		},
+	}
+	
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := NewShell(c.nashpath, c.nashroot)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+		})
+	}
+}
+
 
 type testshell struct {
 	shell  *Shell
@@ -137,83 +167,4 @@ func newTestShell(t *testing.T, nashpath string, nashroot string) *testshell {
 	shell.SetStdout(&out)
 
 	return &testshell{shell: shell, stdout: &out}
-}
-
-type nashDirs struct {
-	path string
-	lib string
-	root string
-	stdlib string
-	cleanup func()
-}
-
-func setupNashDirs(t *testing.T) nashDirs {
-	testdir, rmdir := tmpdir(t)
-
-	nashpath := filepath.Join(testdir, "nashpath")
-	nashroot := filepath.Join(testdir, "nashroot")
-	
-	nashlib := filepath.Join(nashpath, "lib")
-	nashstdlib := filepath.Join(nashroot, "stdlib")
-	
-	mkdirAll(t, nashlib)
-	mkdirAll(t, nashstdlib)
-	
-	return nashDirs{
-		path: nashpath,
-		lib: nashlib,
-		root: nashroot,
-		stdlib: nashstdlib,
-		cleanup: rmdir,
-	}
-}
-
-func tmpdir(t *testing.T) (string, func()) {
-	t.Helper()
-	
-	dir, err := ioutil.TempDir("", "nash-import-tests")
-	if err != nil {
-		t.Fatal(err)
-	}
-	
-	return dir, func() {
-		err := os.RemoveAll(dir)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-}
-
-func mkdirAll(t *testing.T, nashlib string) {
-	err := os.MkdirAll(nashlib, os.ModePerm)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func writeFile(t *testing.T, filename string, data string) {
-	err := ioutil.WriteFile(filename, []byte(data), os.ModePerm)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func chdir(t *testing.T, dir string) {
-	t.Helper()
-	
-	err := os.Chdir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-}
-
-func getwd(t *testing.T) string {
-	t.Helper()
-	
-	dir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	
-	return dir
 }

@@ -71,15 +71,10 @@ func TestExecuteRforkUserNS(t *testing.T) {
 		return
 	}
 
-	var out bytes.Buffer
 	f, teardown := setup(t)
 	defer teardown()
 
-	sh := newShell(t)
-	sh.SetNashdPath(f.nashdPath)
-	sh.SetStdout(&out)
-
-	err := sh.Exec("rfork test", `
+	err := f.shell.Exec("rfork test", `
         rfork u {
             id -u
         }
@@ -90,8 +85,8 @@ func TestExecuteRforkUserNS(t *testing.T) {
 		return
 	}
 
-	if string(out.Bytes()) != "0\n" {
-		t.Errorf("User namespace not supported in your kernel: %s", string(out.Bytes()))
+	if string(f.shellOut.Bytes()) != "0\n" {
+		t.Errorf("User namespace not supported in your kernel: %s", string(f.shellOut.Bytes()))
 		return
 	}
 }
@@ -105,8 +100,7 @@ func TestExecuteRforkEnvVars(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	sh := newShell(t)
-	sh.SetNashdPath(f.nashdPath)
+	sh := f.shell
 
 	err := sh.Exec("test env", `var abra = "cadabra"
 setenv abra
@@ -130,9 +124,8 @@ func TestExecuteRforkUserNSNested(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	sh := newShell(t)
+	sh := f.shell
 
-	sh.SetNashdPath(f.nashdPath)
 	sh.SetStdout(&out)
 
 	err := sh.Exec("rfork userns nested", `
