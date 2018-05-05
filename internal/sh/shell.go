@@ -168,6 +168,10 @@ func NewSubShell(name string, parent *Shell) *Shell {
 	}
 }
 
+func (shell *Shell) NashPath() string {
+	return shell.nashpath
+}
+
 // initEnv creates a new environment from old one
 func (shell *Shell) initEnv(processEnv []string) error {
 	largs := make([]sh.Obj, len(os.Args))

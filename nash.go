@@ -44,17 +44,8 @@ func (nash *Shell) SetInteractive(b bool) {
 	nash.interp.SetInteractive(b)
 }
 
-// SetDotDir sets the NASHPATH environment variable. The NASHPATH variable
-// points to the location where nash will lookup for the init script and
-// libraries installed.
-func (nash *Shell) SetDotDir(path string) {
-	// TODO: Set nashpath on shell instead of using env vars
-}
-
-// DotDir returns the value of the NASHPATH environment variable
-func (nash *Shell) DotDir() string {
-	// TODO: Get nashpath from shell instead of using env vars
-	return ""
+func (nash *Shell) NashPath() string {
+	return nash.interp.NashPath()
 }
 
 // Environ returns the set of environment variables in the shell

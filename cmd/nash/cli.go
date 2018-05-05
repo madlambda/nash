@@ -72,8 +72,8 @@ func loadInit(shell *nash.Shell) error {
 	}
 
 	initFiles := []string{
-		shell.DotDir() + "/init",
-		shell.DotDir() + "/init.sh",
+		shell.NashPath() + "/init",
+		shell.NashPath() + "/init.sh",
 	}
 
 	for _, init := range initFiles {
@@ -97,7 +97,7 @@ func cli(shell *nash.Shell) error {
 		fmt.Fprintf(os.Stderr, "error loading init file:\n%s\n", err)
 	}
 
-	historyFile := shell.DotDir() + "/history"
+	historyFile := shell.NashPath() + "/history"
 	cfg := readline.Config{
 		Prompt:          shell.Prompt(),
 		HistoryFile:     historyFile,
