@@ -1848,7 +1848,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 		return
 	}
 
-	// TODO: depending on other sh package on the internal sh tests seems very odd
+	// FIXME: depending on other sh package on the internal sh tests seems very odd
 	// scode, ok := shell.GetLocalvar("status")
 	// if !ok || scode.Type() != sh.StringType || scode.String() != strconv.Itoa(ENotFound) {
 	//	t.Errorf("Invalid status code %v", scode)
@@ -1861,7 +1861,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 		return
 	}
 
-	// TODO: depending on other sh package on the internal sh tests seems very odd
+	// FIXME: depending on other sh package on the internal sh tests seems very odd
 	// scode, ok := shell.GetLocalvar("status")
 	// if !ok || scode.Type() != sh.StringType || scode.String() != "0" {
 	//	t.Errorf("Invalid status code %v", scode)

@@ -1,15 +1,19 @@
 package nash_test
 
 import (
-	"path/filepath"
+	"os"
+	"io/ioutil"
 	
 	"github.com/NeowayLabs/nash"
 )
 
 func Example() {
 
-	nashpath := filepath.Join("tmp", "nashpath")
-	nashroot := filepath.Join("tmp", "nashroot")
+	nashpath,cleanup := tmpdir()
+	defer cleanup()
+	
+	nashroot, cleanup := tmpdir()
+	defer cleanup()
 
 	nash, err := nash.New(nashpath, nashroot)
 
@@ -26,3 +30,18 @@ func Example() {
 
 	// Output: Hello World
 }
+
+func tmpdir() (string, func()) {	
+	dir, err := ioutil.TempDir("", "nash-tests")
+	if err != nil {
+		panic(err)
+	}
+	
+	return dir, func() {
+		err := os.RemoveAll(dir)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
+
