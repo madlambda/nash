@@ -100,12 +100,15 @@ func TestImportsLibFromWorkingDirBeforeLibAndStdlib(t *testing.T) {
 	`, "localcode\n")
 }
 
-func TestErrorOnInvalidImportPaths(t *testing.T) {
+func TestErrorOnInvalidSearchPaths(t *testing.T) {
 	type testCase struct {
 		name string
 		nashpath string
 		nashroot string
 	}
+	
+	// TODO: Fail on path exists but it is not dir
+	// TODO: Fail if NASHROOT == NASHPATH
 	
 	validpath, rmdir := tmpdir(t)
 	defer rmdir()

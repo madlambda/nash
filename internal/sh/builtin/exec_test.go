@@ -2,10 +2,13 @@ package builtin_test
 
 import (
 	"testing"
+	
+	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
 )
 
 func execSuccess(t *testing.T, scriptContents string) string {
-	shell := newShell(t)
+	shell, cleanup := fixture.SetupShell(t)
+	defer cleanup()
 
 	out, err := shell.ExecOutput("", scriptContents)
 
@@ -16,7 +19,9 @@ func execSuccess(t *testing.T, scriptContents string) string {
 }
 
 func execFailure(t *testing.T, scriptContents string) {
-	shell := newShell(t)
+	shell, cleanup := fixture.SetupShell(t)
+	defer cleanup()
+	
 	out, err := shell.ExecOutput("", scriptContents)
 
 	if err == nil {
