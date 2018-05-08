@@ -10,9 +10,13 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"strconv"
 	"testing"
 	"time"
 
+	// FIXME: depending on other sh package on the internal sh tests seems very odd
+	shtypes "github.com/NeowayLabs/nash/sh"
+	
 	"github.com/NeowayLabs/nash/internal/sh"
 	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
 	"github.com/NeowayLabs/nash/tests"
@@ -1849,11 +1853,11 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 	}
 
 	// FIXME: depending on other sh package on the internal sh tests seems very odd
-	// scode, ok := shell.GetLocalvar("status")
-	// if !ok || scode.Type() != sh.StringType || scode.String() != strconv.Itoa(ENotFound) {
-	//	t.Errorf("Invalid status code %v", scode)
-	//	return
-	// }
+	scode, ok := shell.GetLocalvar("status")
+	if !ok || scode.Type() != shtypes.StringType || scode.String() != strconv.Itoa(sh.ENotFound) {
+		t.Errorf("Invalid status code %v", scode)
+		return
+	}
 
 	err = shell.Exec("-input-", `var _, status <= echo works`)
 	if err != nil {
@@ -1862,11 +1866,11 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 	}
 
 	// FIXME: depending on other sh package on the internal sh tests seems very odd
-	// scode, ok := shell.GetLocalvar("status")
-	// if !ok || scode.Type() != sh.StringType || scode.String() != "0" {
-	//	t.Errorf("Invalid status code %v", scode)
-	//	return
-	// }
+	scode, ok = shell.GetLocalvar("status")
+	if !ok || scode.Type() != shtypes.StringType || scode.String() != "0" {
+		t.Errorf("Invalid status code %v", scode)
+		return
+	}
 
 	err = shell.Exec("-input-", `echo works | cmd-does-not-exists`)
 	if err == nil {
