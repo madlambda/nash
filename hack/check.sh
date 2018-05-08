@@ -34,7 +34,6 @@ done
 $GO tool cover -func coverage.txt
 
 echo "running stdlib and stdbin tests"
-export NASHPATH=`pwd`
 tests=$(find ./stdlib ./stdbin -name "*_test.sh")
 
 for t in ${tests[*]}
