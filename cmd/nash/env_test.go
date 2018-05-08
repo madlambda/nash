@@ -101,7 +101,7 @@ func clearenv(t * testing.T) func() {
 		for _, envvar := range env {
 			parsed := strings.Split(envvar, "=")
 			name := parsed[0]
-			val := parsed[1]
+			val := strings.Join(parsed[1:], "=")
 			
 			err := os.Setenv(name, val)
 			if err != nil {
