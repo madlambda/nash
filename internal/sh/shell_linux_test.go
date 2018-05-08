@@ -1,6 +1,6 @@
 // +build linux
 
-package sh
+package sh_test
 
 import (
 	"bytes"

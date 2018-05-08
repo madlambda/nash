@@ -1,24 +1,27 @@
-package sh
+package sh_test
 
 import (
 	"bytes"
 	"path/filepath"
 	"testing"
+	
+	"github.com/NeowayLabs/nash/internal/sh"
+	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
 )
 
 
 func TestImportsLibFromNashPathLibDir(t *testing.T) {
 	
-	nashdirs := setupNashDirs(t)
-	defer nashdirs.cleanup()
+	nashdirs := fixture.SetupNashDirs(t)
+	defer nashdirs.Cleanup()
 	
-	writeFile(t, filepath.Join(nashdirs.lib, "lib.sh"), `
+	writeFile(t, filepath.Join(nashdirs.Lib, "lib.sh"), `
 		fn test() {
 			echo "hasnashpath"
 		}
 	`)
 
-	newTestShell(t, nashdirs.path, nashdirs.root).ExecCheckingOutput(t, `
+	newTestShell(t, nashdirs.Path, nashdirs.Root).ExecCheckingOutput(t, `
 		import lib
 		test()
 	`, "hasnashpath\n")
@@ -26,22 +29,22 @@ func TestImportsLibFromNashPathLibDir(t *testing.T) {
 
 func TestImportsLibFromNashPathLibDirBeforeNashRootStdlib(t *testing.T) {
 	
-	nashdirs := setupNashDirs(t)
-	defer nashdirs.cleanup()
+	nashdirs := fixture.SetupNashDirs(t)
+	defer nashdirs.Cleanup()
 
-	writeFile(t, filepath.Join(nashdirs.lib, "lib.sh"), `
+	writeFile(t, filepath.Join(nashdirs.Lib, "lib.sh"), `
 		fn test() {
 			echo "libcode"
 		}
 	`)
 	
-	writeFile(t, filepath.Join(nashdirs.stdlib, "lib.sh"), `
+	writeFile(t, filepath.Join(nashdirs.Stdlib, "lib.sh"), `
 		fn test() {
 			echo "stdlibcode"
 		}
 	`)
 
-	newTestShell(t, nashdirs.path, nashdirs.root).ExecCheckingOutput(t, `
+	newTestShell(t, nashdirs.Path, nashdirs.Root).ExecCheckingOutput(t, `
 		import lib
 		test()
 	`, "libcode\n")
@@ -49,16 +52,16 @@ func TestImportsLibFromNashPathLibDirBeforeNashRootStdlib(t *testing.T) {
 
 func TestImportsLibFromNashRootStdlib(t *testing.T) {
 	
-	nashdirs := setupNashDirs(t)
-	defer nashdirs.cleanup()
+	nashdirs := fixture.SetupNashDirs(t)
+	defer nashdirs.Cleanup()
 	
-	writeFile(t, filepath.Join(nashdirs.stdlib, "lib.sh"), `
+	writeFile(t, filepath.Join(nashdirs.Stdlib, "lib.sh"), `
 		fn test() {
 			echo "stdlibcode"
 		}
 	`)
 
-	newTestShell(t, nashdirs.path, nashdirs.root).ExecCheckingOutput(t, `
+	newTestShell(t, nashdirs.Path, nashdirs.Root).ExecCheckingOutput(t, `
 		import lib
 		test()
 	`, "stdlibcode\n")
@@ -66,15 +69,15 @@ func TestImportsLibFromNashRootStdlib(t *testing.T) {
 
 func TestImportsLibFromWorkingDirBeforeLibAndStdlib(t *testing.T) {
 	
-	workingdir, rmdir := tmpdir(t)
+	workingdir, rmdir := fixture.Tmpdir(t)
 	defer rmdir()
 	
 	curwd := getwd(t)
 	chdir(t, workingdir)
 	defer chdir(t, curwd)
 	
-	nashdirs := setupNashDirs(t)
-	defer nashdirs.cleanup()
+	nashdirs := fixture.SetupNashDirs(t)
+	defer nashdirs.Cleanup()
 	
 	writeFile(t, filepath.Join(workingdir, "lib.sh"), `
 		fn test() {
@@ -82,19 +85,19 @@ func TestImportsLibFromWorkingDirBeforeLibAndStdlib(t *testing.T) {
 		}
 	`)
 	
-	writeFile(t, filepath.Join(nashdirs.lib, "lib.sh"), `
+	writeFile(t, filepath.Join(nashdirs.Lib, "lib.sh"), `
 		fn test() {
 			echo "libcode"
 		}
 	`)
 	
-	writeFile(t, filepath.Join(nashdirs.stdlib, "lib.sh"), `
+	writeFile(t, filepath.Join(nashdirs.Stdlib, "lib.sh"), `
 		fn test() {
 			echo "stdlibcode"
 		}
 	`)
 	
-	newTestShell(t, nashdirs.path, nashdirs.root).ExecCheckingOutput(t, `
+	newTestShell(t, nashdirs.Path, nashdirs.Root).ExecCheckingOutput(t, `
 		import lib
 		test()
 	`, "localcode\n")
@@ -110,7 +113,7 @@ func TestErrorOnInvalidSearchPaths(t *testing.T) {
 	// TODO: Fail on path exists but it is not dir
 	// TODO: Fail if NASHROOT == NASHPATH
 	
-	validpath, rmdir := tmpdir(t)
+	validpath, rmdir := fixture.Tmpdir(t)
 	defer rmdir()
 	
 	cases := []testCase {
@@ -128,7 +131,7 @@ func TestErrorOnInvalidSearchPaths(t *testing.T) {
 	
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := NewShell(c.nashpath, c.nashroot)
+			_, err := sh.NewShell(c.nashpath, c.nashroot)
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}
@@ -138,7 +141,7 @@ func TestErrorOnInvalidSearchPaths(t *testing.T) {
 
 
 type testshell struct {
-	shell  *Shell
+	shell  *sh.Shell
 	stdout *bytes.Buffer
 }
 
@@ -162,7 +165,7 @@ func (s *testshell) ExecCheckingOutput(t *testing.T, code string, expectedOutupt
 
 func newTestShell(t *testing.T, nashpath string, nashroot string) *testshell {
 
-	shell, err := NewShell(nashpath, nashroot)
+	shell, err := sh.NewShell(nashpath, nashroot)
 	if err != nil {
 		t.Fatal(err)
 	}
