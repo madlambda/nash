@@ -110,22 +110,45 @@ func TestErrorOnInvalidSearchPaths(t *testing.T) {
 		nashroot string
 	}
 	
-	// TODO: Fail on path exists but it is not dir
 	// TODO: Fail if NASHROOT == NASHPATH
+	// TODO: What to do if the path is relative ?
 	
-	validpath, rmdir := fixture.Tmpdir(t)
+	validDir, rmdir := fixture.Tmpdir(t)
 	defer rmdir()
+
+	validfile := filepath.Join(validDir, "notdir")	
+	writeFile(t, validfile, "whatever")
 	
 	cases := []testCase {
 		{
 			name: "EmptyNashPath",
 			nashpath: "",
-			nashroot: validpath,
+			nashroot: validDir,
 		},
 		{
 			name: "NashPathDontExists",
-			nashpath: filepath.Join(validpath, "dontexists"),
-			nashroot: validpath,
+			nashpath: filepath.Join(validDir, "dontexists"),
+			nashroot: validDir,
+		},
+		{
+			name: "EmptyNashRoot",
+			nashpath: validDir,
+			nashroot: "",
+		},
+		{
+			name: "NashRootDontExists",
+			nashroot: filepath.Join(validDir, "dontexists"),
+			nashpath: validDir,
+		},
+		{
+			name: "NashPathIsFile",
+			nashroot: validDir,
+			nashpath: validfile,
+		},
+		{
+			name: "NashRootIsFile",
+			nashroot: validfile,
+			nashpath: validDir,
 		},
 	}
 	

@@ -2461,6 +2461,12 @@ func validateDirs(nashpath string, nashroot string) error {
 }
 
 func validateDir(dir string) error {
-	 _, err := os.Stat(dir)
-	return err
+	info, err := os.Stat(dir)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s is a file, expected a dir", dir)
+	}
+	return nil
 }
