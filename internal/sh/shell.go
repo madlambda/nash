@@ -2449,6 +2449,9 @@ func (shell *Shell) executeIf(n *ast.IfNode) ([]sh.Obj, error) {
 }
 
 func validateDirs(nashpath string, nashroot string) error {
+	if nashpath == nashroot {
+		return fmt.Errorf("invalid nashpath[%s] == nashroot[%s], they must differ", nashpath, nashroot)
+	}
 	err := validateDir(nashpath)
 	if err != nil {
 		return fmt.Errorf("error[%s] validating nashpath", err)
@@ -2467,6 +2470,9 @@ func validateDir(dir string) error {
 	}
 	if !info.IsDir() {
 		return fmt.Errorf("%s is a file, expected a dir", dir)
+	}
+	if !filepath.IsAbs(dir) {
+		return fmt.Errorf("%s is a relative path, expected a absolute path", dir)
 	}
 	return nil
 }

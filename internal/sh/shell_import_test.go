@@ -110,9 +110,6 @@ func TestErrorOnInvalidSearchPaths(t *testing.T) {
 		nashroot string
 	}
 	
-	// TODO: Fail if NASHROOT == NASHPATH
-	// TODO: What to do if the path is relative ?
-	
 	validDir, rmdir := fixture.Tmpdir(t)
 	defer rmdir()
 
@@ -148,6 +145,21 @@ func TestErrorOnInvalidSearchPaths(t *testing.T) {
 		{
 			name: "NashRootIsFile",
 			nashroot: validfile,
+			nashpath: validDir,
+		},
+		{
+			name: "NashPathIsRelative",
+			nashroot: validDir,
+			nashpath: "./",
+		},
+		{
+			name: "NashRootIsRelative",
+			nashroot: "./",
+			nashpath: validDir,
+		},
+		{
+			name: "NashRootAndNashPathAreEqual",
+			nashroot: validDir,
 			nashpath: validDir,
 		},
 	}
