@@ -2,15 +2,13 @@ package builtin_test
 
 import (
 	"testing"
-
-	"github.com/NeowayLabs/nash"
+	
+	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
 )
 
 func execSuccess(t *testing.T, scriptContents string) string {
-	shell, err := nash.New()
-	if err != nil {
-		t.Fatalf("unexpected err: %s", err)
-	}
+	shell, cleanup := fixture.SetupShell(t)
+	defer cleanup()
 
 	out, err := shell.ExecOutput("", scriptContents)
 
@@ -21,11 +19,9 @@ func execSuccess(t *testing.T, scriptContents string) string {
 }
 
 func execFailure(t *testing.T, scriptContents string) {
-	shell, err := nash.New()
-	if err != nil {
-		t.Fatalf("unexpected err: %s", err)
-	}
-
+	shell, cleanup := fixture.SetupShell(t)
+	defer cleanup()
+	
 	out, err := shell.ExecOutput("", scriptContents)
 
 	if err == nil {

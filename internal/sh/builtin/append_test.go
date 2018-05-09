@@ -3,8 +3,8 @@ package builtin_test
 import (
 	"bytes"
 	"testing"
-
-	"github.com/NeowayLabs/nash/internal/sh"
+	
+	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
 )
 
 type testcase struct {
@@ -16,10 +16,8 @@ type testcase struct {
 }
 
 func testAppend(t *testing.T, tc testcase) {
-	sh, err := sh.NewShell()
-	if err != nil {
-		t.Fatal(err)
-	}
+	sh, teardown := fixture.SetupShell(t)
+	defer teardown()
 
 	var (
 		outb, errb bytes.Buffer
@@ -27,7 +25,7 @@ func testAppend(t *testing.T, tc testcase) {
 	sh.SetStdout(&outb)
 	sh.SetStderr(&errb)
 
-	err = sh.Exec(tc.name, tc.code)
+	err := sh.Exec(tc.name, tc.code)
 	stdout := string(outb.Bytes())
 	stderr := errb.String()
 

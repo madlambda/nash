@@ -20,8 +20,8 @@ type (
 )
 
 // New creates a new `nash.Shell` instance.
-func New() (*Shell, error) {
-	interp, err := shell.NewShell()
+func New(nashpath string, nashroot string) (*Shell, error) {
+	interp, err := shell.NewShell(nashpath, nashroot)
 
 	if err != nil {
 		return nil, err
@@ -44,26 +44,8 @@ func (nash *Shell) SetInteractive(b bool) {
 	nash.interp.SetInteractive(b)
 }
 
-// SetDotDir sets the NASHPATH environment variable. The NASHPATH variable
-// points to the location where nash will lookup for the init script and
-// libraries installed.
-func (nash *Shell) SetDotDir(path string) {
-	obj := sh.NewStrObj(path)
-	nash.interp.Setenv("NASHPATH", obj)
-	nash.interp.Newvar("NASHPATH", obj)
-}
-
-// DotDir returns the value of the NASHPATH environment variable
-func (nash *Shell) DotDir() string {
-	if obj, ok := nash.interp.Getenv("NASHPATH"); ok {
-		if obj.Type() != sh.StringType {
-			return ""
-		}
-
-		return obj.String()
-	}
-
-	return ""
+func (nash *Shell) NashPath() string {
+	return nash.interp.NashPath()
 }
 
 // Environ returns the set of environment variables in the shell

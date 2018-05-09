@@ -1,4 +1,4 @@
-package sh
+package sh_test
 
 import (
 	"fmt"

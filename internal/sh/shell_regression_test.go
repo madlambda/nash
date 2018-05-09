@@ -1,4 +1,4 @@
-package sh
+package sh_test
 
 import (
 	"io/ioutil"
@@ -10,11 +10,10 @@ import (
 )
 
 func TestExecuteIssue68(t *testing.T) {
-	sh, err := NewShell()
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	f, cleanup := setup(t)
+	defer cleanup()
+	
+	sh := f.shell
 
 	tmpDir, err := ioutil.TempDir("", "nash-tests")
 	if err != nil {
@@ -44,13 +43,11 @@ func TestExecuteIssue68(t *testing.T) {
 }
 
 func TestExecuteErrorSuppression(t *testing.T) {
-	sh, err := NewShell()
+	f, cleanup := setup(t)
+	defer cleanup()
 
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = sh.Exec("-input-", `-bllsdlfjlsd`)
+	sh := f.shell
+	err := sh.Exec("-input-", `-bllsdlfjlsd`)
 
 	if err != nil {
 		t.Errorf("Expected to not fail...: %s", err.Error())

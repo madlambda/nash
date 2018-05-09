@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/NeowayLabs/nash"
+	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
 )
 
 func TestSplit(t *testing.T) {
@@ -45,7 +45,9 @@ func TestSplit(t *testing.T) {
 	for name, desc := range tests {
 		t.Run(name, func(t *testing.T) {
 			var output bytes.Buffer
-			shell := newShell(t)
+			shell, cleanup := fixture.SetupShell(t)
+			defer cleanup()
+			
 			shell.SetStdout(&output)
 			err := shell.ExecFile(desc.script, "mock cmd name", desc.word, desc.sep)
 
@@ -84,7 +86,9 @@ func TestSplitingByFuncWrongWontPanic(t *testing.T) {
 	for testname, badscript := range badscripts {
 
 		t.Run(testname, func(t *testing.T) {
-			shell := newShell(t)
+			shell, cleanup := fixture.SetupShell(t)
+			defer cleanup()
+			
 			_, err := shell.ExecOutput("whatever", badscript)
 			if err != nil {
 				t.Fatal(err)
@@ -93,12 +97,4 @@ func TestSplitingByFuncWrongWontPanic(t *testing.T) {
 	}
 }
 
-func newShell(t *testing.T) *nash.Shell {
-	shell, err := nash.New()
 
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return shell
-}
