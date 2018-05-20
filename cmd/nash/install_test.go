@@ -28,9 +28,6 @@ func TestInstallLib(t *testing.T) {
 	
 	cases := []testcase{
 		{
-			name: "Dir",
-		},
-		{
 			name: "SingleFile",
 			libfiles: []string{
 				"/testfile/file.sh",
@@ -39,6 +36,9 @@ func TestInstallLib(t *testing.T) {
 			want : map[string]string{
 				"file.sh" : "/testfile/file.sh",
 			},
+		},
+		{
+			name: "SingleDir",
 		},
 		{
 			name: "Dirs",

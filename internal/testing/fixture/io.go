@@ -4,7 +4,9 @@ import (
 	"testing"
 	"io/ioutil"
 	"path/filepath"
+	"math/rand"
 	"os"
+	"fmt"
 )
 
 // Tmpdir creates a temporary dir and returns a function that can be used
@@ -52,7 +54,8 @@ func CreateFiles(t *testing.T, filepaths []string) map[string]string {
 		dir := filepath.Dir(f)
 		MkdirAll(t, dir)
 		
-		contents := "todoRandomShit"
+		contents := fmt.Sprintf("randomContents=%d", rand.Int())
+		
 		err := ioutil.WriteFile(f, []byte(contents), 0644)
 		if err != nil {
 			t.Fatalf("error[%s] writing file[%s]", err, f)
