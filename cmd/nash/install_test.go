@@ -12,13 +12,22 @@ func TestInstallLib(t *testing.T) {
 	
 	cases := []testcase{
 		{
-			name: "InstallLibDir",
+			name: "Dir",
 		},
 		{
-			name: "InstallLibFile",
+			name: "File",
 		},
 		{
-			name: "InstallLibDirRecursively",
+			name: "Dirs",
+		},
+		{
+			name: "Files",
+		},
+		{
+			name: "DirsRecursively",
+		},
+		{
+			name: "FileAndDirRecursively",
 		},
 	}
 	
