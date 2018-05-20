@@ -9,6 +9,6 @@ func NashLibDir(nashpath string) string {
 	return filepath.Join(nashpath, "lib")
 }
 
-func InstallLib(nashpath string, libpath string) error {
+func InstallLib(nashpath string, installdir string) error {
 	return nil
 }

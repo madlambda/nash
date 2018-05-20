@@ -3,7 +3,6 @@ package main_test
 import (
 	"os"
 	"io/ioutil"
-	"strings"
 	"testing"
 	"path/filepath"
 	
@@ -19,7 +18,12 @@ func TestInstallLib(t *testing.T) {
 	type testcase struct {
 		name string
 		libfiles []string
-		libpath string
+		installpath string
+		// want will map the wanted files to the original files copied from the lib
+		// the wanted files paths are relative to inside the nashpath lib dir.
+		// the files need to be mapped to the original files because of content validation
+		// when multiple files are installed.
+		want map[string]string
 	}
 	
 	cases := []testcase{
@@ -27,23 +31,23 @@ func TestInstallLib(t *testing.T) {
 			name: "Dir",
 		},
 		{
-			name: "File",
-				libfiles: []string{
+			name: "SingleFile",
+			libfiles: []string{
 				"/testfile/file.sh",
 			},
-			libpath: "/testfile",
+			installpath: "/testfile/file.sh",
+			want : map[string]string{
+				"file.sh" : "/testfile/file.sh",
+			},
 		},
 		{
 			name: "Dirs",
 		},
 		{
-			name: "Files",
-		},
-		{
 			name: "DirsRecursively",
 		},
 		{
-			name: "FilesAndDirsRecursively",
+			name: "WontCreateEntireLibTree",
 		},
 	}
 	
@@ -58,30 +62,33 @@ func TestInstallLib(t *testing.T) {
 			nashlibdir := main.NashLibDir(nashpath)
 			libfiles := []string{}
 			
+			libfileFullPath := func(libfilepath string) string {
+				return filepath.Join(libfilesDir, libfilepath)
+			}
 			for _, f := range c.libfiles {
-				libfiles = append(libfiles, filepath.Join(libfilesDir, f))
+				libfiles = append(libfiles, libfileFullPath(f))
 			}
 			
 			createdLibFiles := fixture.CreateFiles(t, libfiles)
-			wantedFiles := map[string]string{}
-			
-			for createdFile, fileContents := range createdLibFiles {
-				wantedFilepath := strings.TrimPrefix(createdFile, libfilesDir)
-				if !strings.HasPrefix(wantedFilepath, c.libpath) {
-					continue
-				}
-				wantedFilepath = filepath.Join(nashlibdir, wantedFilepath)
-				wantedFiles[wantedFilepath] = fileContents
-			}
-			
-			libpath := filepath.Join(libfilesDir, c.libpath)
-			err := main.InstallLib(nashpath, libpath)
+	
+			installpath := filepath.Join(libfilesDir, c.installpath)
+			err := main.InstallLib(nashpath, installpath)
 			if err != nil {
 				t.Fatal(err)
 			}
 			
-			for wantFilepath, wantContents := range wantedFiles {
-				wantFile, err := os.Open(wantFilepath)
+			for wantFilepath, libfilepath := range c.want {
+			
+				completeLibFilepath := libfileFullPath(libfilepath)
+				wantContents, ok := createdLibFiles[completeLibFilepath]
+				
+				if !ok {
+					t.Errorf("unable to find libfilepath[%s] contents on created lib files map[%+v]", completeLibFilepath, createdLibFiles)
+					t.Fatal("this probably means a wrongly specified test case with wanted files that are not present on the libfiles")
+				}
+			
+				fullWantFilepath := filepath.Join(nashlibdir, wantFilepath)
+				wantFile, err := os.Open(fullWantFilepath)
 				if err != nil {
 					t.Fatalf("error[%s] opening wanted file[%s]", err, wantFilepath)
 				}
