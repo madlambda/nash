@@ -79,6 +79,23 @@ func TestInstallLib(t *testing.T) {
 				"/testfile/dir2/dir3/file.sh" : "/testfile/dir2/dir3/file.sh",
 			},
 		},
+		{
+			name: "InstallOnlyFilesIndicatedByInstallDir",
+			libfiles: []string{
+				"/testfile/file.sh",
+				"/testfile/dir1/file.sh",
+				"/testfile/dir1/fileagain.sh",
+				"/testfile/dir2/file.sh",
+				"/testfile/dir2/fileagain.sh",
+				"/testfile/dir2/dir3/file.sh",
+			},
+			installpath: "/testfile/dir2",
+			want : map[string]string{
+				"/dir2/file.sh": "/testfile/dir2/file.sh",
+				"/dir2/fileagain.sh": "/testfile/dir2/fileagain.sh",
+				"/dir2/dir3/file.sh" : "/testfile/dir2/dir3/file.sh",
+			},
+		},
 	}
 	
 	for _, c := range cases {
