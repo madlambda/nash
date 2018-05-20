@@ -29,7 +29,11 @@ func installLib(targetdir string, sourcepath string) error {
 	targetdir = filepath.Join(targetdir, basedir)
 	// TODO: error handling
 	files, _ := ioutil.ReadDir(sourcepath)
-	return installLib(targetdir, filepath.Join(sourcepath, files[0].Name()))
+	for _, file := range files {
+		// TODO: error handling
+		installLib(targetdir, filepath.Join(sourcepath, file.Name()))
+	}
+	return nil
 }
 
 func copyfile(targetdir string, sourcefilepath string) error {
