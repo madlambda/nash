@@ -13,7 +13,6 @@ func NashLibDir(nashpath string) string {
 }
 
 func InstallLib(nashpath string, installpath string) error {
-	// TODO: handle invalid nashpath + installpath
 	nashlibdir := NashLibDir(nashpath)
 	return installLib(nashlibdir, installpath)
 }

@@ -59,6 +59,26 @@ func TestInstallLib(t *testing.T) {
 				"/testfile/fileagain.sh" : "/testfile/fileagain.sh",
 			},
 		},
+		{
+			name: "MultipleDirsWithMultipleFiles",
+			libfiles: []string{
+				"/testfile/file.sh",
+				"/testfile/dir1/file.sh",
+				"/testfile/dir1/fileagain.sh",
+				"/testfile/dir2/file.sh",
+				"/testfile/dir2/fileagain.sh",
+				"/testfile/dir2/dir3/file.sh",
+			},
+			installpath: "/testfile",
+			want : map[string]string{
+				"/testfile/file.sh": "/testfile/file.sh",
+				"/testfile/dir1/file.sh" : "/testfile/dir1/file.sh",
+				"/testfile/dir1/fileagain.sh": "/testfile/dir1/fileagain.sh",
+				"/testfile/dir2/file.sh": "/testfile/dir2/file.sh",
+				"/testfile/dir2/fileagain.sh": "/testfile/dir2/fileagain.sh",
+				"/testfile/dir2/dir3/file.sh" : "/testfile/dir2/dir3/file.sh",
+			},
+		},
 	}
 	
 	for _, c := range cases {
