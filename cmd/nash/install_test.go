@@ -83,8 +83,6 @@ func TestInstallLib(t *testing.T) {
 	
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			// TODO: validate that no extraneous files are created ?
-			
 			nashpath, rmnashpath := fixture.Tmpdir(t)
 			defer rmnashpath()
 			
@@ -97,22 +95,20 @@ func TestInstallLib(t *testing.T) {
 			libfileFullPath := func(libfilepath string) string {
 				return filepath.Join(libfilesDir, libfilepath)
 			}
+			
 			for _, f := range c.libfiles {
 				libfiles = append(libfiles, libfileFullPath(f))
 			}
 			
 			createdLibFiles := fixture.CreateFiles(t, libfiles)
-	
 			installpath := filepath.Join(libfilesDir, c.installpath)
+			
 			err := main.InstallLib(nashpath, installpath)
 			if err != nil {
 				t.Fatal(err)
 			}
 			
-			fatal := func() {
-				t.Errorf("nashpath: [%s]", nashpath)
-				t.Errorf("nashpath contents:")
-				
+			listNashPathFiles := func() []string {
 				files := []string{}
 				filepath.Walk(nashpath, func(path string, stats os.FileInfo, err error) error {
 					if stats.IsDir() {
@@ -121,11 +117,24 @@ func TestInstallLib(t *testing.T) {
 					files = append(files, path)
 					return nil
 				})
+				return files
+			}
+			
+			gotFiles := listNashPathFiles()
+			
+			fatal := func() {
+				t.Errorf("nashpath: [%s]", nashpath)
+				t.Errorf("nashpath contents:")
 				
-				for _, path := range files {
+				for _, path := range gotFiles {
 					t.Errorf("[%s]", path)
 				}
 				t.Fatal("")
+			}
+			
+			if len(gotFiles) != len(c.want) {
+				t.Errorf("wanted[%d] files but got[%d]", len(c.want), len(gotFiles))
+				fatal()
 			}
 			
 			for wantFilepath, libfilepath := range c.want {
