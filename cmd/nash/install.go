@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"io"
+	"io/ioutil"
 	"path/filepath"
 )
 
@@ -12,9 +13,23 @@ func NashLibDir(nashpath string) string {
 }
 
 func InstallLib(nashpath string, installpath string) error {
-	libdir := NashLibDir(nashpath)
-	// TODO: Propositaly only handling a single simple case for now
-	return copyfile(libdir, installpath)
+	// TODO: handle invalid nashpath + installpath
+	nashlibdir := NashLibDir(nashpath)
+	return installLib(nashlibdir, installpath)
+}
+
+func installLib(targetdir string, sourcepath string) error {
+	// TODO: error handling
+	f, _ := os.Stat(sourcepath)
+	if !f.IsDir() {
+		return copyfile(targetdir, sourcepath)
+	}
+	
+	basedir := filepath.Base(sourcepath)
+	targetdir = filepath.Join(targetdir, basedir)
+	// TODO: error handling
+	files, _ := ioutil.ReadDir(sourcepath)
+	return installLib(targetdir, filepath.Join(sourcepath, files[0].Name()))
 }
 
 func copyfile(targetdir string, sourcefilepath string) error {

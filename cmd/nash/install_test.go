@@ -39,20 +39,20 @@ func TestInstallLib(t *testing.T) {
 		},
 		{
 			name: "SingleDir",
-		},
-		{
-			name: "Dirs",
-		},
-		{
-			name: "DirsRecursively",
-		},
-		{
-			name: "WontCreateEntireLibTree",
+			libfiles: []string{
+				"/testfile/file.sh",
+			},
+			installpath: "/testfile",
+			want : map[string]string{
+				"/testfile/file.sh" : "/testfile/file.sh",
+			},
 		},
 	}
 	
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			// TODO: validate that no extraneous files are created ?
+			
 			nashpath, rmnashpath := fixture.Tmpdir(t)
 			defer rmnashpath()
 			
@@ -77,6 +77,25 @@ func TestInstallLib(t *testing.T) {
 				t.Fatal(err)
 			}
 			
+			fatal := func() {
+				t.Errorf("nashpath: [%s]", nashpath)
+				t.Errorf("nashpath contents:")
+				
+				files := []string{}
+				filepath.Walk(nashpath, func(path string, stats os.FileInfo, err error) error {
+					if stats.IsDir() {
+						return nil
+					}
+					files = append(files, path)
+					return nil
+				})
+				
+				for _, path := range files {
+					t.Errorf("[%s]", path)
+				}
+				t.Fatal("")
+			}
+			
 			for wantFilepath, libfilepath := range c.want {
 			
 				completeLibFilepath := libfileFullPath(libfilepath)
@@ -90,18 +109,21 @@ func TestInstallLib(t *testing.T) {
 				fullWantFilepath := filepath.Join(nashlibdir, wantFilepath)
 				wantFile, err := os.Open(fullWantFilepath)
 				if err != nil {
-					t.Fatalf("error[%s] opening wanted file[%s]", err, wantFilepath)
+					t.Errorf("error[%s] checking wanted file[%s]", err, wantFilepath)
+					fatal()
 				}
 				gotContentsRaw, err := ioutil.ReadAll(wantFile)
 				wantFile.Close()
 				
 				if err != nil {
-					t.Fatalf("error[%s] checking existence of wanted file[%s]", err, wantFilepath)
+					t.Errorf("error[%s] checking existence of wanted file[%s]", err, wantFilepath)
+					fatal()
 				}
 				
 				gotContents := string(gotContentsRaw)
 				if gotContents != wantContents {
-					t.Fatalf("for file [%s] wanted contents [%s] but got [%s]", wantFilepath, wantContents, gotContents)
+					t.Errorf("for file [%s] wanted contents [%s] but got [%s]", wantFilepath, wantContents, gotContents)
+					fatal()
 				}
 			}
 		})
