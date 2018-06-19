@@ -30,7 +30,7 @@ func installLib(targetdir string, sourcepath string) error {
 
 	f, err := os.Stat(sourcepath)
 	if err != nil {
-		return fmt.Errorf("error[%s] stating path[%s]", err, sourcepath)
+		return fmt.Errorf("error[%s] checking if path[%s] is dir", err, sourcepath)
 	}
 	
 	if !f.IsDir() {
