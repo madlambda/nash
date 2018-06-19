@@ -195,7 +195,24 @@ func TestInstallPathCantBeEqualToNashLibDir(t *testing.T) {
 		
 		fixture.CreateFile(t, filepath.Join(nashlibdir, "whatever.sh"))
 		
-		err := main.InstallLib(nashpath, nashlibdir)
+		assertInstallLibFails(t, nashpath, nashlibdir)
+}
+
+func TestInstallPathCantBeInsideNashLibDir(t *testing.T) {
+		nashpath, rmnashpath := fixture.Tmpdir(t)
+		defer rmnashpath()
+		
+		nashlibdir := main.NashLibDir(nashpath)
+		sourcelibdir := filepath.Join(nashlibdir, "somedir")
+		fixture.CreateFile(t, filepath.Join(sourcelibdir, "whatever.sh"))
+		
+		assertInstallLibFails(t, nashpath, sourcelibdir)
+}
+
+func assertInstallLibFails(t *testing.T, nashpath string, sourcepath string) {
+		t.Helper()
+		
+		err := main.InstallLib(nashpath, sourcepath)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
