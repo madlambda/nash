@@ -100,3 +100,12 @@ func ChangeDir(t *testing.T, path string) {
 		t.Fatal(err)
 	}
 }
+
+func Chmod(t *testing.T, path string, mode os.FileMode) {
+	t.Helper()
+	
+	err := os.Chmod(path, mode)
+	if err != nil {
+		t.Fatal(err)
+	}
+}

@@ -40,7 +40,11 @@ func installLib(targetdir string, sourcepath string) error {
 	basedir := filepath.Base(sourcepath)
 	targetdir = filepath.Join(targetdir, basedir)
 	// TODO: error handling
-	files, _ := ioutil.ReadDir(sourcepath)
+	files, err := ioutil.ReadDir(sourcepath)
+	if err != nil {
+		return fmt.Errorf("error[%s] reading dir[%s]", err, sourcepath)
+	}
+	
 	for _, file := range files {
 		// TODO: error handling
 		installLib(targetdir, filepath.Join(sourcepath, file.Name()))

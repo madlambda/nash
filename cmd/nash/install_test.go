@@ -231,6 +231,20 @@ func TestFailsOnUnexistentSourcePath(t *testing.T) {
 		assertInstallLibFails(t, nashpath, "/nonexistent/nash/crap")
 }
 
+func TestFailsOnUnreadableSourcePath(t *testing.T) {
+		nashpath, rmnashpath := fixture.Tmpdir(t)
+		defer rmnashpath()
+		
+		sourcedir, rmsourcedir := fixture.Tmpdir(t)
+		defer func() {
+			fixture.Chmod(t, sourcedir, 0644)
+			rmsourcedir()
+		}()
+		
+		fixture.Chmod(t, sourcedir, 0)
+		assertInstallLibFails(t, nashpath, sourcedir)
+}
+
 func assertInstallLibFails(t *testing.T, nashpath string, sourcepath string) {
 		t.Helper()
 		
