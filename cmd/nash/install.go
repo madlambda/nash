@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"io"
+	"fmt"
 	"io/ioutil"
 	"path/filepath"
 )
@@ -12,9 +13,13 @@ func NashLibDir(nashpath string) string {
 	return filepath.Join(nashpath, "lib")
 }
 
-func InstallLib(nashpath string, installpath string) error {
+func InstallLib(nashpath string, sourcepath string) error {
 	nashlibdir := NashLibDir(nashpath)
-	return installLib(nashlibdir, installpath)
+	if nashlibdir == sourcepath {
+		return fmt.Errorf(
+			"lib source path[%s] can't be inside nash lib dir[%s]", sourcepath, nashlibdir) 
+	}
+	return installLib(nashlibdir, sourcepath)
 }
 
 func installLib(targetdir string, sourcepath string) error {

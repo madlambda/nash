@@ -11,7 +11,6 @@ import (
 )
 
 // TODO: test when nashpath lib already exists and has libraries inside
-// TODO: test when you install a lib using a path that is inside nashpath
 
 func TestInstallLib(t *testing.T) {
 
@@ -186,4 +185,18 @@ func TestInstallLib(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInstallPathCantBeEqualToNashLibDir(t *testing.T) {
+		nashpath, rmnashpath := fixture.Tmpdir(t)
+		defer rmnashpath()
+		
+		nashlibdir := main.NashLibDir(nashpath)
+		
+		fixture.CreateFile(t, filepath.Join(nashlibdir, "whatever.sh"))
+		
+		err := main.InstallLib(nashpath, nashlibdir)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
 }

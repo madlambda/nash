@@ -51,18 +51,33 @@ func CreateFiles(t *testing.T, filepaths []string) map[string]string {
 	createdFiles := map[string]string{}
 	
 	for _, f := range filepaths {
-		dir := filepath.Dir(f)
-		MkdirAll(t, dir)
-		
-		contents := fmt.Sprintf("randomContents=%d", rand.Int())
-		
-		err := ioutil.WriteFile(f, []byte(contents), 0644)
-		if err != nil {
-			t.Fatalf("error[%s] writing file[%s]", err, f)
-		}
-		
+		contents := CreateFile(t, f)	
 		createdFiles[f] = contents
 	}
 	
 	return createdFiles
+}
+
+// CreateFile will create the file and its dirs if
+// necessary calling Fatal on the given testing if anything goes wrong.
+//
+// The file content will be randomly generated strings (not a lot random,
+// just for test purposes) and will be returned on the map that will map
+// the filepath to its contents.
+//
+// Return the contents generated for the file (and that has been written on it).
+func CreateFile(t *testing.T, f string) string {
+	t.Helper()
+	
+	dir := filepath.Dir(f)
+	MkdirAll(t, dir)
+		
+	contents := fmt.Sprintf("randomContents=%d", rand.Int())
+		
+	err := ioutil.WriteFile(f, []byte(contents), 0644)
+	if err != nil {
+		t.Fatalf("error[%s] writing file[%s]", err, f)
+	}
+		
+	return contents
 }
