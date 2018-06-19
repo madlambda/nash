@@ -73,15 +73,12 @@ func copyfile(targetdir string, sourcefilepath string) error {
 	defer sourcefile.Close()
 	
 	targetfilepath := filepath.Join(targetdir, filepath.Base(sourcefilepath))
-	// TODO: Error handling
 	targetfile, err := os.Create(targetfilepath)
 	if err != nil {
 		return fail(err)
 	}
 	defer targetfile.Close()
 	
-	// TODO: Error handling moderfocker
-	io.Copy(targetfile, sourcefile)
-	
-	return nil
+	_, err = io.Copy(targetfile, sourcefile)
+	return err
 }
