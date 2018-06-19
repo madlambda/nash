@@ -81,3 +81,22 @@ func CreateFile(t *testing.T, f string) string {
 		
 	return contents
 }
+
+func WorkingDir(t *testing.T) string {
+	t.Helper()
+	
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return wd
+}
+
+func ChangeDir(t *testing.T, path string) {
+	t.Helper()
+	
+	err := os.Chdir(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+}

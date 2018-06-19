@@ -15,6 +15,7 @@ func NashLibDir(nashpath string) string {
 
 func InstallLib(nashpath string, sourcepath string) error {
 	nashlibdir := NashLibDir(nashpath)
+	sourcepath, _ = filepath.Abs(sourcepath)
 	if filepath.HasPrefix(sourcepath, nashlibdir) {
 		return fmt.Errorf(
 			"lib source path[%s] can't be inside nash lib dir[%s]", sourcepath, nashlibdir) 

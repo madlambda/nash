@@ -209,6 +209,21 @@ func TestInstallPathCantBeInsideNashLibDir(t *testing.T) {
 		assertInstallLibFails(t, nashpath, sourcelibdir)
 }
 
+func TestRelativeInstallPathCantBeInsideNashLibDir(t *testing.T) {
+		nashpath, rmnashpath := fixture.Tmpdir(t)
+		defer rmnashpath()
+		
+		nashlibdir := main.NashLibDir(nashpath)
+		fixture.CreateFile(t, filepath.Join(nashlibdir, "somedir", "whatever.sh"))
+		
+		oldwd := fixture.WorkingDir(t)
+		defer fixture.ChangeDir(t, oldwd)
+		
+		fixture.ChangeDir(t, nashlibdir)
+		
+		assertInstallLibFails(t, nashpath, "./somedir")
+}
+
 func assertInstallLibFails(t *testing.T, nashpath string, sourcepath string) {
 		t.Helper()
 		
