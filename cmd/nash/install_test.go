@@ -187,7 +187,7 @@ func TestInstallLib(t *testing.T) {
 	}
 }
 
-func TestInstallPathCantBeEqualToNashLibDir(t *testing.T) {
+func TestSourcePathCantBeEqualToNashLibDir(t *testing.T) {
 		nashpath, rmnashpath := fixture.Tmpdir(t)
 		defer rmnashpath()
 		
@@ -198,7 +198,7 @@ func TestInstallPathCantBeEqualToNashLibDir(t *testing.T) {
 		assertInstallLibFails(t, nashpath, nashlibdir)
 }
 
-func TestInstallPathCantBeInsideNashLibDir(t *testing.T) {
+func TestSourcePathCantBeInsideNashLibDir(t *testing.T) {
 		nashpath, rmnashpath := fixture.Tmpdir(t)
 		defer rmnashpath()
 		
@@ -209,7 +209,7 @@ func TestInstallPathCantBeInsideNashLibDir(t *testing.T) {
 		assertInstallLibFails(t, nashpath, sourcelibdir)
 }
 
-func TestRelativeInstallPathCantBeInsideNashLibDir(t *testing.T) {
+func TestRelativeSourcePathCantBeInsideNashLibDir(t *testing.T) {
 		nashpath, rmnashpath := fixture.Tmpdir(t)
 		defer rmnashpath()
 		
@@ -222,6 +222,13 @@ func TestRelativeInstallPathCantBeInsideNashLibDir(t *testing.T) {
 		fixture.ChangeDir(t, nashlibdir)
 		
 		assertInstallLibFails(t, nashpath, "./somedir")
+}
+
+func TestFailsOnUnexistentSourcePath(t *testing.T) {
+		nashpath, rmnashpath := fixture.Tmpdir(t)
+		defer rmnashpath()
+		
+		assertInstallLibFails(t, nashpath, "/nonexistent/nash/crap")
 }
 
 func assertInstallLibFails(t *testing.T, nashpath string, sourcepath string) {

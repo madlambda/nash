@@ -15,17 +15,24 @@ func NashLibDir(nashpath string) string {
 
 func InstallLib(nashpath string, sourcepath string) error {
 	nashlibdir := NashLibDir(nashpath)
-	sourcepath, _ = filepath.Abs(sourcepath)
-	if filepath.HasPrefix(sourcepath, nashlibdir) {
+	sourcepathAbs, err := filepath.Abs(sourcepath)
+	if err != nil {
+		return fmt.Errorf("error[%s] getting absolute path of [%s]", err, sourcepath)
+	}
+	if filepath.HasPrefix(sourcepathAbs, nashlibdir) {
 		return fmt.Errorf(
 			"lib source path[%s] can't be inside nash lib dir[%s]", sourcepath, nashlibdir) 
 	}
-	return installLib(nashlibdir, sourcepath)
+	return installLib(nashlibdir, sourcepathAbs)
 }
 
 func installLib(targetdir string, sourcepath string) error {
-	// TODO: error handling
-	f, _ := os.Stat(sourcepath)
+
+	f, err := os.Stat(sourcepath)
+	if err != nil {
+		return fmt.Errorf("error[%s] stating path[%s]", err, sourcepath)
+	}
+	
 	if !f.IsDir() {
 		return copyfile(targetdir, sourcepath)
 	}
