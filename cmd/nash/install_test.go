@@ -238,7 +238,7 @@ func TestFailsOnUnreadableSourcePath(t *testing.T) {
 		sourcedir, rmsourcedir := fixture.Tmpdir(t)
 		defer rmsourcedir()
 		
-		fixture.Chmod(t, sourcedir, 0)
+		fixture.Chmod(t, sourcedir, writeOnly)
 		assertInstallLibFails(t, nashpath, sourcedir)
 }
 
@@ -253,7 +253,20 @@ func TestFailsOnUnreadableFileInsideSourcePath(t *testing.T) {
 		unreadableFile := filepath.Join(sourcedir, "file2.sh")
 		
 		fixture.CreateFiles(t, []string{readableFile, unreadableFile})
-		fixture.Chmod(t, unreadableFile, 0) 
+		fixture.Chmod(t, unreadableFile, writeOnly) 
+		
+		assertInstallLibFails(t, nashpath, sourcedir)
+}
+
+func TestFailsOnUnwriteableNashPath(t *testing.T) {
+		nashpath, rmnashpath := fixture.Tmpdir(t)
+		defer rmnashpath()
+		
+		sourcedir, rmsourcedir := fixture.Tmpdir(t)
+		defer rmsourcedir()
+		
+		fixture.Chmod(t, nashpath, readOnly)
+		fixture.CreateFile(t, filepath.Join(sourcedir, "file.sh"))
 		
 		assertInstallLibFails(t, nashpath, sourcedir)
 }
@@ -266,3 +279,6 @@ func assertInstallLibFails(t *testing.T, nashpath string, sourcepath string) {
 			t.Fatal("expected error, got nil")
 		}
 }
+
+const writeOnly = 0333
+const readOnly = 0555

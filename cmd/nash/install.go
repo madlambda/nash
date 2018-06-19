@@ -55,13 +55,20 @@ func installLib(targetdir string, sourcepath string) error {
 }
 
 func copyfile(targetdir string, sourcefilepath string) error {
-	// TODO: error handling
-	os.MkdirAll(targetdir, os.ModePerm)
+
+	fail := func(err error) error {
+		return fmt.Errorf(
+			"error[%s] trying to copy file[%s] to [%s]", err, sourcefilepath, targetdir)
+	}
 	
-	// TODO: error handling
+	err := os.MkdirAll(targetdir, os.ModePerm)
+	if err != nil {
+		return fail(err)
+	}
+	
 	sourcefile, err := os.Open(sourcefilepath)
 	if err != nil {
-		return fmt.Errorf("error[%s] trying to copy file[%s] to [%s]", err, sourcefilepath, targetdir)
+		return fail(err)
 	}
 	defer sourcefile.Close()
 	
