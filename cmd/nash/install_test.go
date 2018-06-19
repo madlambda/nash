@@ -271,6 +271,27 @@ func TestFailsOnUnwriteableNashPath(t *testing.T) {
 		assertInstallLibFails(t, nashpath, sourcedir)
 }
 
+func TestFailsOnUnwriteableFileInsideNashLibdir(t *testing.T) {
+		nashpath, rmnashpath := fixture.Tmpdir(t)
+		defer rmnashpath()
+		
+		sourcedir, rmsourcedir := fixture.Tmpdir(t)
+		defer rmsourcedir()
+		
+		filename := "test.sh"
+		sourcefile := filepath.Join(sourcedir, filename)
+		expectedInstalledFile := filepath.Join(
+			main.NashLibDir(nashpath),
+			filepath.Base(sourcedir),
+			filename,
+		)
+		
+		fixture.CreateFiles(t, []string{sourcefile, expectedInstalledFile})
+		fixture.Chmod(t, expectedInstalledFile, readOnly)
+		
+		assertInstallLibFails(t, nashpath, sourcedir)
+}
+
 func assertInstallLibFails(t *testing.T, nashpath string, sourcepath string) {
 		t.Helper()
 		

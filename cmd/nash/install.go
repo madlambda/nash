@@ -74,7 +74,10 @@ func copyfile(targetdir string, sourcefilepath string) error {
 	
 	targetfilepath := filepath.Join(targetdir, filepath.Base(sourcefilepath))
 	// TODO: Error handling
-	targetfile, _ := os.Create(targetfilepath)
+	targetfile, err := os.Create(targetfilepath)
+	if err != nil {
+		return fail(err)
+	}
 	defer targetfile.Close()
 	
 	// TODO: Error handling moderfocker
