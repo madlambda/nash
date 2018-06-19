@@ -50,6 +50,13 @@ update-vendor:
 
 release: clean
 	./hack/releaser.sh $(version)
+	
+coverage-html: test
+	go tool cover -html=coverage.txt -o coverage.html
+	@echo "coverage file: coverage.html"
+
+coverage-show: coverage-html
+	xdg-open coverage.html
 
 clean:
 	rm -f cmd/nash/nash
