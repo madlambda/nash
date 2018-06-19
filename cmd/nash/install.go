@@ -39,15 +39,17 @@ func installLib(targetdir string, sourcepath string) error {
 	
 	basedir := filepath.Base(sourcepath)
 	targetdir = filepath.Join(targetdir, basedir)
-	// TODO: error handling
+	
 	files, err := ioutil.ReadDir(sourcepath)
 	if err != nil {
 		return fmt.Errorf("error[%s] reading dir[%s]", err, sourcepath)
 	}
 	
 	for _, file := range files {
-		// TODO: error handling
-		installLib(targetdir, filepath.Join(sourcepath, file.Name()))
+		err := installLib(targetdir, filepath.Join(sourcepath, file.Name()))
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -57,7 +59,10 @@ func copyfile(targetdir string, sourcefilepath string) error {
 	os.MkdirAll(targetdir, os.ModePerm)
 	
 	// TODO: error handling
-	sourcefile, _ := os.Open(sourcefilepath)
+	sourcefile, err := os.Open(sourcefilepath)
+	if err != nil {
+		return fmt.Errorf("error[%s] trying to copy file[%s] to [%s]", err, sourcefilepath, targetdir)
+	}
 	defer sourcefile.Close()
 	
 	targetfilepath := filepath.Join(targetdir, filepath.Base(sourcefilepath))
