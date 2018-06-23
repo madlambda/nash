@@ -2,11 +2,10 @@ package fixture
 
 import (
 	"testing"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 	
 	"github.com/NeowayLabs/nash"
+	"github.com/NeowayLabs/nash/internal/testing/fixture"
 )
 
 
@@ -17,6 +16,10 @@ type NashDirs struct {
 	Stdlib string
 	Cleanup func()
 }
+
+var MkdirAll func(*testing.T, string) = fixture.MkdirAll
+
+var Tmpdir func(*testing.T) (string, func()) = fixture.Tmpdir
 
 func SetupShell(t *testing.T) (*nash.Shell, func()) {
 	dirs := SetupNashDirs(t)
@@ -49,29 +52,6 @@ func SetupNashDirs(t *testing.T) NashDirs {
 		Root: nashroot,
 		Stdlib: nashstdlib,
 		Cleanup: rmdir,
-	}
-}
-
-func Tmpdir(t *testing.T) (string, func()) {
-	t.Helper()
-	
-	dir, err := ioutil.TempDir("", "nash-tests")
-	if err != nil {
-		t.Fatal(err)
-	}
-	
-	return dir, func() {
-		err := os.RemoveAll(dir)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-}
-
-func MkdirAll(t *testing.T, nashlib string) {
-	err := os.MkdirAll(nashlib, os.ModePerm)
-	if err != nil {
-		t.Fatal(err)
 	}
 }
 

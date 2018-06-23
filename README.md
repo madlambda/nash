@@ -386,6 +386,57 @@ commands from the parent shell via unix socket. It allows the parent namespace
 namespace. In the current implementation the unix socket communication is not
 secure yet.
 
+# Installing libraries
+
+Lets say you have a nash library and you want to install it. For example you have
+the following:
+
+```
+awesome/code.sh
+```
+
+And you want to install it so you can write code like this:
+
+```
+import awesome/code
+
+code_do_awesome_stuff()
+```
+
+All you have to do is run:
+
+```
+nash -install ./awesome
+```
+
+Or:
+
+```
+nash -install /absolute/path/awesome
+```
+
+The entire awesome dir (and its subdirs) will be copied where nash
+searches for libraries (dependent on environment variables).
+
+This is the recommended way of installing nash libraries (althought
+you can do it manually if you want).
+
+Single files can also be installed as packages, for example:
+
+```
+nash -install ./awesome/code.sh
+```
+
+Will enable you to import like this:
+
+```
+import code
+```
+
+If there is already a package with the given name it will be
+overwritten.
+
+
 # Releasing
 
 To generate a release basically:

@@ -25,6 +25,7 @@ var (
 	addr        string
 	noInit      bool
 	interactive bool
+	install 	string
 )
 
 func init() {
@@ -32,6 +33,7 @@ func init() {
 	flag.BoolVar(&debug, "debug", false, "enable debug")
 	flag.BoolVar(&noInit, "noinit", false, "do not load init/init.sh file")
 	flag.StringVar(&command, "c", "", "command to execute")
+	flag.StringVar(&install, "install", "", "path of the library that you want to install (can be a single file)")
 	flag.BoolVar(&interactive, "i", false, "Interactive mode (default if no args)")
 
 	if os.Args[0] == "-nashd-" || (len(os.Args) > 1 && os.Args[1] == "-daemon") {
@@ -49,6 +51,22 @@ func main() {
 
 	if version {
 		fmt.Printf("build tag: %s\n", VersionString)
+		return
+	}
+	
+	if install != "" {
+		fmt.Printf("installing library located at [%s]\n", install)
+		np, err := NashPath()
+		if err != nil {
+			fmt.Printf("error[%s] getting NASHPATH, cant install library\n", err)
+			os.Exit(1)
+		}
+		err = InstallLib(np, install)
+		if err != nil {
+			fmt.Printf("error[%s] installing library\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("installed with success")
 		return
 	}
 
