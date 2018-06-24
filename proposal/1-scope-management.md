@@ -1,5 +1,9 @@
 # Proposal: Proper scope management
 
+This has already been implemented but these docs remain here as some sort
+of rationale. In the end we implemented proposal one, requiring new variables
+to be declared with the **var** keyword.
+
 ## Abstract
 
 Currently on nash there is no way to properly work
