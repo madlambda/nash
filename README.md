@@ -18,8 +18,7 @@
 - [Language specification](#language-specification)
 - [Some Bash comparisons](#some-bash-comparisons)
 - [Security](#security)
-- [Concept](#concept)
-- [Motivation](#motivation)
+- [Installing libraries](#installing-libraries)
 - [Releasing](#releasing)
 - [Want to contribute?](#want-to-contribute)
 

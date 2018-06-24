@@ -34,7 +34,7 @@ install: build
 	cp -pr ./stdbin/strings/strings $(NASHROOT)/bin/strings
 
 docsdeps:
-	go get github.com/katcipis/mdtoc
+	go get github.com/madlambda/mdtoc/cmd/mdtoc
 
 docs: docsdeps
 	mdtoc -w ./README.md
