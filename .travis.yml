@@ -8,21 +8,22 @@ go:
   - "tip"
   - "1.10"
   - "1.9"
-  
+
 install:
   - go get -v golang.org/x/exp/ebnf
   - make build
-  
+
 script:
   - go get github.com/axw/gocov/gocov
   - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
   - make test
-  - make release version=testci
-  
+  - make build
+  - ./cmd/nash/nash ./hack/releaser.sh testci
+
 after_success:
   - bash <(curl -s https://codecov.io/bash)
-  
+
 notifications:
   webhooks:
     urls:
@@ -32,4 +33,4 @@ notifications:
     on_start: never
   email:
     - tiago.natel@neoway.com.br
-    - tiago.katcipis@neoway.com.br
+    - tiagokatcipis@gmail.com
