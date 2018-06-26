@@ -18,6 +18,7 @@ script:
   - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
   - make test
+  - make release version=testci
   
 after_success:
   - bash <(curl -s https://codecov.io/bash)
