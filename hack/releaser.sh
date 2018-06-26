@@ -5,9 +5,9 @@ if len($ARGS) != "2" {
 	exit("1")
 }
 
-version        = $ARGS[1]
-supported_os   = ("linux" "darwin" "windows")
-supported_arch = ("amd64")
+var version        = $ARGS[1]
+var supported_os   = ("linux" "darwin" "windows")
+var supported_arch = ("amd64")
 
 # Guarantee passing tests at least on the host arch/os
 make test
@@ -18,13 +18,14 @@ mkdir -p dist
 
 fn prepare_execs(distfiles, os) {
 	if $os == "windows" {
-		newfiles = ()
+		var newfiles = ()
 
 		for distfile in $distfiles {
-			src = $distfile[0]
-			dst = $distfile[1]
-			newsrc = $src + ".exe"
-			newdst = $dst + ".exe"
+			var src = $distfile[0]
+			var dst = $distfile[1]
+			var newsrc = $src + ".exe"
+			var newdst = $dst + ".exe"
+			
 			newfiles <= append($newfiles, ($newsrc $newdst))
 		}
 
@@ -48,36 +49,37 @@ for os in $supported_os {
 		echo "building OS: "+$GOOS+" ARCH : "+$GOARCH
 		make build "version="+$version
 
-		pkgdir    <= mktemp -d
-		bindir = $pkgdir + "/bin"
-		stdlibdir = $pkgdir + "/stdlib"
+		var pkgdir <= mktemp -d
+		var bindir = $pkgdir + "/bin"
+		var stdlibdir = $pkgdir + "/stdlib"
+		
 		mkdir -p $bindir
 		mkdir -p $stdlibdir
 
-		nash_src = "./cmd/nash/nash"
-		nash_dst = $bindir + "/nash"
-		nashfmt_src = "./cmd/nashfmt/nashfmt"
-		nashfmt_dst = $bindir + "/nashfmt"
+		var nash_src = "./cmd/nash/nash"
+		var nash_dst = $bindir + "/nash"
+		var nashfmt_src = "./cmd/nashfmt/nashfmt"
+		var nashfmt_dst = $bindir + "/nashfmt"
 
-		execfiles = ( ($nash_src $nash_dst) ($nashfmt_src $nashfmt_dst) )
-		execfiles <= prepare_execs($execfiles, $os)
+		var execfiles = ( ($nash_src $nash_dst) ($nashfmt_src $nashfmt_dst) )
+		var execfiles <= prepare_execs($execfiles, $os)
 
 		# TODO: Improve with glob, right now have only two packages =)
-		distfiles <= append($execfiles, ("./stdlib/io.sh" $stdlibdir))
+		var distfiles <= append($execfiles, ("./stdlib/io.sh" $stdlibdir))
 		distfiles <= append($distfiles, ("./stdlib/map.sh" $stdlibdir))
 
 		for distfile in $distfiles {
-			src = $distfile[0]
-			dst = $distfile[1]
+			var src = $distfile[0]
+			var dst = $distfile[1]
 			cp -pr $src $dst
 		}
 
-		projectdir <= pwd
-		distar  <= format("%s/dist/nash-%s-%s-%s.tar.gz", $projectdir, $version, $os, $arch)
+		var projectdir <= pwd
+		var distar  <= format("%s/dist/nash-%s-%s-%s.tar.gz", $projectdir, $version, $os, $arch)
 
 		chdir($pkgdir)
-		pkgraw <= ls
-		pkgfiles <= split($pkgraw, "\n")
+		var pkgraw <= ls
+		var pkgfiles <= split($pkgraw, "\n")
 		tar cvfz $distar $pkgfiles
 		chdir($projectdir)
 	}
