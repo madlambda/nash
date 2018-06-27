@@ -14,8 +14,8 @@ build:
 	cd stdbin/write && go build $(buildargs)
 	cd stdbin/strings && go build $(buildargs)
 
-NASHPATH=$(HOME)/nash
-NASHROOT=$(HOME)/nashroot
+NASHPATH?=$(HOME)/nash
+NASHROOT?=$(HOME)/nashroot
 
 # FIXME: binaries install do not work on windows this way (the .exe)
 install: build
