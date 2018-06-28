@@ -153,7 +153,11 @@ func NewShell(
 	
 	err = validateDirs(nashpath, nashroot)
 	if err != nil {
-		shell.Stderr().Write([]byte(err.Error() + "\n"))
+		printerr := func(msg string) {
+			shell.Stderr().Write([]byte(msg + "\n"))
+		}
+		printerr(err.Error())
+		printerr("please check your NASHPATH and NASHROOT so they point to valid locations")
 	}
 	
 	return shell, nil
