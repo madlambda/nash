@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/NeowayLabs/nash/ast"
 	shell "github.com/NeowayLabs/nash/internal/sh"
@@ -21,7 +22,7 @@ type (
 
 // New creates a new `nash.Shell` instance.
 func New(nashpath string, nashroot string) (*Shell, error) {
-	interp, err := shell.NewShell(nashpath, nashroot)
+	interp, err := shell.NewShell(nashpath, nashroot, os.Stdin, os.Stdout, os.Stderr)
 
 	if err != nil {
 		return nil, err

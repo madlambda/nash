@@ -2149,7 +2149,7 @@ func setup(t *testing.T) (testFixture, func()) {
 
 	dirs := fixture.SetupNashDirs(t)
 	
-	shell, err := sh.NewShell(dirs.Path, dirs.Root)
+	shell, err := sh.NewShell(dirs.Path, dirs.Root, os.Stdin, os.Stdout, os.Stderr)
 
 	if err != nil {
 		t.Fatal(err)

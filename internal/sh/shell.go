@@ -117,22 +117,23 @@ func (e *errStopWalking) StopWalking() bool { return true }
 // NewShell creates a new shell object
 // nashpath will be used to search libraries and nashroot will be used to
 // search for the standard library shipped with the language.
-func NewShell(nashpath string, nashroot string) (*Shell, error) {
+func NewShell(
+	nashpath string,
+	nashroot string,
+	stdin io.Reader,
+	stdout io.Writer,
+	stderr io.Writer,
+) (*Shell, error) {
 
-	err := validateDirs(nashpath, nashroot)
-	if err != nil {
-		return nil, err
-	}
-	
 	shell := &Shell{
 		name:        "parent scope",
 		interactive: false,
 		isFn:        false,
 		logf:        NewLog(logNS, false),
 		nashdPath:   nashdAutoDiscover(),
-		stdout:      os.Stdout,
-		stderr:      os.Stderr,
-		stdin:       os.Stdin,
+		stdout:      stdout,
+		stderr:      stderr,
+		stdin:       stdin,
 		env:         make(Env),
 		vars:        make(Var),
 		binds:       make(Fns),
@@ -143,12 +144,18 @@ func NewShell(nashpath string, nashroot string) (*Shell, error) {
 		nashroot: nashroot,
 	}
 
-	err = shell.setup()
+	err := shell.setup()
 	if err != nil {
 		return nil, err
 	}
 
 	shell.setupSignals()
+	
+	err = validateDirs(nashpath, nashroot)
+	if err != nil {
+		shell.Stderr().Write([]byte(err.Error() + "\n"))
+	}
+	
 	return shell, nil
 }
 
@@ -2450,15 +2457,15 @@ func (shell *Shell) executeIf(n *ast.IfNode) ([]sh.Obj, error) {
 
 func validateDirs(nashpath string, nashroot string) error {
 	if nashpath == nashroot {
-		return fmt.Errorf("invalid nashpath[%s] == nashroot[%s], they must differ", nashpath, nashroot)
+		return fmt.Errorf("invalid nashpath and nashroot, they are both[%s] but they must differ", nashpath)
 	}
 	err := validateDir(nashpath)
 	if err != nil {
-		return fmt.Errorf("error[%s] validating nashpath", err)
+		return fmt.Errorf("error[%s]: invalid nashpath, history won't be saved", err)
 	}
 	err = validateDir(nashroot)
 	if err != nil {
-		return fmt.Errorf("error[%s] validating nashroot", err)
+		return fmt.Errorf("error[%s]: invalid nashroot, stdlib/stdbin won't be available", err)
 	}
 	return nil
 }

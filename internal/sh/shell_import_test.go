@@ -1,7 +1,9 @@
 package sh_test
 
 import (
+	"os"
 	"bytes"
+	"strings"
 	"path/filepath"
 	"testing"
 	
@@ -103,12 +105,17 @@ func TestImportsLibFromWorkingDirBeforeLibAndStdlib(t *testing.T) {
 	`, "localcode\n")
 }
 
-func TestErrorOnInvalidSearchPaths(t *testing.T) {
+func TestStdErrOnInvalidSearchPaths(t *testing.T) {
+
 	type testCase struct {
 		name string
 		nashpath string
 		nashroot string
+		errmsg string
 	}
+	
+	const nashrooterr = "invalid nashroot"
+	const nashpatherr = "invalid nashpath"
 	
 	validDir, rmdir := fixture.Tmpdir(t)
 	defer rmdir()
@@ -121,54 +128,68 @@ func TestErrorOnInvalidSearchPaths(t *testing.T) {
 			name: "EmptyNashPath",
 			nashpath: "",
 			nashroot: validDir,
+			errmsg: nashpatherr,
 		},
 		{
 			name: "NashPathDontExists",
 			nashpath: filepath.Join(validDir, "dontexists"),
 			nashroot: validDir,
+			errmsg: nashpatherr,
 		},
 		{
 			name: "EmptyNashRoot",
 			nashpath: validDir,
 			nashroot: "",
+			errmsg: nashrooterr,
 		},
 		{
 			name: "NashRootDontExists",
 			nashroot: filepath.Join(validDir, "dontexists"),
 			nashpath: validDir,
+			errmsg: nashrooterr,
 		},
 		{
 			name: "NashPathIsFile",
 			nashroot: validDir,
 			nashpath: validfile,
+			errmsg: nashpatherr,
 		},
 		{
 			name: "NashRootIsFile",
 			nashroot: validfile,
 			nashpath: validDir,
+			errmsg: nashrooterr,
 		},
 		{
 			name: "NashPathIsRelative",
 			nashroot: validDir,
 			nashpath: "./",
+			errmsg: nashpatherr,
 		},
 		{
 			name: "NashRootIsRelative",
 			nashroot: "./",
 			nashpath: validDir,
+			errmsg: nashrooterr,
 		},
 		{
 			name: "NashRootAndNashPathAreEqual",
 			nashroot: validDir,
 			nashpath: validDir,
+			errmsg: "invalid nashpath and nashroot",
 		},
 	}
 	
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			_, err := sh.NewShell(c.nashpath, c.nashroot)
-			if err == nil {
-				t.Fatal("expected error, got nil")
+			stderr := &bytes.Buffer{}
+			_, err := sh.NewShell(c.nashpath, c.nashroot, os.Stdin, os.Stdout, stderr)
+			if err != nil {
+				t.Fatalf("unexpected error[%s]", err)
+			}
+			erroutput := stderr.String()
+			if !strings.Contains(erroutput, c.errmsg) {
+				t.Fatalf("expected stderr[%s] to contain[%s]", erroutput, c.errmsg)
 			}
 		})
 	}
@@ -200,7 +221,7 @@ func (s *testshell) ExecCheckingOutput(t *testing.T, code string, expectedOutupt
 
 func newTestShell(t *testing.T, nashpath string, nashroot string) *testshell {
 
-	shell, err := sh.NewShell(nashpath, nashroot)
+	shell, err := sh.NewShell(nashpath, nashroot, os.Stdin, os.Stdout, os.Stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
