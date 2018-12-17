@@ -169,7 +169,7 @@ echo "The date is: $(date +%D)" # DOESNT WORKS!
 ```
 
 Instead you need to assign each command output to a proper variable and then
-concat it with another string when needed (see the [reference docs](./doc/reference.md)).
+concat it with another string when needed (see the [reference docs](./docs/reference.md)).
 
 In the same way, nash doesn't support shell expansion at `if` condition.
 For check if a directory exists you must use:
