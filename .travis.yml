@@ -6,8 +6,8 @@ sudo: false
 
 go:
   - "tip"
-  - "1.10"
-  - "1.9"
+  - "1.12"
+  - "1.11"
 
 install:
   - go get -v golang.org/x/exp/ebnf
