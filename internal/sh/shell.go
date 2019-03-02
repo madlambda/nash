@@ -62,7 +62,7 @@ type (
 		parent *Shell
 
 		repr string // string representation
-		
+
 		nashpath string
 		nashroot string
 
@@ -140,8 +140,8 @@ func NewShell(
 		Mutex:       &sync.Mutex{},
 		sigs:        make(chan os.Signal, 1),
 		filename:    "<interactive>",
-		nashpath: nashpath,
-		nashroot: nashroot,
+		nashpath:    nashpath,
+		nashroot:    nashroot,
 	}
 
 	err := shell.setup()
@@ -150,7 +150,7 @@ func NewShell(
 	}
 
 	shell.setupSignals()
-	
+
 	err = validateDirs(nashpath, nashroot)
 	if err != nil {
 		printerr := func(msg string) {
@@ -159,7 +159,7 @@ func NewShell(
 		printerr(err.Error())
 		printerr("please check your NASHPATH and NASHROOT so they point to valid locations")
 	}
-	
+
 	return shell, nil
 }
 
@@ -941,7 +941,6 @@ func isValidNashRoot(nashroot string) bool {
 	return err == nil
 }
 
-
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	obj, err := shell.evalExpr(node.Path)
 	if err != nil {
@@ -987,9 +986,9 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	if !hasExt {
 		tries = append(tries, filepath.Join(shell.nashpath, "lib", fname+".sh"))
 	}
-	
+
 	tries = append(tries, filepath.Join(shell.nashroot, "stdlib", fname+".sh"))
-	
+
 	shell.logf("Trying %q\n", tries)
 
 	for _, path := range tries {
@@ -2465,7 +2464,7 @@ func validateDirs(nashpath string, nashroot string) error {
 	}
 	err := validateDir(nashpath)
 	if err != nil {
-		return fmt.Errorf("error[%s]: invalid nashpath, history won't be saved", err)
+		return fmt.Errorf("error[%s]: invalid nashpath, user's config won't be loaded", err)
 	}
 	err = validateDir(nashroot)
 	if err != nil {
