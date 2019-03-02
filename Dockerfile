@@ -1,4 +1,4 @@
-FROM golang:1.8
+FROM golang:1.12
 
 ADD . /go/src/github.com/NeowayLabs/nash
 
