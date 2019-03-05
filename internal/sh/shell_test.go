@@ -9,14 +9,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	// FIXME: depending on other sh package on the internal sh tests seems very odd
 	shtypes "github.com/NeowayLabs/nash/sh"
-	
+
 	"github.com/NeowayLabs/nash/internal/sh"
 	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
 	"github.com/NeowayLabs/nash/tests"
@@ -34,13 +34,11 @@ type (
 
 	testFixture struct {
 		shell     *sh.Shell
-		shellOut *bytes.Buffer
+		shellOut  *bytes.Buffer
 		dir       string
 		nashdPath string
 	}
 )
-
-
 
 func TestInitEnv(t *testing.T) {
 	os.Setenv("TEST", "abc=123=")
@@ -841,7 +839,7 @@ func TestExecuteIfElseIf(t *testing.T) {
 
 	shell := f.shell
 	out := f.shellOut
-	
+
 	err := shell.Exec("test if else", `
         if "" == "" {
             echo "if still works"
@@ -1339,13 +1337,11 @@ func TestExecuteUnixRedirection(t *testing.T) {
 	done := make(chan bool)
 	writeDone := make(chan bool)
 
-
-
 	go func() {
-	
+
 		f, teardown := setup(t)
 		defer teardown()
-		
+
 		defer func() {
 			writeDone <- true
 		}()
@@ -1405,7 +1401,7 @@ func TestExecuteUDPRedirection(t *testing.T) {
 	go func() {
 		f, teardown := setup(t)
 		defer teardown()
-		
+
 		defer func() {
 			writeDone <- true
 		}()
@@ -1550,7 +1546,7 @@ func TestExecuteFnAsFirstClass(t *testing.T) {
 
 	shell := f.shell
 	out := f.shellOut
-	
+
 	err := shell.Exec("test fn by arg", `
         fn printer(val) {
                 echo -n $val
@@ -1792,7 +1788,7 @@ echo -n $list[$a[0]]`)
 func TestExecuteSubShellDoesNotOverwriteparentEnv(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
-	
+
 	shell := f.shell
 	out := f.shellOut
 
@@ -1825,7 +1821,7 @@ echo -n $SHELL`)
 func TestExecuteInterruptDoesNotCancelLoop(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
-	
+
 	shell := f.shell
 	shell.TriggerCTRLC()
 
@@ -1843,7 +1839,7 @@ for i in $seq {}`)
 func TestExecuteErrorSuppressionAll(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
-	
+
 	shell := f.shell
 
 	err := shell.Exec("-input-", `var _, status <= command-not-exists`)
@@ -1889,7 +1885,7 @@ func TestExecuteErrorSuppressionAll(t *testing.T) {
 func TestExecuteGracefullyError(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
-	
+
 	shell := f.shell
 
 	err := shell.Exec("someinput.sh", "(")
@@ -1921,7 +1917,7 @@ func TestExecuteGracefullyError(t *testing.T) {
 func TestExecuteMultilineCmd(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
-	
+
 	shell := f.shell
 	out := f.shellOut
 
@@ -1964,10 +1960,10 @@ func TestExecuteMultilineCmd(t *testing.T) {
 func TestExecuteMultilineCmdAssign(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
-	
+
 	shell := f.shell
 	out := f.shellOut
-	
+
 	err := shell.Exec("test", `var val <= (echo -n
 		hello
 		world)
@@ -2010,7 +2006,7 @@ func TestExecuteMultilineCmdAssign(t *testing.T) {
 func TestExecuteMultiReturnUnfinished(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
-	
+
 	shell := f.shell
 
 	err := shell.Exec("test", "(")
@@ -2148,19 +2144,19 @@ a()`,
 func setup(t *testing.T) (testFixture, func()) {
 
 	dirs := fixture.SetupNashDirs(t)
-	
-	shell, err := sh.NewShell(dirs.Path, dirs.Root, os.Stdin, os.Stdout, os.Stderr)
+
+	shell, err := sh.NewShell(dirs.Path, dirs.Root)
 
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	var out bytes.Buffer
 	shell.SetStdout(&out)
-	
+
 	return testFixture{
-		shell: shell,
-		shellOut: &out,
+		shell:     shell,
+		shellOut:  &out,
 		dir:       tests.Testdir,
 		nashdPath: tests.Nashcmd,
 	}, dirs.Cleanup
@@ -2247,7 +2243,7 @@ func testInteractiveExec(t *testing.T, testcase execTestCase) {
 
 	f, teardown := setup(t)
 	defer teardown()
-	
+
 	f.shell.SetInteractive(true)
 	testShellExec(t, f.shell, testcase)
 }

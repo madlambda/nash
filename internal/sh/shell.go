@@ -117,13 +117,7 @@ func (e *errStopWalking) StopWalking() bool { return true }
 // NewShell creates a new shell object
 // nashpath will be used to search libraries and nashroot will be used to
 // search for the standard library shipped with the language.
-func NewShell(
-	nashpath string,
-	nashroot string,
-	stdin io.Reader,
-	stdout io.Writer,
-	stderr io.Writer,
-) (*Shell, error) {
+func NewShell(nashpath string, nashroot string) (*Shell, error) {
 
 	shell := &Shell{
 		name:        "parent scope",
@@ -131,9 +125,9 @@ func NewShell(
 		isFn:        false,
 		logf:        NewLog(logNS, false),
 		nashdPath:   nashdAutoDiscover(),
-		stdout:      stdout,
-		stderr:      stderr,
-		stdin:       stdin,
+		stdout:      os.Stdout,
+		stderr:      os.Stderr,
+		stdin:       os.Stdin,
 		env:         make(Env),
 		vars:        make(Var),
 		binds:       make(Fns),
