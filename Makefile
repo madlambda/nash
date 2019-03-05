@@ -50,7 +50,7 @@ update-vendor:
 
 release: clean
 	./hack/releaser.sh $(version)
-	
+
 coverage-html: test
 	go tool cover -html=coverage.txt -o coverage.html
 	@echo "coverage file: coverage.html"
