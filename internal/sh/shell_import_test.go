@@ -4,17 +4,16 @@ import (
 	"bytes"
 	"path/filepath"
 	"testing"
-	
+
 	"github.com/NeowayLabs/nash/internal/sh"
 	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
 )
 
-
 func TestImportsLibFromNashPathLibDir(t *testing.T) {
-	
+
 	nashdirs := fixture.SetupNashDirs(t)
 	defer nashdirs.Cleanup()
-	
+
 	writeFile(t, filepath.Join(nashdirs.Lib, "lib.sh"), `
 		fn test() {
 			echo "hasnashpath"
@@ -28,7 +27,7 @@ func TestImportsLibFromNashPathLibDir(t *testing.T) {
 }
 
 func TestImportsLibFromNashPathLibDirBeforeNashRootStdlib(t *testing.T) {
-	
+
 	nashdirs := fixture.SetupNashDirs(t)
 	defer nashdirs.Cleanup()
 
@@ -37,7 +36,7 @@ func TestImportsLibFromNashPathLibDirBeforeNashRootStdlib(t *testing.T) {
 			echo "libcode"
 		}
 	`)
-	
+
 	writeFile(t, filepath.Join(nashdirs.Stdlib, "lib.sh"), `
 		fn test() {
 			echo "stdlibcode"
@@ -51,10 +50,10 @@ func TestImportsLibFromNashPathLibDirBeforeNashRootStdlib(t *testing.T) {
 }
 
 func TestImportsLibFromNashRootStdlib(t *testing.T) {
-	
+
 	nashdirs := fixture.SetupNashDirs(t)
 	defer nashdirs.Cleanup()
-	
+
 	writeFile(t, filepath.Join(nashdirs.Stdlib, "lib.sh"), `
 		fn test() {
 			echo "stdlibcode"
@@ -68,112 +67,126 @@ func TestImportsLibFromNashRootStdlib(t *testing.T) {
 }
 
 func TestImportsLibFromWorkingDirBeforeLibAndStdlib(t *testing.T) {
-	
+
 	workingdir, rmdir := fixture.Tmpdir(t)
 	defer rmdir()
-	
+
 	curwd := getwd(t)
 	chdir(t, workingdir)
 	defer chdir(t, curwd)
-	
+
 	nashdirs := fixture.SetupNashDirs(t)
 	defer nashdirs.Cleanup()
-	
+
 	writeFile(t, filepath.Join(workingdir, "lib.sh"), `
 		fn test() {
 			echo "localcode"
 		}
 	`)
-	
+
 	writeFile(t, filepath.Join(nashdirs.Lib, "lib.sh"), `
 		fn test() {
 			echo "libcode"
 		}
 	`)
-	
+
 	writeFile(t, filepath.Join(nashdirs.Stdlib, "lib.sh"), `
 		fn test() {
 			echo "stdlibcode"
 		}
 	`)
-	
+
 	newTestShell(t, nashdirs.Path, nashdirs.Root).ExecCheckingOutput(t, `
 		import lib
 		test()
 	`, "localcode\n")
 }
 
-func TestErrorOnInvalidSearchPaths(t *testing.T) {
+func TestStdErrOnInvalidSearchPaths(t *testing.T) {
+
 	type testCase struct {
-		name string
+		name     string
 		nashpath string
 		nashroot string
+		errmsg   string
 	}
-	
+
+	const nashrooterr = "invalid nashroot"
+	const nashpatherr = "invalid nashpath"
+
 	validDir, rmdir := fixture.Tmpdir(t)
 	defer rmdir()
 
-	validfile := filepath.Join(validDir, "notdir")	
+	validfile := filepath.Join(validDir, "notdir")
 	writeFile(t, validfile, "whatever")
-	
-	cases := []testCase {
+
+	cases := []testCase{
 		{
-			name: "EmptyNashPath",
+			name:     "EmptyNashPath",
 			nashpath: "",
 			nashroot: validDir,
+			errmsg:   nashpatherr,
 		},
 		{
-			name: "NashPathDontExists",
+			name:     "NashPathDontExists",
 			nashpath: filepath.Join(validDir, "dontexists"),
 			nashroot: validDir,
+			errmsg:   nashpatherr,
 		},
 		{
-			name: "EmptyNashRoot",
+			name:     "EmptyNashRoot",
 			nashpath: validDir,
 			nashroot: "",
+			errmsg:   nashrooterr,
 		},
 		{
-			name: "NashRootDontExists",
+			name:     "NashRootDontExists",
 			nashroot: filepath.Join(validDir, "dontexists"),
 			nashpath: validDir,
+			errmsg:   nashrooterr,
 		},
 		{
-			name: "NashPathIsFile",
+			name:     "NashPathIsFile",
 			nashroot: validDir,
 			nashpath: validfile,
+			errmsg:   nashpatherr,
 		},
 		{
-			name: "NashRootIsFile",
+			name:     "NashRootIsFile",
 			nashroot: validfile,
 			nashpath: validDir,
+			errmsg:   nashrooterr,
 		},
 		{
-			name: "NashPathIsRelative",
+			name:     "NashPathIsRelative",
 			nashroot: validDir,
 			nashpath: "./",
+			errmsg:   nashpatherr,
 		},
 		{
-			name: "NashRootIsRelative",
+			name:     "NashRootIsRelative",
 			nashroot: "./",
 			nashpath: validDir,
+			errmsg:   nashrooterr,
 		},
 		{
-			name: "NashRootAndNashPathAreEqual",
+			name:     "NashRootAndNashPathAreEqual",
 			nashroot: validDir,
 			nashpath: validDir,
+			errmsg:   "invalid nashpath and nashroot",
 		},
 	}
-	
+
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			// TODO: find better way to test non fatal import errors
 			_, err := sh.NewShell(c.nashpath, c.nashroot)
-			if err == nil {
-				t.Fatal("expected error, got nil")
+			if err != nil {
+				t.Fatalf("unexpected error[%s]", err)
 			}
 		})
 	}
 }
-
 
 type testshell struct {
 	shell  *sh.Shell
