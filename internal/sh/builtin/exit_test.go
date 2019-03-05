@@ -14,12 +14,6 @@ func TestExit(t *testing.T) {
 		fail   bool
 	}
 
-	// exitResult is a common interface implemented by
-	// all platforms.
-	type exitResult interface {
-		ExitStatus() int
-	}
-
 	tests := map[string]exitDesc{
 		"success": {
 			script: "./testdata/exit.sh",
@@ -44,25 +38,14 @@ func TestExit(t *testing.T) {
 			cmd := exec.Command(projectnash, desc.script, desc.status)
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr // to know why scripts were failing
-			err := cmd.Run()
-			if err == nil {
-				if desc.status == "0" {
-					return
-				}
-				t.Fatalf("expected error for status: %s", desc.status)
+			cmd.Run()
 
+			if cmd.ProcessState == nil {
+				t.Fatalf("expected cmd[%v] to have a process state, can't validate status code", cmd)
 			}
-			if exiterr, ok := err.(*exec.ExitError); ok {
-				if status, ok := exiterr.Sys().(exitResult); ok {
-					got := status.ExitStatus()
-					if desc.result != got {
-						t.Fatalf("expected[%d] got[%d]", desc.result, got)
-					}
-				} else {
-					t.Fatal("exit result does not have a  ExitStatus method")
-				}
-			} else {
-				t.Fatalf("unexpected error: %v", err)
+			got := cmd.ProcessState.ExitCode()
+			if desc.result != got {
+				t.Fatalf("expected[%d] got[%d]", desc.result, got)
 			}
 		})
 	}
