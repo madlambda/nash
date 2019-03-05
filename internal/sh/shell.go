@@ -62,7 +62,7 @@ type (
 		parent *Shell
 
 		repr string // string representation
-		
+
 		nashpath string
 		nashroot string
 
@@ -119,11 +119,6 @@ func (e *errStopWalking) StopWalking() bool { return true }
 // search for the standard library shipped with the language.
 func NewShell(nashpath string, nashroot string) (*Shell, error) {
 
-	err := validateDirs(nashpath, nashroot)
-	if err != nil {
-		return nil, err
-	}
-	
 	shell := &Shell{
 		name:        "parent scope",
 		interactive: false,
@@ -139,16 +134,26 @@ func NewShell(nashpath string, nashroot string) (*Shell, error) {
 		Mutex:       &sync.Mutex{},
 		sigs:        make(chan os.Signal, 1),
 		filename:    "<interactive>",
-		nashpath: nashpath,
-		nashroot: nashroot,
+		nashpath:    nashpath,
+		nashroot:    nashroot,
 	}
 
-	err = shell.setup()
+	err := shell.setup()
 	if err != nil {
 		return nil, err
 	}
 
 	shell.setupSignals()
+
+	err = validateDirs(nashpath, nashroot)
+	if err != nil {
+		printerr := func(msg string) {
+			shell.Stderr().Write([]byte(msg + "\n"))
+		}
+		printerr(err.Error())
+		printerr("please check your NASHPATH and NASHROOT so they point to valid locations")
+	}
+
 	return shell, nil
 }
 
@@ -930,7 +935,6 @@ func isValidNashRoot(nashroot string) bool {
 	return err == nil
 }
 
-
 func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	obj, err := shell.evalExpr(node.Path)
 	if err != nil {
@@ -976,9 +980,9 @@ func (shell *Shell) executeImport(node *ast.ImportNode) error {
 	if !hasExt {
 		tries = append(tries, filepath.Join(shell.nashpath, "lib", fname+".sh"))
 	}
-	
+
 	tries = append(tries, filepath.Join(shell.nashroot, "stdlib", fname+".sh"))
-	
+
 	shell.logf("Trying %q\n", tries)
 
 	for _, path := range tries {
@@ -2450,15 +2454,15 @@ func (shell *Shell) executeIf(n *ast.IfNode) ([]sh.Obj, error) {
 
 func validateDirs(nashpath string, nashroot string) error {
 	if nashpath == nashroot {
-		return fmt.Errorf("invalid nashpath[%s] == nashroot[%s], they must differ", nashpath, nashroot)
+		return fmt.Errorf("invalid nashpath and nashroot, they are both[%s] but they must differ", nashpath)
 	}
 	err := validateDir(nashpath)
 	if err != nil {
-		return fmt.Errorf("error[%s] validating nashpath", err)
+		return fmt.Errorf("invalid nashpath, user's config won't be loaded: error: %s", err)
 	}
 	err = validateDir(nashroot)
 	if err != nil {
-		return fmt.Errorf("error[%s] validating nashroot", err)
+		return fmt.Errorf("invalid nashroot, stdlib/stdbin won't be available: error: %s", err)
 	}
 	return nil
 }
