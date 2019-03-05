@@ -2464,11 +2464,11 @@ func validateDirs(nashpath string, nashroot string) error {
 	}
 	err := validateDir(nashpath)
 	if err != nil {
-		return fmt.Errorf("error[%s]: invalid nashpath, user's config won't be loaded", err)
+		return fmt.Errorf("invalid nashpath, user's config won't be loaded: error: %s", err)
 	}
 	err = validateDir(nashroot)
 	if err != nil {
-		return fmt.Errorf("error[%s]: invalid nashroot, stdlib/stdbin won't be available", err)
+		return fmt.Errorf("invalid nashroot, stdlib/stdbin won't be available: error: %s", err)
 	}
 	return nil
 }
