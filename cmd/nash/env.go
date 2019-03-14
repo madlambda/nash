@@ -1,9 +1,8 @@
 package main
 
 import (
+	"errors"
 	"os"
-	"fmt"
-	"os/user"
 	"path/filepath"
 )
 
@@ -25,18 +24,18 @@ func NashRoot() (string, error) {
 	if ok {
 		return filepath.Join(gopath, "src", "github.com", "NeowayLabs", "nash"), nil
 	}
-	
+
 	h, err := home()
 	return filepath.Join(h, "nashroot"), err
 }
 
 func home() (string, error) {
-	usr, err := user.Current()
+	homedir, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	if usr.HomeDir == "" {
-		return "", fmt.Errorf("user[%v] has empty home dir", usr)
+	if homedir == "" {
+		return "", errors.New("invalid empty home dir")
 	}
-	return usr.HomeDir, nil
+	return homedir, nil
 }

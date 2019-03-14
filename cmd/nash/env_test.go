@@ -2,71 +2,81 @@ package main_test
 
 import (
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"testing"
-	
+
 	"github.com/NeowayLabs/nash/cmd/nash"
 )
 
 // TODO: No idea on how to inject failures like empty HOME folders for now
 
 func TestLoadNASHPATH(t *testing.T) {
+
+	defaultNashPath := filepath.Join(home(t), "nash")
+
 	runTests(t, main.NashPath, []EnvTest{
 		{
 			name: "Exported",
-			env: map[string]string {
+			env: map[string]string{
 				"NASHPATH": filepath.Join("etc", "nash"),
 			},
 			want: filepath.Join("etc", "nash"),
 		},
 		{
 			name: "IgnoresNASHROOT",
-			env: map[string]string {
+			env: map[string]string{
 				"NASHROOT": "/etc/nashroot/tests",
+				"HOME":     home(t),
 			},
-			want: filepath.Join(home(t), "nash"),
+			want: defaultNashPath,
 		},
 		{
 			name: "UseUserHomeWhenUnset",
-			want: filepath.Join(home(t), "nash"),
+			env: map[string]string{
+				"NASHROOT": "/etc/nashroot/tests",
+				"HOME":     home(t),
+			},
+			want: defaultNashPath,
 		},
 	})
 }
 
-func TestLoadNASHROOT(t * testing.T) {
+func TestLoadNASHROOT(t *testing.T) {
 	runTests(t, main.NashRoot, []EnvTest{
 		{
 			name: "Exported",
-			env: map[string]string {
+			env: map[string]string{
 				"NASHROOT": filepath.Join("etc", "nashroot"),
 			},
 			want: filepath.Join("etc", "nashroot"),
 		},
 		{
 			name: "IgnoresGOPATHIfSet",
-			env: map[string]string {
-				"GOPATH" : filepath.Join("go", "natel", "review"),
+			env: map[string]string{
+				"GOPATH":   filepath.Join("go", "natel", "review"),
 				"NASHROOT": filepath.Join("nashroot", "ignoredgopath"),
 			},
 			want: filepath.Join("nashroot", "ignoredgopath"),
 		},
 		{
 			name: "UsesGOPATHIfUnset",
-			env: map[string]string {
-				"GOPATH" : filepath.Join("go", "path"),
+			env: map[string]string{
+				"GOPATH": filepath.Join("go", "path"),
 			},
 			want: filepath.Join("go", "path", "src", "github.com", "NeowayLabs", "nash"),
 		},
 		{
 			name: "UsesUserHomeWhenNASHROOTAndGOPATHAreUnset",
+			env: map[string]string{
+				"HOME": home(t),
+			},
 			want: filepath.Join(home(t), "nashroot"),
 		},
 	})
 }
 
-func runTests(t *testing.T,  testfunc func() (string, error), cases []EnvTest) {
+func runTests(t *testing.T, testfunc func() (string, error), cases []EnvTest) {
 
 	t.Helper()
 
@@ -74,7 +84,7 @@ func runTests(t *testing.T,  testfunc func() (string, error), cases []EnvTest) {
 		t.Run(c.name, func(t *testing.T) {
 			restore := clearenv(t)
 			defer restore()
-			
+
 			export(t, c.env)
 			got, err := testfunc()
 			if err != nil {
@@ -89,20 +99,20 @@ func runTests(t *testing.T,  testfunc func() (string, error), cases []EnvTest) {
 
 type EnvTest struct {
 	name string
-	env map[string]string
+	env  map[string]string
 	want string
 }
 
-func clearenv(t * testing.T) func() {
+func clearenv(t *testing.T) func() {
 	env := os.Environ()
 	os.Clearenv()
-	
+
 	return func() {
 		for _, envvar := range env {
 			parsed := strings.Split(envvar, "=")
 			name := parsed[0]
 			val := strings.Join(parsed[1:], "=")
-			
+
 			err := os.Setenv(name, val)
 			if err != nil {
 				t.Fatalf("error[%s] restoring env var[%s]", err, envvar)
@@ -113,7 +123,7 @@ func clearenv(t * testing.T) func() {
 
 func export(t *testing.T, env map[string]string) {
 	t.Helper()
-	
+
 	for name, val := range env {
 		err := os.Setenv(name, val)
 		if err != nil {
@@ -124,13 +134,10 @@ func export(t *testing.T, env map[string]string) {
 
 func home(t *testing.T) string {
 	t.Helper()
-	
-	usr, err := user.Current()
+
+	homedir, err := os.UserHomeDir()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if usr.HomeDir == "" {
-		t.Fatalf("current user[%v] has empty home", usr)
-	}
-	return usr.HomeDir
+	return homedir
 }
