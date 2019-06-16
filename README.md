@@ -69,18 +69,21 @@ The standard library lookup dir will be $NASHROOT/stdlib.
 
 After installing the nash binary will be located at $NASHROOT/bin.
 
-### Release
+### Installing a Release
 
 Installing is so stupid that we provide small scripts to do it.
 If your platform is not supported take a look at the existent ones
 and send a MR with the script for your platform.
 
-#### Linux
+#### Unix
+
+If you run a unix based machine (Linux, Darwin/OSX, *BSD, etc)
+you can use the script below:
 
 Run:
 
 ```
-./hack/install/linux.sh
+./hack/install/unix.sh
 ```
 
 ### Master
