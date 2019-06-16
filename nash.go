@@ -19,19 +19,33 @@ type (
 	}
 )
 
-// New creates a new `nash.Shell` instance.
-func New(nashpath string, nashroot string) (*Shell, error) {
-	interp, err := shell.NewShell(nashpath, nashroot)
+func newShell(nashpath string, nashroot string, abort bool) (*Shell, error) {
+	var (
+		nash Shell
+		err  error
+	)
 
+	if abort {
+		nash.interp, err = shell.NewAbortShell(nashpath, nashroot)
+	} else {
+		nash.interp, err = shell.NewShell(nashpath, nashroot)
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	nash := Shell{
-		interp: interp,
-	}
-
 	return &nash, nil
+}
+
+// New creates a new `nash.Shell` instance.
+func New(nashpath string, nashroot string) (*Shell, error) {
+	return newShell(nashpath, nashroot, false)
+}
+
+// NewAbort creates a new shell that aborts in case of error on initialization.
+// Useful for tests, to avoid trashing the output log.
+func NewAbort(nashpath string, nashroot string) (*Shell, error) {
+	return newShell(nashpath, nashroot, true)
 }
 
 // SetDebug enable some logging for debug purposes.

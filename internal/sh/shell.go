@@ -41,6 +41,7 @@ type (
 		name        string
 		debug       bool
 		interactive bool
+		abortOnErr  bool
 		logf        LogFn
 		nashdPath   string
 		isFn        bool
@@ -114,14 +115,22 @@ func newErrStopWalking() *errStopWalking {
 
 func (e *errStopWalking) StopWalking() bool { return true }
 
+func NewAbortShell(nashpath string, nashroot string) (*Shell, error) {
+	return newShell(nashpath, nashroot, true)
+}
+
 // NewShell creates a new shell object
 // nashpath will be used to search libraries and nashroot will be used to
 // search for the standard library shipped with the language.
 func NewShell(nashpath string, nashroot string) (*Shell, error) {
+	return newShell(nashpath, nashroot, false)
+}
 
+func newShell(nashpath string, nashroot string, abort bool) (*Shell, error) {
 	shell := &Shell{
 		name:        "parent scope",
 		interactive: false,
+		abortOnErr:  abort,
 		isFn:        false,
 		logf:        NewLog(logNS, false),
 		nashdPath:   nashdAutoDiscover(),
@@ -144,9 +153,12 @@ func NewShell(nashpath string, nashroot string) (*Shell, error) {
 	}
 
 	shell.setupSignals()
-
 	err = validateDirs(nashpath, nashroot)
 	if err != nil {
+		if shell.abortOnErr {
+			return nil, err
+		}
+
 		printerr := func(msg string) {
 			shell.Stderr().Write([]byte(msg + "\n"))
 		}
@@ -2468,6 +2480,11 @@ func validateDirs(nashpath string, nashroot string) error {
 }
 
 func validateDir(dir string) error {
+	dir, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return err
+	}
+
 	info, err := os.Stat(dir)
 	if err != nil {
 		return err
