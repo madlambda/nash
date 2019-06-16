@@ -1235,30 +1235,17 @@ func TestExecuteRedirectionPipe(t *testing.T) {
 	f, teardown := setup(t)
 	defer teardown()
 
-	cmd := exec.Command(f.nashdPath, "-c", `cat stuff >[2=] | grep file`)
+	err := f.shell.Exec("test", `cat stuff >[2=] | grep file`)
+	expectedErr := "test:1:16: exit status 1|success"
 
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-
-	expectedError := "exit status 1"
-
-	if err != nil {
-		if err.Error() != expectedError {
-			t.Errorf("Error differs: Expected '%s' but got '%s'",
-				expectedError,
-				err.Error())
-			return
-		}
+	if err == nil {
+		t.Fatalf("expected err[%s]", expectedErr)
 	}
 
-	expectedStdErr := "<interactive>:1:16: exit status 1|success"
-	strErr := strings.TrimSpace(string(stderr.Bytes()))
-
-	if strErr != expectedStdErr {
+	if err.Error() != expectedErr {
 		t.Errorf("Expected stderr to be '%s' but got '%s'",
-			expectedStdErr,
-			strErr)
+			expectedErr,
+			err.Error())
 		return
 	}
 }
@@ -2145,7 +2132,6 @@ func setup(t *testing.T) (testFixture, func()) {
 	dirs := fixture.SetupNashDirs(t)
 
 	shell, err := sh.NewShell(dirs.Path, dirs.Root)
-
 	if err != nil {
 		t.Fatal(err)
 	}
