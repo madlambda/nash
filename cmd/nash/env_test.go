@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/NeowayLabs/nash/cmd/nash"
+	main "github.com/NeowayLabs/nash/cmd/nash"
 )
 
 // TODO: No idea on how to inject failures like empty HOME folders for now
@@ -43,6 +43,7 @@ func TestLoadNASHPATH(t *testing.T) {
 }
 
 func TestLoadNASHROOT(t *testing.T) {
+	defaultNashRoot := filepath.Join(home(t), "nashroot")
 	runTests(t, main.NashRoot, []EnvTest{
 		{
 			name: "Exported",
@@ -60,11 +61,12 @@ func TestLoadNASHROOT(t *testing.T) {
 			want: filepath.Join("nashroot", "ignoredgopath"),
 		},
 		{
-			name: "UsesGOPATHIfUnset",
+			name: "UsesHOMEevenWhenGOPATHIsSet",
 			env: map[string]string{
+				"HOME":   home(t),
 				"GOPATH": filepath.Join("go", "path"),
 			},
-			want: filepath.Join("go", "path", "src", "github.com", "NeowayLabs", "nash"),
+			want: defaultNashRoot,
 		},
 		{
 			name: "UsesUserHomeWhenNASHROOTAndGOPATHAreUnset",

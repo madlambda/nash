@@ -11,8 +11,7 @@ import (
 )
 
 func TestSpecificationIsSane(t *testing.T) {
-	filename := filepath.Join(tests.Gopath, "src", "github.com",
-		"NeowayLabs", "nash", "spec.ebnf")
+	filename := filepath.Join(tests.Projectpath, "spec.ebnf")
 	content, err := ioutil.ReadFile(filename)
 	if err != nil {
 		t.Error(err)

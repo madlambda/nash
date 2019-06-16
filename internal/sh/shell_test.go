@@ -613,8 +613,7 @@ func TestExecuteCd(t *testing.T) {
 		homeEnvVar = "HOMEPATH"
 
 		// hack to use nash's pwd instead of gnu on windows
-		projectDir := filepath.Join(tests.Gopath, filepath.FromSlash(
-			"src/github.com/NeowayLabs/nash"))
+		projectDir := filepath.FromSlash(tests.Projectpath)
 		pwdDir := filepath.Join(projectDir, "stdbin", "pwd")
 		path := os.Getenv("Path")
 		defer os.Setenv("Path", path) // TODO(i4k): very unsafe
