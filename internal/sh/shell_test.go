@@ -1230,13 +1230,11 @@ func TestExecutePipe(t *testing.T) {
 }
 
 func TestExecuteRedirectionPipe(t *testing.T) {
-	var stderr bytes.Buffer
-
 	f, teardown := setup(t)
 	defer teardown()
 
 	err := f.shell.Exec("test", `cat stuff >[2=] | grep file`)
-	expectedErr := "test:1:16: exit status 1|success"
+	expectedErr := "<interactive>:1:16: exit status 1|success"
 
 	if err == nil {
 		t.Fatalf("expected err[%s]", expectedErr)
