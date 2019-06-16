@@ -77,8 +77,8 @@ and send a MR with the script for your platform.
 
 #### Unix
 
-If you ran a unix based machine (Linux, Darwin/OSX, *BSD, etc)
-you could use the script below:
+If you run a unix based machine (Linux, Darwin/OSX, *BSD, etc)
+you can use the script below:
 
 Run:
 
