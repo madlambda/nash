@@ -20,10 +20,6 @@ func NashRoot() (string, error) {
 	if ok {
 		return nashroot, nil
 	}
-	gopath, ok := os.LookupEnv("GOPATH")
-	if ok {
-		return filepath.Join(gopath, "src", "github.com", "NeowayLabs", "nash"), nil
-	}
 
 	h, err := home()
 	return filepath.Join(h, "nashroot"), err
