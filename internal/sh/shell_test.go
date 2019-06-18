@@ -36,6 +36,7 @@ type (
 		shell     *sh.Shell
 		shellOut  *bytes.Buffer
 		dir       string
+		envDirs   fixture.NashDirs
 		nashdPath string
 	}
 )
@@ -607,6 +608,11 @@ func TestExecuteCd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tmpdir, err = filepath.EvalSymlinks(tmpdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tmpdirEscaped := strings.Replace(tmpdir, "\\", "\\\\", -1)
 	homeEnvVar := "HOME"
 	if runtime.GOOS == "windows" {
@@ -1237,13 +1243,15 @@ func TestExecuteRedirectionPipe(t *testing.T) {
 	defer teardown()
 
 	cmd := exec.Command(f.nashdPath, "-c", `cat stuff >[2=] | grep file`)
-
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
+	cmd.Env = []string{
+		"PATH=" + os.Getenv("PATH"),
+		"NASHPATH=" + f.envDirs.Path,
+		"NASHROOT=" + f.envDirs.Root,
+	}
 
 	expectedError := "exit status 1"
-
+	cmd.Stderr = &stderr
+	err := cmd.Run()
 	if err != nil {
 		if err.Error() != expectedError {
 			t.Errorf("Error differs: Expected '%s' but got '%s'",
@@ -2142,11 +2150,8 @@ a()`,
 }
 
 func setup(t *testing.T) (testFixture, func()) {
-
 	dirs := fixture.SetupNashDirs(t)
-
-	shell, err := sh.NewShell(dirs.Path, dirs.Root)
-
+	shell, err := sh.NewAbortShell(dirs.Path, dirs.Root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2158,6 +2163,7 @@ func setup(t *testing.T) (testFixture, func()) {
 		shell:     shell,
 		shellOut:  &out,
 		dir:       tests.Testdir,
+		envDirs:   dirs,
 		nashdPath: tests.Nashcmd,
 	}, dirs.Cleanup
 }

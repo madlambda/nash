@@ -2,9 +2,9 @@ package nash
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
 	"testing"
-	"io/ioutil"
 
 	"github.com/NeowayLabs/nash/sh"
 	"github.com/NeowayLabs/nash/tests"
@@ -17,7 +17,7 @@ func TestExecuteFile(t *testing.T) {
 	testfile := tests.Testdir + "/ex1.sh"
 
 	var out bytes.Buffer
-	shell, cleanup := newShell(t)
+	shell, cleanup := newTestShell(t)
 	defer cleanup()
 
 	shell.SetNashdPath(tests.Nashcmd)
@@ -38,7 +38,7 @@ func TestExecuteFile(t *testing.T) {
 }
 
 func TestExecuteString(t *testing.T) {
-	shell, cleanup := newShell(t)
+	shell, cleanup := newTestShell(t)
 	defer cleanup()
 
 	var out bytes.Buffer
@@ -76,9 +76,9 @@ func TestExecuteString(t *testing.T) {
 }
 
 func TestSetvar(t *testing.T) {
-	shell,cleanup := newShell(t)
+	shell, cleanup := newTestShell(t)
 	defer cleanup()
-	
+
 	shell.Newvar("__TEST__", sh.NewStrObj("something"))
 
 	var out bytes.Buffer
@@ -104,31 +104,31 @@ func TestSetvar(t *testing.T) {
 	}
 }
 
-func newShell(t *testing.T) (*Shell, func()) {
+func newTestShell(t *testing.T) (*Shell, func()) {
 	t.Helper()
-	
+
 	nashpath, pathclean := tmpdir(t)
 	nashroot, rootclean := tmpdir(t)
-	
-	s, err := New(nashpath, nashroot)
+
+	s, err := NewAbort(nashpath, nashroot)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return s, func() {
 		pathclean()
 		rootclean()
 	}
 }
 
-
 func tmpdir(t *testing.T) (string, func()) {
 	t.Helper()
-	
+
 	dir, err := ioutil.TempDir("", "nash-tests")
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	return dir, func() {
 		err := os.RemoveAll(dir)
 		if err != nil {

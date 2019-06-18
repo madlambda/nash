@@ -1,12 +1,12 @@
 package fixture
 
 import (
-	"testing"
+	"fmt"
 	"io/ioutil"
-	"path/filepath"
 	"math/rand"
 	"os"
-	"fmt"
+	"path/filepath"
+	"testing"
 )
 
 // Tmpdir creates a temporary dir and returns a function that can be used
@@ -14,12 +14,17 @@ import (
 // call on the given testing.T.
 func Tmpdir(t *testing.T) (string, func()) {
 	t.Helper()
-	
+
 	dir, err := ioutil.TempDir("", "nash-tests")
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
+	dir, err = filepath.EvalSymlinks(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	return dir, func() {
 		err := os.RemoveAll(dir)
 		if err != nil {
@@ -32,7 +37,7 @@ func Tmpdir(t *testing.T) (string, func()) {
 // the given testing.T if something goes wrong.
 func MkdirAll(t *testing.T, nashlib string) {
 	t.Helper()
-	
+
 	err := os.MkdirAll(nashlib, os.ModePerm)
 	if err != nil {
 		t.Fatal(err)
@@ -47,14 +52,14 @@ func MkdirAll(t *testing.T, nashlib string) {
 // the filepath to its contents
 func CreateFiles(t *testing.T, filepaths []string) map[string]string {
 	t.Helper()
-	
+
 	createdFiles := map[string]string{}
-	
+
 	for _, f := range filepaths {
-		contents := CreateFile(t, f)	
+		contents := CreateFile(t, f)
 		createdFiles[f] = contents
 	}
-	
+
 	return createdFiles
 }
 
@@ -68,23 +73,23 @@ func CreateFiles(t *testing.T, filepaths []string) map[string]string {
 // Return the contents generated for the file (and that has been written on it).
 func CreateFile(t *testing.T, f string) string {
 	t.Helper()
-	
+
 	dir := filepath.Dir(f)
 	MkdirAll(t, dir)
-		
+
 	contents := fmt.Sprintf("randomContents=%d", rand.Int())
-		
+
 	err := ioutil.WriteFile(f, []byte(contents), 0644)
 	if err != nil {
 		t.Fatalf("error[%s] writing file[%s]", err, f)
 	}
-		
+
 	return contents
 }
 
 func WorkingDir(t *testing.T) string {
 	t.Helper()
-	
+
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +99,7 @@ func WorkingDir(t *testing.T) string {
 
 func ChangeDir(t *testing.T, path string) {
 	t.Helper()
-	
+
 	err := os.Chdir(path)
 	if err != nil {
 		t.Fatal(err)
@@ -103,7 +108,7 @@ func ChangeDir(t *testing.T, path string) {
 
 func Chmod(t *testing.T, path string, mode os.FileMode) {
 	t.Helper()
-	
+
 	err := os.Chmod(path, mode)
 	if err != nil {
 		t.Fatal(err)

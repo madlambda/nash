@@ -13,7 +13,6 @@ func TestBuildEnv(t *testing.T) {
 	}
 
 	penv := buildenv(env)
-
 	if len(penv) != 0 {
 		t.Errorf("Invalid env length")
 		return
@@ -81,4 +80,3 @@ func TestBuildEnv(t *testing.T) {
 		return
 	}
 }
-

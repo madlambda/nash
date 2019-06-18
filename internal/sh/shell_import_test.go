@@ -3,6 +3,7 @@ package sh_test
 import (
 	"bytes"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/NeowayLabs/nash/internal/sh"
@@ -103,7 +104,6 @@ func TestImportsLibFromWorkingDirBeforeLibAndStdlib(t *testing.T) {
 }
 
 func TestStdErrOnInvalidSearchPaths(t *testing.T) {
-
 	type testCase struct {
 		name     string
 		nashpath string
@@ -179,10 +179,16 @@ func TestStdErrOnInvalidSearchPaths(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			// TODO: find better way to test non fatal import errors
-			_, err := sh.NewShell(c.nashpath, c.nashroot)
-			if err != nil {
-				t.Fatalf("unexpected error[%s]", err)
+			_, err := sh.NewAbortShell(c.nashpath, c.nashroot)
+			if c.errmsg != "" {
+				if err == nil {
+					t.Fatalf("expected err[%s]", c.errmsg)
+				}
+				if !strings.HasPrefix(err.Error(), c.errmsg) {
+					t.Fatalf("errors mismatch: [%s] didnt contains [%s]", err, c.errmsg)
+				}
+			} else if err != nil {
+				t.Fatalf("got unexpected error[%s]", err)
 			}
 		})
 	}
