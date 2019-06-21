@@ -16,6 +16,7 @@ script:
   - go get github.com/axw/gocov/gocov
   - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
+  - mkdir $HOME/nashroot
   - make test
   - make build
   - ./cmd/nash/nash ./hack/releaser.sh testci

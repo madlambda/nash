@@ -619,8 +619,7 @@ func TestExecuteCd(t *testing.T) {
 		homeEnvVar = "HOMEPATH"
 
 		// hack to use nash's pwd instead of gnu on windows
-		projectDir := filepath.Join(tests.Gopath, filepath.FromSlash(
-			"src/github.com/NeowayLabs/nash"))
+		projectDir := filepath.FromSlash(tests.Projectpath)
 		pwdDir := filepath.Join(projectDir, "stdbin", "pwd")
 		path := os.Getenv("Path")
 		defer os.Setenv("Path", path) // TODO(i4k): very unsafe
@@ -1237,37 +1236,20 @@ func TestExecutePipe(t *testing.T) {
 }
 
 func TestExecuteRedirectionPipe(t *testing.T) {
-	var stderr bytes.Buffer
-
 	f, teardown := setup(t)
 	defer teardown()
 
-	cmd := exec.Command(f.nashdPath, "-c", `cat stuff >[2=] | grep file`)
-	cmd.Env = []string{
-		"PATH=" + os.Getenv("PATH"),
-		"NASHPATH=" + f.envDirs.Path,
-		"NASHROOT=" + f.envDirs.Root,
+	err := f.shell.Exec("test", `cat stuff >[2=] | grep file`)
+	expectedErr := "<interactive>:1:16: exit status 1|success"
+
+	if err == nil {
+		t.Fatalf("expected err[%s]", expectedErr)
 	}
 
-	expectedError := "exit status 1"
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
-		if err.Error() != expectedError {
-			t.Errorf("Error differs: Expected '%s' but got '%s'",
-				expectedError,
-				err.Error())
-			return
-		}
-	}
-
-	expectedStdErr := "<interactive>:1:16: exit status 1|success"
-	strErr := strings.TrimSpace(string(stderr.Bytes()))
-
-	if strErr != expectedStdErr {
+	if err.Error() != expectedErr {
 		t.Errorf("Expected stderr to be '%s' but got '%s'",
-			expectedStdErr,
-			strErr)
+			expectedErr,
+			err.Error())
 		return
 	}
 }
