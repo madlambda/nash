@@ -36,6 +36,7 @@ type (
 		shell     *sh.Shell
 		shellOut  *bytes.Buffer
 		dir       string
+		envDirs   fixture.NashDirs
 		nashdPath string
 	}
 )
@@ -607,6 +608,11 @@ func TestExecuteCd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tmpdir, err = filepath.EvalSymlinks(tmpdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	tmpdirEscaped := strings.Replace(tmpdir, "\\", "\\\\", -1)
 	homeEnvVar := "HOME"
 	if runtime.GOOS == "windows" {
@@ -2126,10 +2132,8 @@ a()`,
 }
 
 func setup(t *testing.T) (testFixture, func()) {
-
 	dirs := fixture.SetupNashDirs(t)
-
-	shell, err := sh.NewShell(dirs.Path, dirs.Root)
+	shell, err := sh.NewAbortShell(dirs.Path, dirs.Root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2141,6 +2145,7 @@ func setup(t *testing.T) (testFixture, func()) {
 		shell:     shell,
 		shellOut:  &out,
 		dir:       tests.Testdir,
+		envDirs:   dirs,
 		nashdPath: tests.Nashcmd,
 	}, dirs.Cleanup
 }
