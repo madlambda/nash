@@ -3,7 +3,7 @@ package ast
 import (
 	"testing"
 
-	"github.com/NeowayLabs/nash/token"
+	"github.com/madlambda/nash/token"
 )
 
 // Test API

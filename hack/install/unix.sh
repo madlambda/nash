@@ -22,6 +22,6 @@ echo "installing nash (${OS}): ${VERSION} at NASHROOT: ${NASHROOT}"
 mkdir -p $NASHROOT
 cd $NASHROOT
 tarfile="nash-${VERSION}-${OS}-${ARCH}.tar.gz"
-wget -c https://github.com/NeowayLabs/nash/releases/download/$VERSION/$tarfile
+wget -c https://github.com/madlambda/nash/releases/download/$VERSION/$tarfile
 tar xvfz $tarfile
 rm -f $tarfile

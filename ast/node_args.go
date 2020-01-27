@@ -3,8 +3,8 @@ package ast
 import (
 	"fmt"
 
-	"github.com/NeowayLabs/nash/scanner"
-	"github.com/NeowayLabs/nash/token"
+	"github.com/madlambda/nash/scanner"
+	"github.com/madlambda/nash/token"
 )
 
 // ArgFromToken is a helper to get an argument based on the lexer token

@@ -3,8 +3,8 @@ package errors
 import (
 	"fmt"
 
-	"github.com/NeowayLabs/nash/ast"
-	"github.com/NeowayLabs/nash/scanner"
+	"github.com/madlambda/nash/ast"
+	"github.com/madlambda/nash/scanner"
 )
 
 type (

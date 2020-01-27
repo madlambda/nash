@@ -3,7 +3,7 @@ package ast
 import (
 	"testing"
 
-	"github.com/NeowayLabs/nash/token"
+	"github.com/madlambda/nash/token"
 )
 
 func testPrinter(t *testing.T, node Node, expected string) {

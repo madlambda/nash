@@ -22,7 +22,7 @@ var (
 )
 
 func init() {
-	project := "github.com/NeowayLabs/nash"
+	project := "github.com/madlambda/nash"
 	wd, err := os.Getwd()
 	if err != nil {
 		panic("failed to get current directory")

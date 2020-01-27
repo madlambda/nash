@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/NeowayLabs/nash/tests"
+	"github.com/madlambda/nash/tests"
 )
 
 func TestVarAssign(t *testing.T) {

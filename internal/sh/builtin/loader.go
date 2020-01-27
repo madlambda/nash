@@ -3,7 +3,7 @@ package builtin
 import (
 	"io"
 
-	"github.com/NeowayLabs/nash/sh"
+	"github.com/madlambda/nash/sh"
 )
 
 // Fn is the contract of a built in function, that is simpler

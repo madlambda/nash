@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/NeowayLabs/nash/ast"
-	shell "github.com/NeowayLabs/nash/internal/sh"
-	"github.com/NeowayLabs/nash/sh"
+	"github.com/madlambda/nash/ast"
+	shell "github.com/madlambda/nash/internal/sh"
+	"github.com/madlambda/nash/sh"
 )
 
 type (

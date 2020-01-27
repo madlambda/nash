@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
+	"github.com/madlambda/nash/internal/sh/internal/fixture"
 )
 
 func TestSplit(t *testing.T) {
@@ -63,7 +63,7 @@ func TestSplit(t *testing.T) {
 }
 
 func TestSplitingByFuncWrongWontPanic(t *testing.T) {
-	// Regression for: https://github.com/NeowayLabs/nash/issues/177
+	// Regression for: https://github.com/madlambda/nash/issues/177
 
 	badscripts := map[string]string{
 		"noReturnValue": `

@@ -5,8 +5,8 @@ package tester
 import (
 	"testing"
 
-	"github.com/NeowayLabs/nash/tests/internal/assert"
-	"github.com/NeowayLabs/nash/tests/internal/sh"
+	"github.com/madlambda/nash/tests/internal/assert"
+	"github.com/madlambda/nash/tests/internal/sh"
 )
 
 type TestCase struct {

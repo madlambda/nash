@@ -3,7 +3,7 @@ package scanner
 import (
 	"testing"
 
-	"github.com/NeowayLabs/nash/token"
+	"github.com/madlambda/nash/token"
 )
 
 func TestLexerIssue34(t *testing.T) {

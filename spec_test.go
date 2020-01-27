@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/NeowayLabs/nash/tests"
+	"github.com/madlambda/nash/tests"
 	"golang.org/x/exp/ebnf"
 )
 

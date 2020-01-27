@@ -4,7 +4,7 @@ import (
 	"os"
 	"io/ioutil"
 	
-	"github.com/NeowayLabs/nash"
+	"github.com/madlambda/nash"
 )
 
 func Example() {

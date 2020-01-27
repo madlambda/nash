@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/NeowayLabs/nash/ast"
-	"github.com/NeowayLabs/nash/token"
+	"github.com/madlambda/nash/ast"
+	"github.com/madlambda/nash/token"
 )
 
 func parserTest(name, content string, expected *ast.Tree, t *testing.T, enableReverse bool) *ast.Tree {

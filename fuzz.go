@@ -2,7 +2,7 @@
 
 package nash
 
-import "github.com/NeowayLabs/nash/parser"
+import "github.com/madlambda/nash/parser"
 
 func Fuzz(data []byte) int {
 	p := parser.NewParser("fuzz", string(data))

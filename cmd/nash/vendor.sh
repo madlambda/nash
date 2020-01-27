@@ -24,7 +24,7 @@ fn vendor() {
 
         # because nash library is a dependency of cmd/nash
         # we need to remove it at end
-        rm -rf vendor/github.com/NeowayLabs
+        rm -rf vendor/github.com/madlambda
 }
 
 vendor()

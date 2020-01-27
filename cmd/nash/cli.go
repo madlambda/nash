@@ -7,10 +7,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/NeowayLabs/nash"
-	"github.com/NeowayLabs/nash/ast"
-	"github.com/NeowayLabs/nash/parser"
-	"github.com/NeowayLabs/nash/sh"
+	"github.com/madlambda/nash"
+	"github.com/madlambda/nash/ast"
+	"github.com/madlambda/nash/parser"
+	"github.com/madlambda/nash/sh"
 	"github.com/chzyer/readline"
 )
 

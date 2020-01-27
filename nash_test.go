@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/NeowayLabs/nash/sh"
-	"github.com/NeowayLabs/nash/tests"
+	"github.com/madlambda/nash/sh"
+	"github.com/madlambda/nash/tests"
 )
 
 // only testing the public API

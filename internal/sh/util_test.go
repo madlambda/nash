@@ -4,7 +4,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/NeowayLabs/nash/sh"
+	"github.com/madlambda/nash/sh"
 )
 
 func TestBuildEnv(t *testing.T) {

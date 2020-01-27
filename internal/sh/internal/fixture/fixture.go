@@ -4,8 +4,8 @@ import (
 	"testing"
 	"path/filepath"
 	
-	"github.com/NeowayLabs/nash"
-	"github.com/NeowayLabs/nash/internal/testing/fixture"
+	"github.com/madlambda/nash"
+	"github.com/madlambda/nash/internal/testing/fixture"
 )
 
 
