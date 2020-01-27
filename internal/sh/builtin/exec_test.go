@@ -3,7 +3,7 @@ package builtin_test
 import (
 	"testing"
 	
-	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
+	"github.com/madlambda/nash/internal/sh/internal/fixture"
 )
 
 func execSuccess(t *testing.T, scriptContents string) string {

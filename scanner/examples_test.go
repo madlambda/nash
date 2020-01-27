@@ -3,7 +3,7 @@ package scanner_test
 import (
 	"fmt"
 
-	"github.com/NeowayLabs/nash/scanner"
+	"github.com/madlambda/nash/scanner"
 )
 
 func Example() {

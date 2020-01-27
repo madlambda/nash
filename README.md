@@ -26,8 +26,8 @@
 
 # nash
 
-[![Join the chat at https://gitter.im/NeowayLabs/nash](https://badges.gitter.im/NeowayLabs/nash.svg)](https://gitter.im/NeowayLabs/nash?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![GoDoc](https://godoc.org/github.com/NeowayLabs/nash?status.svg)](https://godoc.org/github.com/NeowayLabs/nash)
-[![Build Status](https://travis-ci.org/NeowayLabs/nash.svg?branch=master)](https://travis-ci.org/NeowayLabs/nash) [![Go Report Card](https://goreportcard.com/badge/github.com/NeowayLabs/nash)](https://goreportcard.com/report/github.com/NeowayLabs/nash)
+[![Join the chat at https://gitter.im/madlambda/nash](https://badges.gitter.im/madlambda/nash.svg)](https://gitter.im/madlambda/nash?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) [![GoDoc](https://godoc.org/github.com/madlambda/nash?status.svg)](https://godoc.org/github.com/madlambda/nash)
+[![Build Status](https://travis-ci.org/madlambda/nash.svg?branch=master)](https://travis-ci.org/madlambda/nash) [![Go Report Card](https://goreportcard.com/badge/github.com/madlambda/nash)](https://goreportcard.com/report/github.com/madlambda/nash)
 
 Nash is a system shell, inspired by plan9 `rc`, that makes it easy to create reliable and safe scripts taking advantages of operating systems namespaces (on linux and plan9) in an idiomatic way.
 
@@ -35,7 +35,7 @@ Nash is a system shell, inspired by plan9 `rc`, that makes it easy to create rel
 ## Useful stuff
 
 - nashfmt: Formats nash code (like gofmt) but no code styling defined yet (see Installation section).
-- [nashcomplete](https://github.com/NeowayLabs/nashcomplete): Autocomplete done in nash script.
+- [nashcomplete](https://github.com/madlambda/nashcomplete): Autocomplete done in nash script.
 - [Dotnash](https://github.com/lborguetti/dotnash): Nash profile customizations (e.g: prompt, aliases, etc)
 - [nash-mode](https://github.com/tiago4orion/nash-mode.el): Emacs major mode integrated with `nashfmt`.
 
@@ -337,7 +337,7 @@ rfork <flags> {
 
 # OK, but how scripts should look like?
 
-See the project [nash-app-example](https://github.com/NeowayLabs/nash-app-example).
+See the project [nash-app-example](https://github.com/madlambda/nash-app-example).
 
 # Didn't work?
 
@@ -361,7 +361,7 @@ I've tested in the following environments:
 # Language specification
 
 The specification isn't complete yet, but can be found
-[here](https://github.com/NeowayLabs/nash/blob/master/spec.ebnf).
+[here](https://github.com/madlambda/nash/blob/master/spec.ebnf).
 The file `spec_test.go` makes sure it is sane.
 
 # Some Bash comparisons

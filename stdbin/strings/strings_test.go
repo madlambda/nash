@@ -8,7 +8,7 @@ import (
 	"io"
 	"testing"
 
-	strings "github.com/NeowayLabs/nash/stdbin/strings"
+	strings "github.com/madlambda/nash/stdbin/strings"
 )
 
 func TestStrings(t *testing.T) {

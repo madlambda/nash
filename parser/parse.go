@@ -6,10 +6,10 @@ import (
 
 	"strconv"
 
-	"github.com/NeowayLabs/nash/ast"
-	"github.com/NeowayLabs/nash/errors"
-	"github.com/NeowayLabs/nash/scanner"
-	"github.com/NeowayLabs/nash/token"
+	"github.com/madlambda/nash/ast"
+	"github.com/madlambda/nash/errors"
+	"github.com/madlambda/nash/scanner"
+	"github.com/madlambda/nash/token"
 )
 
 type (

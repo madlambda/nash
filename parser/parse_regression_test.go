@@ -3,8 +3,8 @@ package parser
 import (
 	"testing"
 
-	"github.com/NeowayLabs/nash/ast"
-	"github.com/NeowayLabs/nash/token"
+	"github.com/madlambda/nash/ast"
+	"github.com/madlambda/nash/token"
 )
 
 func init() {

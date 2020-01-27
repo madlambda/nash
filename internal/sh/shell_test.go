@@ -15,11 +15,11 @@ import (
 	"time"
 
 	// FIXME: depending on other sh package on the internal sh tests seems very odd
-	shtypes "github.com/NeowayLabs/nash/sh"
+	shtypes "github.com/madlambda/nash/sh"
 
-	"github.com/NeowayLabs/nash/internal/sh"
-	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
-	"github.com/NeowayLabs/nash/tests"
+	"github.com/madlambda/nash/internal/sh"
+	"github.com/madlambda/nash/internal/sh/internal/fixture"
+	"github.com/madlambda/nash/tests"
 )
 
 type (

@@ -1,6 +1,6 @@
 version: "1.0.0.{build}"
 platform: x64
-clone_folder: "c:\\gopath\\src\\github.com\\NeowayLabs\\nash"
+clone_folder: "c:\\gopath\\src\\github.com\\madlambda\\nash"
 environment: 
   GOPATH: "c:\\gopath"
 install: 

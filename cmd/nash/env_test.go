@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	main "github.com/NeowayLabs/nash/cmd/nash"
+	main "github.com/madlambda/nash/cmd/nash"
 )
 
 // TODO: No idea on how to inject failures like empty HOME folders for now

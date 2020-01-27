@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/NeowayLabs/nash/internal/sh"
-	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
+	"github.com/madlambda/nash/internal/sh"
+	"github.com/madlambda/nash/internal/sh/internal/fixture"
 )
 
 func TestImportsLibFromNashPathLibDir(t *testing.T) {

@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/NeowayLabs/nash/parser"
+	"github.com/madlambda/nash/parser"
 )
 
 var (

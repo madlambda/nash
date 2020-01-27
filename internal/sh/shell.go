@@ -15,12 +15,12 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/NeowayLabs/nash/ast"
-	"github.com/NeowayLabs/nash/errors"
-	"github.com/NeowayLabs/nash/internal/sh/builtin"
-	"github.com/NeowayLabs/nash/parser"
-	"github.com/NeowayLabs/nash/sh"
-	"github.com/NeowayLabs/nash/token"
+	"github.com/madlambda/nash/ast"
+	"github.com/madlambda/nash/errors"
+	"github.com/madlambda/nash/internal/sh/builtin"
+	"github.com/madlambda/nash/parser"
+	"github.com/madlambda/nash/sh"
+	"github.com/madlambda/nash/token"
 )
 
 const (
@@ -939,7 +939,7 @@ func (shell *Shell) getNashRootFromGOPATH(preverr error) (string, error) {
 		return "", errors.NewError("%s\nno GOPATH env var setted", preverr)
 	}
 	gopath := g.String()
-	return filepath.Join(gopath, filepath.FromSlash("/src/github.com/NeowayLabs/nash")), nil
+	return filepath.Join(gopath, filepath.FromSlash("/src/github.com/madlambda/nash")), nil
 }
 
 func isValidNashRoot(nashroot string) bool {

@@ -7,7 +7,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/NeowayLabs/nash/token"
+	"github.com/madlambda/nash/token"
 )
 
 type (

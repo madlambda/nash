@@ -5,8 +5,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/NeowayLabs/nash"
-	"github.com/NeowayLabs/nash/sh"
+	"github.com/madlambda/nash"
+	"github.com/madlambda/nash/sh"
 	"github.com/chzyer/readline"
 )
 

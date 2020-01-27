@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/NeowayLabs/nash/tests/internal/assert"
+	"github.com/madlambda/nash/tests/internal/assert"
 )
 
 // Exec runs the script code and returns the result of it.

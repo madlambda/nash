@@ -4,8 +4,8 @@
 package sh
 
 import (
-	"github.com/NeowayLabs/nash/ast"
-	"github.com/NeowayLabs/nash/errors"
+	"github.com/madlambda/nash/ast"
+	"github.com/madlambda/nash/errors"
 )
 
 func (sh *Shell) executeRfork(rfork *ast.RforkNode) error {

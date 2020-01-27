@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/NeowayLabs/nash/token"
+	"github.com/madlambda/nash/token"
 )
 
 const (

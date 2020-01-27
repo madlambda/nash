@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/NeowayLabs/nash/errors"
-	"github.com/NeowayLabs/nash/internal/sh/builtin"
-	"github.com/NeowayLabs/nash/sh"
+	"github.com/madlambda/nash/errors"
+	"github.com/madlambda/nash/internal/sh/builtin"
+	"github.com/madlambda/nash/sh"
 )
 
 type (

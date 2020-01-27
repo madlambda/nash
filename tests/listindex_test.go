@@ -3,7 +3,7 @@ package tests
 import (
 	"testing"
 
-	"github.com/NeowayLabs/nash/tests/internal/tester"
+	"github.com/madlambda/nash/tests/internal/tester"
 )
 
 func TestListIndexing(t *testing.T) {

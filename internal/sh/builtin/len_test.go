@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/NeowayLabs/nash/internal/sh/internal/fixture"
+	"github.com/madlambda/nash/internal/sh/internal/fixture"
 )
 
 func TestLen(t *testing.T) {

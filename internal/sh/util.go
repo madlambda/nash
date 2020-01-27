@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/NeowayLabs/nash/sh"
+	"github.com/madlambda/nash/sh"
 )
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")

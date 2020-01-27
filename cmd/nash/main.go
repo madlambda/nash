@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/NeowayLabs/nash"
+	"github.com/madlambda/nash"
 )
 
 var (

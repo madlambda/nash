@@ -1,7 +1,7 @@
 # Proposal: Concurrency on Nash
 
 There has been some discussion on how to provide concurrency to nash.
-There is a [discussion here](https://github.com/NeowayLabs/nash/issues/224) 
+There is a [discussion here](https://github.com/madlambda/nash/issues/224) 
 on how concurrency could be added as a set of built-in functions.
 
 As we progressed discussing it seemed desirable to have a concurrency

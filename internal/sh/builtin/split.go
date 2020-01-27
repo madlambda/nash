@@ -4,8 +4,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/NeowayLabs/nash/errors"
-	"github.com/NeowayLabs/nash/sh"
+	"github.com/madlambda/nash/errors"
+	"github.com/madlambda/nash/sh"
 )
 
 type (

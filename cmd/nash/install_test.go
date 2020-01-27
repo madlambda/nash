@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	main "github.com/NeowayLabs/nash/cmd/nash"
-	"github.com/NeowayLabs/nash/internal/testing/fixture"
+	main "github.com/madlambda/nash/cmd/nash"
+	"github.com/madlambda/nash/internal/testing/fixture"
 )
 
 // TODO: test when nashpath lib already exists and has libraries inside

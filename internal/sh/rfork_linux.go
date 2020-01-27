@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/NeowayLabs/nash/ast"
+	"github.com/madlambda/nash/ast"
 )
 
 func getProcAttrs(flags uintptr) *syscall.SysProcAttr {
