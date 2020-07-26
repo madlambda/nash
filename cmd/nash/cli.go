@@ -10,8 +10,8 @@ import (
 	"github.com/madlambda/nash"
 	"github.com/madlambda/nash/ast"
 	"github.com/madlambda/nash/parser"
+	"github.com/madlambda/nash/readline"
 	"github.com/madlambda/nash/sh"
-	"github.com/chzyer/readline"
 )
 
 type (
@@ -66,7 +66,7 @@ func importInitFile(shell *nash.Shell, initFile string) (bool, error) {
 }
 
 func loadInit(shell *nash.Shell) error {
-	
+
 	if noInit {
 		return nil
 	}

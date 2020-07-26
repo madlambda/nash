@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/madlambda/nash"
+	"github.com/madlambda/nash/readline"
 	"github.com/madlambda/nash/sh"
-	"github.com/chzyer/readline"
 )
 
 var runes = readline.Runes{}
