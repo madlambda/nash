@@ -51,8 +51,8 @@ func findProjectRoot() string {
 	//
 	// RIP GOPATH :-(
 
-	dir, err := os.Getwd()
 	separator := string(filepath.Separator)
+	dir, err := os.Getwd()
 	if err != nil {
 		panic(fmt.Sprintf("failed to get current working directory:%v", err))
 	}
