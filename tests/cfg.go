@@ -1,10 +1,10 @@
 package tests
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 )
 
 var (
@@ -22,15 +22,8 @@ var (
 )
 
 func init() {
-	project := "github.com/madlambda/nash"
-	wd, err := os.Getwd()
-	if err != nil {
-		panic("failed to get current directory")
-	}
 
-	pos := strings.Index(wd, project) + len(project)
-	Projectpath = wd[:pos]
-
+	Projectpath = findProjectRoot()
 	Testdir = filepath.Join(Projectpath, "testfiles")
 	Nashcmd = filepath.Join(Projectpath, "cmd", "nash", "nash")
 	Stdbindir = filepath.Join(Projectpath, "stdbin")
@@ -40,6 +33,58 @@ func init() {
 	}
 
 	if _, err := os.Stat(Nashcmd); err != nil {
-		panic("Please, run make build before running tests")
+		msg := fmt.Sprintf("Unable to find nash command at %q.\n", Nashcmd)
+		msg += "Please, run make build before running tests"
+		panic(msg)
 	}
+}
+
+func findProjectRoot() string {
+	// We used to use GOPATH as a way to infer the root of the
+	// project, now with Go modules this doesn't work anymore.
+	// Since module definition files only appear on the root
+	// of the project we use them instead, recursively going
+	// backwards in the file system until we find them.
+	//
+	// From: https://blog.golang.org/using-go-modules
+	// A module is a collection of Go packages stored in a file tree with a go.mod file at its root
+	//
+	// RIP GOPATH :-(
+
+	dir, err := os.Getwd()
+	separator := string(filepath.Separator)
+	if err != nil {
+		panic(fmt.Sprintf("failed to get current working directory:%v", err))
+	}
+
+	for !hasGoModFile(dir) {
+		if dir == separator {
+			// FIXME: not sure if this will work on all OS's, perhaps we need some
+			// other protection against infinite loops... or just trust go test timeout.
+			panic("reached root of file system without finding project root")
+		}
+		dir = filepath.Dir(dir)
+	}
+
+	return dir
+}
+
+func hasGoModFile(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	if !info.IsDir() {
+		return false
+	}
+
+	gomodpath := filepath.Join(path, "go.mod")
+	modinfo, err := os.Stat(gomodpath)
+	if err != nil {
+		return false
+	}
+	if modinfo.IsDir() {
+		return false
+	}
+	return true
 }
