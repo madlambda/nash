@@ -69,9 +69,7 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 		return newLine, offset
 	}
 
-	retval := ret[0]
-
-	retlist := retval.(*sh.ListObj)
+	retlist := ret[0].(*sh.ListObj)
 
 	if len(retlist.List()) != 2 {
 		return newLine, pos
