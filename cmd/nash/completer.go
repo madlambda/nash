@@ -67,8 +67,8 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	retlist := ret[0].(*sh.ListObj)
 
 	if len(retlist.List()) != 2 {
-		fmt.Fprintf(os.Stderr, "%s:ignoring unexpected autocomplete func return (expected list with len 2):%+v\n", op, ret)
-		return nil, 0
+		c.Log(op, "no results from autocomplete")
+		return nil, pos
 	}
 
 	newline := retlist.List()[0]
