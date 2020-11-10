@@ -53,6 +53,10 @@ func (nash *Shell) SetDebug(b bool) {
 	nash.interp.SetDebug(b)
 }
 
+func (nash *Shell) Log(fmt string, args ...interface{}) {
+	nash.interp.Log(fmt, args...)
+}
+
 // SetInteractive enables interactive (shell) mode.
 func (nash *Shell) SetInteractive(b bool) {
 	nash.interp.SetInteractive(b)

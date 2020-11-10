@@ -23,27 +23,24 @@ func NewCompleter(op *readline.Operation, term *readline.Terminal, sh *nash.Shel
 }
 
 func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
-	var (
-		newLine [][]rune
-		offset  int
-		lineArg = sh.NewStrObj(string(line))
-		posArg  = sh.NewStrObj(strconv.Itoa(pos))
-	)
+	const op = "Completer.Do"
 
 	defer c.op.Refresh()
 	defer c.term.PauseRead(false)
 
 	fnDef, err := c.sh.GetFn("nash_complete")
 	if err != nil {
-		// no complete available
-		return [][]rune{[]rune{'\t'}}, offset
+		c.Log(op, "skipping autocompletion")
+		return [][]rune{[]rune{'\t'}}, 0
 	}
 
 	nashFunc := fnDef.Build()
+	lineArg := sh.NewStrObj(string(line))
+	posArg := sh.NewStrObj(strconv.Itoa(pos))
 	err = nashFunc.SetArgs([]sh.Obj{lineArg, posArg})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
-		return newLine, offset
+		fmt.Fprintf(os.Stderr, "%s:error setting args on autocomplete function:%v\n", op, err)
+		return nil, 0
 	}
 
 	nashFunc.SetStdin(c.sh.Stdin())
@@ -51,49 +48,53 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	nashFunc.SetStderr(c.sh.Stderr())
 
 	if err = nashFunc.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
-		return newLine, offset
+		fmt.Fprintf(os.Stderr, "%s:error starting autocomplete function:%v\n", op, err)
+		return nil, 0
 	}
 
 	if err = nashFunc.Wait(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
-		return newLine, offset
+		fmt.Fprintf(os.Stderr, "%s:error waiting for autocomplete function:%v\n", op, err)
+		return nil, 0
 	}
 
 	ret := nashFunc.Results()
 
 	if len(ret) != 1 || ret[0].Type() != sh.ListType {
-		fmt.Fprintf(os.Stderr, "ignoring autocomplete value: %v\n", ret)
-		return newLine, offset
+		fmt.Fprintf(os.Stderr, "%s:ignoring unexpected autocomplete func return (expected list):%+v\n", op, ret)
+		return nil, 0
 	}
 
-	retval := ret[0]
-
-	retlist := retval.(*sh.ListObj)
+	retlist := ret[0].(*sh.ListObj)
 
 	if len(retlist.List()) != 2 {
-		return newLine, pos
+		c.Log(op, "no results from autocomplete")
+		return nil, pos
 	}
 
 	newline := retlist.List()[0]
 	newpos := retlist.List()[1]
 
 	if newline.Type() != sh.StringType || newpos.Type() != sh.StringType {
-		fmt.Fprintf(os.Stderr, "ignoring autocomplete value: (%s) (%s)\n", newline, newpos)
-		return newLine, offset
+		fmt.Fprintf(os.Stderr, "%s:ignoring autocomplete value:(%s) (%s)\n", op, newline, newpos)
+		return nil, 0
 	}
 
 	objline := newline.(*sh.StrObj)
 	objpos := newpos.(*sh.StrObj)
 
-	newoffset, err := strconv.Atoi(objpos.Str())
+	c.Log(op, "autocomplete result:line %q:pos %q", objline, objpos)
+
+	offset, err := strconv.Atoi(objpos.Str())
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
-		return newLine, offset
+		fmt.Fprintf(os.Stderr, "%s:autocomplete func returned non number position:%v\n", op, err)
+		return nil, 0
 	}
 
-	newLine = append(newLine, []rune(objline.Str()))
+	c.Log(op, "success:line %q:offset %d", objline, offset)
+	return [][]rune{[]rune(objline.Str())}, offset
+}
 
-	return newLine, newoffset
+func (c *Completer) Log(op string, format string, args ...interface{}) {
+	c.sh.Log(op+":"+format, args...)
 }
