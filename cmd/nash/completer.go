@@ -68,7 +68,7 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 
 	if len(retlist.List()) != 2 {
 		fmt.Fprintf(os.Stderr, "%s:ignoring unexpected autocomplete func return (expected list with len 2):%+v\n", op, ret)
-		return nil, pos
+		return nil, 0
 	}
 
 	newline := retlist.List()[0]
@@ -91,6 +91,7 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 		return nil, 0
 	}
 
+	c.Log(op, "success:line %q:offset %d", objline, offset)
 	return [][]rune{[]rune(objline.Str())}, offset
 }
 
