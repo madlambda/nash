@@ -263,6 +263,10 @@ func (shell *Shell) SetDebug(d bool) {
 	shell.logf = NewLog(logNS, d)
 }
 
+func (shell *Shell) Log(format string, args ...interface{}) {
+	shell.logf(format, args...)
+}
+
 // SetInteractive enable/disable shell interactive mode
 func (shell *Shell) SetInteractive(i bool) {
 	shell.interactive = i

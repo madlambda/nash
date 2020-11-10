@@ -23,6 +23,8 @@ func NewCompleter(op *readline.Operation, term *readline.Terminal, sh *nash.Shel
 }
 
 func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
+	const op = "Completer.Do"
+
 	var (
 		newLine [][]rune
 		offset  int
@@ -35,14 +37,14 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 
 	fnDef, err := c.sh.GetFn("nash_complete")
 	if err != nil {
-		// no complete available
+		c.sh.Log(op, "skipping autocompletion")
 		return [][]rune{[]rune{'\t'}}, offset
 	}
 
 	nashFunc := fnDef.Build()
 	err = nashFunc.SetArgs([]sh.Obj{lineArg, posArg})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "%s: error setting args on autocomplete function: %v\n", op, err)
 		return newLine, offset
 	}
 
@@ -51,19 +53,19 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	nashFunc.SetStderr(c.sh.Stderr())
 
 	if err = nashFunc.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "%s: error starting autocomplete function: %v\n", op, err)
 		return newLine, offset
 	}
 
 	if err = nashFunc.Wait(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to autocomplete: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "%s: error waiting for autocomplete function: %v\n", op, err)
 		return newLine, offset
 	}
 
 	ret := nashFunc.Results()
 
 	if len(ret) != 1 || ret[0].Type() != sh.ListType {
-		fmt.Fprintf(os.Stderr, "ignoring autocomplete value: %v\n", ret)
+		fmt.Fprintf(os.Stderr, "%s: ignoring unexpected autocomplete value: %+v\n", op, ret)
 		return newLine, offset
 	}
 
@@ -96,4 +98,8 @@ func (c *Completer) Do(line []rune, pos int) ([][]rune, int) {
 	newLine = append(newLine, []rune(objline.Str()))
 
 	return newLine, newoffset
+}
+
+func (c *Completer) Log(op string, format string, args ...interface{}) {
+	c.sh.Log(op+":"+format, args...)
 }
