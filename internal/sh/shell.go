@@ -263,6 +263,13 @@ func (shell *Shell) SetDebug(d bool) {
 	shell.logf = NewLog(logNS, d)
 }
 
+func (shell *Shell) Log(format string, args ...interface{}) {
+	shell.logf(format, args...)
+	// WHY: not using fmt.Sprintf to avoid formatting operation if
+	// logging is disabled, but we always want newlines on the log calls.
+	shell.logf("\n")
+}
+
 // SetInteractive enable/disable shell interactive mode
 func (shell *Shell) SetInteractive(i bool) {
 	shell.interactive = i
