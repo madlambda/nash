@@ -1,0 +1,182 @@
+// Formal specification of nash language using ohm PEG
+// For informations about ohm syntax visit the site below:
+// https://github.com/harc/ohm
+
+// There's an interactive Nash's grammar visualizer at:
+// https://ohmlang.github.io/editor/#fca725147857c09bb442be1ce03048e0
+
+// Note: Nash has automatic semicolon insertion, but this isn't defined here
+// to not complicate the grammar spec.
+
+// TODO: rfork, cmd redirections, pipes, import, string-concat
+
+Nash {
+	Block
+		=	Statement*
+	
+	Body
+		= "{" Block "}"
+	
+	comment
+		= "#" everythingNoNL*
+	
+	Comment
+		= comment
+
+	// Syntatic rules named *Internal are only created to code reuse
+	// They're not nash syntax per-se.
+	
+	VarStmt (a variable declaration)
+		= "var" AssignInternal stmtEnd
+	
+	AssignStmt (an assignment declaration)
+		= AssignInternal stmtEnd
+	
+	MultipleAssignStmt
+		= MultipleAssignInternal stmtEnd
+	
+	MultipleAssign2Stmt
+		= MultipleAssign2Internal stmtEnd
+	
+	AssignInternal
+		 = SingleAssign | MultipleAssignInternal | MultipleAssign2Internal
+	
+	SingleAssign
+		= ident (ValueAssign | ExecAssign)
+
+	ValueAssign
+		= "=" VRHS
+
+	VRHS (a value right-hand-side)
+		= Literal | Variable
+	
+	ExecAssign
+		= "<=" ExecExpr
+
+	// a, b, c = ...
+	// out, err, status <= 
+	MultipleAssignInternal (a multiple variables assignment)
+		= MLHS (MultipleValueAssignInternal | ExecAssign)
+
+	// a, b, c
+	MLHS (a multiple left hand side)
+		= NonemptyListOf<ident, ",">
+	
+	MultipleAssign2Internal (a list of assignments)
+		= "(" NonemptyListOf<SingleAssign, ","> ","? ")"
+	
+	MultipleValueAssignInternal
+		= "=" MVRHS
+	
+	// "1", "2", (), ("test")
+	MVRHS 
+		= NonemptyListOf<VRHS, ","> ","?
+
+	// ls $path;
+	// ls /etc;
+	CmdStmt (a command statement)
+		= CmdExpr stmtEnd
+	
+	CmdExpr
+		= Program ~"(" (Arg|Variable)*
+	
+	// An executable expression is a command or function call
+	// echo "hello"
+	// deploy()
+	ExecExpr (an executable expression)
+		= CmdExpr | FuncallExpr
+	
+	FuncallStmt (a function call)
+		= FuncallExpr stmtEnd
+	
+	FuncallExpr
+		= ident "(" ListOf<Expr, ","> ")"
+	
+	// for {}
+	// for i in $lst {}
+	ForStmt (a for statement)
+		= "for" ForClause? Body
+	
+	ForClause
+		= ident "in" Variable
+	
+	IfStmt (an if statement)
+		= "if" Condition Body ElseStmt?
+	
+	ElseStmt
+		= "else" Body
+	
+	Condition
+		= Expr logicalOp Expr
+	
+	SetenvStmt 
+		= "setenv" AssignInternal stmtEnd
+	
+	Expr (an expression)
+		= Variable | Literal | FuncallExpr
+	 
+	logicalOp (a logical operator)
+		= "==" | "!="
+	
+	Indexing
+		= "[" (integer|Variable) "]"
+	
+	// $a
+	// $a[0]
+	// $a[$b]
+	Variable
+		= "$" ident Indexing?
+	
+	// A program cannot have a keyword name
+	Program (a program)
+		= ~keywords (ident | Arg)
+	
+	Arg (an argument)
+		= string | argLiteral
+	
+	// /usr/home/ken
+	// C:\Users\Bill
+	argLiteral 
+		= (alnum|pathSeparator|":"|"-")+
+		
+	ident  (an identifier)
+		= ( letter | "_" ) (alnum | "_")*
+	
+	pathSeparator (a path separator)
+		= "/" | "\\"
+	
+	lineTerminator (a line terminator)
+		= "\n" | "\r" | "\u2028" | "\u2029" | "\r\n"
+	
+	stmtEnd (end of statement)
+		= end|";"
+	
+	// TODO: This list is not complete
+	// TODO: How to use the ~ lookhead to solve this?
+	string 
+		= "\"" (alnum|blank|"\\"|"-"|":"|"/"|".")* "\""
+
+	integer  (a number)
+		= digit+
+		  
+	Literal (a literal)
+		= string | ListStmt 
+		
+	ListStmt
+		= "(" Literal* ")"
+	
+	blank 
+		= " " | "\t" | "\n" | "\r"
+	
+	// TODO: get rid of this
+	everythingNoNL
+		= (alnum|"_"|"!"|"@"|"#"|"$"|"%"|"¨"|"&"|"*"|"("|")"|"_"|"-"|"+"|"="|
+			"`"|"´"|"["|"{"|"^"|"~"|"]"|"}"|"<"|">"|":"|"?"|"/"|";"|"."|","|"\\"|
+			"|"|"'"|"\""|" ")
+	keywords 
+		= "for" | "var" | "in" | "setenv" | "if" | "rfork" | "import"
+	
+	Statement = (comment | VarStmt | AssignStmt | CmdStmt | FuncallStmt | ForStmt |
+					IfStmt | SetenvStmt)
+
+}
